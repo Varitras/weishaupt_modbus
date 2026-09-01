@@ -36,8 +36,8 @@ LINE_LIMIT = 900
 # test_item_register.py holds the two copies equal; until they are merged,
 # both are allowed to weigh what they weigh today.
 LINE_BUDGETS = {
-    "hpconst.py": 1713,
-    "weishaupt_modbus_api/hpconst.py": 1721,
+    "hpconst.py": 1592,
+    "weishaupt_modbus_api/hpconst.py": 1600,
 }
 
 # SonarSource's own default. Above it, a function is one somebody has to
@@ -48,8 +48,8 @@ COMPLEXITY_LIMIT = 15
 # adoption - the point of the guard is that nothing gets worse and every
 # improvement is written down.
 COMPLEXITY_BUDGETS = {
-    "coordinator.py::MyWebIfCoordinator._async_update_data": 23,
-    "entities.py::MyEntity.__init__": 23,
+    # 23 before the web-interface branch of the unique id left.
+    "entities.py::MyEntity.__init__": 19,
     # 30 before the TypeError handler for an absent operand - one branch,
     # and the one that keeps the entity alive.
     "entities.py::MyCalcSensorEntity.translate_val": 31,

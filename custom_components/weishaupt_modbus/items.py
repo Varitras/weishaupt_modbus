@@ -72,7 +72,7 @@ class StatusItem:
 class ApiItem:
     """Class ApiIem item.
 
-    This can either be a ModbusItem or a WebifItem
+    The common part of a ModbusItem.
     """
 
     _name: str = "empty"
@@ -231,70 +231,6 @@ class ApiItem:
             if val == item.translation_key:
                 return item.number
         return None
-
-
-class WebItem(ApiItem):
-    """Represents an WebItem.
-
-    Used for generating entities.
-    """
-
-    def __init__(
-        self,
-        name: str,
-        mformat: str,
-        mtype: str,
-        device: str,
-        webif_group: str,
-        translation_key: str | None = None,
-        resultlist: Any = None,
-        params: dict[str, str] | None = None,
-    ) -> None:
-        """WebifItem is used to generate sensors for an Web interface value.
-
-        Args:
-            name: Name of the entity.
-            mformat: Format of the entity.
-            mtype: Type of the entity.
-            device: Device the entity belongs to.
-            webif_group: Group of entities this one should be fetched with.
-            translation_key: Translation key of the entity. Defaults to None.
-            resultlist: Result list of the entity. Defaults to None.
-            params: Additional parameters for the entity. Defaults to None.
-
-        """
-        super().__init__(
-            name=name,
-            mformat=mformat,
-            mtype=mtype,
-            device=device,
-            translation_key=translation_key,
-            resultlist=resultlist,
-            params=params,
-        )
-        self._webif_group: str = webif_group
-
-    @property
-    def webif_group(self) -> str:
-        """Return webif_group."""
-        return self._webif_group
-
-    @webif_group.setter
-    def webif_group(self, val: str) -> None:
-        """Set webif_group."""
-        self._webif_group = val
-
-    def get_value(self, val: str | None) -> str | None:
-        """Get the value based on the format."""
-        if val is None:
-            return None
-        if self._format in [
-            FORMATS.TEMPERATURE,
-            FORMATS.PERCENTAGE,
-            FORMATS.NUMBER,
-        ]:
-            return val.split(" ", maxsplit=1)[0]
-        return val
 
 
 class ModbusItem(ApiItem):

@@ -36,7 +36,6 @@ BASE_DATA = {
     CONF.HK5: False,
     CONF.NAME_DEVICE_PREFIX: False,
     CONF.NAME_TOPIC_PREFIX: False,
-    CONF.CB_WEBIF: False,
 }
 
 
@@ -70,7 +69,7 @@ def fake_modbus(monkeypatch):
     return disconnected
 
 
-def _entry(hass, data=None, version=8):
+def _entry(hass, data=None, version=9):
     entry = MockConfigEntry(
         domain=CONST.DOMAIN, title="pump", data=data or BASE_DATA, version=version
     )
@@ -122,7 +121,7 @@ async def test_an_old_entry_migrates_to_the_current_version(hass):
 
     await _setup(hass, entry)
 
-    assert entry.version == 8
+    assert entry.version == 9
     for key in (
         CONF.PREFIX,
         CONF.DEVICE_POSTFIX,
@@ -131,13 +130,50 @@ async def test_an_old_entry_migrates_to_the_current_version(hass):
         CONF.HK5,
         CONF.NAME_DEVICE_PREFIX,
         CONF.NAME_TOPIC_PREFIX,
-        CONF.CB_WEBIF,
-        CONF.CB_WEBIF_HK1,
-        CONF.CB_WEBIF_SATISTICS,
     ):
         assert key in entry.data, f"migration left {key!r} out"
-    assert entry.data[CONF.CB_WEBIF] is False
     assert entry.state is ConfigEntryState.LOADED
+
+
+async def test_a_web_interface_entry_is_stripped_of_its_settings_and_entities(hass):
+    """Versions 5 to 8 stored web-interface credentials and switches in the
+    entry and registered web-interface sensors. Version 9 takes both out, so
+    a password does not stay on disk and no orphaned entity lingers."""
+    legacy = {
+        **BASE_DATA,
+        "enable-webif": True,
+        "username": "user",
+        "password": "secret",
+        "Web-IF-Token": "token",
+        "Poll Heizkreis 1": True,
+    }
+    entry = _entry(hass, data=legacy, version=8)
+    registry = er.async_get(hass)
+    registry.async_get_or_create(
+        "sensor",
+        CONST.DOMAIN,
+        "webif_info_waermepumpe_betrieb",
+        config_entry=entry,
+    )
+
+    await _setup(hass, entry)
+
+    assert entry.version == 9
+    for key in (
+        "enable-webif",
+        "username",
+        "password",
+        "Web-IF-Token",
+        "Poll Heizkreis 1",
+    ):
+        assert key not in entry.data, f"{key!r} survived the migration"
+    assert entry.data[CONF.HOST] == BASE_DATA[CONF.HOST]
+    assert (
+        registry.async_get_entity_id(
+            "sensor", CONST.DOMAIN, "webif_info_waermepumpe_betrieb"
+        )
+        is None
+    ), "the web-interface entity was left in the registry"
 
 
 async def test_a_pump_that_refuses_the_first_connection_retries_later(

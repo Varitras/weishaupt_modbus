@@ -3,13 +3,7 @@
 from dataclasses import dataclass
 from datetime import timedelta
 
-from homeassistant.const import (
-    CONF_HOST,
-    CONF_PASSWORD,
-    CONF_PORT,
-    CONF_PREFIX,
-    CONF_USERNAME,
-)
+from homeassistant.const import CONF_HOST, CONF_PORT, CONF_PREFIX
 
 
 @dataclass(frozen=True)
@@ -27,19 +21,6 @@ class ConfConstants:
     HK5: str = "Heizkreis 5"
     NAME_DEVICE_PREFIX: str = "Name-Device-Prefix"
     NAME_TOPIC_PREFIX: str = "Name-Topic-Prefix"
-    CB_WEBIF: str = "enable-webif"
-    PASSWORD: str = CONF_PASSWORD
-    USERNAME: str = CONF_USERNAME
-    WEBIF_TOKEN: str = "Web-IF-Token"
-    CB_WEBIF_MOCKUP_DATA: str = "Use-Mockup-Data"
-    CB_WEBIF_HK1: str = "Poll Heizkreis 1"
-    CB_WEBIF_HK2: str = "Poll Heizkreis 2"
-    CB_WEBIF_HK3: str = "Poll Heizkreis 3"
-    CB_WEBIF_HK4: str = "Poll Heizkreis 4"
-    CB_WEBIF_HK5: str = "Poll Heizkreis 5"
-    CB_WEBIF_WP: str = "Poll Wärmepumpe"
-    CB_WEBIF_2WEZ: str = "Poll 2. Wärmeerzeuger"
-    CB_WEBIF_SATISTICS: str = "Poll Statistik"
 
 
 CONF = ConfConstants()
@@ -105,10 +86,6 @@ class DeviceConstants:
     ST: str = "dev_statistik"
     UK: str = "dev_unknown"
     IO: str = "dev_ein_aus"
-    WIH: str = "Webif Info Heizkreis"
-    WIW: str = "Webif Info Wärmepumpe"
-    WI2W: str = "Webif 2. Wärmeerzeuger"
-    WIS: str = "Webif Statistik"
 
 
 DEVICES = DeviceConstants()

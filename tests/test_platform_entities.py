@@ -2,11 +2,11 @@
 
 `build_entity_list` in entity_helpers.py is the single place that decides
 which ModbusItem becomes which entity class. The sensor platform once built
-its Modbus and WebIF lists into one and registered them together, so an error
-in the optional WebIF part silently dropped every Modbus sensor (issue #172).
-The cure was one helper and one call per platform - and it would be easy to
-write the old loop again in a fourth platform, or back into one of these, with
-nothing about the result looking wrong.
+its list together with a second, optional source and registered both at
+once, so an error in the optional part silently dropped every Modbus sensor
+(issue #172). The cure was one helper and one call per platform - and it
+would be easy to write the old loop again in a fourth platform, or back into
+one of these, with nothing about the result looking wrong.
 
 Driven off PLATFORMS rather than a list written out here, so a platform added
 later is covered without anyone remembering to come back.

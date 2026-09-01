@@ -1,12 +1,9 @@
-"""The two coordinators: what reaches the entities, and in which order.
+"""The coordinator: what reaches the entities.
 
-The Modbus coordinator maps the client's register cache onto the item list;
-the WebIF coordinator polls one category per cycle behind the lock the Modbus
-client shares. Both are driven with a real Home Assistant core (the `hass`
-fixture) and fake transports.
+It maps the client's register cache onto the item list. Driven with a real
+Home Assistant core (the `hass` fixture) and a fake client.
 """
 
-import asyncio
 from types import SimpleNamespace
 
 import pytest
@@ -14,7 +11,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.weishaupt_modbus.const import CONF, CONST, DEVICES, TYPES
 from custom_components.weishaupt_modbus.coordinator import (
-    MyWebIfCoordinator,
     WeishauptModbusCoordinator,
     check_configured,
 )
@@ -39,12 +35,6 @@ def _entry(hass, **overrides):
         CONF.HK3: False,
         CONF.HK4: False,
         CONF.HK5: False,
-        CONF.CB_WEBIF_HK1: False,
-        CONF.CB_WEBIF_HK2: False,
-        CONF.CB_WEBIF_WP: False,
-        CONF.CB_WEBIF_2WEZ: False,
-        CONF.CB_WEBIF_SATISTICS: False,
-        CONF.CB_WEBIF_MOCKUP_DATA: False,
     }
     data.update(overrides)
     entry = MockConfigEntry(domain=CONST.DOMAIN, data=data)
@@ -172,94 +162,3 @@ async def test_check_configured_follows_the_circuit_switches(
     entry = SimpleNamespace(data={key: enabled})
 
     assert await check_configured(item, entry) is expected
-
-
-# --- WebIF ----------------------------------------------------------------
-
-
-class FakeWebIf:
-    _request_delay = 0
-
-    def __init__(self):
-        self.polled: list = []
-        self.lock = None
-        self.locked_during_poll: list = []
-
-    async def update_all(self, categories):
-        self.polled.append(list(categories))
-        if self.lock is not None:
-            self.locked_during_poll.append(self.lock.locked())
-        return {category: {f"{category} value": 1} for category in categories}
-
-
-def _webif_coordinator(hass, entry, api, lock=None):
-    token = config_entries.current_entry.set(entry)
-    try:
-        return MyWebIfCoordinator(
-            hass=hass,
-            my_api=api,
-            api_items=[],
-            config_entry=entry,
-            mcu_lock=lock or asyncio.Lock(),
-        )
-    finally:
-        config_entries.current_entry.reset(token)
-
-
-async def test_round_robin_advances_one_category_per_cycle(hass):
-    entry = _entry(hass, **{CONF.CB_WEBIF_HK1: True, CONF.CB_WEBIF_WP: True})
-    api = FakeWebIf()
-    coordinator = _webif_coordinator(hass, entry, api)
-
-    for _ in range(3):
-        await coordinator._async_update_data()
-
-    assert api.polled == [["Heizkreis1"], ["Waermepumpe"], ["Heizkreis1"]]
-
-
-async def test_polled_values_accumulate_across_cycles(hass):
-    entry = _entry(hass, **{CONF.CB_WEBIF_HK1: True, CONF.CB_WEBIF_WP: True})
-    coordinator = _webif_coordinator(hass, entry, FakeWebIf())
-
-    await coordinator._async_update_data()
-    data = await coordinator._async_update_data()
-
-    assert data["Heizkreis1 value"] == 1
-    assert data["Waermepumpe value"] == 1
-
-
-async def test_nothing_is_polled_when_no_category_is_enabled(hass):
-    entry = _entry(hass)
-    api = FakeWebIf()
-    coordinator = _webif_coordinator(hass, entry, api)
-
-    await coordinator._async_update_data()
-
-    assert api.polled == []
-
-
-async def test_the_poll_holds_the_lock_shared_with_modbus(hass):
-    """Modbus and WebIF talk to the same controller; overlapping requests are
-    how its transaction ids desync."""
-    entry = _entry(hass, **{CONF.CB_WEBIF_HK1: True})
-    lock = asyncio.Lock()
-    api = FakeWebIf()
-    api.lock = lock
-    coordinator = _webif_coordinator(hass, entry, api, lock)
-
-    await coordinator._async_update_data()
-
-    assert api.locked_during_poll == [True]
-
-
-async def test_a_timeout_is_update_failed(hass):
-    entry = _entry(hass, **{CONF.CB_WEBIF_HK1: True})
-
-    class Hanging(FakeWebIf):
-        async def update_all(self, categories):
-            raise TimeoutError
-
-    coordinator = _webif_coordinator(hass, entry, Hanging())
-
-    with pytest.raises(UpdateFailed):
-        await coordinator._async_update_data()

@@ -40,7 +40,7 @@ async def validate_input(data: dict[str, Any]) -> dict[str, Any]:
 class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: disable=abstract-method
     """Class config flow."""
 
-    VERSION = 8
+    VERSION = 9
     MINOR_VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_PUSH
 
@@ -59,12 +59,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
             try:
                 await validate_input(user_input)
                 self._stored_data.update(user_input)
-
-                # Check if we need to progress to Page 2 (Web Interface)
-                if user_input.get(CONF.CB_WEBIF):
-                    return await self.async_step_webif()
-
-                # Otherwise, complete configuration immediately
                 return self.async_create_entry(
                     title=self._stored_data[CONF.HOST], data=self._stored_data
                 )
@@ -123,93 +117,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                     schema=CONF.NAME_TOPIC_PREFIX,
                     default=self._stored_data.get(CONF.NAME_TOPIC_PREFIX, False),
                 ): bool,
-                vol.Optional(
-                    schema=CONF.CB_WEBIF,
-                    default=self._stored_data.get(CONF.CB_WEBIF, False),
-                ): bool,
             }
         )
 
         return self.async_show_form(
             step_id="user", data_schema=schema_page1, errors=errors
-        )
-
-    async def async_step_webif(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.ConfigFlowResult:
-        """Step 2: Experimental Web Interface setup."""
-        errors: dict[str, str] = {}
-
-        if user_input is not None:
-            self._stored_data.update(user_input)
-
-            # If we are in a reconfigure flow, finalize the updates
-            if self._reconfigure_entry:
-                return self.async_update_and_abort(
-                    entry=self._reconfigure_entry, data=self._stored_data
-                )
-
-            # Standard creation path
-            return self.async_create_entry(
-                title=self._stored_data[CONF.HOST], data=self._stored_data
-            )
-
-        # Define Schema for Page 2
-        schema_page2 = vol.Schema(
-            schema={
-                vol.Optional(
-                    schema=CONF.CB_WEBIF_MOCKUP_DATA,
-                    default=self._stored_data.get(CONF.CB_WEBIF_MOCKUP_DATA, False),
-                ): bool,
-                vol.Optional(
-                    schema=CONF.USERNAME,
-                    default=self._stored_data.get(CONF.USERNAME, ""),
-                ): str,
-                vol.Optional(
-                    schema=CONF.PASSWORD,
-                    default=self._stored_data.get(CONF.PASSWORD, ""),
-                ): str,
-                vol.Optional(
-                    schema=CONF.WEBIF_TOKEN,
-                    default=self._stored_data.get(CONF.WEBIF_TOKEN, ""),
-                ): str,
-                vol.Optional(
-                    schema=CONF.CB_WEBIF_HK1,
-                    default=self._stored_data.get(CONF.CB_WEBIF_HK1, False),
-                ): bool,
-                vol.Optional(
-                    schema=CONF.CB_WEBIF_HK2,
-                    default=self._stored_data.get(CONF.CB_WEBIF_HK2, False),
-                ): bool,
-                vol.Optional(
-                    schema=CONF.CB_WEBIF_HK3,
-                    default=self._stored_data.get(CONF.CB_WEBIF_HK3, False),
-                ): bool,
-                vol.Optional(
-                    schema=CONF.CB_WEBIF_HK4,
-                    default=self._stored_data.get(CONF.CB_WEBIF_HK4, False),
-                ): bool,
-                vol.Optional(
-                    schema=CONF.CB_WEBIF_HK5,
-                    default=self._stored_data.get(CONF.CB_WEBIF_HK5, False),
-                ): bool,
-                vol.Optional(
-                    schema=CONF.CB_WEBIF_WP,
-                    default=self._stored_data.get(CONF.CB_WEBIF_WP, False),
-                ): bool,
-                vol.Optional(
-                    schema=CONF.CB_WEBIF_2WEZ,
-                    default=self._stored_data.get(CONF.CB_WEBIF_2WEZ, False),
-                ): bool,
-                vol.Optional(
-                    schema=CONF.CB_WEBIF_SATISTICS,
-                    default=self._stored_data.get(CONF.CB_WEBIF_SATISTICS, False),
-                ): bool,
-            }
-        )
-
-        return self.async_show_form(
-            step_id="webif", data_schema=schema_page2, errors=errors
         )
 
     async def async_step_reconfigure(
@@ -227,28 +139,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
             try:
                 await validate_input(user_input)
                 self._stored_data.update(user_input)
-
-                # Route to WebIF step if it was activated (or kept active)
-                if user_input.get(CONF.CB_WEBIF):
-                    return await self.async_step_webif()
-
-                # If CB_WEBIF is false, clear any stale webif settings from stored data
-                for key in [
-                    CONF.CB_WEBIF_MOCKUP_DATA,
-                    CONF.USERNAME,
-                    CONF.PASSWORD,
-                    CONF.WEBIF_TOKEN,
-                    CONF.CB_WEBIF_HK1,
-                    CONF.CB_WEBIF_HK2,
-                    CONF.CB_WEBIF_HK3,
-                    CONF.CB_WEBIF_HK4,
-                    CONF.CB_WEBIF_HK5,
-                    CONF.CB_WEBIF_WP,
-                    CONF.CB_WEBIF_2WEZ,
-                    CONF.CB_WEBIF_SATISTICS,
-                ]:
-                    self._stored_data.pop(key, None)
-
                 return self.async_update_and_abort(
                     entry=self._reconfigure_entry, data=self._stored_data
                 )
@@ -303,10 +193,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 vol.Optional(
                     schema=CONF.NAME_TOPIC_PREFIX,
                     default=self._stored_data.get(CONF.NAME_TOPIC_PREFIX, False),
-                ): bool,
-                vol.Optional(
-                    schema=CONF.CB_WEBIF,
-                    default=self._stored_data.get(CONF.CB_WEBIF, False),
                 ): bool,
             }
         )

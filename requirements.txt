@@ -6,5 +6,4 @@ pymodbus>=3.10.0
 aiofiles>=24.1.0
 beautifulsoup4>=4.13.3
 httpx
-weishaupt-webif-api>=0.1.4
 pygal==3.1.3

@@ -9,7 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 if TYPE_CHECKING:
-    from .coordinator import MyCoordinator, MyWebIfCoordinator
+    from .coordinator import WeishauptModbusCoordinator
 
 
 @dataclass
@@ -17,11 +17,9 @@ class MyData:
     """My config data."""
 
     modbus_api: Any
-    webif_api: Any
     config_dir: str
     hass: HomeAssistant
-    coordinator: MyCoordinator
-    webif_coordinator: MyWebIfCoordinator | None
+    coordinator: WeishauptModbusCoordinator
     powermap: Any
 
 

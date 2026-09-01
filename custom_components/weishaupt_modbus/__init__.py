@@ -1,17 +1,15 @@
 """Home Assistant integration initialization."""
 
-import asyncio
 import copy
 import logging
 from typing import TYPE_CHECKING
-
-from weishaupt_webif_api import WebifConnection
 
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.modbus_api import (
     WeishauptModbusClient,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 
 from .configentry import MyData
 
@@ -19,7 +17,7 @@ if TYPE_CHECKING:
     from .configentry import MyConfigEntry
 
 from .const import CONF, CONST, DEVICENAMES
-from .coordinator import MyWebIfCoordinator, WeishauptModbusCoordinator
+from .coordinator import WeishauptModbusCoordinator
 from .hpconst import (
     DEVICELISTS,
     MODBUS_HZ2_ITEMS,
@@ -33,16 +31,32 @@ from .hpconst import (
     MODBUS_W2_ITEMS,
     MODBUS_WP_ITEMS,
     MODBUS_WW_ITEMS,
-    WEBIF_INFO_2WEZ,
-    WEBIF_INFO_HEIZKREIS1,
-    WEBIF_INFO_STATISTIK,
-    WEBIF_INFO_WAERMEPUMPE,
 )
-from .items import ModbusItem, WebItem
+from .items import ModbusItem
 from .kennfeld import PowerMap
 from .migrate_helpers import migrate_entities
 
 _LOGGER = logging.getLogger(__name__)
+
+# What the web-interface versions (5 to 8) stored in an entry, and the
+# unique-id prefix of the entities they registered. Kept only so an old entry
+# can be cleaned up; nothing else may refer to these.
+LEGACY_WEBIF_KEYS = (
+    "enable-webif",
+    "username",
+    "password",
+    "Web-IF-Token",
+    "Use-Mockup-Data",
+    "Poll Heizkreis 1",
+    "Poll Heizkreis 2",
+    "Poll Heizkreis 3",
+    "Poll Heizkreis 4",
+    "Poll Heizkreis 5",
+    "Poll Wärmepumpe",
+    "Poll 2. Wärmeerzeuger",
+    "Poll Statistik",
+)
+LEGACY_WEBIF_UNIQUE_ID_PREFIX = "webif_"
 
 PLATFORMS: list[str] = [
     "number",
@@ -54,55 +68,12 @@ PLATFORMS: list[str] = [
 
 async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     """Set up entry."""
-    # Create independent copies of ModbusItems for each config entry
+    # Independent copies per config entry: the items carry runtime state.
     itemlist: list[ModbusItem] = []
-    webif_itemlist: list[WebItem] = []
-
-    # 1. Create the shared lock to serialize hardware communication
-    mcu_lock = asyncio.Lock()
-
-    if (
-        entry.data.get(CONF.CB_WEBIF, False)
-        and entry.data.get(CONF.PASSWORD, "") != ""
-        and entry.data.get(CONF.USERNAME, "") != ""
-        and entry.data.get(CONF.WEBIF_TOKEN, "") != ""
-    ):
-        webapi = WebifConnection(
-            ip=entry.data[CONF.HOST],
-            user=entry.data[CONF.USERNAME],
-            password=entry.data[CONF.PASSWORD],
-            # token=entry.data[CONF.WEBIF_TOKEN],
-            # request_delay=10,
-            storage_path="./data",
-        )
-
-        # Safely read optional webif switches using .get(..., False)
-        if entry.data.get(CONF.CB_WEBIF_HK1, False) is True:
-            device = WEBIF_INFO_HEIZKREIS1
-            webif_itemlist.extend(copy.deepcopy(item) for item in device)
-
-        if entry.data.get(CONF.CB_WEBIF_WP, False) is True:
-            device = WEBIF_INFO_WAERMEPUMPE
-            webif_itemlist.extend(copy.deepcopy(item) for item in device)
-
-        if entry.data.get(CONF.CB_WEBIF_2WEZ, False) is True:
-            device = WEBIF_INFO_2WEZ
-            webif_itemlist.extend(copy.deepcopy(item) for item in device)
-
-        if entry.data.get(CONF.CB_WEBIF_SATISTICS, False) is True:
-            device = WEBIF_INFO_STATISTIK
-            webif_itemlist.extend(copy.deepcopy(item) for item in device)
-    else:
-        _LOGGER.debug("WebIF not fully configured. Skipping")
-        webapi = None
-
-    # for device in DEVICELISTS_WEBIF:
-    #    webif_itemlist.extend(copy.deepcopy(item) for item in device)
-
     for device in DEVICELISTS:
         itemlist.extend(copy.deepcopy(item) for item in device)
 
-    modbus_api = WeishauptModbusClient(host=entry.data[CONF.HOST], mcu_lock=mcu_lock)
+    modbus_api = WeishauptModbusClient(host=entry.data[CONF.HOST])
 
     modbus_coordinator = WeishauptModbusCoordinator(
         hass=hass,
@@ -111,41 +82,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
         p_config_entry=entry,
     )
     await modbus_coordinator.async_config_entry_first_refresh()
-    if webapi is not None:
-        webif_coordinator = MyWebIfCoordinator(
-            hass=hass,
-            my_api=webapi,
-            api_items=webif_itemlist,
-            config_entry=entry,
-            mcu_lock=mcu_lock,
-        )
-    else:
-        _LOGGER.debug("webapi is none. SKip creating of webif coordinator")
-        webif_coordinator = None
-
     entry.runtime_data = MyData(
         modbus_api=modbus_api,
-        webif_api=webapi,
         config_dir=hass.config.config_dir,
         hass=hass,
         coordinator=modbus_coordinator,
-        webif_coordinator=webif_coordinator,
         powermap=None,
     )
 
     powermap = PowerMap(entry, hass)
     await powermap.initialize()
     entry.runtime_data.powermap = powermap
-
-    # myWebifCon = WebifConnection()
-    # data = await myWebifCon.return_test_data()
-    # print(data)
-    # print(myWebifCon._session.closed)
-    # await myWebifCon.login()
-    # print(myWebifCon._session.closed)
-    # data = await myWebifCon.get_info()
-    # await myWebifCon.close()
-    # print(myWebifCon._session.closed)
 
     hass.add_job(migrate_entities, entry, MODBUS_SYS_ITEMS, DEVICENAMES.SYS)
     hass.add_job(migrate_entities, entry, MODBUS_HZ_ITEMS, DEVICENAMES.HZ)
@@ -206,33 +153,23 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) 
         new_data[CONF.NAME_DEVICE_PREFIX] = False
         new_data[CONF.NAME_TOPIC_PREFIX] = False
 
-    if config_entry.version < 5:
-        _LOGGER.warning("Version <5 detected")
-        new_data[CONF.CB_WEBIF] = False
-        new_data[CONF.USERNAME] = ""
-        new_data[CONF.PASSWORD] = ""
-        new_data[CONF.WEBIF_TOKEN] = ""
-        hass.config_entries.async_update_entry(
-            config_entry, data=new_data, minor_version=1, version=5
-        )
-    if config_entry.version < 7:
-        _LOGGER.warning("Version <7 detected")
-        new_data[CONF.CB_WEBIF_MOCKUP_DATA] = False
-    if config_entry.version < 8:
-        _LOGGER.warning("Version <8 detected")
-        new_data[CONF.CB_WEBIF_HK1] = False
-        new_data[CONF.CB_WEBIF_HK2] = False
-        new_data[CONF.CB_WEBIF_HK3] = False
-        new_data[CONF.CB_WEBIF_HK4] = False
-        new_data[CONF.CB_WEBIF_HK5] = False
-        new_data[CONF.CB_WEBIF_WP] = False
-        new_data[CONF.CB_WEBIF_2WEZ] = False
-        new_data[CONF.CB_WEBIF_SATISTICS] = False
+    if config_entry.version < 9:
+        _LOGGER.warning("Version <9 detected")
+        # Versions 5 to 8 added the web-interface settings; the web interface
+        # is gone, and so are its keys and the entities it registered.
+        for key in LEGACY_WEBIF_KEYS:
+            new_data.pop(key, None)
+        registry = er.async_get(hass)
+        for registry_entry in er.async_entries_for_config_entry(
+            registry, config_entry.entry_id
+        ):
+            if registry_entry.unique_id.startswith(LEGACY_WEBIF_UNIQUE_ID_PREFIX):
+                registry.async_remove(registry_entry.entity_id)
 
     hass.config_entries.async_update_entry(
-        config_entry, data=new_data, minor_version=1, version=8
+        config_entry, data=new_data, minor_version=1, version=9
     )
-    _LOGGER.warning("Config entries updated to version 8")
+    _LOGGER.warning("Config entries updated to version 9")
     return True
 
 
@@ -242,8 +179,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # needs to unload itself, and remove callbacks. See the classes for further
     # details
     await entry.runtime_data.modbus_api.disconnect()
-    if entry.runtime_data.webif_api is not None:
-        await entry.runtime_data.webif_api.close()
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         try:

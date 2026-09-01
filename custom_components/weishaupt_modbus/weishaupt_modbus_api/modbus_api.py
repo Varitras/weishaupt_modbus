@@ -29,7 +29,7 @@ class WeishauptModbusClient:
         self,
         host: str,
         port: int = DEFAULT_PORT,
-        mcu_lock: asyncio.Lock | None = None,
+        lock: asyncio.Lock | None = None,
     ) -> None:
         """Initialize the client with exact legacy parameters."""
         self._host = host
@@ -40,7 +40,7 @@ class WeishauptModbusClient:
             name="Weishaupt_WBB",  # Legacy device name
             retries=1,  # Legacy retry setting
         )
-        self._lock = mcu_lock if mcu_lock is not None else asyncio.Lock()
+        self._lock = lock if lock is not None else asyncio.Lock()
 
         # Raw register data cache used by entities to read their state
         self.data: dict[int, int | None] = {}

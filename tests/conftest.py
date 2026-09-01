@@ -8,8 +8,6 @@ and holds the runtime budget per test - see durations.py for why one exists.
 from pymodbus.client import AsyncModbusTcpClient
 import pytest
 
-import custom_components.weishaupt_modbus as integration
-
 from .durations import SLOW_TEST_SECONDS, over_budget
 
 pytest_plugins = ("pytest_homeassistant_custom_component",)
@@ -71,9 +69,6 @@ def _no_real_heat_pump(monkeypatch):
     the client's own connect/backoff logic is under test, and stubbing it out
     would disable the logic instead of the traffic. A test that installs its
     own fake pymodbus client on the instance is unaffected.
-
-    The WebIF connection is refused at construction: no test configures it,
-    so one that reaches it has taken a path it did not mean to.
     """
 
     async def _refuse(self, *_args, **_kwargs):
@@ -82,12 +77,4 @@ def _no_real_heat_pump(monkeypatch):
             "client on the WeishauptModbusClient instance instead"
         )
 
-    class _NoWebIf:
-        def __init__(self, *_args, **_kwargs):
-            raise AssertionError(
-                "a test constructed a real WebIF connection - stub WebifConnection "
-                "in custom_components.weishaupt_modbus instead"
-            )
-
     monkeypatch.setattr(AsyncModbusTcpClient, "connect", _refuse)
-    monkeypatch.setattr(integration, "WebifConnection", _NoWebIf)

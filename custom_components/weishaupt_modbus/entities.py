@@ -4,12 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.number import NumberEntity
 from homeassistant.components.select import SelectEntity
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorEntity,
-    SensorStateClass,
-)
-from homeassistant.const import PERCENTAGE, UnitOfTemperature
+from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
@@ -17,9 +12,9 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .configentry import MyConfigEntry
 from .const import CONF, CONST, FORMATS
-from .coordinator import MyWebIfCoordinator, WeishauptModbusCoordinator
+from .coordinator import WeishauptModbusCoordinator
 from .hpconst import reverse_device_list
-from .items import ModbusItem, WebItem
+from .items import ModbusItem
 from .migrate_helpers import create_unique_id
 
 if TYPE_CHECKING:
@@ -43,11 +38,11 @@ class MyEntity(Entity):
     def __init__(
         self,
         config_entry: MyConfigEntry,
-        api_item: ModbusItem | WebItem,
+        api_item: ModbusItem,
     ) -> None:
         """Initialize the entity."""
         self._config_entry = config_entry
-        self._api_item: ModbusItem | WebItem = api_item
+        self._api_item: ModbusItem = api_item
 
         dev_postfix = "_" + self._config_entry.data[CONF.DEVICE_POSTFIX]
         if dev_postfix == "_":
@@ -75,16 +70,7 @@ class MyEntity(Entity):
         self._attr_translation_placeholders = {"prefix": name_prefix}
         self._dev_translation_placeholders = {"postfix": dev_postfix}
 
-        if isinstance(self._api_item, ModbusItem):
-            self._attr_unique_id = create_unique_id(self._config_entry, self._api_item)
-        else:
-            dev_postfix = "_" + self._config_entry.data[CONF.DEVICE_POSTFIX]
-            if dev_postfix == "_":
-                dev_postfix = ""
-            dev_prefix = self._config_entry.data[CONF.PREFIX]
-            self._attr_unique_id = (
-                f"{dev_prefix}_{self._api_item.name}{dev_postfix}_webif"
-            )
+        self._attr_unique_id = create_unique_id(self._config_entry, self._api_item)
 
         if self._api_item.format == FORMATS.STATUS:
             self._divider = 1
@@ -149,9 +135,6 @@ class MyEntity(Entity):
 
     async def set_translate_val(self, value: str | float) -> int | None:
         """Translate and write a value directly to the Modbus client."""
-        if not isinstance(self._api_item, ModbusItem):
-            return None
-
         if self._api_item.format == FORMATS.STATUS:
             val = self._api_item.get_number_from_translation_key(str(value))
         else:
@@ -461,104 +444,6 @@ class MySelectEntity(CoordinatorEntity, SelectEntity, MyEntity):  # pylint: disa
         """Handle updated data from the coordinator."""
         self._attr_current_option = self.translate_val_select(self._api_item.state)
         self.async_write_ha_state()
-
-    @property
-    def device_info(self) -> DeviceInfo | None:
-        """Return device info."""
-        return self.my_device_info()
-
-
-class MyWebifSensorEntity(CoordinatorEntity, SensorEntity, MyEntity):
-    """An entity using CoordinatorEntity.
-
-    The CoordinatorEntity class provides:
-      should_poll
-      async_update
-      async_added_to_hass
-      available
-
-    """
-
-    _api_item: WebItem
-
-    def __init__(
-        self,
-        config_entry: MyConfigEntry,
-        api_item: WebItem,
-        coordinator: MyWebIfCoordinator,
-        idx: Any,
-    ) -> None:
-        """Initialize of MySensorEntity."""
-        super().__init__(coordinator, context=idx)
-        self.idx = idx
-        MyEntity.__init__(self, config_entry, api_item, coordinator)
-
-        # Initialize MyEntity with minimal parameters
-        self._config_entry = config_entry
-        self._api_item = api_item
-
-        # Set unique id with translation key as it is a good choice for the webif items
-        self._attr_unique_id = self._api_item.translation_key
-        self._attr_translation_key = self._api_item.translation_key
-        self._attr_has_entity_name = True
-
-        if self._api_item.format == FORMATS.TEXT:
-            self._attr_suggested_display_precision = None
-            self._attr_device_class = None
-            self._attr_state_class = None
-        # WebItem.get_value() strips the unit text ("26.0 °C" -> "26.0"), so set
-        # unit + device class explicitly for the well-known scalar formats. Items
-        # that carry params get their device_class from MyEntity.__init__ as well.
-        elif self._api_item.format == FORMATS.TEMPERATURE:
-            self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
-            self._attr_device_class = SensorDeviceClass.TEMPERATURE
-            self._attr_state_class = SensorStateClass.MEASUREMENT
-            self._attr_suggested_display_precision = 1
-        elif self._api_item.format == FORMATS.PERCENTAGE:
-            self._attr_native_unit_of_measurement = PERCENTAGE
-            self._attr_state_class = SensorStateClass.MEASUREMENT
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        # print(self.coordinator.data)
-        try:
-            if self.coordinator.data is not None:
-                raw = self._api_item.get_value(
-                    self.coordinator.data[self._api_item.name]
-                )
-                # get_value() returns a scraped string. Any sensor that carries a
-                # numeric device_class / state_class must expose a numeric (or None)
-                # native value, otherwise Home Assistant crashes converting a value
-                # like "Aus" via int()/float() (issue #159). Coerce for every numeric
-                # sensor, not just TEMPERATURE/PERCENTAGE. A non-numeric reading falls
-                # back to the item's "non_numeric_value" param (None by default, e.g.
-                # 0 for power sensors that report "off" as text in various languages).
-                value: float | str | None = raw
-                if (
-                    getattr(self, "_attr_device_class", None) is not None
-                    or getattr(self, "_attr_state_class", None) is not None
-                ):
-                    try:
-                        value = None if raw is None else float(raw)
-                    except ValueError:
-                        fallback = self._api_item.params.get("non_numeric_value")
-                        _LOGGER.debug(
-                            "WebIF sensor %s: non-numeric value %r, using %r",
-                            self._api_item.name,
-                            raw,
-                            fallback,
-                        )
-                        value = fallback
-                self._attr_native_value = value
-                self.async_write_ha_state()
-            else:
-                _LOGGER.warning(
-                    "Update of %s failed. None response from server",
-                    self._api_item.name,
-                )
-        except KeyError:
-            _LOGGER.warning("Key Error: %s", self._api_item.name)
 
     @property
     def device_info(self) -> DeviceInfo | None:

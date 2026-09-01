@@ -105,27 +105,6 @@
     "tests": "communication_failure_is_update_failed"
   },
   {
-    "label": "webif: the round robin must advance",
-    "path": "custom_components/weishaupt_modbus/coordinator.py",
-    "old": "        category_to_poll = self._category_queue.pop(0)",
-    "new": "        category_to_poll = self._category_queue[0]",
-    "tests": "round_robin_advances"
-  },
-  {
-    "label": "webif: an enabled category must be polled",
-    "path": "custom_components/weishaupt_modbus/coordinator.py",
-    "old": "            active_categories.append(\"Waermepumpe\")",
-    "new": "            pass",
-    "tests": "round_robin_advances"
-  },
-  {
-    "label": "webif: the poll must hold the lock shared with Modbus",
-    "path": "custom_components/weishaupt_modbus/coordinator.py",
-    "old": "            async with self._mcu_lock:",
-    "new": "            async with asyncio.Lock():",
-    "tests": "poll_holds_the_lock"
-  },
-  {
     "label": "entity: a status state must be the translation key",
     "path": "custom_components/weishaupt_modbus/entities.py",
     "old": "        if self._api_item.format == FORMATS.STATUS:\n            return self._api_item.get_translation_key_from_number(val)",
@@ -182,25 +161,11 @@
     "tests": "short_host_is_rejected"
   },
   {
-    "label": "config flow: reconfigure must drop stale WebIF settings",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "                    self._stored_data.pop(key, None)",
-    "new": "                    pass",
-    "tests": "reconfigure_drops_stale"
-  },
-  {
-    "label": "config flow: the WebIF checkbox must lead to the second step",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "                if user_input.get(CONF.CB_WEBIF):\n                    return await self.async_step_webif()\n\n                # Otherwise, complete configuration immediately",
-    "new": "                if False:\n                    return await self.async_step_webif()\n\n                # Otherwise, complete configuration immediately",
-    "tests": "webif_checkbox_leads"
-  },
-  {
-    "label": "setup: the migration must add the WebIF switch",
+    "label": "setup: the migration must strip the web-interface keys",
     "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "        new_data[CONF.CB_WEBIF] = False",
-    "new": "        pass",
-    "tests": "old_entry_migrates"
+    "old": "        for key in LEGACY_WEBIF_KEYS:\n            new_data.pop(key, None)\n",
+    "new": "        for key in LEGACY_WEBIF_KEYS:\n            pass\n",
+    "tests": "stripped_of_its_settings"
   },
   {
     "label": "setup: unload must disconnect the Modbus client",
@@ -238,13 +203,6 @@
     "tests": "pruned_key_marks"
   },
   {
-    "label": "sensor platform: a WebIF failure must not take the Modbus sensors down",
-    "path": "custom_components/weishaupt_modbus/sensor.py",
-    "old": "        except Exception:\n            _LOGGER.exception(\n                \"Setting up WebIF sensors failed; Modbus sensors are not affected\"\n            )",
-    "new": "        except Exception:\n            raise",
-    "tests": "modbus_sensors_added_when_webif_setup_fails"
-  },
-  {
     "label": "entity: an absent formula operand must read as none, not drop the entity",
     "path": "custom_components/weishaupt_modbus/entities.py",
     "old": "        except TypeError:\n",
@@ -264,5 +222,12 @@
     "old": "        self._attr_native_value = self.translate_val(modbus_item.state)\n",
     "new": "        self._attr_native_value = None\n",
     "tests": "sensor_from_the_first_refresh"
+  },
+  {
+    "label": "setup: the migration must remove the web-interface entities",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "                registry.async_remove(registry_entry.entity_id)\n",
+    "new": "                pass\n",
+    "tests": "stripped_of_its_settings"
   }
 ]
