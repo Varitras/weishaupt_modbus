@@ -33,16 +33,10 @@ PACKAGE = (
 )
 PACKAGE_NAME = "custom_components.weishaupt_modbus"
 
-# The command-line probe runs its main() at import and is not a module of the
-# integration; everything else has to import cleanly.
-NOT_A_MODULE = {"weishaupt_modbus_api/__main__.py"}
-
 
 def _modules():
     for source in sorted(PACKAGE.rglob("*.py")):
         relative = source.relative_to(PACKAGE).as_posix()
-        if relative in NOT_A_MODULE:
-            continue
         dotted = relative.removesuffix(".py").replace("/", ".")
         if dotted.endswith("__init__"):
             dotted = dotted.removesuffix(".__init__") or ""

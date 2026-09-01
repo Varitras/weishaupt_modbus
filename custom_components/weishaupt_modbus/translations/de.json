@@ -219,6 +219,9 @@
             },
             "kuehl_konstanttemp5": {
                 "name": "{prefix}Kühlen Konstanttemperatur5"
+            },
+            "sys_pv": {
+                "name": "{prefix}Sollwert PV"
             }
         },
         "select": {
@@ -552,9 +555,6 @@
                     "sys_operationmode_summer": "Sommer",
                     "sys_operationmode_standby": "Standby"
                 }
-            },
-            "sys_pv": {
-                "name": "{prefix}SollwertPV"
             },
             "ww_push": {
                 "name": "{prefix}Warmwasser Push",

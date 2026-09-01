@@ -21,6 +21,8 @@ from collections import Counter
 import json
 import pathlib
 
+import pytest
+
 from custom_components.weishaupt_modbus import hpconst
 from custom_components.weishaupt_modbus.const import FORMATS, TYPES
 from custom_components.weishaupt_modbus.items import ModbusItem
@@ -63,17 +65,6 @@ LIST_NAMES = [
     "MODBUS_IO_ITEMS",
 ]
 
-# Translation keys that had no entry in strings.json when the guard was
-# adopted. Each shows its raw key as the entity name until somebody adds the
-# entry - and then removes it from here.
-KNOWN_UNTRANSLATED = {
-    "sys_pv",
-    "ww_energie_gestern",
-    "kuehl_energie_gestern",
-    "ges_energie_year",
-    "el_energie_gestern",
-}
-
 # Status lists where two numbers share one translation key, so the entity
 # cannot tell them apart: EVU lock (10) and SG tariff (11) both read as
 # `system_operationmode_sgtariff`. Kept as-is on adoption - a fix changes a
@@ -94,8 +85,17 @@ def _items(module) -> list:
     return [item for name in LIST_NAMES for item in getattr(module, name)]
 
 
-def _strings() -> dict:
-    return json.loads((PACKAGE / "strings.json").read_text(encoding="utf-8"))["entity"]
+# strings.json is the master; every language file has to carry the same keys.
+TRANSLATION_FILES = (
+    PACKAGE / "strings.json",
+    PACKAGE / "translations" / "en.json",
+    PACKAGE / "translations" / "de.json",
+    PACKAGE / "translations" / "nl.json",
+)
+
+
+def _entity_translations(path: pathlib.Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))["entity"]
 
 
 def _signature(item: ModbusItem) -> tuple:
@@ -109,23 +109,39 @@ def _signature(item: ModbusItem) -> tuple:
     )
 
 
-def test_every_item_has_a_translated_name():
-    strings = _strings()
-    untranslated = {
+@pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
+def test_every_item_has_a_translated_name(path):
+    """An item without an entry shows its raw translation key as the entity
+    name - five of them did when this guard was adopted."""
+    translations = _entity_translations(path)
+    untranslated = sorted(
         item.translation_key
         for item in _items(hpconst)
-        if item.translation_key not in strings[PLATFORM_OF[item.type]]
-    }
-
-    new = untranslated - KNOWN_UNTRANSLATED
-    assert not new, (
-        f"translation key(s) without an entry in strings.json: {sorted(new)}. "
-        "The entity would show its raw key as its name - add the entry (and "
-        "the de/nl translations)."
+        if item.translation_key not in translations[PLATFORM_OF[item.type]]
     )
-    fixed = KNOWN_UNTRANSLATED - untranslated
-    assert not fixed, (
-        f"{sorted(fixed)} are translated now - drop them from KNOWN_UNTRANSLATED."
+
+    assert not untranslated, (
+        f"{path.name}: translation key(s) without an entry: {untranslated}. "
+        "Add the entry to strings.json AND every file under translations/."
+    )
+
+
+@pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
+def test_no_translation_outlives_its_item(path):
+    """The other direction: an entry nothing refers to is a name nobody sees
+    and a translator's work nobody uses - and it hides a renamed key."""
+    translations = _entity_translations(path)
+    known = {(PLATFORM_OF[item.type], item.translation_key) for item in _items(hpconst)}
+    orphaned = sorted(
+        f"{platform}.{key}"
+        for platform in sorted(set(PLATFORM_OF.values()))
+        for key in translations.get(platform, {})
+        if (platform, key) not in known
+    )
+
+    assert not orphaned, (
+        f"{path.name}: entry(ies) without an item in hpconst.py: {orphaned}. "
+        "Drop them, or restore the item they belonged to."
     )
 
 

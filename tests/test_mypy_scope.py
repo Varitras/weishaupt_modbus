@@ -27,9 +27,6 @@ NOT_TYPE_CHECKED_YET = {
     "entities.py": "12 errors: MyEntity reads a coordinator attribute only its subclasses have",
     "items.py": "7 errors: unreachable None checks and Any returns from the lookups",
     "kennfeld.py": "2 errors: an optional dict used as if it were present",
-    "modbusobject.py": "2 errors: unreachable statements in the legacy client",
-    "translations.py": "3 errors: dicts assigned into str-typed slots",
-    "weishaupt_modbus_api/__main__.py": "4 errors: untyped command-line entry point",
     "weishaupt_modbus_api/modbus_api.py": "6 errors: list concatenation typed as item addition",
 }
 

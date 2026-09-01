@@ -56,7 +56,7 @@ because the thing it prevents happened, here or in a sibling project.
 | `test_durations.py` | No single test quietly starts taking minutes (budget in `durations.py`, enforced from `conftest.py`), and a run that stops making progress is cut off rather than only measured |
 | `test_guards.py` | No guard binds itself to one source file; every guard is listed; `check.sh` matches CI |
 | `test_imports.py` | Every module imports outside the author's own tree - the `from config.custom_components...` line that shipped on main cannot ship again |
-| `test_item_register.py` | Every register definition is complete (translated name, result list, address range, unique key) and both copies of the table agree |
+| `test_item_register.py` | Every register definition is complete (a name in every translation file, result list, address range, unique key), no translation outlives its item, and both copies of the table agree |
 | `test_mutation_harness.py` | The mutation run fails loudly rather than printing "all caught" without having checked |
 | `test_mypy_scope.py` | Every module is in the mypy scope or carries a written reason why not yet |
 | `test_platform_entities.py` | Every platform builds its entities through the one shared helper |
@@ -119,5 +119,3 @@ Tests move with their subject: `test_modbus_api.py` covers the batch-reading
 client, `test_coordinator.py` the two coordinators, `test_entities.py` the
 entity layer, `test_config_flow.py` and `test_e2e.py` the parts that only
 exist once Home Assistant is driving the integration (both marked `e2e`).
-`test_modbusobject.py` covers the legacy single-register client that is still
-in the package.

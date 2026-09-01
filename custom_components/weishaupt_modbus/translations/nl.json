@@ -219,6 +219,9 @@
       },
       "kuehl_konstanttemp5" : {
         "name" : "{prefix}Koelconstante temperatuur 5"
+      },
+      "sys_pv" : {
+        "name" : "{prefix}Setpoint PV"
       }
     },
     "select" : {
@@ -553,9 +556,6 @@
           "sys_operationmode_standby" : "Standby"
         }
       },
-      "sys_pv" : {
-        "name" : "{prefix}Instelpunt PV"
-      },
       "ww_push" : {
         "name" : "{prefix}Warmwater Push",
         "state" : {
@@ -781,9 +781,6 @@
           "w2_status_aus" : "Uit",
           "w2_status_ein" : "Aan"
         }
-      },
-      "el_energie_yesterday" : {
-        "name" : "{prefix}Elektr. Energie gisteren"
       },
       "el_energie_heute" : {
         "name" : "{prefix}Elektr. Energie vandaag"
@@ -1204,9 +1201,6 @@
           "io_konf_in_9" : "Producent blokkeren WW"
         }
       },
-      "kuehl_energie_yesterday" : {
-        "name" : "{prefix}Koelenergie gisteren"
-      },
       "kuehl_energie_heute" : {
         "name" : "{prefix}Koelenergie vandaag"
       },
@@ -1580,9 +1574,6 @@
       "monatsarbeitszahl" : {
         "name" : "{prefix}Maandelijks prestatiefactor"
       },
-      "ww_energie_yesterday" : {
-        "name" : "{prefix}Warm water energie gisteren"
-      },
       "ww_energie_heute" : {
         "name" : "{prefix}Warm water energie vandaag"
       },
@@ -1605,6 +1596,30 @@
       },
       "ww_temp" : {
         "name" : "{prefix}Warmwatertemperatuur"
+      },
+      "ww_energie_gestern" : {
+        "name" : "{prefix}Warm water energie gisteren"
+      },
+      "kuehl_energie_gestern" : {
+        "name" : "{prefix}Koelenergie gisteren"
+      },
+      "el_energie_gestern" : {
+        "name" : "{prefix}Elektr. Energie gisteren"
+      },
+      "hz_vl_solltemp" : {
+        "name" : "{prefix}Verwarmingscircuit-aanvoerinsteltemperatuur"
+      },
+      "hz_vl_solltemp2" : {
+        "name" : "{prefix}Verwarmingscircuit-aanvoerinsteltemperatuur 2"
+      },
+      "hz_vl_solltemp3" : {
+        "name" : "{prefix}Verwarmingscircuit-aanvoerinsteltemperatuur 3"
+      },
+      "hz_vl_solltemp4" : {
+        "name" : "{prefix}Verwarmingscircuit-aanvoerinsteltemperatuur 4"
+      },
+      "hz_vl_solltemp5" : {
+        "name" : "{prefix}Verwarmingscircuit-aanvoerinsteltemperatuur 5"
       }
     }
   },

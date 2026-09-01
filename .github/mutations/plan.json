@@ -196,13 +196,6 @@
     "tests": "interpolates_between"
   },
   {
-    "label": "translations: a pruned key must count as a change",
-    "path": "custom_components/weishaupt_modbus/translations.py",
-    "old": "    for key in list(locale.keys()):\n        if key not in master:\n            changed = True",
-    "new": "    for key in list(locale.keys()):\n        if key not in master:\n            pass",
-    "tests": "pruned_key_marks"
-  },
-  {
     "label": "entity: an absent formula operand must read as none, not drop the entity",
     "path": "custom_components/weishaupt_modbus/entities.py",
     "old": "        except TypeError:\n",

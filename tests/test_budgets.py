@@ -53,9 +53,6 @@ COMPLEXITY_BUDGETS = {
     # 30 before the TypeError handler for an absent operand - one branch,
     # and the one that keeps the entity alive.
     "entities.py::MyCalcSensorEntity.translate_val": 31,
-    "modbusobject.py::ModbusAPI.connect": 29,
-    "translations.py::_sync_dict": 17,
-    "translations.py::update_translation": 45,
     "weishaupt_modbus_api/modbus_api.py::WeishauptModbusClient.connect": 26,
     "weishaupt_modbus_api/modbus_api.py::WeishauptModbusClient.update": 47,
 }

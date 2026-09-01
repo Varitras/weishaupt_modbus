@@ -219,6 +219,9 @@
       },
       "kuehl_konstanttemp5": {
         "name": "{prefix}Cooling constant temperature 5"
+      },
+      "sys_pv": {
+        "name": "{prefix}PV setpoint"
       }
     },
     "select": {
@@ -553,9 +556,6 @@
           "sys_operationmode_standby": "Standby"
         }
       },
-      "sys_pv": {
-        "name": "{prefix}Set point PV"
-      },
       "ww_push": {
         "name": "{prefix}Hot water Push",
         "state": {
@@ -782,9 +782,6 @@
           "w2_status_ein": "on"
         }
       },
-      "el_energie_yesterday": {
-        "name": "{prefix}Electr. energy yesterday"
-      },
       "el_energie_heute": {
         "name": "{prefix}Electr. energy today"
       },
@@ -945,9 +942,6 @@
       },
       "ges_energie_today": {
         "name": "{prefix}Total energy II today"
-      },
-      "ges_energie_2_jahr": {
-        "name": "{prefix}Total energy II year"
       },
       "ges_energie_2_monat": {
         "name": "{prefix}Total energy II month"
@@ -1218,9 +1212,6 @@
           "io_konf_in_8": "Producer lock HZ",
           "io_konf_in_9": "Producer block WW"
         }
-      },
-      "kuehl_energie_yesterday": {
-        "name": "{prefix}Cooling energy yesterday"
       },
       "kuehl_energie_heute": {
         "name": "{prefix}Cooling energy heute"
@@ -1595,9 +1586,6 @@
       "monatsarbeitszahl": {
         "name": "{prefix}Monthly performance factor"
       },
-      "ww_energie_yesterday": {
-        "name": "{prefix}Hot water energy yesterday"
-      },
       "ww_energie_heute": {
         "name": "{prefix}Hot water energy today"
       },
@@ -1620,6 +1608,18 @@
       },
       "ww_temp": {
         "name": "{prefix}Hot water temperature"
+      },
+      "ww_energie_gestern": {
+        "name": "{prefix}Hot water energy yesterday"
+      },
+      "kuehl_energie_gestern": {
+        "name": "{prefix}Cooling energy yesterday"
+      },
+      "ges_energie_year": {
+        "name": "{prefix}Total energy II year"
+      },
+      "el_energie_gestern": {
+        "name": "{prefix}Electr. energy yesterday"
       }
     }
   },

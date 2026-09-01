@@ -137,7 +137,7 @@ class ApiItem:
 
     @property
     def state(self) -> Any:
-        """Return the state of the item set by modbusobject."""
+        """Return the state of the item, set by the coordinator."""
         return self._state
 
     @state.setter
