@@ -5,7 +5,7 @@ import copy
 import logging
 from typing import TYPE_CHECKING
 
-from config.custom_components.weishaupt_modbus.weishaupt_modbus_api.modbus_api import (
+from custom_components.weishaupt_modbus.weishaupt_modbus_api.modbus_api import (
     WeishauptModbusClient,
 )
 from homeassistant.config_entries import ConfigEntry

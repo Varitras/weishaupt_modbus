@@ -3,6 +3,8 @@
 import copy
 from typing import Any
 
+from custom_components.weishaupt_modbus.const import DEVICES, FORMATS, TYPES
+from custom_components.weishaupt_modbus.items import ModbusItem, StatusItem, WebItem
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import (
     PERCENTAGE,
@@ -14,8 +16,6 @@ from homeassistant.const import (
     UnitOfTime,
     UnitOfVolumeFlowRate,
 )
-from ..const import DEVICES, FORMATS, TYPES
-from ..items import ModbusItem, StatusItem, WebItem
 
 reverse_device_list: dict[str, str] = {
     "dev_system": "SYS",
@@ -645,7 +645,7 @@ WW_PUSH: list[StatusItem] = [
 ]
 # Fill WW_PUSH with values for every 5 Minutes
 for i in range(5, 240, 5):
-    WW_PUSH.append(  # noqa: PERF401
+    WW_PUSH.append(
         StatusItem(
             number=i,
             text=str(object=i) + " " + UnitOfTime.MINUTES,
