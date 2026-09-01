@@ -1,0 +1,49 @@
+#!/bin/sh
+# The push proves; the commit stays fast. Install once per clone:
+#
+#     git config core.hooksPath .githooks
+#
+# Two gates, both fail-closed:
+#   1. The project's own definition of done (.github/scripts/check.sh).
+#   2. A machine secret scan over the WHOLE history - the prose rule "check
+#      before pushing" does not survive a tired evening; a scan does.
+#
+# The gates need Home Assistant, which only runs on Linux. Pushed from Windows
+# (Git for Windows, GitHub Desktop) the hook therefore hands the work to WSL;
+# pushed from inside WSL or Linux it runs directly. Machine-local details
+# arrive through the environment:
+#
+#     HA_TEST_PYTHON   interpreter with Home Assistant and the test plugin
+#                      (default: $HOME/ha-dev/venv/bin/python, inside WSL)
+#     WSL_DISTRO       the distribution to use from Windows (default: Ubuntu)
+set -eu
+
+repository="$(git rev-parse --show-toplevel)"
+
+run_gates() {
+    cd "$1"
+    PYTHON="${HA_TEST_PYTHON:-$HOME/ha-dev/venv/bin/python}" sh .github/scripts/check.sh
+
+    # Fail-closed: a missing scanner is a failed gate, not a skip. Secrets are
+    # the one class where "probably fine" already cost history rewrites.
+    if ! command -v gitleaks >/dev/null 2>&1; then
+        echo "pre-push: gitleaks not installed - secret gate cannot run, push refused" >&2
+        exit 1
+    fi
+    # `detect`, not `git`: the Ubuntu package ships 8.16, which predates the
+    # `git` subcommand; `detect` exists in both old and current releases.
+    gitleaks detect --no-banner --source .
+}
+
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)
+        # Windows: the same script, re-entered inside WSL. The path travels
+        # as an environment variable with WSLENV's /p flag, which translates
+        # it to a /mnt path on the way in - argument quoting through wsl.exe
+        # does not survive a space in the path, this does.
+        REPO_WIN="$(cygpath -w "$repository")" WSLENV="REPO_WIN/p${WSLENV:+:$WSLENV}"             exec wsl.exe -d "${WSL_DISTRO:-Ubuntu}" -- bash -lc             'cd "$REPO_WIN" && sh .githooks/pre-push'
+        ;;
+    *)
+        run_gates "$repository"
+        ;;
+esac
