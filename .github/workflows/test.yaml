@@ -1,0 +1,94 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+
+# This workflow only checks out and runs tests, so read access to the repo
+# contents is all it needs.
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    # Its own job, not a step of the test job: a formatting complaint and a
+    # failing test are different news, and a red cross that could mean either
+    # gets read as neither.
+    name: ruff
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: "actions/checkout@v5"
+      - uses: "actions/setup-python@v6"
+        with:
+          python-version: "3.14"
+      # Pinned. An unpinned install means the CI enforces whatever Ruff
+      # decided this week, and a release that reflows differently would fail
+      # a build nobody changed. Raise it deliberately, together with the local
+      # run.
+      - name: Install Ruff
+        run: pip install "ruff==0.16.1"
+      - name: Lint
+        run: ruff check .
+      # The formatting only stays put if something checks it.
+      - name: Check formatting
+        run: ruff format --check .
+
+  mypy:
+    name: mypy
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: "actions/checkout@v5"
+      - uses: "actions/setup-python@v6"
+        with:
+          python-version: "3.14"
+      # Home Assistant has to be importable for the checked modules' own
+      # imports - and it has to be the SAME release the test job runs, or this
+      # job vouches for a type surface nothing else touches. Both go through
+      # the same resolver. Mypy is pinned for the reason Ruff is.
+      - name: Resolve the plugin version to install
+        run: |
+          python .github/scripts/resolve_phcc.py latest-stable-ha \
+            | tee -a "$GITHUB_ENV"
+      - name: Install dependencies
+        run: |
+          pip install "$PHCC_SPEC" -r requirements.txt
+          pip install "mypy==2.3.1"
+      - name: Type check
+        run: mypy
+
+  pytest:
+    # Only the current end of the supported range: hacs.json declares no
+    # minimum Home Assistant version, so there is no floor to test against.
+    # The plugin version is resolved at run time to the newest release that
+    # pins a FINAL Home Assistant - see .github/scripts/resolve_phcc.py for
+    # why an unpinned install silently tests a beta instead.
+    name: pytest (current HA)
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: "actions/checkout@v5"
+      - uses: "actions/setup-python@v6"
+        with:
+          python-version: "3.14"
+      - name: Resolve the plugin version to install
+        # tee, not a plain redirect: the chosen version has to be visible in
+        # the log too, or a job that disagrees with a local run is guesswork.
+        run: python .github/scripts/resolve_phcc.py latest-stable-ha | tee -a "$GITHUB_ENV"
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # pytest-timeout by name: this job deliberately does not install
+          # requirements_test.txt, so nothing else here would bring it - and
+          # the timeout that stops a hung run is exactly what must not depend
+          # on some other package still happening to pull it in.
+          pip install "$PHCC_SPEC" pytest-timeout -r requirements.txt
+      - name: Show the Home Assistant version under test
+        run: python -c "from homeassistant.const import __version__; print(__version__)"
+      # -m "" cancels the `-m "not e2e"` default from pyproject.toml, so the
+      # slow end-to-end tests against a real Home Assistant run here.
+      - name: Run test suite
+        run: pytest tests/ -q -m ""
+      # A green suite says the tests pass, not that they would catch anything.
+      # The mutations edit files in the workspace, so this runs after the suite
+      # and never in parallel with it.
+      - name: Verify the tests actually catch a broken fix
+        run: python .github/scripts/mutate.py .github/mutations/plan.json

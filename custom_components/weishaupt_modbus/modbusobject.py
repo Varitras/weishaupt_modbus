@@ -127,7 +127,7 @@ class ModbusAPI:
                 self._log_backoff_start()
                 return False
             self._modbus_client.close()
-            return False  # noqa: TRY300
+            return False
 
         except ModbusException as exc:
             _LOGGER.warning(
@@ -157,11 +157,11 @@ class ModbusAPI:
                 self._log_backoff_start()
             try:  # noqa: SIM105
                 self._modbus_client.close()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
             return False
 
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             # Catch any other unexpected errors as last resort
             _LOGGER.warning(
                 "Connection to heatpump failed (unexpected): %s",
@@ -175,7 +175,7 @@ class ModbusAPI:
                 self._log_backoff_start()
             try:  # noqa: SIM105
                 self._modbus_client.close()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
             return False
 

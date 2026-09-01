@@ -238,6 +238,10 @@ class MySensorEntity(CoordinatorEntity, SensorEntity, MyEntity):
         if modbus_item.format == FORMATS.TEXT:
             # self._attr_state_class = SensorStateClass.NONE
             self._attr_suggested_display_precision = None
+        # The first refresh ran before the platforms; the listener only fires
+        # on the next one, so without this every sensor reads unknown for a
+        # whole scan interval after setup.
+        self._attr_native_value = self.translate_val(modbus_item.state)
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -353,6 +357,12 @@ class MyCalcSensorEntity(MySensorEntity):
                 return None
         except ZeroDivisionError:
             return 0.0
+        except TypeError:
+            # An operand is None: the sibling register is absent or not read
+            # yet. Raising here happened inside async_added_to_hass, and Home
+            # Assistant then refused the entity for good - no value is the
+            # answer, not no entity.
+            return None
 
         return round(y, self._attr_suggested_display_precision)
 
@@ -375,6 +385,7 @@ class MyNumberEntity(CoordinatorEntity, NumberEntity, MyEntity):  # pylint: disa
         super().__init__(coordinator, context=idx)
         self._idx = idx
         MyEntity.__init__(self, config_entry, modbus_item)  # , coordinator.modbus_api)
+        self._attr_native_value = self.translate_val_number(modbus_item.state)
 
     def translate_val_number(self, val: Any) -> float | None:
         """Translate modbus value for number entity."""
@@ -426,9 +437,9 @@ class MySelectEntity(CoordinatorEntity, SelectEntity, MyEntity):  # pylint: disa
         ]
         # option list build from the status list of the ModbusItem
         self._attr_options: list[str] = []
-        for _useless, item in enumerate(self._api_item._resultlist):  # noqa: SLF001
+        for _useless, item in enumerate(self._api_item._resultlist):
             self._attr_options.append(item.translation_key)
-        self._attr_current_option = "FEHLER"
+        self._attr_current_option = self.translate_val_select(modbus_item.state)
 
     def translate_val_select(self, val: Any) -> str | None:
         """Translate modbus value for select entity."""

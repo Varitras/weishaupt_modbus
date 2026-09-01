@@ -355,11 +355,30 @@ max-line-length-suggestions = 72
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The repository root on sys.path: custom_components is a namespace package
+# (no __init__.py), so the root has to be importable for
+# `custom_components.weishaupt_modbus.<module>` to resolve in the tests.
+pythonpath = ["."]
 norecursedirs = [".git", "testing_config"]
 log_format = "%(asctime)s.%(msecs)03d %(levelname)-8s %(threadName)s %(name)s:%(filename)s:%(lineno)s %(message)s"
 log_date_format = "%Y-%m-%d %H:%M:%S"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+# The e2e tests boot a real Home Assistant instance per test, so they are
+# deselected for the everyday run. CI and check.sh pass `-m ""`, which cancels
+# this deselection - without that the marker would be a silent coverage gap.
+addopts = "-m 'not e2e'"
+markers = [
+  "e2e: full end-to-end test against a real Home Assistant setup (slow)",
+]
+# The other half of the duration budget in tests/durations.py: that one
+# measures a test AFTER it returns, which a deadlock never does. This one cuts
+# the run off. Far above the 30-second reporting budget on purpose - as a
+# kill, the same number would fail the suite on a slow runner. `thread`
+# because the waits this exists for sit in worker threads, where the default
+# signal method never fires.
+timeout = 300
+timeout_method = "thread"
 
 [tool.coverage.report]
 exclude_lines = [
@@ -377,6 +396,11 @@ exclude_lines = [
 
 [tool.ruff]
 required-version = ">=0.11.0"
+# translations.py uses the unparenthesised `except A, B:` form (PEP 758), which
+# only parses on Python 3.14. Without this Ruff analyses against 3.13 and
+# reports the file as a syntax error, and the mypy section below already
+# targets 3.14 - the two have to agree.
+target-version = "py314"
 
 [tool.ruff.lint]
 select = [
@@ -481,6 +505,18 @@ select = [
 ]
 
 ignore = [
+  # Findings that were in the tree when `ruff check .` became a gate (20 of
+  # them, in items.py, entities.py, modbus_api.py, kennfeld.py, config_flow.py,
+  # coordinator.py and the two hpconst tables). Frozen rather than fixed, so
+  # the gate can be red about the NEXT one; each line comes out again once its
+  # findings are gone.
+  "BLE001",   # 2 blind `except Exception` around a Modbus write and a connect
+  "D401",     # 2 docstrings not in imperative mood
+  "D417",     # 1 undocumented argument (ModbusItem.batch)
+  "PERF401",  # 3 loops that could be comprehensions
+  "PLR0917",  # 3 item constructors with more than five positional arguments
+  "SLF001",   # 5 private-member reads across the item/client boundary
+  "TRY300",   # 3 returns inside try blocks
   "ASYNC109", # Async function definition with a `timeout` parameter Use `asyncio.timeout` instead
   "ASYNC110", # Use `asyncio.Event` instead of awaiting `asyncio.sleep` in a `while` loop
   "D202",     # No blank lines allowed after function docstring
@@ -519,7 +555,6 @@ ignore = [
   "TRY003", # Avoid specifying long messages outside the exception class
   "TRY400", # Use `logging.exception` instead of `logging.error`
   # Ignored due to performance: https://github.com/charliermarsh/ruff/issues/2923
-  "UP038", # Use `X | Y` in `isinstance` call instead of `(X, Y)`
   "UP046", # Non PEP 695 generic class
   "UP047", # Non PEP 696 generic function
   "UP049", # Avoid private type parameter names
@@ -566,7 +601,6 @@ mark-parentheses = false
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "async_timeout".msg = "use asyncio.timeout instead"
 "pytz".msg = "use zoneinfo instead"
-"tests".msg = "You should not import tests"
 
 [tool.ruff.lint.isort]
 force-sort-within-sections = true
@@ -578,8 +612,15 @@ split-on-trailing-comma = false
 "tests/*" = ["SLF001"]  # Allow private member access in tests
 "custom_components/weishaupt_modbus/test_modbus.py" = ["ALL"]  # Ignore all rules for test_modbus.py
 
-# Temporary
-"tests/**" = ["PTH"]
+# The guards and the harness: assertion messages carry the numbers, a docstring
+# per helper would only restate the test name, and the harness reports on
+# stdout on purpose (it is a command-line tool, not library code).
+"tests/**" = ["PTH", "D", "PLR2004", "T201"]
+".github/scripts/*" = ["T201", "D", "INP001", "PLR2004", "S603", "PLW1510"]
+# ast.NodeVisitor dispatches on `visit_<NodeName>`; the aliases have to be mixedCase.
+"tests/complexity.py" = ["N815"]
+# A command-line probe for the Modbus API; printing is its output.
+"custom_components/weishaupt_modbus/weishaupt_modbus_api/__main__.py" = ["T201", "D1", "TRY401"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 25
@@ -591,6 +632,31 @@ property-decorators = ["propcache.api.cached_property"]
 python_version = "3.14"
 exclude = [
   "custom_components/weishaupt_modbus/test_modbus.py",
+]
+# The type-check scope. Frozen at the modules that were clean when the gate
+# was adopted; the nine that were not are listed with their error count in
+# tests/test_mypy_scope.py, and widening this list is how that list empties.
+# A module in neither place fails that guard - leaving one out is a decision
+# somebody writes down, not something that happens.
+files = [
+  "custom_components/weishaupt_modbus/__init__.py",
+  "custom_components/weishaupt_modbus/config_flow.py",
+  "custom_components/weishaupt_modbus/const.py",
+  "custom_components/weishaupt_modbus/entity_helpers.py",
+  "custom_components/weishaupt_modbus/hpconst.py",
+  # Named so mypy resolves the MODULE: kennfeld.py sits next to a kennfeld/
+  # data directory, and a followed import lands on the directory instead,
+  # leaving every attribute of the module "undefined". Its own errors are
+  # switched off below until it is typed.
+  "custom_components/weishaupt_modbus/kennfeld.py",
+  "custom_components/weishaupt_modbus/migrate_helpers.py",
+  "custom_components/weishaupt_modbus/number.py",
+  "custom_components/weishaupt_modbus/select.py",
+  "custom_components/weishaupt_modbus/sensor.py",
+  "custom_components/weishaupt_modbus/weishaupt_modbus_api/__init__.py",
+  "custom_components/weishaupt_modbus/weishaupt_modbus_api/const.py",
+  "custom_components/weishaupt_modbus/weishaupt_modbus_api/exceptions.py",
+  "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
 ]
 
 # Path tracking rules
@@ -620,4 +686,9 @@ warn_unreachable = true
 # Silence Home Assistant core noise, keep context intact
 [[tool.mypy.overrides]]
 module = "homeassistant.*"
+ignore_errors = true
+
+# Resolved, not checked - see the note on kennfeld.py in `files`.
+[[tool.mypy.overrides]]
+module = "custom_components.weishaupt_modbus.kennfeld"
 ignore_errors = true

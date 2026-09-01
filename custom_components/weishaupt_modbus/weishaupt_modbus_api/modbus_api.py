@@ -1,6 +1,7 @@
 """Modbus_API."""
 
 import asyncio
+import contextlib
 import logging
 
 from pymodbus.client import AsyncModbusTcpClient
@@ -16,8 +17,7 @@ from .const import (
 from .exceptions import ConnectionFailedError, WriteError
 
 # Import Modbus formatting models from local hpconst file
-from .hpconst import DEVICELISTS, FORMATS, ModbusItem
-import contextlib
+from .hpconst import DEVICELISTS, FORMATS, TYPES, ModbusItem
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -347,8 +347,16 @@ class WeishauptModbusClient:
         for item in items:
             myitems = myitems + item
 
+        # Calculated sensors reuse the address of a real register as a place in
+        # the table; keyed by address they would shadow that register and its
+        # format handling (33103 lost its percentage sentinel that way).
         sorted_items = sorted(
-            [i for i in myitems if getattr(i, "_address", None) is not None],
+            [
+                i
+                for i in myitems
+                if getattr(i, "_address", None) is not None
+                and i.type != TYPES.SENSOR_CALC
+            ],
             key=lambda x: x._address,
         )
 
@@ -358,7 +366,7 @@ class WeishauptModbusClient:
         current_batch_start: int | None = None
 
         for item in sorted_items:
-            if getattr(item, "_mtype", None) == "SENSOR_CALC" or item.batch is None:
+            if item.batch is None:
                 continue
 
             base_batch = item.batch

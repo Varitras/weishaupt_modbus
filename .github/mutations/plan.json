@@ -1,0 +1,268 @@
+[
+  {
+    "label": "client: the no-sensor sentinel must read as absent",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
+    "old": "                    case -32768 | 32768:",
+    "new": "                    case -32768:",
+    "tests": "no_sensor_sentinel"
+  },
+  {
+    "label": "client: a negative temperature must be converted from two's complement",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
+    "old": "                        if raw_val > 32768:\n                            raw_val -= 65536",
+    "new": "                        if raw_val > 32768:\n                            raw_val -= 0",
+    "tests": "negative_temperature_is_read"
+  },
+  {
+    "label": "client: the percentage sentinel must read as absent",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
+    "old": "                if raw_val == 65535:",
+    "new": "                if raw_val == 65536:",
+    "tests": "percentage_sentinel"
+  },
+  {
+    "label": "client: an illegal-address block must nullify every register in it",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
+    "old": "                            if response.exception_code == 2:\n                                nullify_batch(start, count)\n                                continue",
+    "new": "                            if response.exception_code == 2:\n                                continue",
+    "tests": "illegal_address_block"
+  },
+  {
+    "label": "client: an unchanged value must not be written again",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
+    "old": "                if cached_val is not None and cached_val == value:",
+    "new": "                if False:",
+    "tests": "unchanged_value_is_not_written"
+  },
+  {
+    "label": "client: input registers must not be writable",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
+    "old": "        if not (40000 <= address < 50000):",
+    "new": "        if False:",
+    "tests": "input_register_is_not_writable"
+  },
+  {
+    "label": "client: a negative temperature write must be two's complement",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
+    "old": "                    if mformat == FORMATS.TEMPERATURE and value < 0:\n                        value += 65536",
+    "new": "                    if mformat == FORMATS.TEMPERATURE and value < 0:\n                        value += 0",
+    "tests": "negative_temperature_write"
+  },
+  {
+    "label": "client: a write error must be raised",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
+    "old": "                if response.isError():\n                    raise WriteError(",
+    "new": "                if False:\n                    raise WriteError(",
+    "tests": "write_error_is_raised"
+  },
+  {
+    "label": "client: the backoff window must be honoured",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
+    "old": "                if elapsed < backoff:",
+    "new": "                if False:",
+    "tests": "backoff_window"
+  },
+  {
+    "label": "client: a block must not exceed the hardware read limit",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
+    "old": "                or batch_sizes.get(current_batch_start, 0) >= 5",
+    "new": "                or batch_sizes.get(current_batch_start, 0) >= 50",
+    "tests": "batch_size_never_exceeds"
+  },
+  {
+    "label": "client: an update without a connection must raise",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
+    "old": "                    raise ConnectionFailedError(\"Modbus client is not connected\")",
+    "new": "                    return self.data",
+    "tests": "update_without_connection"
+  },
+  {
+    "label": "client: writes must take the shared lock",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
+    "old": "        async with self._lock:\n            if not self._client.connected:\n                if not await self.connect(startup=False):\n                    return False",
+    "new": "        async with asyncio.Lock():\n            if not self._client.connected:\n                if not await self.connect(startup=False):\n                    return False",
+    "tests": "writes_and_updates_share_one_lock"
+  },
+  {
+    "label": "coordinator: unconfigured circuits must stay out of the result",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "            if not await check_configured(item, self._config_entry):\n                continue",
+    "new": "            if False:\n                continue",
+    "tests": "unconfigured_circuit_items"
+  },
+  {
+    "label": "coordinator: a calculated sensor must not read the cache",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "            if getattr(item, \"type\", None) == TYPES.SENSOR_CALC:",
+    "new": "            if False:",
+    "tests": "calculated_sensor_is_not_polled"
+  },
+  {
+    "label": "coordinator: transport failure must be UpdateFailed",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        except (TimeoutError, ConnectionFailedError, ModbusException) as err:\n            raise UpdateFailed(f\"Modbus communication failure: {err}\") from err",
+    "new": "        except (TimeoutError, ConnectionFailedError, ModbusException) as err:\n            raise err",
+    "tests": "communication_failure_is_update_failed"
+  },
+  {
+    "label": "webif: the round robin must advance",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        category_to_poll = self._category_queue.pop(0)",
+    "new": "        category_to_poll = self._category_queue[0]",
+    "tests": "round_robin_advances"
+  },
+  {
+    "label": "webif: an enabled category must be polled",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "            active_categories.append(\"Waermepumpe\")",
+    "new": "            pass",
+    "tests": "round_robin_advances"
+  },
+  {
+    "label": "webif: the poll must hold the lock shared with Modbus",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "            async with self._mcu_lock:",
+    "new": "            async with asyncio.Lock():",
+    "tests": "poll_holds_the_lock"
+  },
+  {
+    "label": "entity: a status state must be the translation key",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        if self._api_item.format == FORMATS.STATUS:\n            return self._api_item.get_translation_key_from_number(val)",
+    "new": "        if self._api_item.format == FORMATS.STATUS:\n            return None",
+    "tests": "status_state_is_the_translation_key"
+  },
+  {
+    "label": "entity: the device prefix must reach the name",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "            name_device_prefix = dev_prefix + \"_\"",
+    "new": "            name_device_prefix = \"\"",
+    "tests": "device_prefix_in_name"
+  },
+  {
+    "label": "entity: the topic prefix must reach the name",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "            name_topic_prefix = f\"{reverse_device_list.get(device_key, 'UK')}_\"",
+    "new": "            name_topic_prefix = \"\"",
+    "tests": "topic_prefix_names"
+  },
+  {
+    "label": "entity: select options must be the translation keys",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "            self._attr_options.append(item.translation_key)",
+    "new": "            self._attr_options.append(item.text)",
+    "tests": "select_options_are_the_status"
+  },
+  {
+    "label": "entity: a division by zero in a formula must read as zero",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        except ZeroDivisionError:\n            return 0.0",
+    "new": "        except ZeroDivisionError:\n            return None",
+    "tests": "division_by_zero"
+  },
+  {
+    "label": "entity: a dynamic maximum must be scaled by the divider",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "                self._attr_native_max_value = self._dynamic_max / self._divider",
+    "new": "                self._attr_native_max_value = self._dynamic_max",
+    "tests": "dynamic_limits"
+  },
+  {
+    "label": "entity: a number write must be scaled by the divider",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "            val = int(float(value) * self._divider)",
+    "new": "            val = int(float(value))",
+    "tests": "number_write_is_scaled"
+  },
+  {
+    "label": "config flow: a short host must be rejected",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    if len(data.get(CONF.HOST, \"\")) < 3:",
+    "new": "    if len(data.get(CONF.HOST, \"\")) < 0:",
+    "tests": "short_host_is_rejected"
+  },
+  {
+    "label": "config flow: reconfigure must drop stale WebIF settings",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                    self._stored_data.pop(key, None)",
+    "new": "                    pass",
+    "tests": "reconfigure_drops_stale"
+  },
+  {
+    "label": "config flow: the WebIF checkbox must lead to the second step",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                if user_input.get(CONF.CB_WEBIF):\n                    return await self.async_step_webif()\n\n                # Otherwise, complete configuration immediately",
+    "new": "                if False:\n                    return await self.async_step_webif()\n\n                # Otherwise, complete configuration immediately",
+    "tests": "webif_checkbox_leads"
+  },
+  {
+    "label": "setup: the migration must add the WebIF switch",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        new_data[CONF.CB_WEBIF] = False",
+    "new": "        pass",
+    "tests": "old_entry_migrates"
+  },
+  {
+    "label": "setup: unload must disconnect the Modbus client",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    await entry.runtime_data.modbus_api.disconnect()",
+    "new": "    pass",
+    "tests": "unload_disconnects"
+  },
+  {
+    "label": "items: the text lookup must return the text",
+    "path": "custom_components/weishaupt_modbus/items.py",
+    "old": "            if val == item.number:\n                return item.text",
+    "new": "            if val == item.number:\n                return item.description",
+    "tests": "text_from_number"
+  },
+  {
+    "label": "migration: the unique id must carry the postfix",
+    "path": "custom_components/weishaupt_modbus/migrate_helpers.py",
+    "old": "    return f\"{config_entry.data[CONF.PREFIX]}{modbus_item.name}{dev_postfix}\"",
+    "new": "    return f\"{config_entry.data[CONF.PREFIX]}{modbus_item.name}\"",
+    "tests": "unique_id_is_prefix"
+  },
+  {
+    "label": "power map: the flow temperature must be interpolated",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "        return p0 + dy * (p1 - p0)",
+    "new": "        return p0",
+    "tests": "interpolates_between"
+  },
+  {
+    "label": "translations: a pruned key must count as a change",
+    "path": "custom_components/weishaupt_modbus/translations.py",
+    "old": "    for key in list(locale.keys()):\n        if key not in master:\n            changed = True",
+    "new": "    for key in list(locale.keys()):\n        if key not in master:\n            pass",
+    "tests": "pruned_key_marks"
+  },
+  {
+    "label": "sensor platform: a WebIF failure must not take the Modbus sensors down",
+    "path": "custom_components/weishaupt_modbus/sensor.py",
+    "old": "        except Exception:\n            _LOGGER.exception(\n                \"Setting up WebIF sensors failed; Modbus sensors are not affected\"\n            )",
+    "new": "        except Exception:\n            raise",
+    "tests": "modbus_sensors_added_when_webif_setup_fails"
+  },
+  {
+    "label": "entity: an absent formula operand must read as none, not drop the entity",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        except TypeError:\n",
+    "new": "        except ValueError:\n",
+    "tests": "absent_operand_reads_as_none"
+  },
+  {
+    "label": "power map: the fallback must point at the shipped grid folder",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "        filepath = Path(__file__).resolve().parent / \"kennfeld\"\n",
+    "new": "        filepath = Path(__file__).resolve().parent\n",
+    "tests": "fallback_path_is_the_shipped"
+  },
+  {
+    "label": "entity: a sensor must start from the value the first refresh fetched",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        self._attr_native_value = self.translate_val(modbus_item.state)\n",
+    "new": "        self._attr_native_value = None\n",
+    "tests": "sensor_from_the_first_refresh"
+  }
+]

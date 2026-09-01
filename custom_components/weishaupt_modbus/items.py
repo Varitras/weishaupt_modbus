@@ -208,7 +208,7 @@ class ApiItem:
         for _useless, item in enumerate(self._resultlist):
             if val == item.text:
                 return item.number
-        return -1
+        return None
 
     def get_translation_key_from_number(self, val: int) -> str | None:
         """Get errortext from corresponding number."""
@@ -230,7 +230,7 @@ class ApiItem:
         for _useless, item in enumerate(self._resultlist):
             if val == item.translation_key:
                 return item.number
-        return -1
+        return None
 
 
 class WebItem(ApiItem):

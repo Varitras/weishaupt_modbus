@@ -646,7 +646,7 @@ WW_PUSH: list[StatusItem] = [
 ]
 # Fill WW_PUSH with values for every 5 Minutes
 for i in range(5, 240, 5):
-    WW_PUSH.append(  # noqa: PERF401
+    WW_PUSH.append(
         StatusItem(
             number=i,
             text=str(object=i) + " " + UnitOfTime.MINUTES,

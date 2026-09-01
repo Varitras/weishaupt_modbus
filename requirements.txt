@@ -1,7 +1,10 @@
+# The integration's own manifest requirements, repeated here so its modules
+# import during test collection. Home Assistant installs from manifest.json and
+# reads nothing else, so tests/test_requirements.py holds the two lists equal -
+# a bound raised in only one of them is a fix nobody receives.
+pymodbus>=3.10.0
 aiofiles>=24.1.0
-beautifulsoup4>=4.13.4
-pymodbus>=3.9.2
-types-aiofiles>=24.1.0
-scipy-stubs>=1.16.0
-matplotlib==3.10.3
-weishaupt-webif-api>=0.1.3
+beautifulsoup4>=4.13.3
+httpx
+weishaupt-webif-api>=0.1.4
+pygal==3.1.3

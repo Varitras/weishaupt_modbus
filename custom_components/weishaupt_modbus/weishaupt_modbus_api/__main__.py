@@ -4,10 +4,11 @@ import asyncio
 import logging
 import sys
 
+from .const import ALL_GROUPS
+
 # Adjust imports depending on your exact project root structure.
 # This assumes main.py is in the parent directory of custom_components/
 from .modbus_api import WeishauptModbusClient
-from .const import ALL_GROUPS
 
 # Configure basic logging to see connection events or Modbus warnings
 logging.basicConfig(

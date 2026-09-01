@@ -165,7 +165,7 @@ class PowerMap:
                             filepath.name,
                         )
                         self._generate_plot_blocking(data, filepath)
-            except Exception as err:  # noqa: BLE001
+            except Exception as err:
                 _LOGGER.error(
                     "Failed to compile missing grid for %s: %s", filepath.name, err
                 )
@@ -175,7 +175,6 @@ class PowerMap:
     ) -> dict[str, list[float]]:
         """Run CubicSpline compilation and write the compact grid back to the JSON file."""
         # On-demand import of Numpy (executed safely inside the thread pool)
-        import numpy as np  # noqa: PLC0415
 
         known_x = data["known_x"]
         known_y = data["known_y"]
@@ -295,7 +294,7 @@ class PowerMap:
             svg_path = filepath.with_suffix(".svg")
             chart.render_to_file(str(svg_path))
             _LOGGER.info("Successfully generated missing SVG plot: %s", svg_path.name)
-        except Exception as err:  # noqa: BLE001
+        except Exception as err:
             _LOGGER.debug("Pygal SVG plot generation failed: %s", err)
 
     def generate_svg_plot_blocking(
@@ -369,7 +368,7 @@ class PowerMap:
                 "Dynamic power map SVG updated successfully: %s", svg_path.name
             )
 
-        except Exception as err:  # noqa: BLE001
+        except Exception as err:
             _LOGGER.error("Failed to generate dynamic power map SVG: %s", err)
 
     def _copy_powermap_plot(self, json_filepath: Path, www_dir: Path) -> None:
@@ -453,5 +452,5 @@ def get_filepath(hass: HomeAssistant) -> Path:
         f"{hass.config.config_dir}/custom_components/{CONST.DOMAIN}/kennfeld"
     )
     if not filepath.exists():
-        filepath = Path(Path(__file__).resolve().parent)
+        filepath = Path(__file__).resolve().parent / "kennfeld"
     return filepath

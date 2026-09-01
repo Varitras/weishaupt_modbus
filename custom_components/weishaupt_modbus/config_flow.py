@@ -71,7 +71,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
 
             except InvalidHost:
                 errors["base"] = "invalid_host"
-            except Exception:  # noqa: BLE001
+            except Exception:
                 errors["base"] = "unknown"
 
         # Define Schema for Page 1
@@ -146,7 +146,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
             # If we are in a reconfigure flow, finalize the updates
             if self._reconfigure_entry:
                 return self.async_update_and_abort(
-                    entry=self._reconfigure_entry, data_updates=self._stored_data
+                    entry=self._reconfigure_entry, data=self._stored_data
                 )
 
             # Standard creation path
@@ -250,11 +250,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                     self._stored_data.pop(key, None)
 
                 return self.async_update_and_abort(
-                    entry=self._reconfigure_entry, data_updates=self._stored_data
+                    entry=self._reconfigure_entry, data=self._stored_data
                 )
             except InvalidHost:
                 errors["base"] = "invalid_host"
-            except Exception:  # noqa: BLE001
+            except Exception:
                 errors["base"] = "unknown"
 
         # We display the same schema as user step 1 for consistency

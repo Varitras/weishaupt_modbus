@@ -5,15 +5,15 @@ import copy
 import logging
 from typing import TYPE_CHECKING
 
+from weishaupt_webif_api import WebifConnection
+
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.modbus_api import (
     WeishauptModbusClient,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from weishaupt_webif_api import WebifConnection
 
 from .configentry import MyData
-from .translations import update_translation
 
 if TYPE_CHECKING:
     from .configentry import MyConfigEntry
@@ -241,7 +241,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # This is called when an entry/configured device is to be removed. The class
     # needs to unload itself, and remove callbacks. See the classes for further
     # details
-    entry.runtime_data.modbus_api.close()
+    await entry.runtime_data.modbus_api.disconnect()
     if entry.runtime_data.webif_api is not None:
         await entry.runtime_data.webif_api.close()
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
