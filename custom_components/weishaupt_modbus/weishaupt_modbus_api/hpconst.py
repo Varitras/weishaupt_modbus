@@ -506,8 +506,8 @@ HP_BETRIEB: list[StatusItem] = [
     ),
     StatusItem(
         number=36,
-        text="BEREITSCHAFT",
-        translation_key="heatpump_operationmode_bereitschaft",
+        text="Regenerativ",
+        translation_key="heatpump_operationmode_regenerativ",
     ),
     StatusItem(
         number=37,

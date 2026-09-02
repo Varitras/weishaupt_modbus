@@ -129,6 +129,39 @@ def test_no_translation_outlives_its_item(path):
     )
 
 
+@pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
+def test_every_status_value_has_a_state_translation(path):
+    """A STATUS entity's state IS the translation key of the matching status
+    number; the display text comes from the `state` map under the entity.
+    Operating mode 36 was added to the table under one key and to the
+    translations under another - every pump in that mode showed the raw key
+    (issue #154)."""
+    translations = _entity_translations(path)
+    mismatched = []
+    for item in _items(hpconst):
+        if item.format != FORMATS.STATUS or not item.resultlist:
+            continue
+        translated = set(
+            translations[PLATFORM_OF[item.type]]
+            .get(item.translation_key, {})
+            .get("state", {})
+        )
+        listed = {status.translation_key for status in item.resultlist}
+        mismatched += [
+            f"{item.translation_key}:{key} (no text)"
+            for key in sorted(listed - translated)
+        ]
+        mismatched += [
+            f"{item.translation_key}:{key} (no status)"
+            for key in sorted(translated - listed)
+        ]
+
+    assert not mismatched, (
+        f"{path.name}: status keys and state translations disagree: {mismatched}. "
+        "The table and every translation file have to name the same keys."
+    )
+
+
 def test_every_status_item_has_a_result_list():
     """A STATUS item maps numbers to texts; without the list every value
     reads as `unbekannt <n>`."""
