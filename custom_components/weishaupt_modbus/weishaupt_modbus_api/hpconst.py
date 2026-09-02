@@ -662,6 +662,8 @@ W2_STATUS: list[StatusItem] = [
 W2_KONFIG: list[StatusItem] = [
     StatusItem(number=0, text="0", translation_key="w2_konf_0"),
     StatusItem(number=1, text="1", translation_key="w2_konf_1"),
+    # A pump without a second heat source answers 255 (live, 2025 firmware).
+    StatusItem(number=255, text="nicht vorhanden", translation_key="w2_konf_255"),
 ]
 
 EP1_KONFIG: list[StatusItem] = [

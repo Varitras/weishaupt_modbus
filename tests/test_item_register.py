@@ -253,3 +253,13 @@ def test_the_second_heat_source_counters_carry_the_register_lists_labels():
     for hours in (34102, 34106, 34107):
         assert by_address[hours].params == hpconst.PARAMS_TIME_H, hours
     assert not by_address[34103].params, "a cycle count has no unit"
+
+
+def test_a_pump_without_a_second_heat_source_has_a_state_for_it():
+    """Live: 44101 answers 255 on a pump with no second heat source; without
+    an entry the sensor showed the raw fallback text as its state."""
+    by_address = {item.address: item for item in hpconst.MODBUS_W2_ITEMS}
+
+    assert by_address[44101].get_translation_key_from_number(255) == "w2_konf_255"
+    assert by_address[44102].get_translation_key_from_number(5) == "w2_konf_0"
+    assert by_address[44103].get_translation_key_from_number(6) == "w2_konf_0"

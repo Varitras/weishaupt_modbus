@@ -33,7 +33,7 @@ LINE_LIMIT = 900
 
 # The register table: one ModbusItem per line, ~1600 of them.
 LINE_BUDGETS = {
-    "weishaupt_modbus_api/hpconst.py": 1603,
+    "weishaupt_modbus_api/hpconst.py": 1605,
 }
 
 # SonarSource's own default. Above it, a function is one somebody has to

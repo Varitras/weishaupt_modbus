@@ -1370,7 +1370,8 @@
                 "name": "{prefix}W2_Konfiguration",
                 "state": {
                     "w2_konf_0": "0",
-                    "w2_konf_1": "1"
+                    "w2_konf_1": "1",
+                    "w2_konf_255": "nicht vorhanden"
                 }
             },
             "waermeleistung": {
