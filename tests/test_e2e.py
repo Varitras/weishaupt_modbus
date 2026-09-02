@@ -17,6 +17,7 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.modbus_api import (
     WeishauptModbusClient,
 )
 from homeassistant.config_entries import ConfigEntryState
+from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
 
 pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
@@ -200,6 +201,35 @@ async def test_a_renamed_entity_keeps_its_id_across_a_restart(hass):
         )
         == "sensor.my_outside_temperature"
     ), "the restart renamed the entity back"
+
+
+async def test_reconfigure_reloads_once_through_the_update_listener(
+    hass, fake_modbus, caplog
+):
+    """Issue #180: Home Assistant warns - and from 2026.12 refuses - when a
+    flow schedules a reload itself while the entry also has an update
+    listener, because that reloads twice. The listener is the one path here:
+    the flow only updates the entry and aborts."""
+    entry = await _setup(hass, _entry(hass))
+
+    result = await hass.config_entries.flow.async_init(
+        CONST.DOMAIN, context={"source": "reconfigure", "entry_id": entry.entry_id}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**BASE_DATA, CONF.HOST: "192.0.2.20"}
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.ABORT
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.data[CONF.HOST] == "192.0.2.20"
+    assert len(fake_modbus) == 1, (
+        f"the entry was reloaded {len(fake_modbus)} times; the update listener "
+        "should reload it exactly once"
+    )
+    assert "has an update listener and should use it" not in caplog.text, (
+        "Home Assistant reported the double-reload deprecation"
+    )
 
 
 async def test_a_pump_that_refuses_the_first_connection_retries_later(
