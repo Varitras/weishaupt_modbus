@@ -1498,13 +1498,16 @@ MODBUS_WW_ITEMS: list[ModbusItem] = [
 ]
 
 # --- SECONDARY HEAT GENERATOR (W2) ---
+# 34102/34103/34106 follow the Weishaupt register list and a pump running
+# 2025 firmware; the labels the upstream table gave them belonged to other
+# registers. Renaming one of these is an entry migration (see __init__.py).
 MODBUS_W2_ITEMS: list[ModbusItem] = [
     ModbusItem(address=34101, name="Status 2. WEZ", mformat=FORMATS.STATUS, mtype=TYPES.SENSOR, device=DEVICES.W2, resultlist=W2_STATUS, translation_key="status_2_wez", batch=34101),
-    ModbusItem(address=34102, name="Schaltspiele E-Heizung 1", mformat=FORMATS.NUMBER, mtype=TYPES.SENSOR, device=DEVICES.W2, translation_key="schaltsp_e1", batch=34101),
-    ModbusItem(address=34103, name="Betriebsstunden E1", mformat=FORMATS.NUMBER, mtype=TYPES.SENSOR, device=DEVICES.W2, params=PARAMS_TIME_H, translation_key="betriebss_e1", batch=34101),
+    ModbusItem(address=34102, name="Betriebsstunden 2. WEZ", mformat=FORMATS.NUMBER, mtype=TYPES.SENSOR, device=DEVICES.W2, params=PARAMS_TIME_H, translation_key="betriebss_2wez", batch=34101),
+    ModbusItem(address=34103, name="Schaltspiele 2. WEZ", mformat=FORMATS.NUMBER, mtype=TYPES.SENSOR, device=DEVICES.W2, translation_key="schaltsp_2wez", batch=34101),
     ModbusItem(address=34104, name="Status E-Heizung 1", mformat=FORMATS.STATUS, mtype=TYPES.SENSOR, device=DEVICES.W2, resultlist=W2_STATUS, translation_key="status_e1", batch=34101),
     ModbusItem(address=34105, name="Status E-Heizung 2", mformat=FORMATS.STATUS, mtype=TYPES.SENSOR, device=DEVICES.W2, resultlist=W2_STATUS, translation_key="status_e2", batch=34101),
-    ModbusItem(address=34106, name="Schaltspiele E-Heizung 2", mformat=FORMATS.NUMBER, mtype=TYPES.SENSOR, device=DEVICES.W2, translation_key="schaltsp_e2", batch=34106),
+    ModbusItem(address=34106, name="Betriebsstunden E1", mformat=FORMATS.NUMBER, mtype=TYPES.SENSOR, device=DEVICES.W2, params=PARAMS_TIME_H, translation_key="betriebss_e1", batch=34106),
     ModbusItem(address=34107, name="Betriebsstunden E2", mformat=FORMATS.NUMBER, mtype=TYPES.SENSOR, device=DEVICES.W2, params=PARAMS_TIME_H, translation_key="betriebss_e2", batch=34106),
     ModbusItem(address=44101, name="W2_Konfiguration", mformat=FORMATS.STATUS, mtype=TYPES.SENSOR, device=DEVICES.W2, resultlist=W2_KONFIG, translation_key="w2_konf", batch=44101),
     ModbusItem(address=44102, name="Konfiguration EP1", mformat=FORMATS.STATUS, mtype=TYPES.SENSOR, device=DEVICES.W2, resultlist=EP1_KONFIG, translation_key="adr44102", batch=44101),

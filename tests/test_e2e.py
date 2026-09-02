@@ -70,7 +70,7 @@ def fake_modbus(monkeypatch):
     return disconnected
 
 
-def _entry(hass, data=None, version=9):
+def _entry(hass, data=None, version=10):
     entry = MockConfigEntry(
         domain=CONST.DOMAIN, title="pump", data=data or BASE_DATA, version=version
     )
@@ -122,7 +122,7 @@ async def test_an_old_entry_migrates_to_the_current_version(hass):
 
     await _setup(hass, entry)
 
-    assert entry.version == 9
+    assert entry.version == 10
     for key in (
         CONF.PREFIX,
         CONF.DEVICE_POSTFIX,
@@ -159,7 +159,7 @@ async def test_a_web_interface_entry_is_stripped_of_its_settings_and_entities(ha
 
     await _setup(hass, entry)
 
-    assert entry.version == 9
+    assert entry.version == 10
     for key in (
         "enable-webif",
         "username",
@@ -175,6 +175,76 @@ async def test_a_web_interface_entry_is_stripped_of_its_settings_and_entities(ha
         )
         is None
     ), "the web-interface entity was left in the registry"
+
+
+# The three 2nd-heat-source entities as version 9 registered them on an
+# English Home Assistant: unique id from the old item name, entity id from the
+# device and the old label.
+RELABELLED_BEFORE_V10 = {
+    "weishaupt_wbbSchaltspiele E-Heizung 1": "sensor.wh_2nd_heat_source_switching_cycles_e_heating_1",
+    "weishaupt_wbbBetriebsstunden E1": "sensor.wh_2nd_heat_source_operation_hours_e1",
+    "weishaupt_wbbSchaltspiele E-Heizung 2": "sensor.wh_2nd_heat_source_switching_cycles_e_heating_2",
+}
+RELABELLED_AFTER_V10 = {
+    "weishaupt_wbbBetriebsstunden 2. WEZ": "sensor.wh_2nd_heat_source_operation_hours_2nd_heat_source",
+    "weishaupt_wbbSchaltspiele 2. WEZ": "sensor.wh_2nd_heat_source_switching_cycles_2nd_heat_source",
+    "weishaupt_wbbBetriebsstunden E1": "sensor.wh_2nd_heat_source_operation_hours_e1",
+}
+
+
+def _register_v9_second_heat_source(hass, entry):
+    registry = er.async_get(hass)
+    for unique_id, entity_id in RELABELLED_BEFORE_V10.items():
+        registry.async_get_or_create(
+            "sensor",
+            CONST.DOMAIN,
+            unique_id,
+            config_entry=entry,
+            suggested_object_id=entity_id.split(".", 1)[1],
+        )
+    return registry
+
+
+async def test_relabelled_registers_take_their_history_and_auto_ids_along(hass):
+    """Version 10 corrects three 2nd-heat-source labels. The unique id carries
+    the item name, so without a migration every one of them would come back
+    as a new entity with an empty history - and the old ones would linger as
+    unavailable. An entity id that is still the auto-generated one follows
+    the label; the old "operation hours E1" id ends up on the register that
+    really counts those hours."""
+    entry = _entry(hass, version=9)
+    registry = _register_v9_second_heat_source(hass, entry)
+
+    await _setup(hass, entry)
+
+    for unique_id, entity_id in RELABELLED_AFTER_V10.items():
+        assert (
+            registry.async_get_entity_id("sensor", CONST.DOMAIN, unique_id) == entity_id
+        )
+    for unique_id in RELABELLED_BEFORE_V10:
+        if unique_id not in RELABELLED_AFTER_V10:
+            assert (
+                registry.async_get_entity_id("sensor", CONST.DOMAIN, unique_id) is None
+            )
+
+
+async def test_a_hand_renamed_entity_keeps_its_id_through_the_relabelling(hass, caplog):
+    entry = _entry(hass, version=9)
+    registry = _register_v9_second_heat_source(hass, entry)
+    registry.async_update_entity(
+        "sensor.wh_2nd_heat_source_switching_cycles_e_heating_2",
+        new_entity_id="sensor.backup_heater_hours",
+    )
+
+    await _setup(hass, entry)
+
+    assert (
+        registry.async_get_entity_id(
+            "sensor", CONST.DOMAIN, "weishaupt_wbbBetriebsstunden E1"
+        )
+        == "sensor.backup_heater_hours"
+    )
+    assert "sensor.backup_heater_hours (kept" in caplog.text
 
 
 async def test_a_renamed_entity_keeps_its_id_across_a_restart(hass):

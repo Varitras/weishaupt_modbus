@@ -184,8 +184,8 @@
   {
     "label": "migration: the unique id must carry the postfix",
     "path": "custom_components/weishaupt_modbus/migrate_helpers.py",
-    "old": "    return f\"{config_entry.data[CONF.PREFIX]}{modbus_item.name}{dev_postfix}\"",
-    "new": "    return f\"{config_entry.data[CONF.PREFIX]}{modbus_item.name}\"",
+    "old": "    return f\"{entry_data[CONF.PREFIX]}{item_name}{dev_postfix}\"",
+    "new": "    return f\"{entry_data[CONF.PREFIX]}{item_name}\"",
     "tests": "unique_id_is_prefix"
   },
   {
@@ -264,5 +264,19 @@
     "old": "                        min=CONST.SCAN_INTERVAL_MIN_SECONDS,\n",
     "new": "                        min=0,\n",
     "tests": "out_of_range_poll_interval_is_refused"
+  },
+  {
+    "label": "migration v10: the unique id must move to the new item name",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "            new_unique_id=unique_id_from_parts(entry_data, new_name),\n",
+    "new": "            new_unique_id=old_unique_id,\n",
+    "tests": "relabelled_registers_take_their_history or hand_renamed_entity_keeps_its_id"
+  },
+  {
+    "label": "migration v10: an auto-generated entity id must follow the label",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "            new_entity_id=new_entity_id or UNDEFINED,\n",
+    "new": "            new_entity_id=UNDEFINED,\n",
+    "tests": "relabelled_registers_take_their_history"
   }
 ]

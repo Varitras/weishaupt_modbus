@@ -233,3 +233,18 @@ def test_the_signature_sees_a_changed_field():
     changed = ModbusItem(1, "x", FORMATS.TEMPERATURE, TYPES.SENSOR, "dev", "k")
 
     assert _signature(item) != _signature(changed)
+
+
+def test_the_second_heat_source_counters_carry_the_register_lists_labels():
+    """Upstream labelled 34102 "switching cycles E1", 34103 "operation hours
+    E1" and 34106 "switching cycles E2". The Weishaupt register list - and a
+    pump whose display showed E1 at 2 h while 34106 read 2 - says otherwise."""
+    by_address = {item.address: item for item in hpconst.MODBUS_W2_ITEMS}
+
+    assert by_address[34102].name == "Betriebsstunden 2. WEZ"
+    assert by_address[34103].name == "Schaltspiele 2. WEZ"
+    assert by_address[34106].name == "Betriebsstunden E1"
+    assert by_address[34107].name == "Betriebsstunden E2"
+    for hours in (34102, 34106, 34107):
+        assert by_address[hours].params == hpconst.PARAMS_TIME_H, hours
+    assert not by_address[34103].params, "a cycle count has no unit"

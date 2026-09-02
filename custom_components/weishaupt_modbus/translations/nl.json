@@ -762,8 +762,8 @@
           "system_operationmode_manual2ndheatsource" : "2e warmtewisselaar"
         }
       },
-      "betriebss_e1" : {
-        "name" : "{prefix}Bedrijfsuren E1"
+      "schaltsp_2wez" : {
+        "name" : "{prefix}Schakelcycli 2e warmtebron"
       },
       "betriebss_e2" : {
         "name" : "{prefix}Bedrijfsuren E2"
@@ -1279,11 +1279,11 @@
           "hp_ruhemodus_3" : "40 %"
         }
       },
-      "schaltsp_e1" : {
-        "name" : "{prefix}Schakelcycli E-verwarming 1"
+      "betriebss_2wez" : {
+        "name" : "{prefix}Bedrijfsuren 2e warmtebron"
       },
-      "schaltsp_e2" : {
-        "name" : "{prefix}Schakelcycli E-verwarming 2"
+      "betriebss_e1" : {
+        "name" : "{prefix}Bedrijfsuren E1"
       },
       "sgr1" : {
         "name" : "{prefix}SG-Klaar 1"

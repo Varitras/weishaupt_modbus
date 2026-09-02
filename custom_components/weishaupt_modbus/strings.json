@@ -762,8 +762,8 @@
           "system_operationmode_manual2ndheatsource": "2nd heat source"
         }
       },
-      "betriebss_e1": {
-        "name": "{prefix}Operation hours E1"
+      "schaltsp_2wez": {
+        "name": "{prefix}Switching cycles 2nd heat source"
       },
       "betriebss_e2": {
         "name": "{prefix}Operation hours E2"
@@ -1291,11 +1291,11 @@
           "hp_ruhemodus_3": "40 %"
         }
       },
-      "schaltsp_e1": {
-        "name": "{prefix}Switching cycles E-heating 1"
+      "betriebss_2wez": {
+        "name": "{prefix}Operation hours 2nd heat source"
       },
-      "schaltsp_e2": {
-        "name": "{prefix}Switching cycles E-heating 2"
+      "betriebss_e1": {
+        "name": "{prefix}Operation hours E1"
       },
       "sgr1": {
         "name": "{prefix}SG-Ready 1"

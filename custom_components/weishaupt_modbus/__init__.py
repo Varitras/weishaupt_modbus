@@ -9,12 +9,15 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.modbus_api import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.typing import UNDEFINED
+from homeassistant.util import slugify
 
 from .configentry import MyConfigEntry, MyData
 from .const import CONF, CONST
 from .coordinator import WeishauptModbusCoordinator
 from .items import ModbusItem
 from .kennfeld import PowerMap
+from .migrate_helpers import unique_id_from_parts
 from .weishaupt_modbus_api.hpconst import DEVICELISTS
 
 _LOGGER = logging.getLogger(__name__)
@@ -38,6 +41,43 @@ LEGACY_WEBIF_KEYS = (
     "Poll Statistik",
 )
 LEGACY_WEBIF_UNIQUE_ID_PREFIX = "webif_"
+
+# Version 10 relabelled three 2nd-heat-source registers (see hpconst.py).
+# The unique id carries the item name, so every recorded entity has to move
+# to the new id. Each row: old item name, new item name, and the old and
+# new display name per language - an entity id that still carries the old
+# auto-generated slug is renamed along, a user-chosen one is left alone.
+# The ORDER is load-bearing: 34103 gives up "Betriebsstunden E1" before
+# 34106 claims it.
+RENAMED_ITEMS = (
+    (
+        "Betriebsstunden E1",
+        "Schaltspiele 2. WEZ",
+        (
+            ("Operation hours E1", "Switching cycles 2nd heat source"),
+            ("Betriebsstunden E1", "Schaltspiele 2. WEZ"),
+            ("Bedrijfsuren E1", "Schakelcycli 2e warmtebron"),
+        ),
+    ),
+    (
+        "Schaltspiele E-Heizung 1",
+        "Betriebsstunden 2. WEZ",
+        (
+            ("Switching cycles E-heating 1", "Operation hours 2nd heat source"),
+            ("Schaltspiele E-Heizung 1", "Betriebsstunden 2. WEZ"),
+            ("Schakelcycli E-verwarming 1", "Bedrijfsuren 2e warmtebron"),
+        ),
+    ),
+    (
+        "Schaltspiele E-Heizung 2",
+        "Betriebsstunden E1",
+        (
+            ("Switching cycles E-heating 2", "Operation hours E1"),
+            ("Schaltspiele E-Heizung 2", "Betriebsstunden E1"),
+            ("Schakelcycli E-verwarming 2", "Bedrijfsuren E1"),
+        ),
+    ),
+)
 
 PLATFORMS: list[str] = [
     "number",
@@ -131,11 +171,50 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) 
             if registry_entry.unique_id.startswith(LEGACY_WEBIF_UNIQUE_ID_PREFIX):
                 registry.async_remove(registry_entry.entity_id)
 
+    if config_entry.version < 10:
+        _LOGGER.warning("Version <10 detected")
+        _move_relabelled_entities(hass, new_data)
+
     hass.config_entries.async_update_entry(
-        config_entry, data=new_data, minor_version=1, version=9
+        config_entry, data=new_data, minor_version=1, version=10
     )
-    _LOGGER.warning("Config entries updated to version 9")
+    _LOGGER.warning("Config entries updated to version 10")
     return True
+
+
+def _move_relabelled_entities(hass: HomeAssistant, entry_data: dict) -> None:
+    registry = er.async_get(hass)
+    for old_name, new_name, labels in RENAMED_ITEMS:
+        old_unique_id = unique_id_from_parts(entry_data, old_name)
+        entity_id = registry.async_get_entity_id("sensor", CONST.DOMAIN, old_unique_id)
+        if entity_id is None:
+            continue
+        new_entity_id = _entity_id_with_new_label(entity_id, labels)
+        registry.async_update_entity(
+            entity_id,
+            new_unique_id=unique_id_from_parts(entry_data, new_name),
+            new_entity_id=new_entity_id or UNDEFINED,
+        )
+        _LOGGER.warning(
+            "Register relabelled: %s is now %s (entity %s -> %s)",
+            old_name,
+            new_name,
+            entity_id,
+            new_entity_id or f"{entity_id} (kept, it was renamed by hand)",
+        )
+
+
+def _entity_id_with_new_label(entity_id: str, labels: tuple) -> str | None:
+    """The entity id with the old auto-generated slug swapped for the new one.
+
+    None when the id no longer carries that slug in any language.
+    """
+    domain, object_id = entity_id.split(".", 1)
+    for old_label, new_label in labels:
+        old_slug = slugify(old_label)
+        if old_slug in object_id:
+            return f"{domain}.{object_id.replace(old_slug, slugify(new_label))}"
+    return None
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

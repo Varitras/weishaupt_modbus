@@ -40,7 +40,7 @@ async def validate_input(data: dict[str, Any]) -> dict[str, Any]:
 class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: disable=abstract-method
     """Class config flow."""
 
-    VERSION = 9
+    VERSION = 10
     MINOR_VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_PUSH
 

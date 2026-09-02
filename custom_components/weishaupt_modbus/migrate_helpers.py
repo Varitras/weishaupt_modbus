@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any
 
 from .const import CONF
 
@@ -16,11 +17,16 @@ def create_unique_id(config_entry: MyConfigEntry, modbus_item: ModbusItem) -> st
 
     Unchanged since the first release on purpose: a different string would
     orphan every recorded entity. The entity *id* is Home Assistant's business
-    and is never touched by this integration (issue #146).
+    and is never touched outside a versioned entry migration (issue #146).
     """
-    dev_postfix = f"_{config_entry.data[CONF.DEVICE_POSTFIX]}"
+    return unique_id_from_parts(config_entry.data, modbus_item.name)
+
+
+def unique_id_from_parts(entry_data: Mapping[str, Any], item_name: str) -> str:
+    """The same id for an item name that is no longer in the table."""
+    dev_postfix = f"_{entry_data[CONF.DEVICE_POSTFIX]}"
 
     if dev_postfix == "_":
         dev_postfix = ""
 
-    return f"{config_entry.data[CONF.PREFIX]}{modbus_item.name}{dev_postfix}"
+    return f"{entry_data[CONF.PREFIX]}{item_name}{dev_postfix}"
