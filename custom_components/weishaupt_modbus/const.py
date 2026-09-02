@@ -32,6 +32,12 @@ class MainConstants:
 
     DOMAIN: str = "weishaupt_modbus"
     SCAN_INTERVAL: timedelta = timedelta(seconds=30)
+    # The options-flow key and the bounds the poll interval may be set to.
+    # The controller answers one block read at a time; below five seconds
+    # the polls overlap on a pump with every circuit enabled.
+    OPTION_SCAN_INTERVAL: str = "scan_interval"
+    SCAN_INTERVAL_MIN_SECONDS: int = 5
+    SCAN_INTERVAL_MAX_SECONDS: int = 600
     UNIQUE_ID: str = "unique_id"
     APPID: int = 100
     DEF_KENNFELDFILE: str = "weishaupt_wbb_kennfeld.json"

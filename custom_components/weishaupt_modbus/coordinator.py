@@ -1,6 +1,7 @@
 """The Update Coordinator for the ModbusItems."""
 
 import asyncio
+from datetime import timedelta
 import logging
 from typing import Any
 
@@ -40,6 +41,14 @@ async def check_configured(
             return True
 
 
+def scan_interval(config_entry: MyConfigEntry) -> timedelta:
+    """The poll interval from the entry's options, or the default."""
+    seconds = config_entry.options.get(
+        CONST.OPTION_SCAN_INTERVAL, CONST.SCAN_INTERVAL.total_seconds()
+    )
+    return timedelta(seconds=seconds)
+
+
 class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Clean, lock-free DataUpdateCoordinator for batch Modbus register polling."""
 
@@ -55,7 +64,7 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             hass,
             _LOGGER,
             name="weishaupt-modbus-coordinator",
-            update_interval=CONST.SCAN_INTERVAL,
+            update_interval=scan_interval(p_config_entry),
             always_update=True,
         )
         self.client = client

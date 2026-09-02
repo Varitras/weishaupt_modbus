@@ -44,6 +44,10 @@ The only mandatory parameter is the address of your heat pump. The port is
 - **Heizkreis 2–5** enable the entities of additional heating circuits.
 - **Kennfeld file** selects the power map for your model (see below).
 
+The **poll interval** (default 30 s) is an option, not part of the setup:
+open the integration's *Options* dialog to change it. A change reloads the
+integration.
+
 ### The power map
 
 The heat power (*Wärmeleistung*) is calculated from the power request,

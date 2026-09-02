@@ -1623,5 +1623,14 @@
             }
         }
     },
-    "title": "Weishaupt Wärmepumpe"
+    "title": "Weishaupt Wärmepumpe",
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "scan_interval": "Abfrageintervall (Sekunden)"
+                }
+            }
+        }
+    }
 }

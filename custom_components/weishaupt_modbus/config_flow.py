@@ -6,7 +6,7 @@ from aiofiles.os import scandir
 import voluptuous as vol
 
 from homeassistant import config_entries, exceptions
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 import homeassistant.helpers.config_validation as cv
 
 from .const import CONF, CONST
@@ -43,6 +43,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
     VERSION = 9
     MINOR_VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_PUSH
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> config_entries.OptionsFlow:
+        """Return the options flow for this entry."""
+        return OptionsFlow()
 
     def __init__(self) -> None:
         """Initialize the flow."""
@@ -209,6 +217,37 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 CONF.HOST: "myhostname",
             },
         )
+
+
+class OptionsFlow(config_entries.OptionsFlow):
+    """Runtime settings that do not need a new entry.
+
+    Stored in entry.options; the update listener in __init__ reloads the
+    entry when they change.
+    """
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """The one options page."""
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        current = self.config_entry.options.get(
+            CONST.OPTION_SCAN_INTERVAL, int(CONST.SCAN_INTERVAL.total_seconds())
+        )
+        schema = vol.Schema(
+            {
+                vol.Required(CONST.OPTION_SCAN_INTERVAL, default=current): vol.All(
+                    vol.Coerce(int),
+                    vol.Range(
+                        min=CONST.SCAN_INTERVAL_MIN_SECONDS,
+                        max=CONST.SCAN_INTERVAL_MAX_SECONDS,
+                    ),
+                )
+            }
+        )
+        return self.async_show_form(step_id="init", data_schema=schema)
 
 
 class InvalidHost(exceptions.HomeAssistantError):

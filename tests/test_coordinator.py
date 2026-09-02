@@ -13,6 +13,7 @@ from custom_components.weishaupt_modbus.const import CONF, CONST, DEVICES, TYPES
 from custom_components.weishaupt_modbus.coordinator import (
     WeishauptModbusCoordinator,
     check_configured,
+    scan_interval,
 )
 from custom_components.weishaupt_modbus.items import ModbusItem
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.exceptions import (
@@ -162,3 +163,13 @@ async def test_check_configured_follows_the_circuit_switches(
     entry = SimpleNamespace(data={key: enabled})
 
     assert await check_configured(item, entry) is expected
+
+
+def test_the_poll_interval_defaults_and_follows_the_option():
+    assert scan_interval(SimpleNamespace(options={})) == CONST.SCAN_INTERVAL
+    assert (
+        scan_interval(
+            SimpleNamespace(options={CONST.OPTION_SCAN_INTERVAL: 45})
+        ).total_seconds()
+        == 45
+    )

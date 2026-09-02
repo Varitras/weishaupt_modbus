@@ -1623,5 +1623,14 @@
       }
     }
   },
-  "title" : "Weishaupt Warmtepomp"
+  "title" : "Weishaupt Warmtepomp",
+  "options" : {
+    "step" : {
+      "init" : {
+        "data" : {
+          "scan_interval" : "Pollinterval (seconden)"
+        }
+      }
+    }
+  }
 }

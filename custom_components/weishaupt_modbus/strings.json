@@ -1623,5 +1623,14 @@
       }
     }
   },
-  "title": "Weishaupt Heat Pump"
+  "title": "Weishaupt Heat Pump",
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Poll interval (seconds)"
+        }
+      }
+    }
+  }
 }

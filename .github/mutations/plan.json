@@ -250,5 +250,19 @@
     "old": "        translation_key=\"heatpump_operationmode_regenerativ\",\n",
     "new": "        translation_key=\"heatpump_operationmode_regenerative\",\n",
     "tests": "status_value_has_a_state_translation"
+  },
+  {
+    "label": "coordinator: the poll interval must come from the options",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "    return timedelta(seconds=seconds)\n",
+    "new": "    return CONST.SCAN_INTERVAL\n",
+    "tests": "poll_interval_defaults_and_follows or options_flow_sets_the_poll_interval"
+  },
+  {
+    "label": "options flow: the interval must be range-checked",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                        min=CONST.SCAN_INTERVAL_MIN_SECONDS,\n",
+    "new": "                        min=0,\n",
+    "tests": "out_of_range_poll_interval_is_refused"
   }
 ]

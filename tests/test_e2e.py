@@ -17,7 +17,7 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.modbus_api import (
     WeishauptModbusClient,
 )
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.helpers import entity_registry as er
 
 pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
@@ -230,6 +230,37 @@ async def test_reconfigure_reloads_once_through_the_update_listener(
     assert "has an update listener and should use it" not in caplog.text, (
         "Home Assistant reported the double-reload deprecation"
     )
+
+
+async def test_the_options_flow_sets_the_poll_interval(hass, fake_modbus):
+    """Issue #183: the poll interval is a runtime setting - changed in the
+    options dialog, stored in entry.options, picked up by the coordinator
+    after the reload the update listener triggers."""
+    entry = await _setup(hass, _entry(hass))
+    assert entry.runtime_data.coordinator.update_interval == CONST.SCAN_INTERVAL
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "init"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {CONST.OPTION_SCAN_INTERVAL: 60}
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options == {CONST.OPTION_SCAN_INTERVAL: 60}
+    assert len(fake_modbus) == 1, "the change was not applied by a reload"
+    assert entry.runtime_data.coordinator.update_interval.total_seconds() == 60
+
+
+async def test_an_out_of_range_poll_interval_is_refused(hass):
+    entry = await _setup(hass, _entry(hass))
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    with pytest.raises(InvalidData):
+        await hass.config_entries.options.async_configure(
+            result["flow_id"], {CONST.OPTION_SCAN_INTERVAL: 1}
+        )
 
 
 async def test_a_pump_that_refuses_the_first_connection_retries_later(
