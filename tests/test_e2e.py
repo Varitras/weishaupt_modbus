@@ -176,6 +176,32 @@ async def test_a_web_interface_entry_is_stripped_of_its_settings_and_entities(ha
     ), "the web-interface entity was left in the registry"
 
 
+async def test_a_renamed_entity_keeps_its_id_across_a_restart(hass):
+    """Issue #146: every setup re-ran an entity-id "migration" that forced the
+    German default id back onto every entity - a user who renamed
+    `sensor.wh_system_aussentemperatur` to something else got the rename
+    undone on the next restart, and the automations built on it broke."""
+    entry = await _setup(hass, _entry(hass))
+    registry = er.async_get(hass)
+    entity_id = registry.async_get_entity_id(
+        "sensor", CONST.DOMAIN, OUTSIDE_TEMPERATURE_UNIQUE_ID
+    )
+    registry.async_update_entity(
+        entity_id, new_entity_id="sensor.my_outside_temperature"
+    )
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    await _setup(hass, entry)
+
+    assert (
+        registry.async_get_entity_id(
+            "sensor", CONST.DOMAIN, OUTSIDE_TEMPERATURE_UNIQUE_ID
+        )
+        == "sensor.my_outside_temperature"
+    ), "the restart renamed the entity back"
+
+
 async def test_a_pump_that_refuses_the_first_connection_retries_later(
     hass, monkeypatch
 ):

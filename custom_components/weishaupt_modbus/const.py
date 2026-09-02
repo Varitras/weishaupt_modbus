@@ -89,24 +89,3 @@ class DeviceConstants:
 
 
 DEVICES = DeviceConstants()
-
-
-@dataclass(frozen=True)
-class DeviceNameConstants:
-    """Device name constants."""
-
-    SYS: str = "WH System"
-    WP: str = "WH Wärmepumpe"
-    WW: str = "WH Warmwasser"
-    HZ: str = "WH Heizkreis"
-    HZ2: str = "WH Heizkreis2"
-    HZ3: str = "WH Heizkreis3"
-    HZ4: str = "WH Heizkreis4"
-    HZ5: str = "WH Heizkreis5"
-    W2: str = "WH 2. Wärmeerzeuger"
-    ST: str = "WH Statistik"
-    UK: str = "WH Unknown"
-    IO: str = "WH Eingänge/Ausgänge"
-
-
-DEVICENAMES = DeviceNameConstants()

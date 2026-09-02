@@ -11,25 +11,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from .configentry import MyConfigEntry, MyData
-from .const import CONF, CONST, DEVICENAMES
+from .const import CONF, CONST
 from .coordinator import WeishauptModbusCoordinator
 from .items import ModbusItem
 from .kennfeld import PowerMap
-from .migrate_helpers import migrate_entities
-from .weishaupt_modbus_api.hpconst import (
-    DEVICELISTS,
-    MODBUS_HZ2_ITEMS,
-    MODBUS_HZ3_ITEMS,
-    MODBUS_HZ4_ITEMS,
-    MODBUS_HZ5_ITEMS,
-    MODBUS_HZ_ITEMS,
-    MODBUS_IO_ITEMS,
-    MODBUS_ST_ITEMS,
-    MODBUS_SYS_ITEMS,
-    MODBUS_W2_ITEMS,
-    MODBUS_WP_ITEMS,
-    MODBUS_WW_ITEMS,
-)
+from .weishaupt_modbus_api.hpconst import DEVICELISTS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -88,18 +74,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     powermap = PowerMap(entry, hass)
     await powermap.initialize()
     entry.runtime_data.powermap = powermap
-
-    hass.add_job(migrate_entities, entry, MODBUS_SYS_ITEMS, DEVICENAMES.SYS)
-    hass.add_job(migrate_entities, entry, MODBUS_HZ_ITEMS, DEVICENAMES.HZ)
-    hass.add_job(migrate_entities, entry, MODBUS_HZ2_ITEMS, DEVICENAMES.HZ2)
-    hass.add_job(migrate_entities, entry, MODBUS_HZ3_ITEMS, DEVICENAMES.HZ3)
-    hass.add_job(migrate_entities, entry, MODBUS_HZ4_ITEMS, DEVICENAMES.HZ4)
-    hass.add_job(migrate_entities, entry, MODBUS_HZ5_ITEMS, DEVICENAMES.HZ5)
-    hass.add_job(migrate_entities, entry, MODBUS_WP_ITEMS, DEVICENAMES.WP)
-    hass.add_job(migrate_entities, entry, MODBUS_WW_ITEMS, DEVICENAMES.WW)
-    hass.add_job(migrate_entities, entry, MODBUS_W2_ITEMS, DEVICENAMES.W2)
-    hass.add_job(migrate_entities, entry, MODBUS_IO_ITEMS, DEVICENAMES.IO)
-    hass.add_job(migrate_entities, entry, MODBUS_ST_ITEMS, DEVICENAMES.ST)
 
     # see https://community.home-assistant.io/t/config-flow-how-to-update-an-existing-entity/522442/8
     entry.async_on_unload(entry.add_update_listener(update_listener))
@@ -170,11 +144,4 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # needs to unload itself, and remove callbacks. See the classes for further
     # details
     await entry.runtime_data.modbus_api.disconnect()
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unload_ok:
-        try:
-            hass.data[entry.data[CONF.PREFIX]].pop(entry.entry_id)
-        except KeyError:
-            _LOGGER.warning("KeyError: %s", str(entry.data[CONF.PREFIX]))
-
-    return unload_ok
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
