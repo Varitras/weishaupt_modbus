@@ -29,21 +29,8 @@ NUMPY_AVAILABLE = importlib.util.find_spec("numpy") is not None
 SCIPY_AVAILABLE = importlib.util.find_spec("scipy") is not None
 PYGAL_AVAILABLE = importlib.util.find_spec("pygal") is not None
 
-if not NUMPY_AVAILABLE:
-    _LOGGER.warning(
-        "Numpy is not available. Raw power map compilation will be disabled."
-    )
-
-if not SCIPY_AVAILABLE:
-    _LOGGER.warning(
-        "SciPy is not available. CubicSpline high-precision compilation is disabled."
-    )
-
-if not PYGAL_AVAILABLE:
-    _LOGGER.warning(
-        "Pygal is not available. Adding 'pygal' to manifest.json is recommended "
-        "to enable dynamic SVG dashboard maps."
-    )
+# Only a grid that ships without `compiled_grid` needs these, and that path
+# says so when it runs - a warning here reached every user on every start.
 
 
 class PowerMap:

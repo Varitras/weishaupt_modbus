@@ -1,11 +1,15 @@
 """The power map: interpolation on the compiled grid, and the shipped grids."""
 
+import importlib
+import importlib.util
 import json
+import logging
 import pathlib
 from types import SimpleNamespace
 
 import pytest
 
+from custom_components.weishaupt_modbus import kennfeld
 from custom_components.weishaupt_modbus.const import CONST
 from custom_components.weishaupt_modbus.kennfeld import PowerMap, get_filepath
 
@@ -81,3 +85,33 @@ def test_every_shipped_grid_is_compiled_and_plotted():
     assert not incomplete, (
         f"grid(s) that would be compiled or plotted at runtime: {incomplete}"
     )
+
+
+def test_importing_the_module_does_not_warn_about_optional_libraries(
+    monkeypatch, caplog
+):
+    """Every shipped grid is precompiled, so numpy and scipy are only needed
+    to compile a NEW grid - and that path says so when it runs. Warning at
+    import time put three lines into every user's log on every start for a
+    situation none of them was in."""
+    real_find_spec = importlib.util.find_spec
+
+    def without_the_optional_libraries(name, *args, **kwargs):
+        if name in ("numpy", "scipy", "pygal"):
+            return None
+        return real_find_spec(name, *args, **kwargs)
+
+    monkeypatch.setattr(importlib.util, "find_spec", without_the_optional_libraries)
+    try:
+        with caplog.at_level(logging.WARNING, logger=kennfeld.__name__):
+            importlib.reload(kennfeld)
+    finally:
+        monkeypatch.undo()
+        importlib.reload(kennfeld)
+
+    warned = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == kennfeld.__name__
+    ]
+    assert not warned, f"import-time noise: {warned}"
