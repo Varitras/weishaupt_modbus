@@ -56,7 +56,7 @@ because the thing it prevents happened, here or in a sibling project.
 | `test_durations.py` | No single test quietly starts taking minutes (budget in `durations.py`, enforced from `conftest.py`), and a run that stops making progress is cut off rather than only measured |
 | `test_guards.py` | No guard binds itself to one source file; every guard is listed; `check.sh` matches CI |
 | `test_imports.py` | Every module imports outside the author's own tree - the `from config.custom_components...` line that shipped on main cannot ship again |
-| `test_item_register.py` | Every register definition is complete (a name in every translation file, result list, address range, unique key), no translation outlives its item, and both copies of the table agree |
+| `test_item_register.py` | Every register definition is complete (a name in every translation file, result list, address range, unique key, batch number) and no translation outlives its item |
 | `test_mutation_harness.py` | The mutation run fails loudly rather than printing "all caught" without having checked |
 | `test_mypy_scope.py` | Every module is in the mypy scope or carries a written reason why not yet |
 | `test_platform_entities.py` | Every platform builds its entities through the one shared helper |
@@ -89,12 +89,10 @@ is 15, SonarSource's default.
 
 ## The register table
 
-`hpconst.py` is the integration's data, and it exists twice: the API
-subpackage carries its own copy with batch numbers for block reads. The client
-polls from its copy and the entities read from the other, keyed by address.
-`test_item_register.py` holds the two equal and lists, by name, what was
-already wrong when the guard was adopted - so the **next** missing translation
-or diverging list fails, not the ones that were there.
+`weishaupt_modbus_api/hpconst.py` is the integration's data: every register,
+with the batch number the client groups block reads by. `test_item_register.py`
+holds it complete and lists, by name, what was already wrong when the guard
+was adopted - so the **next** gap fails, not the ones that were there.
 
 ## Adding a guard
 

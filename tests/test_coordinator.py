@@ -14,13 +14,13 @@ from custom_components.weishaupt_modbus.coordinator import (
     WeishauptModbusCoordinator,
     check_configured,
 )
-from custom_components.weishaupt_modbus.hpconst import (
-    MODBUS_HZ2_ITEMS,
-    MODBUS_SYS_ITEMS,
-)
 from custom_components.weishaupt_modbus.items import ModbusItem
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.exceptions import (
     ConnectionFailedError,
+)
+from custom_components.weishaupt_modbus.weishaupt_modbus_api.hpconst import (
+    MODBUS_HZ2_ITEMS,
+    MODBUS_SYS_ITEMS,
 )
 from homeassistant import config_entries
 from homeassistant.helpers.update_coordinator import UpdateFailed

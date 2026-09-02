@@ -10,7 +10,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import slugify
 
 from .const import CONF, CONST, TYPES
-from .hpconst import reverse_device_list
+from .weishaupt_modbus_api.hpconst import reverse_device_list
 
 if TYPE_CHECKING:
     from .configentry import MyConfigEntry

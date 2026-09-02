@@ -30,6 +30,7 @@ class WeishauptModbusClient:
         host: str,
         port: int = DEFAULT_PORT,
         lock: asyncio.Lock | None = None,
+        items: list[ModbusItem] | None = None,
     ) -> None:
         """Initialize the client with exact legacy parameters."""
         self._host = host
@@ -41,6 +42,14 @@ class WeishauptModbusClient:
             retries=1,  # Legacy retry setting
         )
         self._lock = lock if lock is not None else asyncio.Lock()
+        # The items this client reads and marks. The integration hands in its
+        # per-entry copies: two heat pumps sharing the module-level table
+        # marked each other's registers invalid.
+        self._items: list[ModbusItem] = (
+            items
+            if items is not None
+            else [item for group in DEVICELISTS for item in group]
+        )
 
         # Raw register data cache used by entities to read their state
         self.data: dict[int, int | None] = {}
@@ -182,7 +191,7 @@ class WeishauptModbusClient:
 
     async def update(self) -> dict[int, int | None]:
         """Coordinator polls this method to batch-update the entire internal register cache."""
-        batches = self._process_and_validate_batches(DEVICELISTS)
+        batches = self._process_and_validate_batches(self._items)
 
         def process_raw_value(addr: int, raw_val: int) -> int | None:
             item = self._items_dict.get(addr)
@@ -342,18 +351,14 @@ class WeishauptModbusClient:
                 ) from err
 
     def _process_and_validate_batches(self, items: list[ModbusItem]) -> dict[int, int]:
-        """Loops through ModbusItems and limits each batch size."""
-        myitems = []
-        for item in items:
-            myitems = myitems + item
-
+        """Group the items into block reads of at most five registers."""
         # Calculated sensors reuse the address of a real register as a place in
         # the table; keyed by address they would shadow that register and its
         # format handling (33103 lost its percentage sentinel that way).
         sorted_items = sorted(
             [
                 i
-                for i in myitems
+                for i in items
                 if getattr(i, "_address", None) is not None
                 and i.type != TYPES.SENSOR_CALC
             ],

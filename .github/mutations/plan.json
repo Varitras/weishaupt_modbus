@@ -222,5 +222,12 @@
     "old": "                registry.async_remove(registry_entry.entity_id)\n",
     "new": "                pass\n",
     "tests": "stripped_of_its_settings"
+  },
+  {
+    "label": "client: the client must poll the items it was given, not the module table",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
+    "old": "        batches = self._process_and_validate_batches(self._items)\n",
+    "new": "        batches = self._process_and_validate_batches(\n            [item for group in DEVICELISTS for item in group]\n        )\n",
+    "tests": "two_clients_do_not_share"
   }
 ]

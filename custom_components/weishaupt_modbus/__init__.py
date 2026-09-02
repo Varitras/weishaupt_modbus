@@ -18,7 +18,10 @@ if TYPE_CHECKING:
 
 from .const import CONF, CONST, DEVICENAMES
 from .coordinator import WeishauptModbusCoordinator
-from .hpconst import (
+from .items import ModbusItem
+from .kennfeld import PowerMap
+from .migrate_helpers import migrate_entities
+from .weishaupt_modbus_api.hpconst import (
     DEVICELISTS,
     MODBUS_HZ2_ITEMS,
     MODBUS_HZ3_ITEMS,
@@ -32,9 +35,6 @@ from .hpconst import (
     MODBUS_WP_ITEMS,
     MODBUS_WW_ITEMS,
 )
-from .items import ModbusItem
-from .kennfeld import PowerMap
-from .migrate_helpers import migrate_entities
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     for device in DEVICELISTS:
         itemlist.extend(copy.deepcopy(item) for item in device)
 
-    modbus_api = WeishauptModbusClient(host=entry.data[CONF.HOST])
+    modbus_api = WeishauptModbusClient(host=entry.data[CONF.HOST], items=itemlist)
 
     modbus_coordinator = WeishauptModbusCoordinator(
         hass=hass,

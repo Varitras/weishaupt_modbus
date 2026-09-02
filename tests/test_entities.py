@@ -11,11 +11,11 @@ import pytest
 
 from custom_components.weishaupt_modbus import entities
 from custom_components.weishaupt_modbus.const import CONF, DEVICES, FORMATS, TYPES
-from custom_components.weishaupt_modbus.hpconst import (
+from custom_components.weishaupt_modbus.items import ModbusItem
+from custom_components.weishaupt_modbus.weishaupt_modbus_api.hpconst import (
     PARAMS_CALCSPREIZUNG,
     SYS_BETRIEBSART,
 )
-from custom_components.weishaupt_modbus.items import ModbusItem
 
 
 def _entry(prefix="weishaupt_wbb", postfix="", device_prefix=False, topic_prefix=False):

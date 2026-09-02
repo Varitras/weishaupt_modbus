@@ -27,16 +27,12 @@ PACKAGE = (
 )
 
 # No module may pass this without an entry below. It sits in today's gap
-# between the ordinary modules (the largest is under 600 lines) and the two
-# register tables.
+# between the ordinary modules (the largest is under 600 lines) and the
+# register table.
 LINE_LIMIT = 900
 
-# The register tables: one ModbusItem per line, ~1700 of them, and the same
-# table twice - the API subpackage carries its own copy with batch numbers.
-# test_item_register.py holds the two copies equal; until they are merged,
-# both are allowed to weigh what they weigh today.
+# The register table: one ModbusItem per line, ~1600 of them.
 LINE_BUDGETS = {
-    "hpconst.py": 1592,
     "weishaupt_modbus_api/hpconst.py": 1600,
 }
 

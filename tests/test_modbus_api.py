@@ -11,7 +11,6 @@ import asyncio
 import pytest
 
 from custom_components.weishaupt_modbus.items import ModbusItem
-from custom_components.weishaupt_modbus.weishaupt_modbus_api import modbus_api
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.const import (
     BACKOFF_THRESHOLD_FAILURES,
     MAX_BLOCK_READ_COUNT,
@@ -100,7 +99,7 @@ async def client(wire):
     wire.connected = True
     # The address->item map is built by the first update; the tests read it
     # before that to set up sentinels, so build it here.
-    client._process_and_validate_batches(modbus_api.DEVICELISTS)
+    client._process_and_validate_batches(client._items)
     return client
 
 
@@ -226,7 +225,7 @@ def test_batch_size_never_exceeds_the_hardware_limit(client):
         for offset in range(7)
     ]
 
-    batches = client._process_and_validate_batches([seven_in_one_batch])
+    batches = client._process_and_validate_batches(seven_in_one_batch)
 
     assert max(batches.values()) <= MAX_BLOCK_READ_COUNT
     assert sum(batches.values()) == len(seven_in_one_batch), "a register was dropped"
@@ -234,7 +233,7 @@ def test_batch_size_never_exceeds_the_hardware_limit(client):
 
 
 def test_the_shipped_table_reads_blocks_in_address_order(client):
-    batches = client._process_and_validate_batches(modbus_api.DEVICELISTS)
+    batches = client._process_and_validate_batches(client._items)
 
     assert batches, "no batches at all - the scan proves nothing"
     assert max(batches.values()) <= MAX_BLOCK_READ_COUNT
@@ -243,7 +242,7 @@ def test_the_shipped_table_reads_blocks_in_address_order(client):
 
 def test_every_batched_register_is_read_once(client):
     """The batches cover every non-calculated item exactly once."""
-    batches = client._process_and_validate_batches(modbus_api.DEVICELISTS)
+    batches = client._process_and_validate_batches(client._items)
 
     covered = sum(batches.values())
     polled = [
@@ -390,6 +389,30 @@ async def test_writes_and_updates_share_one_lock(client, wire):
     await client.write_register(PV_SETPOINT, 42)
 
     assert seen_locked == [True]
+
+
+async def test_two_clients_do_not_share_their_items(wire):
+    """Two heat pumps, two entries, two clients: a register absent on one
+    must not read as absent on the other. With the module-level table as the
+    only item source, that is exactly what happened (#134)."""
+    own_items = [
+        ModbusItem(30001, "a", "temperature", "Sensor", "dev_system", "a", batch=30001),
+        ModbusItem(30002, "b", "temperature", "Sensor", "dev_system", "b", batch=30001),
+    ]
+    other_items = [
+        ModbusItem(30001, "a", "temperature", "Sensor", "dev_system", "a", batch=30001),
+        ModbusItem(30002, "b", "temperature", "Sensor", "dev_system", "b", batch=30001),
+    ]
+    own = WeishauptModbusClient(host="127.0.0.1", items=own_items)
+    own._client = wire
+    wire.connected = True
+    wire.error_blocks[30001] = ILLEGAL_DATA_ADDRESS
+    WeishauptModbusClient(host="127.0.0.2", items=other_items)
+
+    await own.update()
+
+    assert all(item.is_invalid for item in own_items)
+    assert not any(item.is_invalid for item in other_items)
 
 
 def test_the_fake_reports_errors_the_way_pymodbus_does():

@@ -280,7 +280,6 @@ files = [
   "custom_components/weishaupt_modbus/config_flow.py",
   "custom_components/weishaupt_modbus/const.py",
   "custom_components/weishaupt_modbus/entity_helpers.py",
-  "custom_components/weishaupt_modbus/hpconst.py",
   # Named so mypy resolves the MODULE: kennfeld.py sits next to a kennfeld/
   # data directory, and a followed import lands on the directory instead,
   # leaving every attribute of the module "undefined". Its own errors are

@@ -13,9 +13,9 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .configentry import MyConfigEntry
 from .const import CONF, CONST, FORMATS
 from .coordinator import WeishauptModbusCoordinator
-from .hpconst import reverse_device_list
 from .items import ModbusItem
 from .migrate_helpers import create_unique_id
+from .weishaupt_modbus_api.hpconst import reverse_device_list
 
 if TYPE_CHECKING:
     import logging
