@@ -2,21 +2,21 @@
   {
     "label": "client: the no-sensor sentinel must read as absent",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "                    case -32768 | 32768:",
-    "new": "                    case -32768:",
+    "old": "    if raw_val == TEMPERATURE_NO_SENSOR:\n        item.is_invalid = True\n",
+    "new": "    if raw_val == TEMPERATURE_NO_SENSOR:\n        item.is_invalid = False\n",
     "tests": "no_sensor_sentinel"
   },
   {
     "label": "client: a negative temperature must be converted from two's complement",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "                        if raw_val > 32768:\n                            raw_val -= 65536",
-    "new": "                        if raw_val > 32768:\n                            raw_val -= 0",
+    "old": "    if raw_val > TEMPERATURE_NO_SENSOR:\n        return raw_val - 65536\n",
+    "new": "    if raw_val > TEMPERATURE_NO_SENSOR:\n        return raw_val\n",
     "tests": "negative_temperature_is_read"
   },
   {
     "label": "client: the percentage sentinel must read as absent",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "                if raw_val == 65535:",
+    "old": "                if raw_val == PERCENTAGE_NO_VALUE:",
     "new": "                if raw_val == 65536:",
     "tests": "percentage_sentinel"
   },
@@ -313,5 +313,12 @@
     "old": "        except (WriteError, ConnectionFailedError) as err:\n            raise HomeAssistantError(\n                f\"Writing register {address} failed: {err}\"\n            ) from err\n",
     "new": "        except (WriteError, ConnectionFailedError) as err:\n            _LOGGER.error(\"Failed to write to register %s: %s\", address, err)\n            return None\n",
     "tests": "refused_write_reaches_the_user"
+  },
+  {
+    "label": "client: a faulty sensor must not decode as a temperature",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
+    "old": "    if raw_val in (TEMPERATURE_SENSOR_OPEN, TEMPERATURE_SENSOR_SHORT):\n",
+    "new": "    if False:\n",
+    "tests": "faulty_sensor_reads_as_none"
   }
 ]

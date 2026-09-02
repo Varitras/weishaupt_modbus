@@ -16,6 +16,10 @@ from .const import (
     DEFAULT_WRITE_LIMIT_PER_DAY,
     DEFAULT_WRITE_WARNING_PER_DAY,
     EEPROM_WRITE_RATING,
+    PERCENTAGE_NO_VALUE,
+    TEMPERATURE_NO_SENSOR,
+    TEMPERATURE_SENSOR_OPEN,
+    TEMPERATURE_SENSOR_SHORT,
 )
 from .exceptions import ConnectionFailedError, WriteError
 
@@ -24,6 +28,25 @@ from .hpconst import DEVICELISTS, FORMATS, TYPES, ModbusItem
 from .write_budget import WriteBudget
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def decode_temperature(item: ModbusItem, raw_val: int) -> int | None:
+    """Tenths of a degree from the wire, or None for a sentinel.
+
+    A register is unsigned on the wire: the conditions sit at 0x8000.., not
+    at the negative numbers they decode to.
+    """
+    if raw_val == TEMPERATURE_NO_SENSOR:
+        item.is_invalid = True
+        return None
+    item.is_invalid = False
+    if raw_val in (TEMPERATURE_SENSOR_OPEN, TEMPERATURE_SENSOR_SHORT):
+        # A faulty sensor is present, so the entity stays; it just has no
+        # reading until the sensor is fixed.
+        return None
+    if raw_val > TEMPERATURE_NO_SENSOR:
+        return raw_val - 65536
+    return raw_val
 
 
 class WeishauptModbusClient:
@@ -214,27 +237,16 @@ class WeishauptModbusClient:
             )
 
             if mformat == FORMATS.TEMPERATURE:
-                match raw_val:
-                    case -32768 | 32768:
-                        item.is_invalid = True
-                        return None
-                    case -32767:
-                        item.is_invalid = False
-                        return -999
-                    case _:
-                        if raw_val > 32768:
-                            raw_val -= 65536
-                        item.is_invalid = False
-                        return raw_val
+                return decode_temperature(item, raw_val)
 
-            elif mformat == FORMATS.PERCENTAGE:
-                if raw_val == 65535:
+            if mformat == FORMATS.PERCENTAGE:
+                if raw_val == PERCENTAGE_NO_VALUE:
                     item.is_invalid = True
                     return None
                 item.is_invalid = False
                 return raw_val
 
-            elif mformat == FORMATS.STATUS:
+            if mformat == FORMATS.STATUS:
                 item.is_invalid = False
                 return raw_val
 

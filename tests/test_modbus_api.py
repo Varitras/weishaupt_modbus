@@ -30,6 +30,8 @@ OPERATING_STATE = 30006  # STATUS, input register
 SYSTEM_MODE = 40001  # STATUS, holding register (SELECT)
 PV_SETPOINT = 40002  # NUMBER, holding register
 
+SENSOR_OPEN = 0x8001
+SENSOR_SHORT = 0x8002
 NO_SENSOR = 32768
 NO_VALUE = 65535
 ILLEGAL_DATA_ADDRESS = 2
@@ -119,6 +121,18 @@ async def test_no_sensor_sentinel_reads_as_none_and_marks_the_item_invalid(
 
     assert data[OUTSIDE_TEMPERATURE] is None
     assert _item(client, OUTSIDE_TEMPERATURE).is_invalid is True
+
+
+@pytest.mark.parametrize("fault", [SENSOR_OPEN, SENSOR_SHORT])
+async def test_a_faulty_sensor_reads_as_none_but_stays_available(client, wire, fault):
+    """0x8001 (open) and 0x8002 (short) decoded as -276.7 °C: the old code
+    matched the SIGNED numbers, which an unsigned register never delivers."""
+    wire.registers[OUTSIDE_TEMPERATURE] = fault
+
+    data = await client.update()
+
+    assert data[OUTSIDE_TEMPERATURE] is None
+    assert _item(client, OUTSIDE_TEMPERATURE).is_invalid is False
 
 
 async def test_a_negative_temperature_is_read_as_twos_complement(client, wire):

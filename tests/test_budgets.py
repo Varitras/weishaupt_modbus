@@ -50,7 +50,7 @@ COMPLEXITY_BUDGETS = {
     # and the one that keeps the entity alive.
     "entities.py::MyCalcSensorEntity.translate_val": 31,
     "weishaupt_modbus_api/modbus_api.py::WeishauptModbusClient.connect": 26,
-    "weishaupt_modbus_api/modbus_api.py::WeishauptModbusClient.update": 47,
+    "weishaupt_modbus_api/modbus_api.py::WeishauptModbusClient.update": 46,
 }
 
 
