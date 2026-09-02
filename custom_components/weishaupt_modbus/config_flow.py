@@ -155,9 +155,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 errors["base"] = "invalid_host"
         if user_input is not None and not errors:
             self._stored_data.update(user_input)
-            # Not async_update_and_abort: that helper only exists from Home
-            # Assistant 2025.8 on, and the declared minimum is 2025.7. The
-            # update listener in __init__ reloads the entry.
+            # Not async_update_reload_and_abort: that schedules a reload of
+            # its own while the update listener in __init__ reloads too.
             self.hass.config_entries.async_update_entry(
                 self._reconfigure_entry,
                 data=self._stored_data,

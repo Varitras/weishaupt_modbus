@@ -109,15 +109,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: "minimum HA 2025.7"
-            python-version: "3.13"
+          - name: "minimum HA 2026.9"
+            python-version: "3.14"
             # This job is the one with a version it MUST be running; the
             # current job has no fixed expectation to check against.
             check-declared-minimum: true
-            # Pinned to the plugin release that ships exactly the Home
-            # Assistant version hacs.json declares as the minimum. Raise both
+            # Pinned to the plugin release that ships the Home Assistant
+            # feature release hacs.json declares as the minimum. Raise both
             # together, never one alone.
-            phcc: "pytest-homeassistant-custom-component==0.13.264"
+            phcc: "pytest-homeassistant-custom-component==0.13.362"
+            # That plugin release pins the 2026.9.0b6 beta; the final release
+            # is installed over it until a plugin release pins the final.
+            home-assistant: "homeassistant==2026.9.0"
           - name: "current HA"
             python-version: "3.14"
             # Resolved by the step below, not a literal requirement.
@@ -142,6 +145,9 @@ jobs:
           # the timeout that stops a hung run is exactly what must not depend
           # on some other package still happening to pull it in.
           pip install "$PHCC_SPEC" pytest-timeout -r requirements.txt
+      - name: Install the declared minimum Home Assistant over the plugin's pin
+        if: matrix.home-assistant
+        run: pip install "${{ matrix.home-assistant }}"
       - name: Show the Home Assistant version under test
         run: python -c "from homeassistant.const import __version__; print(__version__)"
       - name: The minimum job must run the version hacs.json declares

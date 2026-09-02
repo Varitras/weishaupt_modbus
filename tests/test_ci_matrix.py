@@ -153,8 +153,8 @@ def test_a_patch_release_still_counts_as_the_declared_minimum():
     exec(compile(body, "check_min_ha.py", "exec"), namespace)  # noqa: S102
     feature_release = namespace["feature_release"]
 
-    assert feature_release("2025.7.4") == feature_release("2025.7.0")
-    assert feature_release("2025.8.0") != feature_release("2025.7.0")
+    assert feature_release("2026.9.4") == feature_release("2026.9.0")
+    assert feature_release("2026.10.0") != feature_release("2026.9.0")
 
 
 def test_the_test_job_resolves_a_final_home_assistant():
