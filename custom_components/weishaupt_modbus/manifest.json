@@ -2,7 +2,7 @@
   "domain": "weishaupt_modbus",
   "name": "Weishaupt WBB",
   "codeowners": [
-    "@OStrama, @MadOne"
+    "@Varitras"
   ],
   "config_flow": true,
   "documentation": "https://github.com/OStrama/weishaupt_modbus/",

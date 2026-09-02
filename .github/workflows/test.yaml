@@ -57,38 +57,64 @@ jobs:
         run: mypy
 
   pytest:
-    # Only the current end of the supported range: hacs.json declares no
-    # minimum Home Assistant version, so there is no floor to test against.
-    # The plugin version is resolved at run time to the newest release that
-    # pins a FINAL Home Assistant - see .github/scripts/resolve_phcc.py for
-    # why an unpinned install silently tests a beta instead.
-    name: pytest (current HA)
+    # Two ends of the supported range, because they catch opposite mistakes.
+    #
+    # "minimum" catches using an API that does not exist yet on the version
+    # hacs.json declares. "current" catches the opposite: an API that has since
+    # been REMOVED. Its plugin version is resolved at run time to the newest
+    # release that pins a FINAL Home Assistant - see
+    # .github/scripts/resolve_phcc.py for why an unpinned install silently
+    # tests a beta instead.
+    name: pytest (${{ matrix.name }})
     runs-on: "ubuntu-latest"
+    strategy:
+      # Both results matter; a failure at one end must not hide the other.
+      fail-fast: false
+      matrix:
+        include:
+          - name: "minimum HA 2025.7"
+            python-version: "3.13"
+            # This job is the one with a version it MUST be running; the
+            # current job has no fixed expectation to check against.
+            check-declared-minimum: true
+            # Pinned to the plugin release that ships exactly the Home
+            # Assistant version hacs.json declares as the minimum. Raise both
+            # together, never one alone.
+            phcc: "pytest-homeassistant-custom-component==0.13.264"
+          - name: "current HA"
+            python-version: "3.14"
+            # Resolved by the step below, not a literal requirement.
+            phcc: "latest-stable-ha"
     steps:
       - uses: "actions/checkout@v5"
-      - uses: "actions/setup-python@v6"
+      - name: Set up Python
+        uses: "actions/setup-python@v6"
         with:
-          python-version: "3.14"
+          python-version: ${{ matrix.python-version }}
       - name: Resolve the plugin version to install
         # tee, not a plain redirect: the chosen version has to be visible in
         # the log too, or a job that disagrees with a local run is guesswork.
-        run: python .github/scripts/resolve_phcc.py latest-stable-ha | tee -a "$GITHUB_ENV"
+        run: python .github/scripts/resolve_phcc.py "${{ matrix.phcc }}" | tee -a "$GITHUB_ENV"
       - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
-          # pytest-timeout by name: this job deliberately does not install
+          # pytest-timeout by name: these jobs deliberately do not install
           # requirements_test.txt, so nothing else here would bring it - and
           # the timeout that stops a hung run is exactly what must not depend
           # on some other package still happening to pull it in.
           pip install "$PHCC_SPEC" pytest-timeout -r requirements.txt
       - name: Show the Home Assistant version under test
         run: python -c "from homeassistant.const import __version__; print(__version__)"
+      - name: The minimum job must run the version hacs.json declares
+        if: matrix.check-declared-minimum
+        run: python .github/scripts/check_min_ha.py
       # -m "" cancels the `-m "not e2e"` default from pyproject.toml, so the
       # slow end-to-end tests against a real Home Assistant run here.
       - name: Run test suite
         run: pytest tests/ -q -m ""
       # A green suite says the tests pass, not that they would catch anything.
-      # The mutations edit files in the workspace, so this runs after the suite
-      # and never in parallel with it.
+      # Only on one job: the answer does not depend on the Home Assistant
+      # version, and the mutations edit files in the workspace.
       - name: Verify the tests actually catch a broken fix
+        if: matrix.name == 'current HA'
         run: python .github/scripts/mutate.py .github/mutations/plan.json

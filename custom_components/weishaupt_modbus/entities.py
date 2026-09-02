@@ -1,6 +1,7 @@
 """Entity classes used in this integration."""
 
-from typing import TYPE_CHECKING, Any
+import logging
+from typing import Any
 
 from homeassistant.components.number import NumberEntity
 from homeassistant.components.select import SelectEntity
@@ -17,10 +18,7 @@ from .items import ModbusItem
 from .migrate_helpers import create_unique_id
 from .weishaupt_modbus_api.hpconst import reverse_device_list
 
-if TYPE_CHECKING:
-    import logging
-
-_LOGGER: logging.Logger = __import__("logging").getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class MyEntity(Entity):

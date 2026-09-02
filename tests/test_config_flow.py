@@ -83,7 +83,7 @@ async def test_reconfigure_updates_the_entry_in_place(hass):
 
     result = await _reconfigure(hass, entry, {**PAGE_ONE, CONF.HOST: "192.0.2.20"})
 
-    assert result["type"] is FlowResultType.ABORT
+    assert result["type"] is FlowResultType.ABORT, result.get("errors")
     assert result["reason"] == "reconfigure_successful"
     assert entry.data[CONF.HOST] == "192.0.2.20"
     assert entry.data[CONF.KENNFELD_FILE] == CONST.DEF_KENNFELDFILE

@@ -139,9 +139,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
             try:
                 await validate_input(user_input)
                 self._stored_data.update(user_input)
-                return self.async_update_and_abort(
-                    entry=self._reconfigure_entry, data=self._stored_data
+                # Not async_update_and_abort: that helper only exists from Home
+                # Assistant 2025.8 on, and the declared minimum is 2025.7. The
+                # update listener in __init__ reloads the entry.
+                self.hass.config_entries.async_update_entry(
+                    self._reconfigure_entry, data=self._stored_data
                 )
+                return self.async_abort(reason="reconfigure_successful")
             except InvalidHost:
                 errors["base"] = "invalid_host"
             except Exception:

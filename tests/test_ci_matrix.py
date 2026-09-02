@@ -6,15 +6,16 @@ version for every Home Assistant BETA too, so pip resolves to one pinning a
 beta. Nothing then covers the release people actually run, and the job stays
 green while saying "current HA".
 
-There is no "minimum" job here: hacs.json declares no minimum Home Assistant
-version, so there is no floor to test against. The day it declares one, the
-matrix gets its second end and this file its second half.
+The "minimum" job is the other end: it pins the plugin release that ships
+exactly the Home Assistant version hacs.json declares, so an API that does
+not exist yet on that release is caught before a user meets it.
 
 Only the selection logic is exercised - no PyPI access, so this stays a fast
 unit test rather than a network-dependent one.
 """
 
 import importlib.util
+import json
 from pathlib import Path
 import re
 
@@ -102,12 +103,69 @@ def _steps_of(job: str) -> list:
     return [line for line in body.splitlines() if not line.strip().startswith("#")]
 
 
+def _minimum_job_label() -> str:
+    labels = re.findall(
+        r'- name: "(minimum[^"]*)"', WORKFLOW.read_text(encoding="utf-8")
+    )
+    assert len(labels) == 1, f"expected one minimum job, found {labels}"
+    return labels[0]
+
+
+def test_the_minimum_job_names_the_version_hacs_declares():
+    """Three places say which Home Assistant is the oldest supported one -
+    hacs.json, the pinned plugin release, and the job's own name. The pin can
+    only be checked with PyPI (check_min_ha.py does that inside the job); the
+    label can be checked here, and it is the half that lies to a reader."""
+    declared = json.loads((REPO / "hacs.json").read_text(encoding="utf-8"))[
+        "homeassistant"
+    ]
+    release = ".".join(declared.split(".")[:2])
+
+    assert release in _minimum_job_label(), (
+        f"hacs.json declares {declared} as the minimum, but the matrix job is "
+        f'called "{_minimum_job_label()}". Raise the job name AND its pinned '
+        "plugin release together - the pin is what decides what is tested."
+    )
+
+
+def test_the_minimum_job_actually_checks_the_version_it_installed():
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+
+    assert "check_min_ha.py" in workflow, (
+        "the minimum job does not verify the Home Assistant it installed, so "
+        "a wrong pin runs green under the right label"
+    )
+    assert re.search(r"if:\s*matrix\.check-declared-minimum", workflow)
+    assert "check-declared-minimum: true" in workflow, (
+        "no matrix entry opts into the check, so it never runs"
+    )
+
+
+def test_a_patch_release_still_counts_as_the_declared_minimum():
+    """hacs.json names a patch; the plugin pins whichever patch of that
+    feature release it ships. Comparing them literally would fail the job for
+    being right."""
+    namespace: dict = {}
+    source = (REPO / ".github" / "scripts" / "check_min_ha.py").read_text(
+        encoding="utf-8"
+    )
+    body = source[source.index("def feature_release") : source.index("def main")]
+    exec(compile(body, "check_min_ha.py", "exec"), namespace)  # noqa: S102
+    feature_release = namespace["feature_release"]
+
+    assert feature_release("2025.7.4") == feature_release("2025.7.0")
+    assert feature_release("2025.8.0") != feature_release("2025.7.0")
+
+
 def test_the_test_job_resolves_a_final_home_assistant():
     steps = _steps_of("pytest")
 
-    assert any("resolve_phcc.py latest-stable-ha" in line for line in steps), (
+    assert any("resolve_phcc.py" in line for line in steps), (
         "the test job installs the plugin some other way than through the "
         "resolver, so it can land on a Home Assistant beta"
+    )
+    assert any('phcc: "latest-stable-ha"' in line for line in steps), (
+        "no matrix entry asks the resolver for the newest final release"
     )
     assert not [line for line in steps if "requirements_test.txt" in line], (
         "the unpinned requirements file is back in the test job"

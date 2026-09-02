@@ -2,7 +2,6 @@
 
 import copy
 import logging
-from typing import TYPE_CHECKING
 
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.modbus_api import (
     WeishauptModbusClient,
@@ -11,11 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from .configentry import MyData
-
-if TYPE_CHECKING:
-    from .configentry import MyConfigEntry
-
+from .configentry import MyConfigEntry, MyData
 from .const import CONF, CONST, DEVICENAMES
 from .coordinator import WeishauptModbusCoordinator
 from .items import ModbusItem

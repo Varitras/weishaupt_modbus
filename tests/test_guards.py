@@ -221,6 +221,10 @@ TOOL_INVOCATIONS = {
     "ruff format --check": ("run: ruff format --check", "ruff format --check"),
     "mypy": ("run: mypy", "-m mypy"),
     "pytest": ("run: pytest tests/", "-m pytest tests/"),
+    "check_min_ha.py": (
+        "run: python .github/scripts/check_min_ha.py",
+        "check_min_ha.py",
+    ),
     "mutate.py": ("mutate.py .github/mutations", "mutate.py .github/mutations"),
 }
 

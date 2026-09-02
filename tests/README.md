@@ -19,6 +19,17 @@ machine-local arrives through the environment:
 PYTHON=/path/to/venv/bin/python .github/scripts/check.sh
 ```
 
+The suite is also run against the **minimum** supported Home Assistant (the
+version `hacs.json` declares), which needs a second interpreter:
+
+```sh
+MIN_HA_PYTHON=/path/to/min-ha-venv/bin/python .github/scripts/check.sh
+```
+
+That run first checks which Home Assistant the interpreter actually holds
+against `hacs.json` - a hand-pinned local venv ages quietly. Without the
+variable the minimum run is skipped **and says so**.
+
 The everyday run is shorter. The end-to-end tests boot a real Home Assistant
 instance each and are deselected by default:
 
@@ -51,7 +62,7 @@ because the thing it prevents happened, here or in a sibling project.
 | Guard | Holds |
 |---|---|
 | `test_budgets.py` | No module or function grows past its frozen budget |
-| `test_ci_matrix.py` | The CI workflow tests the Home Assistant release it claims to (a final one, resolved at run time - never a beta) |
+| `test_ci_matrix.py` | The CI matrix tests the Home Assistant releases it claims to: the declared minimum, and the newest final release (never a beta) |
 | `test_comment_narration.py` | No comment merely restates the code it sits on (heuristic; a genuine why-comment passes) |
 | `test_durations.py` | No single test quietly starts taking minutes (budget in `durations.py`, enforced from `conftest.py`), and a run that stops making progress is cut off rather than only measured |
 | `test_guards.py` | No guard binds itself to one source file; every guard is listed; `check.sh` matches CI |
