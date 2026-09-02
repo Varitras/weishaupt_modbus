@@ -278,6 +278,7 @@ python_version = "3.14"
 files = [
   "custom_components/weishaupt_modbus/__init__.py",
   "custom_components/weishaupt_modbus/config_flow.py",
+  "custom_components/weishaupt_modbus/configentry.py",
   "custom_components/weishaupt_modbus/const.py",
   "custom_components/weishaupt_modbus/entity_helpers.py",
   # Named so mypy resolves the MODULE: kennfeld.py sits next to a kennfeld/
@@ -326,7 +327,3 @@ warn_unreachable = true
 module = "homeassistant.*"
 ignore_errors = true
 
-# Resolved, not checked - see the note on kennfeld.py in `files`.
-[[tool.mypy.overrides]]
-module = "custom_components.weishaupt_modbus.kennfeld"
-ignore_errors = true

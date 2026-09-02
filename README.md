@@ -87,6 +87,9 @@ User → Settings (second page) → Modbus TCP
 - **Netmask**: the netmask of your network, usually `255.255.255.0`.
 - **Port** 502, **slave address** 1.
 
+Modbus TCP has no authentication and no encryption. Keep the heat pump on a
+trusted local network and never expose port 502 to the internet.
+
 Writes go to the heat pump's EEPROM, which Weishaupt rates for 100 000 writes
 over its lifetime. The integration never writes a value that is already set;
 keep automations that set values on a change, not on a schedule. Two
@@ -102,7 +105,7 @@ fine). Create a virtual environment with the test plugin and the runtime
 dependencies:
 
 ```sh
-pip install -r requirements_test.txt
+pip install -r requirements_test.txt   # test plugin, ruff, mypy, pip-audit
 pytest tests/ -q            # the fast everyday run
 pytest tests/ -q -m ""      # everything, including the end-to-end tests
 ```

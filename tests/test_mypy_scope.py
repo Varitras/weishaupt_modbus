@@ -22,11 +22,9 @@ PACKAGE = REPO / "custom_components" / "weishaupt_modbus"
 # on adoption. Emptying this list is the point; every entry is a promise, not
 # a permanent exemption.
 NOT_TYPE_CHECKED_YET = {
-    "configentry.py": "1 error: names a MyCoordinator the coordinator module no longer has",
     "coordinator.py": "12 errors: Any returns and an optional config_entry read without a guard",
     "entities.py": "12 errors: MyEntity reads a coordinator attribute only its subclasses have",
     "items.py": "7 errors: unreachable None checks and Any returns from the lookups",
-    "kennfeld.py": "2 errors: an optional dict used as if it were present",
     "weishaupt_modbus_api/modbus_api.py": "6 errors: list concatenation typed as item addition",
 }
 

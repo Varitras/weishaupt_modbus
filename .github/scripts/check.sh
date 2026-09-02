@@ -23,6 +23,9 @@ echo "== format =="
 echo "== mypy =="
 "$PYTHON" -m mypy
 
+echo "== pip-audit =="
+"$PYTHON" -m pip_audit -r requirements.txt --strict
+
 echo "== pytest =="
 # -m "" cancels the `-m "not e2e"` default from pyproject.toml, so the slow
 # end-to-end tests against a real Home Assistant run here too.
@@ -35,7 +38,9 @@ echo "== pytest =="
 #
 # Without it the minimum-version run is SKIPPED and says so - a skipped gate
 # that announces itself is honest; one that passes silently is not.
+MINIMUM_RUN="skipped"
 if [ -n "$MIN_HA_PYTHON" ]; then
+    MINIMUM_RUN="passed"
     # Which Home Assistant that interpreter actually holds, before spending a
     # full suite on it: a local venv is pinned by hand and ages quietly.
     echo "== minimum Home Assistant version =="
@@ -51,4 +56,8 @@ echo "== mutations =="
 "$PYTHON" .github/scripts/mutate.py .github/mutations/plan.json
 
 echo
-echo "all gates passed"
+if [ "$MINIMUM_RUN" = "passed" ]; then
+    echo "all gates passed"
+else
+    echo "all gates passed EXCEPT the minimum Home Assistant run, which was skipped"
+fi

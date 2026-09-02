@@ -220,6 +220,10 @@ TOOL_INVOCATIONS = {
     "ruff check": ("run: ruff check", "ruff check"),
     "ruff format --check": ("run: ruff format --check", "ruff format --check"),
     "mypy": ("run: mypy", "-m mypy"),
+    "pip-audit": (
+        "run: pip-audit -r requirements.txt",
+        "-m pip_audit -r requirements.txt",
+    ),
     "pytest": ("run: pytest tests/", "-m pytest tests/"),
     "check_min_ha.py": (
         "run: python .github/scripts/check_min_ha.py",

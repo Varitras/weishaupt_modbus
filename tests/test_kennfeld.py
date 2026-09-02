@@ -5,13 +5,20 @@ import importlib.util
 import json
 import logging
 import pathlib
+import re
 from types import SimpleNamespace
 
 import pytest
 
 from custom_components.weishaupt_modbus import kennfeld
-from custom_components.weishaupt_modbus.const import CONST
+from custom_components.weishaupt_modbus.const import CONF, CONST
 from custom_components.weishaupt_modbus.kennfeld import PowerMap, get_filepath
+
+PACKAGE = (
+    pathlib.Path(__file__).resolve().parents[1]
+    / "custom_components"
+    / "weishaupt_modbus"
+)
 
 KENNFELD = (
     pathlib.Path(__file__).resolve().parents[1]
@@ -115,3 +122,27 @@ def test_importing_the_module_does_not_warn_about_optional_libraries(
         if record.name == kennfeld.__name__
     ]
     assert not warned, f"import-time noise: {warned}"
+
+
+def test_the_preview_file_is_named_per_entry():
+    """Two pumps wrote the same www/local/…_powermap.svg and raced for it."""
+    assert (
+        kennfeld.powermap_file_name({CONF.DEVICE_POSTFIX: ""})
+        == "weishaupt_modbus_powermap.svg"
+    )
+    assert (
+        kennfeld.powermap_file_name({CONF.DEVICE_POSTFIX: "2"})
+        == "weishaupt_modbus_powermap_2.svg"
+    )
+
+
+def test_shipped_plots_are_static_pictures():
+    """pygal's default SVG carries inline script and fetches tooltip JavaScript
+    from the web; copied under Home Assistant's www it would run in its
+    origin if ever embedded actively."""
+    shipped = list((PACKAGE / "kennfeld").glob("*.svg"))
+    assert shipped
+    for plot in shipped:
+        text = plot.read_text(encoding="utf-8")
+        assert "<script" not in text, f"{plot.name} carries script"
+        assert not re.search(r'href="https?://', text), f"{plot.name} links to the web"

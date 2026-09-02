@@ -1,18 +1,19 @@
 """Heat pump characteristic curves (Kennfeld) runtime, auto-compilation, and Pygal plotting engine."""
 
+from collections.abc import Mapping
 import importlib.util
 import json
 import logging
 from pathlib import Path
+import re
 import shutil
 from typing import Any
-
-import aiofiles
 
 from homeassistant.core import HomeAssistant
 
 from .configentry import MyConfigEntry
 from .const import CONF, CONST
+from .migrate_helpers import device_postfix
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,6 +32,17 @@ PYGAL_AVAILABLE = importlib.util.find_spec("pygal") is not None
 
 # Only a grid that ships without `compiled_grid` needs these, and that path
 # says so when it runs - a warning here reached every user on every start.
+
+
+def _load_json(path: Path) -> dict[str, Any]:
+    with path.open(encoding="utf-8") as handle:
+        loaded: dict[str, Any] = json.load(handle)
+    return loaded
+
+
+def powermap_file_name(entry_data: Mapping[str, Any]) -> str:
+    """The preview under www/local - one per entry, so two pumps do not race for it."""
+    return f"{CONST.DOMAIN}_powermap{device_postfix(entry_data)}.svg"
 
 
 class PowerMap:
@@ -64,61 +76,59 @@ class PowerMap:
 
         # 2. Load the specific active configuration curve
         try:
-            async with aiofiles.open(filepath, encoding="utf-8") as openfile:
-                raw_block = await openfile.read()
-                data = json.loads(raw_block)
+            data = await self.hass.async_add_executor_job(_load_json, filepath)
 
-                # Track boundaries
-                self._known_t = sorted(data.get("known_t", [35, 55]))
-                known_x = data.get("known_x", [-30, 40])
-                self._out_range_raw = [min(known_x) * 10, max(known_x) * 10]
+            # Track boundaries
+            self._known_t = sorted(data.get("known_t", [35, 55]))
+            known_x = data.get("known_x", [-30, 40])
+            self._out_range_raw = [min(known_x) * 10, max(known_x) * 10]
 
-                # 3. High-performance path: Compiled grid exists
-                if "compiled_grid" in data:
-                    self._compiled_grid = data["compiled_grid"]
-                    _LOGGER.info(
-                        "Using pre-compiled 0.1°C outside-grouped grid: %s",
-                        filepath.name,
-                    )
-
-                    # Generate the preview plot if missing and allowed
-                    if CREATE_MISSING_PLOTS and PYGAL_AVAILABLE:
-                        svg_path = filepath.with_suffix(".svg")
-                        if not svg_path.exists():
-                            _LOGGER.warning(
-                                "Generating missing SVG plot for pre-compiled: %s",
-                                filepath.name,
-                            )
-                            await self.hass.async_add_executor_job(
-                                self._generate_plot_blocking, data, filepath
-                            )
-
-                    # Safely copy the matching preview SVG to Home Assistant's local www directory
-                    www_dir = Path(f"{self.hass.config.config_dir}/www/local")
-                    await self.hass.async_add_executor_job(
-                        self._copy_powermap_plot, filepath, www_dir
-                    )
-                    return
-
-                # 4. Fallback for the active curve if COMPILE_ALL_MISSING was False
-                if not NUMPY_AVAILABLE:
-                    _LOGGER.error(
-                        "Cannot compile raw curve: Numpy is missing on this host."
-                    )
-                    return
-
-                _LOGGER.warning(
-                    "Pre-compiled grid missing in %s. Compiling once...", filepath.name
-                )
-                self._compiled_grid = await self.hass.async_add_executor_job(
-                    self._compile_and_save_kennfeld_blocking, data, filepath
+            # 3. High-performance path: Compiled grid exists
+            if "compiled_grid" in data:
+                self._compiled_grid = data["compiled_grid"]
+                _LOGGER.info(
+                    "Using pre-compiled 0.1°C outside-grouped grid: %s",
+                    filepath.name,
                 )
 
-                # Copy the freshly generated preview SVG to Home Assistant's local www directory
+                # Generate the preview plot if missing and allowed
+                if CREATE_MISSING_PLOTS and PYGAL_AVAILABLE:
+                    svg_path = filepath.with_suffix(".svg")
+                    if not svg_path.exists():
+                        _LOGGER.warning(
+                            "Generating missing SVG plot for pre-compiled: %s",
+                            filepath.name,
+                        )
+                        await self.hass.async_add_executor_job(
+                            self._generate_plot_blocking, data, filepath
+                        )
+
+                # Safely copy the matching preview SVG to Home Assistant's local www directory
                 www_dir = Path(f"{self.hass.config.config_dir}/www/local")
                 await self.hass.async_add_executor_job(
                     self._copy_powermap_plot, filepath, www_dir
                 )
+                return
+
+            # 4. Fallback for the active curve if COMPILE_ALL_MISSING was False
+            if not NUMPY_AVAILABLE:
+                _LOGGER.error(
+                    "Cannot compile raw curve: Numpy is missing on this host."
+                )
+                return
+
+            _LOGGER.warning(
+                "Pre-compiled grid missing in %s. Compiling once...", filepath.name
+            )
+            self._compiled_grid = await self.hass.async_add_executor_job(
+                self._compile_and_save_kennfeld_blocking, data, filepath
+            )
+
+            # Copy the freshly generated preview SVG to Home Assistant's local www directory
+            www_dir = Path(f"{self.hass.config.config_dir}/www/local")
+            await self.hass.async_add_executor_job(
+                self._copy_powermap_plot, filepath, www_dir
+            )
 
         except OSError as err:
             _LOGGER.error("Failed to load power map file %s: %s", filepath, err)
@@ -235,7 +245,7 @@ class PowerMap:
         import pygal  # noqa: PLC0415
         from pygal.style import Style  # noqa: PLC0415
 
-        compiled_grid = data.get("compiled_grid")
+        compiled_grid: dict[str, Any] = data.get("compiled_grid") or {}
         known_t = sorted(data.get("known_t", [35, 55]))
         known_x = data.get("known_x", [-30, 40])
 
@@ -265,6 +275,9 @@ class PowerMap:
                 height=320,
                 style=custom_style,
                 legend_at_bottom=True,
+                # A static picture: no inline script, no JavaScript fetched
+                # from the web into Home Assistant's origin.
+                js=[],
             )
             chart.title = f"Kennfeld Heizleistung - {filepath.stem}"
 
@@ -279,84 +292,18 @@ class PowerMap:
                     chart.add(f"{flow_val}°C Vorlauf", curve_points)
 
             svg_path = filepath.with_suffix(".svg")
-            chart.render_to_file(str(svg_path))
+            # pygal inlines its own config as a <script> even with js=[];
+            # a picture under www/ carries no script at all.
+            static = re.sub(
+                r"<script.*?</script>",
+                "",
+                chart.render().decode("utf-8"),
+                flags=re.DOTALL,
+            )
+            svg_path.write_text(static, encoding="utf-8")
             _LOGGER.info("Successfully generated missing SVG plot: %s", svg_path.name)
         except Exception as err:
             _LOGGER.debug("Pygal SVG plot generation failed: %s", err)
-
-    def generate_svg_plot_blocking(
-        self, outside_temp_raw: float, flow_temp_raw: float
-    ) -> None:
-        """Generate a dynamic vector SVG plot of the curves and mark the current operating point.
-
-        Requires only the lightweight, pure-Python Pygal library.
-        """
-        if not PYGAL_AVAILABLE or not self._compiled_grid:
-            return
-
-        import pygal  # noqa: PLC0415
-        from pygal.style import Style  # noqa: PLC0415
-
-        # Operational variables
-        curr_out = outside_temp_raw / 10.0
-        curr_flow = flow_temp_raw / 10.0
-        curr_power = self.map(outside_temp_raw, flow_temp_raw)
-
-        # Custom dark-theme style matching Home Assistant Cards
-        custom_style = Style(
-            background="#1c1c1e",
-            plot_background="#1c1c1e",
-            foreground="#e5e5ea",
-            foreground_strong="#ffffff",
-            foreground_subtle="#8e8e93",
-            colors=("#30d158", "#0a84ff", "#ff453a", "#bf5af2"),
-            stroke_width=2.5,
-        )
-
-        try:
-            chart = pygal.XY(
-                stroke=True,
-                show_dots=False,
-                width=500,
-                height=320,
-                style=custom_style,
-                legend_at_bottom=True,
-            )
-            chart.title = f"Betriebspunkt Kennfeld ({curr_power / 1000:.1f} kW) | VL: {curr_flow:.1f}°C | AT: {curr_out:.1f}°C"
-
-            # 1. Add compiled curves
-            for r_idx, flow_val in enumerate(self._known_t):
-                curve_points = []
-                for r in range(self._out_range_raw[0], self._out_range_raw[1] + 10, 10):
-                    if str(r) in self._compiled_grid:
-                        curve_points.append(
-                            (r / 10.0, self._compiled_grid[str(r)][r_idx])
-                        )
-
-                if curve_points:
-                    chart.add(f"{flow_val}°C Vorlauf", curve_points)
-
-            # 2. Add the dynamic operating point dot
-            chart.add(
-                "Betriebspunkt",
-                [(curr_out, curr_power)],
-                show_dots=True,
-                dots_size=6,
-                stroke=False,
-            )
-
-            # 3. Save directly to local www directory
-            www_dir = Path(f"{self.hass.config.config_dir}/www/local")
-            www_dir.mkdir(parents=True, exist_ok=True)
-
-            svg_path = www_dir / f"{CONST.DOMAIN}_powermap.svg"
-            chart.render_to_file(str(svg_path))
-            _LOGGER.debug(
-                "Dynamic power map SVG updated successfully: %s", svg_path.name
-            )
-
-        except Exception as err:
-            _LOGGER.error("Failed to generate dynamic power map SVG: %s", err)
 
     def _copy_powermap_plot(self, json_filepath: Path, www_dir: Path) -> None:
         """Copy the compiled SVG from the kennfeld folder to Home Assistant's local www directory.
@@ -373,7 +320,7 @@ class PowerMap:
             www_dir.mkdir(parents=True, exist_ok=True)
 
             # Destination file path
-            png_dest = www_dir / f"{CONST.DOMAIN}_powermap.svg"
+            png_dest = www_dir / powermap_file_name(self._config_entry.data)
 
             # Perform metadata-preserving copy
             shutil.copy2(png_src, png_dest)

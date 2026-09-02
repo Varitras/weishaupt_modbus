@@ -17,8 +17,10 @@ jobs:
     name: ruff
     runs-on: "ubuntu-latest"
     steps:
-      - uses: "actions/checkout@v5"
-      - uses: "actions/setup-python@v6"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
       # Pinned. An unpinned install means the CI enforces whatever Ruff
@@ -33,12 +35,47 @@ jobs:
       - name: Check formatting
         run: ruff format --check .
 
+  pip-audit:
+    # The runtime requirements against the vulnerability databases. Only the
+    # direct requirements and what they pull in - Home Assistant's own
+    # environment is Home Assistant's to audit.
+    name: pip-audit
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Install pip-audit
+        run: pip install "pip-audit==2.10.0"
+      - name: Audit the runtime requirements
+        run: pip-audit -r requirements.txt --strict
+
+  gitleaks:
+    # The whole history, on every push: the pre-push hook is per clone and
+    # opt-in. Known historical findings are listed by fingerprint in
+    # .gitleaksignore, nothing is allowlisted by path.
+    name: gitleaks
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   mypy:
     name: mypy
     runs-on: "ubuntu-latest"
     steps:
-      - uses: "actions/checkout@v5"
-      - uses: "actions/setup-python@v6"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
       # Home Assistant has to be importable for the checked modules' own
@@ -86,9 +123,11 @@ jobs:
             # Resolved by the step below, not a literal requirement.
             phcc: "latest-stable-ha"
     steps:
-      - uses: "actions/checkout@v5"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Set up Python
-        uses: "actions/setup-python@v6"
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: Resolve the plugin version to install

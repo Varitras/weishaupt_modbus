@@ -18,4 +18,9 @@ pytest-homeassistant-custom-component
 # and the e2e tests rely on `pytest.mark.timeout`. The day that transitive
 # dependency changes, a marker nothing registers becomes a silent no-op.
 pytest-timeout
+# The gates check.sh runs, at the versions CI pins - a formatter that
+# reflows differently from CI's is a red build nobody changed.
+ruff==0.16.1
+mypy==2.3.1
+pip-audit==2.10.0
 -r requirements.txt

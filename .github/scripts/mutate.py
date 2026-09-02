@@ -65,19 +65,6 @@ import tempfile
 
 REPO = Path(__file__).resolve().parents[2]
 
-# Everything else is copied into each worker's tree. Listing what to EXCLUDE
-# rather than what to include is the safer direction: a forgotten include is a
-# tree where pytest cannot collect, and the first attempt at this lost
-# pytest.ini that way - every run then ended in a collection error that read
-# like a real result.
-WORKTREE_EXCLUDES = (
-    ".git",
-    "__pycache__",
-    ".pytest_cache",
-    ".ruff_cache",
-    ".mypy_cache",
-)
-
 
 # pytest's exit codes. Only ONE of them means "the tests noticed": 1. The
 # script used to read `returncode != 0` as caught, which let a usage error, an
@@ -267,6 +254,26 @@ def default_jobs() -> int:
     return max(1, min((os.cpu_count() or 2) - 2, MAX_DEFAULT_JOBS))
 
 
+def _tracked_files() -> list[Path]:
+    """What git would commit: tracked files plus untracked ones it does not
+    ignore. A plain directory copy took .venv, .storage and secrets.yaml along
+    into the temp directory whenever a checkout happened to hold them."""
+    listed = subprocess.run(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+        cwd=REPO,
+        capture_output=True,
+        check=True,
+    ).stdout
+    return [REPO / name.decode() for name in listed.split(b"\0") if name]
+
+
+def _copy_tracked_tree(tree: Path) -> None:
+    for source in _tracked_files():
+        target = tree / source.relative_to(REPO)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+
+
 def build_worktrees(count: int, into: Path, cases: list) -> list:
     """One independent copy of the repository per worker.
 
@@ -283,7 +290,7 @@ def build_worktrees(count: int, into: Path, cases: list) -> list:
     trees = []
     for index in range(count):
         tree = into / f"worker{index}"
-        shutil.copytree(REPO, tree, ignore=shutil.ignore_patterns(*WORKTREE_EXCLUDES))
+        _copy_tracked_tree(tree)
         # A tree missing a file the plan mutates would report every one of its
         # cases as an unrelated pytest error. Cheaper to say so here, once,
         # naming the file - the alternative is reading a wall of exit-code 4.

@@ -14,10 +14,5 @@ regexes = [
     # `key="..."` as a credential; these are entity translation keys.
     '''translation_key="[a-z0-9_]+"''',
 ]
-paths = [
-    # A Home Assistant .storage directory committed upstream in 2024
-    # (auth tokens and a password hash of a developer's test instance), deleted
-    # again in a later commit. It is in the shared history, not in the tree,
-    # and not ours to rewrite - see the decisions ledger.
-    '''^\.storage/''',
-]
+# Historical findings are excluded one by one, by fingerprint, in
+# .gitleaksignore - a path allowlist would also hide a NEW .storage leak.
