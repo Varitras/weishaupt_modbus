@@ -73,8 +73,9 @@ def _items(module) -> list:
 
 
 # strings.json is the master; every language file has to carry the same keys.
+STRINGS = PACKAGE / "strings.json"
 TRANSLATION_FILES = (
-    PACKAGE / "strings.json",
+    STRINGS,
     PACKAGE / "translations" / "en.json",
     PACKAGE / "translations" / "de.json",
     PACKAGE / "translations" / "nl.json",
@@ -263,3 +264,29 @@ def test_a_pump_without_a_second_heat_source_has_a_state_for_it():
     assert by_address[44101].get_translation_key_from_number(255) == "w2_konf_255"
     assert by_address[44102].get_translation_key_from_number(5) == "w2_konf_0"
     assert by_address[44103].get_translation_key_from_number(6) == "w2_konf_0"
+
+
+def _key_paths(tree: dict, prefix: str = "") -> set[str]:
+    paths = set()
+    for key, value in tree.items():
+        path = f"{prefix}{key}"
+        if isinstance(value, dict):
+            paths |= _key_paths(value, f"{path}.")
+        else:
+            paths.add(path)
+    return paths
+
+
+@pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
+def test_every_language_has_exactly_the_keys_of_strings_json(path):
+    """Upstream #184: the languages drifted apart by hand. A key missing in
+    one language shows the raw key or the English fallback there; a key only
+    one language has is text nobody sees. The entity guards above cover the
+    register table; this one covers the rest - config flow, options, devices."""
+    reference = _key_paths(json.loads(STRINGS.read_text(encoding="utf-8")))
+    translated = _key_paths(json.loads(path.read_text(encoding="utf-8")))
+
+    assert translated == reference, (
+        f"{path.name} differs from strings.json: "
+        f"missing {sorted(reference - translated)}, extra {sorted(translated - reference)}"
+    )
