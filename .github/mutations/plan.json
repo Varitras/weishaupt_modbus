@@ -184,7 +184,7 @@
   {
     "label": "migration: the unique id must carry the postfix",
     "path": "custom_components/weishaupt_modbus/migrate_helpers.py",
-    "old": "    return f\"{entry_data[CONF.PREFIX]}{item_name}{dev_postfix}\"",
+    "old": "    return f\"{entry_data[CONF.PREFIX]}{item_name}{device_postfix(entry_data)}\"",
     "new": "    return f\"{entry_data[CONF.PREFIX]}{item_name}\"",
     "tests": "unique_id_is_prefix"
   },
@@ -278,5 +278,33 @@
     "old": "            new_entity_id=new_entity_id or UNDEFINED,\n",
     "new": "            new_entity_id=UNDEFINED,\n",
     "tests": "relabelled_registers_take_their_history"
+  },
+  {
+    "label": "client: a write that reached the wire must be counted",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
+    "old": "                if self.write_budget.record_write():\n",
+    "new": "                if False:\n",
+    "tests": "only_a_write_that_reaches_the_wire_is_counted or write_counters_survive"
+  },
+  {
+    "label": "client: the daily limit must refuse the write",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
+    "old": "                if not self.write_budget.allows_write():\n",
+    "new": "                if False:\n",
+    "tests": "daily_limit_refuses_the_write"
+  },
+  {
+    "label": "write counter: the restored total must reach the client",
+    "path": "custom_components/weishaupt_modbus/write_counter_sensor.py",
+    "old": "            self._budget.restore_total(count)\n",
+    "new": "            pass\n",
+    "tests": "write_counters_survive_a_restart"
+  },
+  {
+    "label": "write budget: the warning must fire at the threshold, not never",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/write_budget.py",
+    "old": "        return self.warn_at > 0 and self._today_count == self.warn_at\n",
+    "new": "        return False\n",
+    "tests": "warning_fires_exactly_once or warning_threshold_is_logged_once"
   }
 ]

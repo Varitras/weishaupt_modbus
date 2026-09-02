@@ -38,6 +38,8 @@ class MainConstants:
     OPTION_SCAN_INTERVAL: str = "scan_interval"
     SCAN_INTERVAL_MIN_SECONDS: int = 5
     SCAN_INTERVAL_MAX_SECONDS: int = 600
+    OPTION_WRITE_WARNING_PER_DAY: str = "write_warning_per_day"
+    OPTION_WRITE_LIMIT_PER_DAY: str = "write_limit_per_day"
     UNIQUE_ID: str = "unique_id"
     APPID: int = 100
     DEF_KENNFELDFILE: str = "weishaupt_wbb_kennfeld.json"

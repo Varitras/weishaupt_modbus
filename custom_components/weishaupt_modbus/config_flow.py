@@ -11,6 +11,11 @@ import homeassistant.helpers.config_validation as cv
 
 from .const import CONF, CONST
 from .kennfeld import get_filepath
+from .weishaupt_modbus_api.const import (
+    DEFAULT_WRITE_LIMIT_PER_DAY,
+    DEFAULT_WRITE_WARNING_PER_DAY,
+    EEPROM_WRITE_RATING,
+)
 
 
 async def build_kennfeld_list(hass: HomeAssistant) -> list[str]:
@@ -233,18 +238,38 @@ class OptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(data=user_input)
 
-        current = self.config_entry.options.get(
+        options = self.config_entry.options
+        current_interval = options.get(
             CONST.OPTION_SCAN_INTERVAL, int(CONST.SCAN_INTERVAL.total_seconds())
+        )
+        current_warning = options.get(
+            CONST.OPTION_WRITE_WARNING_PER_DAY, DEFAULT_WRITE_WARNING_PER_DAY
+        )
+        current_limit = options.get(
+            CONST.OPTION_WRITE_LIMIT_PER_DAY, DEFAULT_WRITE_LIMIT_PER_DAY
+        )
+        # 0 switches the warning or the limit off; anything up to the EEPROM's
+        # lifetime rating is a choice the user may make.
+        writes_per_day = vol.All(
+            vol.Coerce(int), vol.Range(min=0, max=EEPROM_WRITE_RATING)
         )
         schema = vol.Schema(
             {
-                vol.Required(CONST.OPTION_SCAN_INTERVAL, default=current): vol.All(
+                vol.Required(
+                    CONST.OPTION_SCAN_INTERVAL, default=current_interval
+                ): vol.All(
                     vol.Coerce(int),
                     vol.Range(
                         min=CONST.SCAN_INTERVAL_MIN_SECONDS,
                         max=CONST.SCAN_INTERVAL_MAX_SECONDS,
                     ),
-                )
+                ),
+                vol.Required(
+                    CONST.OPTION_WRITE_WARNING_PER_DAY, default=current_warning
+                ): writes_per_day,
+                vol.Required(
+                    CONST.OPTION_WRITE_LIMIT_PER_DAY, default=current_limit
+                ): writes_per_day,
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

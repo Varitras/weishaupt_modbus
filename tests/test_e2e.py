@@ -9,6 +9,8 @@ Marked `e2e` because each test boots a full Home Assistant instance; the
 everyday run deselects them, CI runs them with `-m ""`.
 """
 
+from types import SimpleNamespace
+
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -318,7 +320,7 @@ async def test_the_options_flow_sets_the_poll_interval(hass, fake_modbus):
     await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {CONST.OPTION_SCAN_INTERVAL: 60}
+    assert entry.options[CONST.OPTION_SCAN_INTERVAL] == 60
     assert len(fake_modbus) == 1, "the change was not applied by a reload"
     assert entry.runtime_data.coordinator.update_interval.total_seconds() == 60
 
@@ -331,6 +333,50 @@ async def test_an_out_of_range_poll_interval_is_refused(hass):
         await hass.config_entries.options.async_configure(
             result["flow_id"], {CONST.OPTION_SCAN_INTERVAL: 1}
         )
+
+
+PV_SETPOINT = 40002
+WRITES_TOTAL_UNIQUE_ID = "weishaupt_wbbeeprom_writes_total"
+WRITES_TODAY_UNIQUE_ID = "weishaupt_wbbeeprom_writes_today"
+
+
+def _writable_wire():
+    async def write_register(address, value, device_id):
+        return SimpleNamespace(isError=lambda: False)
+
+    return SimpleNamespace(connected=True, write_register=write_register)
+
+
+async def test_the_write_counters_survive_a_restart(hass):
+    """Issue #187: a counter that starts at zero on every restart tells the
+    user nothing about the 100 000 writes the EEPROM is rated for."""
+    entry = await _setup(hass, _entry(hass))
+    registry = er.async_get(hass)
+    total_id = registry.async_get_entity_id(
+        "sensor", CONST.DOMAIN, WRITES_TOTAL_UNIQUE_ID
+    )
+    today_id = registry.async_get_entity_id(
+        "sensor", CONST.DOMAIN, WRITES_TODAY_UNIQUE_ID
+    )
+    assert hass.states.get(total_id).state == "0"
+
+    client = entry.runtime_data.modbus_api
+    client._client = _writable_wire()
+    await client.write_register(PV_SETPOINT, 5)
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(total_id).state == "1"
+    assert hass.states.get(today_id).state == "1"
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    await _setup(hass, entry)
+
+    assert hass.states.get(total_id).state == "1", "the total was lost on reload"
+    assert hass.states.get(today_id).state == "1", "today's count was lost on reload"
+    assert entry.runtime_data.modbus_api.write_budget.total == 1, (
+        "the sensor shows the old number but the client counts from zero again"
+    )
 
 
 async def test_a_pump_that_refuses_the_first_connection_retries_later(

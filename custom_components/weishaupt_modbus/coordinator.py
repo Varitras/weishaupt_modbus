@@ -7,6 +7,10 @@ from typing import Any
 
 from pymodbus import ModbusException
 
+from custom_components.weishaupt_modbus.weishaupt_modbus_api.const import (
+    DEFAULT_WRITE_LIMIT_PER_DAY,
+    DEFAULT_WRITE_WARNING_PER_DAY,
+)
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.exceptions import (
     ConnectionFailedError,
 )
@@ -16,10 +20,12 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.modbus_api import (
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .configentry import MyConfigEntry
 from .const import CONF, CONST, TYPES, DeviceConstants
 from .items import ModbusItem
+from .weishaupt_modbus_api.write_budget import WriteBudget
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,6 +53,23 @@ def scan_interval(config_entry: MyConfigEntry) -> timedelta:
         CONST.OPTION_SCAN_INTERVAL, CONST.SCAN_INTERVAL.total_seconds()
     )
     return timedelta(seconds=seconds)
+
+
+def write_budget(config_entry: MyConfigEntry) -> WriteBudget:
+    """The write counters with the thresholds from the entry's options.
+
+    The day rolls over at local midnight, not UTC: that is when a user reads
+    "writes today".
+    """
+    return WriteBudget(
+        warn_at=config_entry.options.get(
+            CONST.OPTION_WRITE_WARNING_PER_DAY, DEFAULT_WRITE_WARNING_PER_DAY
+        ),
+        limit=config_entry.options.get(
+            CONST.OPTION_WRITE_LIMIT_PER_DAY, DEFAULT_WRITE_LIMIT_PER_DAY
+        ),
+        today=lambda: dt_util.now().date(),
+    )
 
 
 class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):

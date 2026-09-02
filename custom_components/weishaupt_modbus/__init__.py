@@ -14,7 +14,7 @@ from homeassistant.util import slugify
 
 from .configentry import MyConfigEntry, MyData
 from .const import CONF, CONST
-from .coordinator import WeishauptModbusCoordinator
+from .coordinator import WeishauptModbusCoordinator, write_budget
 from .items import ModbusItem
 from .kennfeld import PowerMap
 from .migrate_helpers import unique_id_from_parts
@@ -94,7 +94,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     for device in DEVICELISTS:
         itemlist.extend(copy.deepcopy(item) for item in device)
 
-    modbus_api = WeishauptModbusClient(host=entry.data[CONF.HOST], items=itemlist)
+    modbus_api = WeishauptModbusClient(
+        host=entry.data[CONF.HOST], items=itemlist, write_budget=write_budget(entry)
+    )
 
     modbus_coordinator = WeishauptModbusCoordinator(
         hass=hass,

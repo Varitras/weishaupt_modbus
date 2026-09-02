@@ -347,6 +347,40 @@ async def test_a_changed_value_is_written_and_cached(client, wire):
     assert client.data[PV_SETPOINT] == 42
 
 
+async def test_only_a_write_that_reaches_the_wire_is_counted(client, wire):
+    """Issue #187: the pump's EEPROM is rated for 100 000 writes. The counter
+    is what lets a user see an automation eating that budget - so it must
+    count the writes that went out, and not the ones the client skipped."""
+    client.data[PV_SETPOINT] = 41
+
+    await client.write_register(PV_SETPOINT, 42)
+    await client.write_register(PV_SETPOINT, 42)
+
+    assert client.write_budget.total == 1
+
+
+async def test_the_daily_limit_refuses_the_write_and_says_so(client, wire):
+    client.write_budget.limit = 1
+    client.data[PV_SETPOINT] = 0
+    await client.write_register(PV_SETPOINT, 1)
+
+    with pytest.raises(WriteError, match="limit"):
+        await client.write_register(PV_SETPOINT, 2)
+
+    assert wire.writes == [(PV_SETPOINT, 1)]
+    assert client.data[PV_SETPOINT] == 1
+
+
+async def test_reaching_the_warning_threshold_is_logged_once(client, wire, caplog):
+    client.write_budget.warn_at = 2
+    client.data[PV_SETPOINT] = 0
+
+    for value in (1, 2, 3):
+        await client.write_register(PV_SETPOINT, value)
+
+    assert caplog.text.count("register writes today") == 1
+
+
 async def test_negative_temperature_write_uses_twos_complement(client, wire):
     """A holding register of TEMPERATURE format; -5.0 °C goes over the wire
     as 65486, not as a negative number pymodbus would reject."""

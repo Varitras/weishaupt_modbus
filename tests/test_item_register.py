@@ -20,6 +20,9 @@ import pytest
 from custom_components.weishaupt_modbus.const import FORMATS, TYPES
 from custom_components.weishaupt_modbus.items import ModbusItem
 from custom_components.weishaupt_modbus.weishaupt_modbus_api import hpconst
+from custom_components.weishaupt_modbus.write_counter_sensor import (
+    WRITE_COUNTER_DESCRIPTIONS,
+)
 
 PACKAGE = (
     pathlib.Path(__file__).resolve().parents[1]
@@ -116,6 +119,8 @@ def test_no_translation_outlives_its_item(path):
     and a translator's work nobody uses - and it hides a renamed key."""
     translations = _entity_translations(path)
     known = {(PLATFORM_OF[item.type], item.translation_key) for item in _items(hpconst)}
+    # The write counters are sensors without a register.
+    known |= {("sensor", description.key) for description in WRITE_COUNTER_DESCRIPTIONS}
     orphaned = sorted(
         f"{platform}.{key}"
         for platform in sorted(set(PLATFORM_OF.values()))

@@ -1620,6 +1620,12 @@
       },
       "el_energie_gestern": {
         "name": "{prefix}Electr. energy yesterday"
+      },
+      "eeprom_writes_total": {
+        "name": "EEPROM writes (total)"
+      },
+      "eeprom_writes_today": {
+        "name": "EEPROM writes (today)"
       }
     }
   },
@@ -1628,7 +1634,9 @@
     "step": {
       "init": {
         "data": {
-          "scan_interval": "Poll interval (seconds)"
+          "scan_interval": "Poll interval (seconds)",
+          "write_warning_per_day": "Warn at this many writes per day (0 = never)",
+          "write_limit_per_day": "Refuse writes above this many per day (0 = no limit)"
         }
       }
     }

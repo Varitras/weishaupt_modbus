@@ -13,11 +13,15 @@ from .const import (
     BACKOFF_MAX_SECONDS,
     BACKOFF_THRESHOLD_FAILURES,
     DEFAULT_PORT,
+    DEFAULT_WRITE_LIMIT_PER_DAY,
+    DEFAULT_WRITE_WARNING_PER_DAY,
+    EEPROM_WRITE_RATING,
 )
 from .exceptions import ConnectionFailedError, WriteError
 
 # Import Modbus formatting models from local hpconst file
 from .hpconst import DEVICELISTS, FORMATS, TYPES, ModbusItem
+from .write_budget import WriteBudget
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,6 +35,7 @@ class WeishauptModbusClient:
         port: int = DEFAULT_PORT,
         lock: asyncio.Lock | None = None,
         items: list[ModbusItem] | None = None,
+        write_budget: WriteBudget | None = None,
     ) -> None:
         """Initialize the client with exact legacy parameters."""
         self._host = host
@@ -49,6 +54,10 @@ class WeishauptModbusClient:
             items
             if items is not None
             else [item for group in DEVICELISTS for item in group]
+        )
+
+        self.write_budget = write_budget or WriteBudget(
+            warn_at=DEFAULT_WRITE_WARNING_PER_DAY, limit=DEFAULT_WRITE_LIMIT_PER_DAY
         )
 
         # Raw register data cache used by entities to read their state
@@ -325,6 +334,11 @@ class WeishauptModbusClient:
                         value,
                     )
                     return True
+                if not self.write_budget.allows_write():
+                    raise WriteError(
+                        f"Daily write limit of {self.write_budget.limit} reached; "
+                        f"register {address} not written"
+                    )
                 item = self._items_dict.get(address)
                 if item:
                     mformat = getattr(
@@ -344,6 +358,13 @@ class WeishauptModbusClient:
                     )
 
                 self.data[address] = value
+                if self.write_budget.record_write():
+                    _LOGGER.warning(
+                        "%d register writes today. The EEPROM is rated for %d "
+                        "writes in total; check the automations that set values",
+                        self.write_budget.writes_today,
+                        EEPROM_WRITE_RATING,
+                    )
                 return True
             except (TimeoutError, ModbusException, OSError) as err:
                 raise WriteError(

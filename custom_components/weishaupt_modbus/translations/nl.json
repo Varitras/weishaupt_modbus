@@ -1620,6 +1620,12 @@
       },
       "hz_vl_solltemp5" : {
         "name" : "{prefix}Verwarmingscircuit-aanvoerinsteltemperatuur 5"
+      },
+      "eeprom_writes_total" : {
+        "name" : "EEPROM-schrijfacties (totaal)"
+      },
+      "eeprom_writes_today" : {
+        "name" : "EEPROM-schrijfacties (vandaag)"
       }
     }
   },
@@ -1628,7 +1634,9 @@
     "step" : {
       "init" : {
         "data" : {
-          "scan_interval" : "Pollinterval (seconden)"
+          "scan_interval" : "Pollinterval (seconden)",
+          "write_warning_per_day" : "Waarschuwen vanaf dit aantal schrijfacties per dag (0 = nooit)",
+          "write_limit_per_day" : "Schrijfacties weigeren boven dit aantal per dag (0 = geen limiet)"
         }
       }
     }

@@ -1620,6 +1620,12 @@
             },
             "ww_temp": {
                 "name": "{prefix}Warmwassertemperatur"
+            },
+            "eeprom_writes_total": {
+                "name": "EEPROM-Schreibzugriffe (gesamt)"
+            },
+            "eeprom_writes_today": {
+                "name": "EEPROM-Schreibzugriffe (heute)"
             }
         }
     },
@@ -1628,7 +1634,9 @@
         "step": {
             "init": {
                 "data": {
-                    "scan_interval": "Abfrageintervall (Sekunden)"
+                    "scan_interval": "Abfrageintervall (Sekunden)",
+                    "write_warning_per_day": "Warnung ab so vielen Schreibzugriffen pro Tag (0 = nie)",
+                    "write_limit_per_day": "Schreibzugriffe pro Tag ablehnen ab (0 = kein Deckel)"
                 }
             }
         }

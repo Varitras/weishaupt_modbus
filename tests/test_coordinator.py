@@ -14,6 +14,7 @@ from custom_components.weishaupt_modbus.coordinator import (
     WeishauptModbusCoordinator,
     check_configured,
     scan_interval,
+    write_budget,
 )
 from custom_components.weishaupt_modbus.items import ModbusItem
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.exceptions import (
@@ -173,3 +174,18 @@ def test_the_poll_interval_defaults_and_follows_the_option():
         ).total_seconds()
         == 45
     )
+
+
+def test_the_write_thresholds_default_and_follow_the_options():
+    default = write_budget(SimpleNamespace(options={}))
+    assert (default.warn_at, default.limit) == (50, 0)
+
+    chosen = write_budget(
+        SimpleNamespace(
+            options={
+                CONST.OPTION_WRITE_WARNING_PER_DAY: 10,
+                CONST.OPTION_WRITE_LIMIT_PER_DAY: 20,
+            }
+        )
+    )
+    assert (chosen.warn_at, chosen.limit) == (10, 20)

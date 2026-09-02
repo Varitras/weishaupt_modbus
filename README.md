@@ -89,7 +89,11 @@ User → Settings (second page) → Modbus TCP
 
 Writes go to the heat pump's EEPROM, which Weishaupt rates for 100 000 writes
 over its lifetime. The integration never writes a value that is already set;
-keep automations that set values on a change, not on a schedule.
+keep automations that set values on a change, not on a schedule. Two
+diagnostic sensors on the system device count the writes that actually went
+out, in total and today. The *Options* dialog holds a warning threshold
+(default 50 writes a day, logged once when reached) and a daily limit
+(default off) beyond which writes are refused until the next day.
 
 ## Development
 

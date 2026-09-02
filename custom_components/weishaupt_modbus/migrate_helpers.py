@@ -24,9 +24,10 @@ def create_unique_id(config_entry: MyConfigEntry, modbus_item: ModbusItem) -> st
 
 def unique_id_from_parts(entry_data: Mapping[str, Any], item_name: str) -> str:
     """The same id for an item name that is no longer in the table."""
-    dev_postfix = f"_{entry_data[CONF.DEVICE_POSTFIX]}"
+    return f"{entry_data[CONF.PREFIX]}{item_name}{device_postfix(entry_data)}"
 
-    if dev_postfix == "_":
-        dev_postfix = ""
 
-    return f"{entry_data[CONF.PREFIX]}{item_name}{dev_postfix}"
+def device_postfix(entry_data: Mapping[str, Any]) -> str:
+    """The suffix a second pump's devices and ids carry, "" for the first."""
+    postfix = entry_data[CONF.DEVICE_POSTFIX]
+    return f"_{postfix}" if postfix else ""
