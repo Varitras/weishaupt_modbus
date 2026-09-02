@@ -137,20 +137,13 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # 1. Catch purely virtual calculated sensors immediately.
             # They never poll Modbus directly and evaluate entirely in-memory.
-            if getattr(item, "type", None) == TYPES.SENSOR_CALC:
+            if item.type == TYPES.SENSOR_CALC:
                 item.state = None
                 results[item.translation_key] = None
                 continue
 
-            address = getattr(item, "_address", None) or getattr(item, "address", None)
-
-            # 2. Process standard Modbus-polled items
-            if address is not None:
-                # Instantly retrieve the pre-processed register value from client cache
-                val = self.client.get_value(address)
-                item.state = val
-                results[item.translation_key] = val
-            else:
-                results[item.translation_key] = None
+            val = self.client.get_value(item.address)
+            item.state = val
+            results[item.translation_key] = val
 
         return results

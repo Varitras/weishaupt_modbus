@@ -62,9 +62,7 @@ LIST_NAMES = [
 # cannot tell them apart: EVU lock (10) and SG tariff (11) both read as
 # `system_operationmode_sgtariff`. Kept as-is on adoption - a fix changes a
 # state string automations may match on.
-KNOWN_SHARED_STATUS_KEYS = {
-    ("IO_KONFIG_OUT", "io_config_out_65535"),
-}
+KNOWN_SHARED_STATUS_KEYS: set[tuple[str, str]] = set()
 
 
 def _items(module) -> list:

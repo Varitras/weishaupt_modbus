@@ -153,23 +153,8 @@ class MyEntity(Entity):
         if val is None:
             return None
 
-        address = getattr(self._api_item, "_address", None) or getattr(
-            self._api_item, "address", None
-        )
-        if address is None:
-            _LOGGER.error(
-                "Cannot write value: No register address found for %s",
-                self._api_item.translation_key,
-            )
-            return None
-
-        client = getattr(self.coordinator, "client", None)
-        if client is None:
-            _LOGGER.error(
-                "Cannot write value: Coordinator does not contain a Modbus client"
-            )
-            return None
-
+        address = self._api_item.address
+        client = self.coordinator.client
         # Raised, not logged: a refused or failed write has to reach the user
         # who moved the slider and the automation that called the service.
         try:
@@ -303,13 +288,7 @@ class MyCalcSensorEntity(MySensorEntity):
         eval_locals: dict[str, Any] = {}
 
         # 1. Get this calculated sensor's own Modbus register address
-        address = getattr(self._api_item, "_address", None) or getattr(
-            self._api_item, "address", None
-        )
-        # 2. Fetch its raw polled value directly from the batch cache
-        fetched_raw = (
-            self.coordinator.client.get_value(address) if address is not None else None
-        )
+        fetched_raw = self.coordinator.client.get_value(self._api_item.address)
 
         # Pull val_0 to val_8 dynamically if they are referenced in the formula
         for i in range(9):
@@ -431,7 +410,7 @@ class MySelectEntity(CoordinatorEntity, SelectEntity, MyEntity):  # pylint: disa
         MyEntity.__init__(self, config_entry, modbus_item)
         # option list build from the status list of the ModbusItem
         self._attr_options: list[str] = []
-        for _useless, item in enumerate(self._api_item._resultlist):
+        for item in self._api_item.resultlist or []:
             self._attr_options.append(item.translation_key)
         self._attr_current_option = self.translate_val_select(modbus_item.state)
 

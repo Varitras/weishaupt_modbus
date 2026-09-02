@@ -1,286 +1,66 @@
-"""Item classes."""
+"""The register table's row types."""
 
+from dataclasses import dataclass, field
 from typing import Any
 
-from .const import DEVICES, FORMATS, TYPES
 
-
+@dataclass
 class StatusItem:
-    """An item of a status, e.g. error code and error text along with a precise description.
+    """One value a status register can hold, and the key its text lives under."""
 
-    A class is intentionally defined here because the assignment via dictionaries would not work so elegantly in the end,
-    especially when searching backwards. (At least I don't know how...)
-    """
-
-    _number: int | None = None
-    _text: str | None = None
-    _description: str | None = None
-    _translation_key: str = ""
-
-    def __init__(
-        self,
-        number: int,
-        text: str,
-        translation_key: str | None = None,
-        description: str | None = None,
-    ) -> None:
-        """Initialise StatusItem."""
-        self._number = number
-        self._text = text
-        self._description = description
-        self._translation_key = translation_key or ""
-
-    @property
-    def number(self) -> int:
-        """Return number."""
-        return self._number or 0
-
-    @number.setter
-    def number(self, value: int) -> None:
-        """Set number."""
-        self._number = value
-
-    @property
-    def text(self) -> str:
-        """Return text."""
-        return self._text or ""
-
-    @text.setter
-    def text(self, value: str) -> None:
-        self._text = value
-
-    @property
-    def description(self) -> str:
-        """Return description."""
-        return self._description or ""
-
-    @description.setter
-    def description(self, value: str) -> None:
-        self._description = value
-
-    @property
-    def translation_key(self) -> str:
-        """Return translation_key."""
-        return self._translation_key
-
-    @translation_key.setter
-    def translation_key(self, val: str) -> None:
-        """Set translation_key."""
-        self._translation_key = val
+    number: int
+    text: str
+    translation_key: str = ""
+    # Service advice on the error codes: documentation in the table, never read.
+    description: str = ""
 
 
-class ApiItem:
-    """Class ApiIem item.
+@dataclass
+class ModbusItem:
+    """One register of the table, plus what the last poll read for it."""
 
-    The common part of a ModbusItem.
-    """
+    address: int
+    name: str
+    format: str
+    type: str
+    device: str
+    translation_key: str
+    resultlist: list[StatusItem] | None = None
+    params: dict[str, Any] = field(default_factory=dict)
+    batch: int | None = None
+    # Runtime state, written by the client and the coordinator.
+    state: Any = field(default=None, init=False)
+    is_invalid: bool = field(default=False, init=False)
 
-    _name: str = "empty"
-    _format: str = FORMATS.UNKNOWN
-    _type: str = TYPES.SENSOR
-    _resultlist: Any = None
-    _device: str = DEVICES.UK
-    _state: Any = None
-    _is_invalid: bool = False
-    _translation_key: str = ""
-    _params: dict[str, str] | None = None
-    _divider: int = 1
-
-    def __init__(
-        self,
-        name: str,
-        mformat: str,
-        mtype: str,
-        device: str,
-        translation_key: str | None = None,
-        resultlist: Any = None,
-        params: dict[str, str] | None = None,
-    ) -> None:
-        """Initialise ModbusItem."""
-        self._name: str = name
-        self._format: str = mformat
-        self._type: str = mtype
-        self._device: str = device
-        self._resultlist = resultlist
-        self._state = None
-        self._is_invalid = False
-        self._translation_key = translation_key or ""
-        self._params = params
-        self._divider = 1
-
-    @property
-    def params(self) -> dict[Any, Any]:
-        """Return state."""
-        return self._params or {}
-
-    @params.setter
-    def params(self, val: dict[Any, Any] | None) -> None:
-        self._params = val
-
-    @property
-    def divider(self) -> int:
-        """Return state."""
-        return self._divider
-
-    @divider.setter
-    def divider(self, val: int) -> None:
-        self._divider = val
-
-    @property
-    def is_invalid(self) -> bool:
-        """Return state."""
-        return self._is_invalid
-
-    @is_invalid.setter
-    def is_invalid(self, val: bool) -> None:
-        self._is_invalid = val
-
-    @property
-    def state(self) -> Any:
-        """Return the state of the item, set by the coordinator."""
-        return self._state
-
-    @state.setter
-    def state(self, val: Any) -> None:
-        """Set the state of the item from modbus."""
-        self._state = val
-
-    @property
-    def name(self) -> str:
-        """Return name."""
-        return self._name
-
-    @name.setter
-    def name(self, val: str) -> None:
-        """Set name."""
-        self._name = val
-
-    @property
-    def format(self) -> str:
-        """Return format."""
-        return self._format
-
-    @property
-    def type(self) -> str:
-        """Return type."""
-        return self._type
-
-    @property
-    def device(self) -> str:
-        """Return device."""
-        return self._device
-
-    @device.setter
-    def device(self, val: str) -> None:
-        """Set device."""
-        self._device = val
-
-    @property
-    def translation_key(self) -> str:
-        """Return translation_key."""
-        return self._translation_key
-
-    @translation_key.setter
-    def translation_key(self, val: str) -> None:
-        """Set translation_key."""
-        self._translation_key = val
-
-    @property
-    def resultlist(self) -> Any:
-        """Return resultlist."""
-        return self._resultlist
-
-    def get_text_from_number(self, val: int) -> str | None:
-        """Get errortext from corresponding number."""
-        if val is None:
+    def _status(self, number: int | None) -> StatusItem | None:
+        if number is None or self.resultlist is None:
             return None
-        if self._resultlist is None:
+        return next((s for s in self.resultlist if s.number == number), None)
+
+    def get_text_from_number(self, val: int | None) -> str | None:
+        """The status text for a number; unknown numbers name themselves."""
+        if val is None or self.resultlist is None:
             return None
-        for _useless, item in enumerate(self._resultlist):
-            if val == item.number:
-                return item.text
-        return f"unbekannt <{val}>"
+        status = self._status(val)
+        return status.text if status else f"unbekannt <{val}>"
+
+    def get_translation_key_from_number(self, val: int | None) -> str | None:
+        """The state translation key for a number; unknown numbers name themselves."""
+        if val is None or self.resultlist is None:
+            return None
+        status = self._status(val)
+        return status.translation_key if status else f"unbekannt <{val}>"
 
     def get_number_from_text(self, val: str) -> int | None:
-        """Get number of corresponding errortext."""
-        if self._resultlist is None:
+        """The number behind a status text, None for a text that is not one."""
+        if self.resultlist is None:
             return None
-        for _useless, item in enumerate(self._resultlist):
-            if val == item.text:
-                return item.number
-        return None
+        return next((s.number for s in self.resultlist if s.text == val), None)
 
-    def get_translation_key_from_number(self, val: int) -> str | None:
-        """Get errortext from corresponding number."""
-        if val is None:
+    def get_number_from_translation_key(self, val: str | None) -> int | None:
+        """The number behind a state key, None for a key that is not one."""
+        if val is None or self.resultlist is None:
             return None
-        if self._resultlist is None:
-            return None
-        for _useless, item in enumerate(self._resultlist):
-            if val == item.number:
-                return item.translation_key
-        return f"unbekannt <{val}>"
-
-    def get_number_from_translation_key(self, val: str) -> int | None:
-        """Get number of corresponding errortext."""
-        if val is None:
-            return None
-        if self._resultlist is None:
-            return None
-        for _useless, item in enumerate(self._resultlist):
-            if val == item.translation_key:
-                return item.number
-        return None
-
-
-class ModbusItem(ApiItem):
-    """Represents an Modbus item."""
-
-    _address: int
-
-    def __init__(
-        self,
-        address: int,
-        name: str,
-        mformat: str,
-        mtype: str,
-        device: str,
-        translation_key: str,
-        resultlist: Any = None,
-        params: dict[str, str] | None = None,
-        batch: int | None = None,
-    ) -> None:
-        """ModbusItem is used to generate entities.
-
-        Args:
-            address: Modbus Address of the item.
-            name: Name of the entity.
-            mformat: Format of the entity.
-            mtype: Type of the entity.
-            device: Device the entity belongs to.
-            translation_key: Translation key of the entity.
-            resultlist: Result list of the entity. Defaults to None.
-            params: Additional parameters for the entity. Defaults to None.
-
-        """
-        super().__init__(
-            name=name,
-            mformat=mformat,
-            mtype=mtype,
-            device=device,
-            translation_key=translation_key,
-            resultlist=resultlist,
-            params=params,
+        return next(
+            (s.number for s in self.resultlist if s.translation_key == val), None
         )
-        self._address = address
-        self.batch = batch
-
-    @property
-    def address(self) -> int:
-        """Return address."""
-        return self._address
-
-    @address.setter
-    def address(self, val: int) -> None:
-        """Set address."""
-        self._address = val

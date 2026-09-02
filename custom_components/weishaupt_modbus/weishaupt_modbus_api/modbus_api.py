@@ -229,11 +229,7 @@ class WeishauptModbusClient:
             if not item:
                 return raw_val
 
-            mformat = getattr(
-                item,
-                "format",
-                getattr(item, "mformat", getattr(item, "_mformat", None)),
-            )
+            mformat = item.format
 
             if mformat == FORMATS.TEMPERATURE:
                 return decode_temperature(item, raw_val)
@@ -356,12 +352,7 @@ class WeishauptModbusClient:
                     )
                 item = self._items_dict.get(address)
                 if item:
-                    mformat = getattr(
-                        item,
-                        "format",
-                        getattr(item, "mformat", getattr(item, "_mformat", None)),
-                    )
-                    if mformat == FORMATS.TEMPERATURE and value < 0:
+                    if item.format == FORMATS.TEMPERATURE and value < 0:
                         value += 65536
 
                 response = await self._client.write_register(
@@ -392,16 +383,11 @@ class WeishauptModbusClient:
         # the table; keyed by address they would shadow that register and its
         # format handling (33103 lost its percentage sentinel that way).
         sorted_items = sorted(
-            [
-                i
-                for i in items
-                if getattr(i, "_address", None) is not None
-                and i.type != TYPES.SENSOR_CALC
-            ],
-            key=lambda x: x._address,
+            [i for i in items if i.type != TYPES.SENSOR_CALC],
+            key=lambda x: x.address,
         )
 
-        self._items_dict = {item._address: item for item in sorted_items}
+        self._items_dict = {item.address: item for item in sorted_items}
 
         batch_sizes: dict[int, int] = {}
         current_batch_start: int | None = None
@@ -419,8 +405,8 @@ class WeishauptModbusClient:
                 base_batch != current_batch_start
                 or batch_sizes.get(current_batch_start, 0) >= 5
             ):
-                current_batch_start = item._address
-                item._batch = current_batch_start
+                current_batch_start = item.address
+                item.batch = current_batch_start
 
             batch_sizes[current_batch_start] = (
                 batch_sizes.get(current_batch_start, 0) + 1

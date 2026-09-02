@@ -44,8 +44,8 @@
   {
     "label": "client: a negative temperature write must be two's complement",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "                    if mformat == FORMATS.TEMPERATURE and value < 0:\n                        value += 65536",
-    "new": "                    if mformat == FORMATS.TEMPERATURE and value < 0:\n                        value += 0",
+    "old": "                    if item.format == FORMATS.TEMPERATURE and value < 0:\n                        value += 65536",
+    "new": "                    if item.format == FORMATS.TEMPERATURE and value < 0:\n                        value += 0",
     "tests": "negative_temperature_write"
   },
   {
@@ -93,7 +93,7 @@
   {
     "label": "coordinator: a calculated sensor must not read the cache",
     "path": "custom_components/weishaupt_modbus/coordinator.py",
-    "old": "            if getattr(item, \"type\", None) == TYPES.SENSOR_CALC:",
+    "old": "            if item.type == TYPES.SENSOR_CALC:",
     "new": "            if False:",
     "tests": "calculated_sensor_is_not_polled"
   },
@@ -177,8 +177,8 @@
   {
     "label": "items: the text lookup must return the text",
     "path": "custom_components/weishaupt_modbus/items.py",
-    "old": "            if val == item.number:\n                return item.text",
-    "new": "            if val == item.number:\n                return item.description",
+    "old": "        return status.text if status else f\"unbekannt <{val}>\"\n",
+    "new": "        return status.translation_key if status else f\"unbekannt <{val}>\"\n",
     "tests": "text_from_number"
   },
   {
