@@ -723,6 +723,7 @@
                 "state": {
                     "system_operationmode_pvmode": "PV Modus",
                     "system_operationmode_relaistest": "Relaistest",
+                    "system_operationmode_evu": "EVU-Sperre",
                     "system_operationmode_sgtariff": "SG Tarif",
                     "system_operationmode_sgmax": "SG Maximal",
                     "system_operationmode_tariffload": "Tarifladung",

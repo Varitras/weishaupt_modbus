@@ -1,8 +1,8 @@
 """Config flow."""
 
+from pathlib import Path
 from typing import Any
 
-from aiofiles.os import scandir
 import voluptuous as vol
 
 from homeassistant import config_entries, exceptions
@@ -11,43 +11,43 @@ import homeassistant.helpers.config_validation as cv
 
 from .const import CONF, CONST
 from .kennfeld import get_filepath
+from .migrate_helpers import entry_unique_id
 from .weishaupt_modbus_api.const import (
+    DEFAULT_PORT,
     DEFAULT_WRITE_LIMIT_PER_DAY,
     DEFAULT_WRITE_WARNING_PER_DAY,
     EEPROM_WRITE_RATING,
 )
 
 
-async def build_kennfeld_list(hass: HomeAssistant) -> list[str]:
-    """Browse integration directory for heat pump operation map ("kennfeld") files."""
-    kennfelder = []
+def _kennfeld_files(folder: Path) -> list[str]:
     try:
-        dir_iterator = await scandir(get_filepath(hass))
-        for item in dir_iterator:
-            if "kennfeld.json" in item.name:
-                kennfelder.append(item.name)
+        found = sorted(p.name for p in folder.iterdir() if "kennfeld.json" in p.name)
     except OSError:
-        pass
-
-    if len(kennfelder) < 1:
-        kennfelder.append("weishaupt_wbb_kennfeld.json")
-
-    return kennfelder
+        found = []
+    return found or [CONST.DEF_KENNFELDFILE]
 
 
-async def validate_input(data: dict[str, Any]) -> dict[str, Any]:
-    """Validate the input."""
-    if len(data.get(CONF.HOST, "")) < 3:
+async def build_kennfeld_list(hass: HomeAssistant) -> list[str]:
+    """The power-map files a user can pick from."""
+    return await hass.async_add_executor_job(_kennfeld_files, get_filepath(hass))
+
+
+def validate_input(data: dict[str, Any]) -> None:
+    """Normalise the host in place; raise InvalidHost for one that cannot be dialled."""
+    host = str(data.get(CONF.HOST, "")).strip()
+    unusable = len(host) < 3 or any(character.isspace() for character in host)
+    if unusable:
         raise InvalidHost
-    return {"title": data[CONF.HOST]}
+    data[CONF.HOST] = host
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: disable=abstract-method
     """Class config flow."""
 
-    VERSION = 10
+    VERSION = 11
     MINOR_VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_PUSH
+    CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
 
     @staticmethod
     @callback
@@ -70,16 +70,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
 
         if user_input is not None:
             try:
-                await validate_input(user_input)
-                self._stored_data.update(user_input)
-                return self.async_create_entry(
-                    title=self._stored_data[CONF.HOST], data=self._stored_data
-                )
-
+                validate_input(user_input)
             except InvalidHost:
                 errors["base"] = "invalid_host"
-            except Exception:
-                errors["base"] = "unknown"
+        if user_input is not None and not errors:
+            await self.async_set_unique_id(entry_unique_id(user_input))
+            self._abort_if_unique_id_configured()
+            self._stored_data.update(user_input)
+            return self.async_create_entry(
+                title=self._stored_data[CONF.HOST], data=self._stored_data
+            )
 
         # Define Schema for Page 1
         schema_page1 = vol.Schema(
@@ -90,7 +90,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 ): str,
                 vol.Optional(
                     schema=CONF.PORT,
-                    default=self._stored_data.get(CONF.PORT, "502"),
+                    default=self._stored_data.get(CONF.PORT, DEFAULT_PORT),
                 ): cv.port,
                 vol.Optional(
                     schema=CONF.PREFIX,
@@ -103,7 +103,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 vol.Optional(
                     schema=CONF.KENNFELD_FILE,
                     default=self._stored_data.get(
-                        CONF.KENNFELD_FILE, "weishaupt_wbb_kennfeld.json"
+                        CONF.KENNFELD_FILE, CONST.DEF_KENNFELDFILE
                     ),
                 ): vol.In(container=await build_kennfeld_list(self.hass)),
                 vol.Optional(
@@ -150,19 +150,20 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
 
         if user_input is not None:
             try:
-                await validate_input(user_input)
-                self._stored_data.update(user_input)
-                # Not async_update_and_abort: that helper only exists from Home
-                # Assistant 2025.8 on, and the declared minimum is 2025.7. The
-                # update listener in __init__ reloads the entry.
-                self.hass.config_entries.async_update_entry(
-                    self._reconfigure_entry, data=self._stored_data
-                )
-                return self.async_abort(reason="reconfigure_successful")
+                validate_input(user_input)
             except InvalidHost:
                 errors["base"] = "invalid_host"
-            except Exception:
-                errors["base"] = "unknown"
+        if user_input is not None and not errors:
+            self._stored_data.update(user_input)
+            # Not async_update_and_abort: that helper only exists from Home
+            # Assistant 2025.8 on, and the declared minimum is 2025.7. The
+            # update listener in __init__ reloads the entry.
+            self.hass.config_entries.async_update_entry(
+                self._reconfigure_entry,
+                data=self._stored_data,
+                unique_id=entry_unique_id(self._stored_data),
+            )
+            return self.async_abort(reason="reconfigure_successful")
 
         # We display the same schema as user step 1 for consistency
         schema_reconfigure = vol.Schema(
@@ -173,7 +174,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 ): str,
                 vol.Optional(
                     schema=CONF.PORT,
-                    default=self._stored_data.get(CONF.PORT, "502"),
+                    default=self._stored_data.get(CONF.PORT, DEFAULT_PORT),
                 ): cv.port,
                 vol.Optional(
                     schema=CONF.PREFIX,
@@ -276,8 +277,4 @@ class OptionsFlow(config_entries.OptionsFlow):
 
 
 class InvalidHost(exceptions.HomeAssistantError):
-    """Error to indicate there is an invalid hostname."""
-
-
-class ConnectionFailed(exceptions.HomeAssistantError):
     """Error to indicate there is an invalid hostname."""

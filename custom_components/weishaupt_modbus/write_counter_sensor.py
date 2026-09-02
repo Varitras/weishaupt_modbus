@@ -38,8 +38,9 @@ class WriteCounterSensor(CoordinatorEntity[WeishauptModbusCoordinator], RestoreS
     """A counter that lives in the client and survives a restart here.
 
     The client is rebuilt on every (re)load with its counters at zero; the
-    last recorded state seeds it again in async_added_to_hass. The state
-    catches up with a write on the next poll.
+    last recorded state seeds it again in async_added_to_hass. Every counted
+    write is written to the state at once: a reload before the next poll
+    would otherwise restore a count that is already behind.
     """
 
     _attr_has_entity_name = True
@@ -83,6 +84,7 @@ class WriteCounterSensor(CoordinatorEntity[WeishauptModbusCoordinator], RestoreS
     async def async_added_to_hass(self) -> None:
         """Seed the fresh client with the last recorded count."""
         await super().async_added_to_hass()
+        self.async_on_remove(self._budget.add_listener(self.async_write_ha_state))
         last_data = await self.async_get_last_sensor_data()
         if last_data is None or last_data.native_value is None:
             return

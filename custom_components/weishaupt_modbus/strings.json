@@ -723,6 +723,7 @@
         "state": {
           "system_operationmode_pvmode": "PV Mode",
           "system_operationmode_relaistest": "Relais test",
+          "system_operationmode_evu": "Utility grid lock",
           "system_operationmode_sgtariff": "SG tariff",
           "system_operationmode_sgmax": "SG maximum",
           "system_operationmode_tariffload": "Tariff load",

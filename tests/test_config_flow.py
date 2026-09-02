@@ -67,6 +67,35 @@ async def test_short_host_is_rejected(hass):
     assert result["errors"] == {"base": "invalid_host"}
 
 
+async def test_a_host_with_whitespace_inside_is_rejected(hass):
+    started = await _start(hass)
+
+    result = await hass.config_entries.flow.async_configure(
+        started["flow_id"], {**PAGE_ONE, CONF.HOST: "192.0.2.1 0"}
+    )
+
+    assert result["errors"] == {"base": "invalid_host"}
+
+
+async def test_the_same_pump_cannot_be_set_up_twice(hass):
+    """Two entries on one endpoint poll and write the pump twice over.
+    The entry's identity is host:port, not the names the user picks."""
+    first = await _start(hass)
+    created = await hass.config_entries.flow.async_configure(
+        first["flow_id"], {**PAGE_ONE, CONF.HOST: " 192.0.2.10 "}
+    )
+    assert created["type"] is FlowResultType.CREATE_ENTRY
+    assert created["data"][CONF.HOST] == "192.0.2.10", "the host was not trimmed"
+
+    second = await _start(hass)
+    result = await hass.config_entries.flow.async_configure(
+        second["flow_id"], {**PAGE_ONE, CONF.HOST: "192.0.2.10"}
+    )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+
+
 async def _reconfigure(hass, entry, user_input):
     result = await hass.config_entries.flow.async_init(
         CONST.DOMAIN,

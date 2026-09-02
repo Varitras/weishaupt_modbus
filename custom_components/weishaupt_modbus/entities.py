@@ -23,6 +23,15 @@ from .weishaupt_modbus_api.hpconst import reverse_device_list
 _LOGGER = logging.getLogger(__name__)
 
 
+def to_register_value(value: float, divider: int) -> int:
+    """The register word for a user value: 1.15 at divider 100 is 115, not 114.
+
+    int() truncates, and 1.15 * 100 is 114.99999999999999 in binary floating
+    point - every allowed heating-curve value with two decimals is affected.
+    """
+    return round(float(value) * divider)
+
+
 class MyEntity(Entity):
     """An entity using CoordinatorEntity."""
 
@@ -139,7 +148,7 @@ class MyEntity(Entity):
             val = self._api_item.get_number_from_translation_key(str(value))
         else:
             self.set_min_max(True)
-            val = int(float(value) * self._divider)
+            val = to_register_value(value, self._divider)
 
         if val is None:
             return None
@@ -338,7 +347,9 @@ class MyCalcSensorEntity(MySensorEntity):
         # Perform the evaluation
         try:
             if self._calculation is not None:
-                y = eval(self._calculation, {}, eval_locals)  # pylint: disable=eval-used  # noqa: S307
+                # No builtins: the formulas are our own static strings, but the
+                # day one comes from a file this must not be a way to run code.
+                y = eval(self._calculation, {"__builtins__": {}}, eval_locals)  # pylint: disable=eval-used  # noqa: S307
             else:
                 return None
         except ZeroDivisionError:
@@ -418,9 +429,6 @@ class MySelectEntity(CoordinatorEntity, SelectEntity, MyEntity):  # pylint: disa
         super().__init__(coordinator, context=idx)
         self._idx = idx
         MyEntity.__init__(self, config_entry, modbus_item)
-        self.async_internal_will_remove_from_hass_port = self._config_entry.data[
-            CONF.PORT
-        ]
         # option list build from the status list of the ModbusItem
         self._attr_options: list[str] = []
         for _useless, item in enumerate(self._api_item._resultlist):

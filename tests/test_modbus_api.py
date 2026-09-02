@@ -135,6 +135,20 @@ async def test_a_faulty_sensor_reads_as_none_but_stays_available(client, wire, f
     assert _item(client, OUTSIDE_TEMPERATURE).is_invalid is False
 
 
+@pytest.mark.parametrize("status_word", [0x8003, 0x800A, 0x800B, 0x80FF])
+async def test_a_status_word_in_the_reserved_band_is_not_a_temperature(
+    client, wire, status_word
+):
+    """0x800A/0x800B are the documented digital off/on words; decoded as a
+    signed temperature they read -3275.8 °C."""
+    wire.registers[OUTSIDE_TEMPERATURE] = status_word
+
+    data = await client.update()
+
+    assert data[OUTSIDE_TEMPERATURE] is None
+    assert _item(client, OUTSIDE_TEMPERATURE).is_invalid is False
+
+
 async def test_a_negative_temperature_is_read_as_twos_complement(client, wire):
     wire.registers[OUTSIDE_TEMPERATURE] = 65436
 
@@ -393,6 +407,24 @@ async def test_reaching_the_warning_threshold_is_logged_once(client, wire, caplo
         await client.write_register(PV_SETPOINT, value)
 
     assert caplog.text.count("register writes today") == 1
+
+
+async def test_a_write_that_cannot_reconnect_raises_instead_of_returning_false(
+    client, wire, monkeypatch
+):
+    """A False return was taken for success by every caller: the entity
+    showed the new value, the service call succeeded, the pump had nothing."""
+    wire.connected = False
+
+    async def refuse(self, startup=False):
+        return False
+
+    monkeypatch.setattr(WeishauptModbusClient, "connect", refuse)
+
+    with pytest.raises(ConnectionFailedError):
+        await client.write_register(PV_SETPOINT, 1)
+
+    assert wire.writes == []
 
 
 async def test_negative_temperature_write_uses_twos_complement(client, wire):

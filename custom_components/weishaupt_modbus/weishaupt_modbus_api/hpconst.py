@@ -227,7 +227,7 @@ SYS_BETRIEBSANZEIGE: list[StatusItem] = [
         translation_key="system_operationmode_manual2ndheatsource",
     ),
     StatusItem(
-        number=10, text="EVU_SPERRE", translation_key="system_operationmode_sgtariff"
+        number=10, text="EVU_SPERRE", translation_key="system_operationmode_evu"
     ),
     StatusItem(
         number=11, text="SG Tarif", translation_key="system_operationmode_sgtariff"

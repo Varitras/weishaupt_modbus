@@ -63,7 +63,6 @@ LIST_NAMES = [
 # `system_operationmode_sgtariff`. Kept as-is on adoption - a fix changes a
 # state string automations may match on.
 KNOWN_SHARED_STATUS_KEYS = {
-    ("SYS_BETRIEBSANZEIGE", "system_operationmode_sgtariff"),
     ("IO_KONFIG_OUT", "io_config_out_65535"),
 }
 

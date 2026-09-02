@@ -331,3 +331,19 @@ def test_a_division_by_zero_in_the_formula_reads_as_zero():
     sensor = entities.MyCalcSensorEntity(_entry(), item, FakeCoordinator(), 0)
 
     assert sensor.translate_val(None) == 0.0
+
+
+@pytest.mark.parametrize(
+    ("value", "divider", "word"),
+    [
+        (1.15, 100, 115),
+        (1.14, 100, 114),
+        (-0.5, 10, -5),
+        (22.5, 10, 225),
+        (0.29, 100, 29),
+    ],
+)
+def test_a_user_value_becomes_the_nearest_register_word(value, divider, word):
+    """int(1.15 * 100) is 114: the heating curve the user set was written one
+    step too low, silently."""
+    assert entities.to_register_value(value, divider) == word

@@ -33,7 +33,6 @@ async def async_setup_entry(
         coordinator=coordinator,
     )
 
-    async_add_entities(
-        entries,
-        update_before_add=True,
-    )
+    # The first refresh already ran and every entity takes its initial value
+    # from it; update_before_add would ask for a second full scan.
+    async_add_entities(entries)

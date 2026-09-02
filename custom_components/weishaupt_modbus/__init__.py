@@ -2,6 +2,7 @@
 
 import copy
 import logging
+import re
 
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.modbus_api import (
     WeishauptModbusClient,
@@ -17,7 +18,8 @@ from .const import CONF, CONST
 from .coordinator import WeishauptModbusCoordinator, write_budget
 from .items import ModbusItem
 from .kennfeld import PowerMap
-from .migrate_helpers import unique_id_from_parts
+from .migrate_helpers import entry_unique_id, unique_id_from_parts
+from .weishaupt_modbus_api.const import DEFAULT_PORT
 from .weishaupt_modbus_api.hpconst import DEVICELISTS
 
 _LOGGER = logging.getLogger(__name__)
@@ -95,7 +97,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
         itemlist.extend(copy.deepcopy(item) for item in device)
 
     modbus_api = WeishauptModbusClient(
-        host=entry.data[CONF.HOST], items=itemlist, write_budget=write_budget(entry)
+        host=entry.data[CONF.HOST],
+        port=int(entry.data.get(CONF.PORT, DEFAULT_PORT)),
+        items=itemlist,
+        write_budget=write_budget(entry),
     )
 
     modbus_coordinator = WeishauptModbusCoordinator(
@@ -146,6 +151,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) 
 
     if config_entry.version < 2:
         _LOGGER.warning("Version <2 detected")
+        new_data[CONF.PORT] = DEFAULT_PORT
         new_data[CONF.PREFIX] = CONST.DEF_PREFIX
         new_data[CONF.DEVICE_POSTFIX] = ""
         new_data[CONF.KENNFELD_FILE] = CONST.DEF_KENNFELDFILE
@@ -177,10 +183,16 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) 
         _LOGGER.warning("Version <10 detected")
         _move_relabelled_entities(hass, new_data)
 
+    # Version 11: the entry gets its identity (host:port), so a pump cannot
+    # be set up twice.
     hass.config_entries.async_update_entry(
-        config_entry, data=new_data, minor_version=1, version=10
+        config_entry,
+        data=new_data,
+        minor_version=1,
+        version=11,
+        unique_id=entry_unique_id(new_data),
     )
-    _LOGGER.warning("Config entries updated to version 10")
+    _LOGGER.warning("Config entries updated to version 11")
     return True
 
 
@@ -213,9 +225,13 @@ def _entity_id_with_new_label(entity_id: str, labels: tuple) -> str | None:
     """
     domain, object_id = entity_id.split(".", 1)
     for old_label, new_label in labels:
-        old_slug = slugify(old_label)
-        if old_slug in object_id:
-            return f"{domain}.{object_id.replace(old_slug, slugify(new_label))}"
+        # The generated id ENDS with the label's slug (plus Home Assistant's
+        # _2 for a collision). The same words in the middle of a hand-made
+        # id are the user's, and stay.
+        generated = re.compile(rf"(^|_){re.escape(slugify(old_label))}(_\d+)?$")
+        if generated.search(object_id):
+            renamed = generated.sub(rf"\g<1>{slugify(new_label)}\g<2>", object_id)
+            return f"{domain}.{renamed}"
     return None
 
 

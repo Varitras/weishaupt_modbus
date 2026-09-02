@@ -24,6 +24,7 @@ class WriteBudget:
         self.total = 0
         self._today_count = 0
         self.day = today()
+        self._listeners: list[Callable[[], None]] = []
 
     def _roll_day(self) -> None:
         if self.day == self._today():
@@ -42,11 +43,22 @@ class WriteBudget:
         self._roll_day()
         return self.limit == 0 or self._today_count < self.limit
 
+    def add_listener(self, listener: Callable[[], None]) -> Callable[[], None]:
+        """Call ``listener`` after every counted write; returns the unsubscribe."""
+        self._listeners.append(listener)
+
+        def remove() -> None:
+            self._listeners.remove(listener)
+
+        return remove
+
     def record_write(self) -> bool:
         """Count one write; True exactly when it reaches the warning threshold."""
         self._roll_day()
         self.total += 1
         self._today_count += 1
+        for listener in list(self._listeners):
+            listener()
         return self.warn_at > 0 and self._today_count == self.warn_at
 
     def restore_total(self, total: int) -> None:

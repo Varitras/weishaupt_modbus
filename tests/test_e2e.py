@@ -15,6 +15,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.weishaupt_modbus.const import CONF, CONST
+from custom_components.weishaupt_modbus.weishaupt_modbus_api.const import DEFAULT_PORT
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.exceptions import (
     WriteError,
 )
@@ -76,7 +77,7 @@ def fake_modbus(monkeypatch):
     return disconnected
 
 
-def _entry(hass, data=None, version=10):
+def _entry(hass, data=None, version=11):
     entry = MockConfigEntry(
         domain=CONST.DOMAIN, title="pump", data=data or BASE_DATA, version=version
     )
@@ -101,6 +102,14 @@ async def test_setup_creates_a_sensor_from_the_first_refresh(hass):
     # From the FIRST refresh: the listener only fires on the next poll, and
     # every entity read unknown for a whole scan interval after setup.
     assert hass.states.get(entity_id).state == "12.3"
+
+
+async def test_the_configured_port_reaches_the_client(hass):
+    """The port was stored by the config flow and never passed on: a pump on
+    any port but 502 could not be reached with a valid configuration."""
+    entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.PORT: 5020}))
+
+    assert entry.runtime_data.modbus_api._port == 5020
 
 
 async def test_setup_creates_all_three_platforms(hass):
@@ -128,7 +137,7 @@ async def test_an_old_entry_migrates_to_the_current_version(hass):
 
     await _setup(hass, entry)
 
-    assert entry.version == 10
+    assert entry.version == 11
     for key in (
         CONF.PREFIX,
         CONF.DEVICE_POSTFIX,
@@ -140,6 +149,20 @@ async def test_an_old_entry_migrates_to_the_current_version(hass):
     ):
         assert key in entry.data, f"migration left {key!r} out"
     assert entry.state is ConfigEntryState.LOADED
+    # A version-1 entry has no port; the select platform read it unguarded
+    # and failed to set up while the entry itself reported LOADED.
+    assert entry.data[CONF.PORT] == DEFAULT_PORT
+    assert entry.unique_id == "192.0.2.10:502"
+    registry = er.async_get(hass)
+    platforms = {
+        registry_entry.domain
+        for registry_entry in er.async_entries_for_config_entry(
+            registry, entry.entry_id
+        )
+    }
+    assert {"sensor", "select", "number"} <= platforms, (
+        f"a platform failed to set up after the migration: {platforms}"
+    )
 
 
 async def test_a_web_interface_entry_is_stripped_of_its_settings_and_entities(hass):
@@ -165,7 +188,7 @@ async def test_a_web_interface_entry_is_stripped_of_its_settings_and_entities(ha
 
     await _setup(hass, entry)
 
-    assert entry.version == 10
+    assert entry.version == 11
     for key in (
         "enable-webif",
         "username",
@@ -232,6 +255,26 @@ async def test_relabelled_registers_take_their_history_and_auto_ids_along(hass):
             assert (
                 registry.async_get_entity_id("sensor", CONST.DOMAIN, unique_id) is None
             )
+
+
+async def test_a_hand_made_id_that_merely_contains_the_old_words_is_kept(hass):
+    """Only the generated form - the slug at the END of the object id - is
+    renamed; the same words inside a user's own id are the user's."""
+    entry = _entry(hass, version=9)
+    registry = _register_v9_second_heat_source(hass, entry)
+    registry.async_update_entity(
+        "sensor.wh_2nd_heat_source_switching_cycles_e_heating_2",
+        new_entity_id="sensor.my_switching_cycles_e_heating_2_notes",
+    )
+
+    await _setup(hass, entry)
+
+    assert (
+        registry.async_get_entity_id(
+            "sensor", CONST.DOMAIN, "weishaupt_wbbBetriebsstunden E1"
+        )
+        == "sensor.my_switching_cycles_e_heating_2_notes"
+    )
 
 
 async def test_a_hand_renamed_entity_keeps_its_id_through_the_relabelling(hass, caplog):
@@ -367,8 +410,8 @@ async def test_the_write_counters_survive_a_restart(hass):
     client = entry.runtime_data.modbus_api
     client._client = _writable_wire()
     await client.write_register(PV_SETPOINT, 5)
-    await entry.runtime_data.coordinator.async_refresh()
     await hass.async_block_till_done()
+    # At once, not after the next poll: a reload in between restored 0.
     assert hass.states.get(total_id).state == "1"
     assert hass.states.get(today_id).state == "1"
 

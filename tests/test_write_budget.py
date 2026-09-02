@@ -68,6 +68,19 @@ def test_a_limit_of_zero_means_no_limit():
     assert budget.allows_write()
 
 
+def test_a_listener_hears_every_counted_write_until_it_unsubscribes():
+    budget = WriteBudget(warn_at=0, limit=0, today=Clock(MONDAY))
+    heard = []
+    unsubscribe = budget.add_listener(lambda: heard.append(budget.total))
+
+    budget.record_write()
+    budget.record_write()
+    unsubscribe()
+    budget.record_write()
+
+    assert heard == [1, 2]
+
+
 def test_a_restored_count_from_yesterday_is_stale():
     budget = WriteBudget(warn_at=0, limit=0, today=Clock(TUESDAY))
 

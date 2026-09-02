@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 from .const import CONF
+from .weishaupt_modbus_api.const import DEFAULT_PORT
 
 if TYPE_CHECKING:
     from .configentry import MyConfigEntry
@@ -25,6 +26,12 @@ def create_unique_id(config_entry: MyConfigEntry, modbus_item: ModbusItem) -> st
 def unique_id_from_parts(entry_data: Mapping[str, Any], item_name: str) -> str:
     """The same id for an item name that is no longer in the table."""
     return f"{entry_data[CONF.PREFIX]}{item_name}{device_postfix(entry_data)}"
+
+
+def entry_unique_id(entry_data: Mapping[str, Any]) -> str:
+    """One entry per pump: the endpoint, not the user-chosen names."""
+    host = str(entry_data[CONF.HOST]).strip().lower()
+    return f"{host}:{entry_data.get(CONF.PORT, DEFAULT_PORT)}"
 
 
 def device_postfix(entry_data: Mapping[str, Any]) -> str:

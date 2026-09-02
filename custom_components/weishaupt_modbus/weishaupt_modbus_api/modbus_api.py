@@ -18,8 +18,7 @@ from .const import (
     EEPROM_WRITE_RATING,
     PERCENTAGE_NO_VALUE,
     TEMPERATURE_NO_SENSOR,
-    TEMPERATURE_SENSOR_OPEN,
-    TEMPERATURE_SENSOR_SHORT,
+    TEMPERATURE_RESERVED_BAND_END,
 )
 from .exceptions import ConnectionFailedError, WriteError
 
@@ -40,9 +39,9 @@ def decode_temperature(item: ModbusItem, raw_val: int) -> int | None:
         item.is_invalid = True
         return None
     item.is_invalid = False
-    if raw_val in (TEMPERATURE_SENSOR_OPEN, TEMPERATURE_SENSOR_SHORT):
-        # A faulty sensor is present, so the entity stays; it just has no
-        # reading until the sensor is fixed.
+    if TEMPERATURE_NO_SENSOR < raw_val <= TEMPERATURE_RESERVED_BAND_END:
+        # Sensor open/short, or a status word: a sensor is present, so the
+        # entity stays; it just has no reading.
         return None
     if raw_val > TEMPERATURE_NO_SENSOR:
         return raw_val - 65536
@@ -335,8 +334,12 @@ class WeishauptModbusClient:
 
         async with self._lock:
             if not self._client.connected:
+                # Raised, not returned: a False here was taken for a
+                # successful write by every caller.
                 if not await self.connect(startup=False):
-                    return False
+                    raise ConnectionFailedError(
+                        f"Not connected; register {address} not written"
+                    )
             try:
                 cached_val = self.get_value(address)
                 if cached_val is not None and cached_val == value:
