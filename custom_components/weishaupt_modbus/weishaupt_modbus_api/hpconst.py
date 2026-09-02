@@ -5,6 +5,11 @@ from typing import Any
 
 from custom_components.weishaupt_modbus.const import DEVICES, FORMATS, TYPES
 from custom_components.weishaupt_modbus.items import ModbusItem, StatusItem
+from custom_components.weishaupt_modbus.weishaupt_modbus_api.calculations import (
+    heat_output,
+    performance_factor,
+    spread,
+)
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import (
     PERCENTAGE,
@@ -851,10 +856,10 @@ IO_KONFIG_IN: list[StatusItem] = [
 # "icon": The icon name as it is used in Home Assistant
 #
 # For SENSOR_CALC only:
-# "val_1" .. "val_8": translation keys of other entities that should be used to calculate the value of this entity
-# "calculation": A string that can be used by the eval() command to calculate the sensor value. All Python operations
-#                and the variables val_0 .. val_8 can be used here
-#                The value of the modbus address of the entity itself is available in val_0
+# "calculation": a function from calculations.py. It receives the entity's own register (divided),
+#                then the registers named in "operands" (raw), then the power map if "uses_power_map"
+# "operands": translation keys of the other entities whose values the function takes
+# "uses_power_map": the function takes the power map as its last argument
 ##############################################################################################################################
 
 PARAMS_PERCENTAGE: dict[str, Any] = {
@@ -1073,66 +1078,65 @@ PARAMS_ENERGY: dict[str, Any] = {
 PARAMS_CALCPOWER: dict = {
     "min": 0,
     "max": 50000,
-    "val_1": "luftansautgemp",  # 30002,
-    "val_2": "vl_temp",  # 33104,
-    "val_3": "aussentemp",  # 30001,
+    "operands": ("luftansautgemp", "vl_temp"),
+    "uses_power_map": True,
     "deviceclass": SensorDeviceClass.POWER,
     "precision": 0,
     "unit": UnitOfPower.WATT,
     "stateclass": SensorStateClass.MEASUREMENT,
-    "calculation": "(val_0 / 100) * power.map(val_1, val_2)",
+    "calculation": heat_output,
 }
 
 PARAMS_CALCSPREIZUNG: dict = {
     "min": 0,
     "max": 50,
     "divider": 10,
-    "val_1": "rl_temp",  # 30001,
+    "operands": ("rl_temp",),
     "deviceclass": SensorDeviceClass.TEMPERATURE,
     "precision": 1,
     "unit": UnitOfTemperature.CELSIUS,
     "stateclass": SensorStateClass.MEASUREMENT,
-    "calculation": "val_0 - val_1/10",
+    "calculation": spread,
 }
 
 
 PARAMS_CALCTAZ: dict = {
     "min": 0,
     "max": 50,
-    "val_1": "el_energie_heute",
+    "operands": ("el_energie_heute",),
     "precision": 2,
     "stateclass": SensorStateClass.MEASUREMENT,
     "icon": "mdi:sigma",
-    "calculation": "val_0 / val_1",
+    "calculation": performance_factor,
 }
 
 PARAMS_CALCTAZ2: dict = {
     "min": 0,
     "max": 50,
-    "val_1": "el_energie_gestern",
+    "operands": ("el_energie_gestern",),
     "precision": 2,
     "icon": "mdi:sigma",
-    "calculation": "val_0 / val_1",
+    "calculation": performance_factor,
 }
 
 PARAMS_CALCMAZ: dict = {
     "min": 0,
     "max": 50,
-    "val_1": "el_energie_monat",
+    "operands": ("el_energie_monat",),
     "precision": 2,
     "stateclass": SensorStateClass.MEASUREMENT,
     "icon": "mdi:sigma",
-    "calculation": "val_0 / val_1",
+    "calculation": performance_factor,
 }
 
 PARAMS_CALCJAZ: dict = {
     "min": 0,
     "max": 50,
-    "val_1": "el_energie_jahr",
+    "operands": ("el_energie_jahr",),
     "precision": 2,
     "stateclass": SensorStateClass.MEASUREMENT,
     "icon": "mdi:sigma",
-    "calculation": "val_0 / val_1",
+    "calculation": performance_factor,
 }
 
 PARAMS_PV: dict = {

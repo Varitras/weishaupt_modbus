@@ -198,9 +198,9 @@
   {
     "label": "entity: an absent formula operand must read as none, not drop the entity",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "        except TypeError:\n",
-    "new": "        except ValueError:\n",
-    "tests": "absent_operand_reads_as_none"
+    "old": "        if own is None or any(sibling is None for sibling in siblings):\n            return None\n",
+    "new": "        if False:\n            return None\n",
+    "tests": "absent_operand_reads_as_none or own_register_is_absent"
   },
   {
     "label": "power map: the fallback must point at the shipped grid folder",
@@ -362,5 +362,12 @@
     "old": "            self._abort_if_unique_id_configured()\n",
     "new": "            pass\n",
     "tests": "same_pump_cannot_be_set_up_twice"
+  },
+  {
+    "label": "table: an item's name must not silently change",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "    ModbusItem(address=30001, name=\"Aussentemperatur\",",
+    "new": "    ModbusItem(address=30001, name=\"Außentemperatur\",",
+    "tests": "keeps_the_name_its_unique_id"
   }
 ]

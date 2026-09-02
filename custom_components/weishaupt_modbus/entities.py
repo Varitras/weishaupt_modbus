@@ -16,7 +16,7 @@ from .configentry import MyConfigEntry
 from .const import CONF, CONST, FORMATS
 from .coordinator import WeishauptModbusCoordinator
 from .items import ModbusItem
-from .migrate_helpers import create_unique_id
+from .migrate_helpers import create_unique_id, device_postfix
 from .weishaupt_modbus_api.exceptions import ConnectionFailedError, WriteError
 from .weishaupt_modbus_api.hpconst import reverse_device_list
 
@@ -36,7 +36,6 @@ class MyEntity(Entity):
     """An entity using CoordinatorEntity."""
 
     _divider = 1
-    _attr_should_poll = True
     _attr_has_entity_name = True
     _dynamic_min = None
     _dynamic_max = None
@@ -53,10 +52,7 @@ class MyEntity(Entity):
         self._config_entry = config_entry
         self._api_item: ModbusItem = api_item
 
-        dev_postfix = "_" + self._config_entry.data[CONF.DEVICE_POSTFIX]
-        if dev_postfix == "_":
-            dev_postfix = ""
-
+        dev_postfix = device_postfix(self._config_entry.data)
         dev_prefix = self._config_entry.data[CONF.PREFIX]
 
         if self._config_entry.data[CONF.NAME_DEVICE_PREFIX]:
@@ -72,12 +68,15 @@ class MyEntity(Entity):
 
         name_prefix = name_topic_prefix + name_device_prefix
 
-        self._dev_device = self._api_item.device + dev_postfix
-        self._dev_device_base = self._api_item.device
+        self._attr_device_info = DeviceInfo(
+            identifiers={(CONST.DOMAIN, self._api_item.device + dev_postfix)},
+            translation_key=self._api_item.device,
+            translation_placeholders={"postfix": dev_postfix},
+            manufacturer="Weishaupt",
+        )
 
         self._attr_translation_key = self._api_item.translation_key
         self._attr_translation_placeholders = {"prefix": name_prefix}
-        self._dev_translation_placeholders = {"postfix": dev_postfix}
 
         self._attr_unique_id = create_unique_id(self._config_entry, self._api_item)
 
@@ -165,22 +164,6 @@ class MyEntity(Entity):
             ) from err
         return val
 
-    def my_device_info(self) -> DeviceInfo:
-        """Build the device info."""
-        return DeviceInfo(
-            identifiers={(CONST.DOMAIN, str(self._dev_device))},
-            translation_key=str(self._dev_device_base),
-            translation_placeholders=self._dev_translation_placeholders,
-            sw_version="Device_SW_Version",
-            model="Device_model",
-            manufacturer="Weishaupt",
-        )
-
-    @property
-    def device_info(self) -> DeviceInfo | None:
-        """Return device info."""
-        return self.my_device_info()
-
 
 class MySensorEntity(CoordinatorEntity, SensorEntity, MyEntity):
     """Class that represents a sensor entity.
@@ -199,7 +182,6 @@ class MySensorEntity(CoordinatorEntity, SensorEntity, MyEntity):
         """Initialize of MySensorEntity."""
 
         super().__init__(coordinator, context=idx)
-        self.idx = idx
         MyEntity.__init__(self, config_entry, modbus_item)
 
         # Set sensor-specific state class
@@ -229,41 +211,9 @@ class MySensorEntity(CoordinatorEntity, SensorEntity, MyEntity):
         self._attr_native_value = self.translate_val(self._api_item.state)
         self.async_write_ha_state()
 
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device info."""
-        return MyEntity.my_device_info(self)
-
 
 class MyCalcSensorEntity(MySensorEntity):
-    """Class that represents a calculated sensor entity."""
-
-    _calculation_source = None
-    _calculation = None
-
-    def __init__(
-        self,
-        config_entry: MyConfigEntry,
-        modbus_item: ModbusItem,
-        coordinator: WeishauptModbusCoordinator,
-        idx,
-    ) -> None:
-        """Initialize MyCalcSensorEntity."""
-
-        MySensorEntity.__init__(self, config_entry, modbus_item, coordinator, idx)
-
-        if self._api_item.params is not None:
-            self._calculation_source = self._api_item.params.get("calculation", None)
-
-        if self._calculation_source is not None:
-            try:
-                self._calculation = compile(
-                    self._calculation_source, "calculation", "eval"
-                )
-            except SyntaxError:
-                _LOGGER.warning(
-                    "Syntax error in calculation formula: %s", self._calculation_source
-                )
+    """A sensor computed from other registers by a function in calculations.py."""
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -279,68 +229,28 @@ class MyCalcSensorEntity(MySensorEntity):
         self.async_write_ha_state()
 
     def translate_val(self, val: Any) -> float | None:
-        """Translate a value from the modbus in-memory with custom console logging."""
-
-        if self._calculation_source is None or self._api_item.params is None:
+        """The formula over the own register and its operands; None when any is absent."""
+        params = self._api_item.params
+        formula = params.get("calculation")
+        if formula is None:
             return None
-
-        # Build the local namespace dictionary dynamically
-        eval_locals: dict[str, Any] = {}
-
-        # 1. Get this calculated sensor's own Modbus register address
-        fetched_raw = self.coordinator.client.get_value(self._api_item.address)
-
-        # Pull val_0 to val_8 dynamically if they are referenced in the formula
-        for i in range(9):
-            var_name = f"val_{i}"
-            if var_name in self._calculation_source:
-                # Fetch key from params (e.g. "vl_temp", "ges_volumenstrom", etc.)
-                key_map = self._api_item.params.get(var_name, None)
-
-                if key_map is not None:
-                    # Fetch from the standalone standard sensor in memory
-                    fetched_val = self.coordinator.get_value_from_item(key_map)
-
-                    if var_name == "val_0":
-                        eval_locals[var_name] = (
-                            (fetched_val / self._divider)
-                            if fetched_val is not None
-                            else 0.0
-                        )
-                    else:
-                        eval_locals[var_name] = fetched_val
-                # Fallback if no mapping exists in params (retrieve val_0 from our own cached register)
-                elif var_name == "val_0":
-                    eval_locals[var_name] = (
-                        (fetched_raw / self._divider)
-                        if fetched_raw is not None
-                        else 0.0
-                    )
-                else:
-                    eval_locals[var_name] = None
-
-        # Include powermap if referenced
-        if "power" in self._calculation_source:
-            eval_locals["power"] = self._config_entry.runtime_data.powermap
-
-        # Perform the evaluation
+        own = self.coordinator.client.get_value(self._api_item.address)
+        siblings = [
+            self.coordinator.get_value_from_item(key)
+            for key in params.get("operands", ())
+        ]
+        # No operand, no value: 0.0 in its place made a missing supply
+        # temperature read as a spread of -30 °C.
+        if own is None or any(sibling is None for sibling in siblings):
+            return None
+        arguments: list[Any] = [own / self._divider, *siblings]
+        if params.get("uses_power_map"):
+            arguments.append(self._config_entry.runtime_data.powermap)
         try:
-            if self._calculation is not None:
-                # No builtins: the formulas are our own static strings, but the
-                # day one comes from a file this must not be a way to run code.
-                y = eval(self._calculation, {"__builtins__": {}}, eval_locals)  # pylint: disable=eval-used  # noqa: S307
-            else:
-                return None
+            result = formula(*arguments)
         except ZeroDivisionError:
             return 0.0
-        except TypeError:
-            # An operand is None: the sibling register is absent or not read
-            # yet. Raising here happened inside async_added_to_hass, and Home
-            # Assistant then refused the entity for good - no value is the
-            # answer, not no entity.
-            return None
-
-        return round(y, self._attr_suggested_display_precision)
+        return round(result, self._attr_suggested_display_precision)
 
 
 class MyNumberEntity(CoordinatorEntity, NumberEntity, MyEntity):  # pylint: disable=abstract-method
@@ -359,8 +269,7 @@ class MyNumberEntity(CoordinatorEntity, NumberEntity, MyEntity):  # pylint: disa
     ) -> None:
         """Initialize NyNumberEntity."""
         super().__init__(coordinator, context=idx)
-        self._idx = idx
-        MyEntity.__init__(self, config_entry, modbus_item)  # , coordinator.modbus_api)
+        MyEntity.__init__(self, config_entry, modbus_item)
         self._attr_native_value = self.translate_val_number(modbus_item.state)
 
     def translate_val_number(self, val: Any) -> float | None:
@@ -384,11 +293,6 @@ class MyNumberEntity(CoordinatorEntity, NumberEntity, MyEntity):  # pylint: disa
             self._attr_native_value = self.translate_val_number(self._api_item.state)
             self.async_write_ha_state()
 
-    @property
-    def device_info(self) -> DeviceInfo | None:
-        """Return device info."""
-        return self.my_device_info()
-
 
 class MySelectEntity(CoordinatorEntity, SelectEntity, MyEntity):  # pylint: disable=abstract-method
     """Class that represents a sensor entity.
@@ -406,7 +310,6 @@ class MySelectEntity(CoordinatorEntity, SelectEntity, MyEntity):  # pylint: disa
     ) -> None:
         """Initialize MySelectEntity."""
         super().__init__(coordinator, context=idx)
-        self._idx = idx
         MyEntity.__init__(self, config_entry, modbus_item)
         # option list build from the status list of the ModbusItem
         self._attr_options: list[str] = []
@@ -434,8 +337,3 @@ class MySelectEntity(CoordinatorEntity, SelectEntity, MyEntity):  # pylint: disa
         """Handle updated data from the coordinator."""
         self._attr_current_option = self.translate_val_select(self._api_item.state)
         self.async_write_ha_state()
-
-    @property
-    def device_info(self) -> DeviceInfo | None:
-        """Return device info."""
-        return self.my_device_info()

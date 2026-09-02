@@ -287,3 +287,26 @@ def test_every_language_has_exactly_the_keys_of_strings_json(path):
         f"{path.name} differs from strings.json: "
         f"missing {sorted(reference - translated)}, extra {sorted(translated - reference)}"
     )
+
+
+LEGACY_UNIQUE_IDS = pathlib.Path(__file__).parent / "legacy_unique_ids.json"
+
+
+def test_every_item_keeps_the_name_its_unique_id_is_built_from():
+    """The unique id is prefix + item name + postfix, and Home Assistant keys
+    an entity's history on it. The snapshot is the table as shipped before the
+    rewrite: a renamed item here is a renamed unique id, which orphans the
+    entity's history - unless an entry migration moves it (see version 10).
+    New items may be added; a deliberate rename updates the snapshot in the
+    same commit as its migration."""
+    snapshot = json.loads(LEGACY_UNIQUE_IDS.read_text(encoding="utf-8"))
+    current = {item.translation_key: item.name for item in _items(hpconst)}
+
+    renamed = {
+        key: (snapshot[key], name)
+        for key, name in current.items()
+        if key in snapshot and snapshot[key] != name
+    }
+    gone = sorted(set(snapshot) - set(current))
+    assert not renamed, f"item name(s) changed - unique ids move: {renamed}"
+    assert not gone, f"item(s) gone - their entities orphan: {gone}"

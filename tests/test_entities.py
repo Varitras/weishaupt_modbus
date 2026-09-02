@@ -13,6 +13,7 @@ from custom_components.weishaupt_modbus import entities
 from custom_components.weishaupt_modbus.const import CONF, DEVICES, FORMATS, TYPES
 from custom_components.weishaupt_modbus.items import ModbusItem
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.hpconst import (
+    PARAMS_CALCPOWER,
     PARAMS_CALCSPREIZUNG,
     SYS_BETRIEBSART,
 )
@@ -326,11 +327,52 @@ def test_a_division_by_zero_in_the_formula_reads_as_zero():
         TYPES.SENSOR_CALC,
         DEVICES.WP,
         "k",
-        params={"unit": "W", "precision": 0, "calculation": "1 / val_0"},
+        params={"unit": "W", "precision": 0, "calculation": lambda own: 1 / own},
     )
-    sensor = entities.MyCalcSensorEntity(_entry(), item, FakeCoordinator(), 0)
+    sensor = entities.MyCalcSensorEntity(
+        _entry(), item, FakeCoordinator(cache={33111: 0}), 0
+    )
 
     assert sensor.translate_val(None) == 0.0
+
+
+def test_a_calculated_sensor_whose_own_register_is_absent_reads_as_none():
+    """0.0 stood in for a missing own register: the spread of an absent
+    supply temperature and a 30 °C return read as -30 °C, a plausible
+    number automations acted on."""
+    item = ModbusItem(
+        33111,
+        "Spreizung",
+        FORMATS.TEMPERATURE,
+        TYPES.SENSOR_CALC,
+        DEVICES.WP,
+        "spreizung",
+        params=PARAMS_CALCSPREIZUNG,
+    )
+    coordinator = FakeCoordinator(values={"rl_temp": 300}, cache={})
+    sensor = entities.MyCalcSensorEntity(_entry(), item, coordinator, 0)
+
+    assert sensor.translate_val(None) is None
+
+
+def test_the_heat_output_takes_the_power_map():
+    item = ModbusItem(
+        33103,
+        "Wärmeleistung",
+        FORMATS.NUMBER,
+        TYPES.SENSOR_CALC,
+        DEVICES.WP,
+        "waermeleistung",
+        params=PARAMS_CALCPOWER,
+    )
+    coordinator = FakeCoordinator(
+        values={"luftansautgemp": 100, "vl_temp": 350}, cache={33103: 50}
+    )
+    entry = _entry()
+    entry.runtime_data.powermap = SimpleNamespace(map=lambda outside, flow: 8000.0)
+    sensor = entities.MyCalcSensorEntity(entry, item, coordinator, 0)
+
+    assert sensor.translate_val(None) == 4000
 
 
 @pytest.mark.parametrize(

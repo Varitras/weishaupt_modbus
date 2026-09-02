@@ -45,10 +45,7 @@ COMPLEXITY_LIMIT = 15
 # improvement is written down.
 COMPLEXITY_BUDGETS = {
     # 23 before the web-interface branch of the unique id left.
-    "entities.py::MyEntity.__init__": 19,
-    # 30 before the TypeError handler for an absent operand - one branch,
-    # and the one that keeps the entity alive.
-    "entities.py::MyCalcSensorEntity.translate_val": 29,
+    "entities.py::MyEntity.__init__": 18,
     "weishaupt_modbus_api/modbus_api.py::WeishauptModbusClient.connect": 26,
     "weishaupt_modbus_api/modbus_api.py::WeishauptModbusClient.update": 46,
 }

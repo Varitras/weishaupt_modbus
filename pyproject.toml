@@ -292,6 +292,7 @@ files = [
   "custom_components/weishaupt_modbus/sensor.py",
   "custom_components/weishaupt_modbus/write_counter_sensor.py",
   "custom_components/weishaupt_modbus/weishaupt_modbus_api/write_budget.py",
+  "custom_components/weishaupt_modbus/weishaupt_modbus_api/calculations.py",
   "custom_components/weishaupt_modbus/weishaupt_modbus_api/__init__.py",
   "custom_components/weishaupt_modbus/weishaupt_modbus_api/const.py",
   "custom_components/weishaupt_modbus/weishaupt_modbus_api/exceptions.py",
