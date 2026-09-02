@@ -15,11 +15,15 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.weishaupt_modbus.const import CONF, CONST
+from custom_components.weishaupt_modbus.weishaupt_modbus_api.exceptions import (
+    WriteError,
+)
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.modbus_api import (
     WeishauptModbusClient,
 )
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 
 pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
@@ -377,6 +381,33 @@ async def test_the_write_counters_survive_a_restart(hass):
     assert entry.runtime_data.modbus_api.write_budget.total == 1, (
         "the sensor shows the old number but the client counts from zero again"
     )
+
+
+PV_SETPOINT_UNIQUE_ID = "weishaupt_wbbSollwertPV"
+
+
+async def test_a_refused_write_reaches_the_user_as_an_error(hass, monkeypatch):
+    """A write the pump (or the daily limit) refuses used to be logged and
+    swallowed: the slider snapped back with no word why, and an automation
+    calling the service believed it had succeeded."""
+    entry = await _setup(hass, _entry(hass))
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "number", CONST.DOMAIN, PV_SETPOINT_UNIQUE_ID
+    )
+
+    async def refuse(self, address, value):
+        raise WriteError("Daily write limit of 1 reached")
+
+    monkeypatch.setattr(WeishauptModbusClient, "write_register", refuse)
+
+    with pytest.raises(HomeAssistantError, match="limit"):
+        await hass.services.async_call(
+            "number",
+            "set_value",
+            {"entity_id": entity_id, "value": 5},
+            blocking=True,
+        )
+    assert entry.state is ConfigEntryState.LOADED
 
 
 async def test_a_pump_that_refuses_the_first_connection_retries_later(

@@ -7,6 +7,7 @@ from homeassistant.components.number import NumberEntity
 from homeassistant.components.select import SelectEntity
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.core import callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -16,6 +17,7 @@ from .const import CONF, CONST, FORMATS
 from .coordinator import WeishauptModbusCoordinator
 from .items import ModbusItem
 from .migrate_helpers import create_unique_id
+from .weishaupt_modbus_api.exceptions import ConnectionFailedError, WriteError
 from .weishaupt_modbus_api.hpconst import reverse_device_list
 
 _LOGGER = logging.getLogger(__name__)
@@ -152,19 +154,22 @@ class MyEntity(Entity):
             )
             return None
 
-        try:
-            client = getattr(self.coordinator, "client", None)
-            if client is None:
-                _LOGGER.error(
-                    "Cannot write value: Coordinator does not contain a Modbus client"
-                )
-                return None
-
-            await client.write_register(address=address, value=val)
-            return val
-        except Exception as err:
-            _LOGGER.error("Failed to write to register %s: %s", address, err)
+        client = getattr(self.coordinator, "client", None)
+        if client is None:
+            _LOGGER.error(
+                "Cannot write value: Coordinator does not contain a Modbus client"
+            )
             return None
+
+        # Raised, not logged: a refused or failed write has to reach the user
+        # who moved the slider and the automation that called the service.
+        try:
+            await client.write_register(address=address, value=val)
+        except (WriteError, ConnectionFailedError) as err:
+            raise HomeAssistantError(
+                f"Writing register {address} failed: {err}"
+            ) from err
+        return val
 
     def my_device_info(self) -> DeviceInfo:
         """Build the device info."""

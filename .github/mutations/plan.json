@@ -306,5 +306,12 @@
     "old": "        return self.warn_at > 0 and self._today_count == self.warn_at\n",
     "new": "        return False\n",
     "tests": "warning_fires_exactly_once or warning_threshold_is_logged_once"
+  },
+  {
+    "label": "entity: a failed write must be raised, not swallowed",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        except (WriteError, ConnectionFailedError) as err:\n            raise HomeAssistantError(\n                f\"Writing register {address} failed: {err}\"\n            ) from err\n",
+    "new": "        except (WriteError, ConnectionFailedError) as err:\n            _LOGGER.error(\"Failed to write to register %s: %s\", address, err)\n            return None\n",
+    "tests": "refused_write_reaches_the_user"
   }
 ]
