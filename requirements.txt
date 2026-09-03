@@ -2,7 +2,10 @@
 # import during test collection. Home Assistant installs from manifest.json and
 # reads nothing else, so tests/test_requirements.py holds the two lists equal -
 # a bound raised in only one of them is a fix nobody receives.
-# The pin the core modbus integration ships in Home Assistant 2026.9 - the
-# same release, or Home Assistant refuses to install both.
-modbus-connection==4.10.0
+# Exactly what the core modbus integration ships in Home Assistant 2026.9 -
+# the same pins, or Home Assistant refuses to install both. The tmodbus
+# backend is what the core connection uses; without the extra the library
+# imports but cannot open a link.
+modbus-connection[tmodbus]==4.10.0
+tmodbus==0.6.2
 pygal==3.1.3
