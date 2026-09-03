@@ -23,35 +23,48 @@ Usage:
 from __future__ import annotations
 
 import json
-import re
 import sys
 import urllib.request
+
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.version import InvalidVersion, Version
 
 PACKAGE = "pytest-homeassistant-custom-component"
 SENTINEL = "latest-stable-ha"
 
-# 2026.8.0b3 / 2026.8.0rc1 - anything that is not a plain X.Y.Z release.
-_PRERELEASE = re.compile(r"\d+(?:a|b|rc)\d*$")
-
 
 def is_prerelease(pin: str | None) -> bool:
-    """Whether a `homeassistant==...` requirement names a prerelease."""
+    """Whether a `homeassistant==...` requirement names a prerelease.
+
+    Anything that is not an exact pin to a final version counts as one: no
+    pin, a range, a dev or local version - the uncertainty this script
+    exists to remove.
+    """
     if not pin:
-        # No pin at all means we cannot tell what will be installed, which is
-        # exactly the uncertainty this script exists to remove.
         return True
-    return bool(_PRERELEASE.search(pin.strip()))
+    try:
+        pinned = [
+            spec.version for spec in Requirement(pin).specifier if spec.operator == "=="
+        ]
+        return len(pinned) != 1 or Version(pinned[0]).is_prerelease
+    except InvalidRequirement, InvalidVersion:
+        return True
 
 
 def home_assistant_pin(requires_dist) -> str | None:
+    """The homeassistant requirement among a release's dependencies."""
     for requirement in requires_dist or []:
-        if requirement.lower().startswith("homeassistant"):
+        try:
+            name = Requirement(requirement).name
+        except InvalidRequirement:
+            continue
+        if name.lower() == "homeassistant":
             return requirement
     return None
 
 
-def sort_key(version: str):
-    return [int(part) for part in re.findall(r"\d+", version)]
+def sort_key(version: str) -> Version:
+    return Version(version)
 
 
 def newest_stable(pins: dict[str, str | None]) -> str:

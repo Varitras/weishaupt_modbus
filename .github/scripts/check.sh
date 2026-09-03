@@ -29,7 +29,9 @@ echo "== pip-audit =="
 echo "== pytest =="
 # -m "" cancels the `-m "not e2e"` default from pyproject.toml, so the slow
 # end-to-end tests against a real Home Assistant run here too.
-"$PYTHON" -m pytest tests/ -q -m ""
+# --cov-fail-under: coverage was 95 % when the gate was adopted (2026-09-03);
+# raise it when coverage rises, never lower it to get past a red run.
+"$PYTHON" -m pytest tests/ -q -m "" --cov=custom_components/weishaupt_modbus --cov-report=term:skip-covered --cov-fail-under=94
 
 # The second Home Assistant version is optional because its interpreter
 # lives wherever you put it:

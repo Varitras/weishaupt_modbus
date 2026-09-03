@@ -1,7 +1,10 @@
-"""Heat pump characteristic curves (Kennfeld) runtime, auto-compilation, and Pygal plotting engine."""
+"""The power map: rated heating power over outside and flow temperature.
+
+Every grid ships compiled (see .github/scripts/compile_kennfeld.py for how
+a new one is made); at runtime it is only read, interpolated and drawn.
+"""
 
 from collections.abc import Mapping
-import importlib.util
 import json
 import logging
 from pathlib import Path
@@ -16,22 +19,6 @@ from .const import CONF, CONST
 from .migrate_helpers import device_postfix
 
 _LOGGER = logging.getLogger(__name__)
-
-# --- DEVELOPER CONFIGURATION OPTIONS ---
-# If True, scans the entire directory on boot and compiles missing data grids.
-COMPILE_ALL_MISSING: bool = True
-
-# If True, checks if the SVG graph for the pre-compiled file is missing,
-# auto-generates it locally using Pygal, and copies it to /www/local/.
-CREATE_MISSING_PLOTS: bool = True
-
-# --- SAFE RUNTIME ENVIRONMENT CHECKS ---
-NUMPY_AVAILABLE = importlib.util.find_spec("numpy") is not None
-SCIPY_AVAILABLE = importlib.util.find_spec("scipy") is not None
-PYGAL_AVAILABLE = importlib.util.find_spec("pygal") is not None
-
-# Only a grid that ships without `compiled_grid` needs these, and that path
-# says so when it runs - a warning here reached every user on every start.
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -57,191 +44,39 @@ class PowerMap:
         self._out_range_raw: list[int] = [-300, 400]
 
     async def initialize(self) -> None:
-        """Load the JSON. Auto-compiles and writes back once if compiled_grid is missing."""
+        """Load the compiled grid and put its preview under www/local."""
         filepath = Path(
             get_filepath(self.hass) / self._config_entry.data[CONF.KENNFELD_FILE]
         )
-
-        # 1. Optionally compile all missing grids in the folder first (non-blocking)
-        if COMPILE_ALL_MISSING:
-            if NUMPY_AVAILABLE:
-                _LOGGER.info("Scanning for missing pre-compiled grids...")
-                await self.hass.async_add_executor_job(
-                    self._compile_all_missing_blocking
-                )
-            else:
-                _LOGGER.error(
-                    "Cannot compile missing curves: Numpy is missing on this host."
-                )
-
-        # 2. Load the specific active configuration curve
         try:
             data = await self.hass.async_add_executor_job(_load_json, filepath)
-
-            # Track boundaries
-            self._known_t = sorted(data.get("known_t", [35, 55]))
-            known_x = data.get("known_x", [-30, 40])
-            self._out_range_raw = [min(known_x) * 10, max(known_x) * 10]
-
-            # 3. High-performance path: Compiled grid exists
-            if "compiled_grid" in data:
-                self._compiled_grid = data["compiled_grid"]
-                _LOGGER.info(
-                    "Using pre-compiled 0.1°C outside-grouped grid: %s",
-                    filepath.name,
-                )
-
-                # Generate the preview plot if missing and allowed
-                if CREATE_MISSING_PLOTS and PYGAL_AVAILABLE:
-                    svg_path = filepath.with_suffix(".svg")
-                    if not svg_path.exists():
-                        _LOGGER.warning(
-                            "Generating missing SVG plot for pre-compiled: %s",
-                            filepath.name,
-                        )
-                        await self.hass.async_add_executor_job(
-                            self._generate_plot_blocking, data, filepath
-                        )
-
-                # Safely copy the matching preview SVG to Home Assistant's local www directory
-                www_dir = Path(f"{self.hass.config.config_dir}/www/local")
-                await self.hass.async_add_executor_job(
-                    self._copy_powermap_plot, filepath, www_dir
-                )
-                return
-
-            # 4. Fallback for the active curve if COMPILE_ALL_MISSING was False
-            if not NUMPY_AVAILABLE:
-                _LOGGER.error(
-                    "Cannot compile raw curve: Numpy is missing on this host."
-                )
-                return
-
-            _LOGGER.warning(
-                "Pre-compiled grid missing in %s. Compiling once...", filepath.name
-            )
-            self._compiled_grid = await self.hass.async_add_executor_job(
-                self._compile_and_save_kennfeld_blocking, data, filepath
-            )
-
-            # Copy the freshly generated preview SVG to Home Assistant's local www directory
-            www_dir = Path(f"{self.hass.config.config_dir}/www/local")
-            await self.hass.async_add_executor_job(
-                self._copy_powermap_plot, filepath, www_dir
-            )
-
         except OSError as err:
             _LOGGER.error("Failed to load power map file %s: %s", filepath, err)
-
-    def _compile_all_missing_blocking(self) -> None:
-        """Scan the directory and compile any raw curves that lack compiled_grid.
-
-        Runs inside Home Assistant's executor thread pool.
-        """
-        folder = get_filepath(self.hass)
-        if not folder or not folder.exists():
+            return
+        if "compiled_grid" not in data:
+            _LOGGER.error(
+                "Power map %s has no compiled grid; compile it with "
+                ".github/scripts/compile_kennfeld.py. The heat power stays unknown",
+                filepath.name,
+            )
             return
 
-        for filepath in folder.glob("weishaupt*.json"):
-            try:
-                with filepath.open("r", encoding="utf-8") as f:
-                    data = json.load(f)
+        self._known_t = sorted(data.get("known_t", [35, 55]))
+        known_x = data.get("known_x", [-30, 40])
+        self._out_range_raw = [min(known_x) * 10, max(known_x) * 10]
+        self._compiled_grid = data["compiled_grid"]
 
-                # Check if the grid compilation is missing
-                if "compiled_grid" not in data:
-                    _LOGGER.warning("Auto-compiling missing grid in: %s", filepath.name)
-                    known_x = data.get("known_x", [-30, 40])
-                    self._out_range_raw = [min(known_x) * 10, max(known_x) * 10]
-                    self._compile_and_save_kennfeld_blocking(data, filepath)
-                # Check if only the SVG plot is missing and we want to generate it
-                elif CREATE_MISSING_PLOTS and PYGAL_AVAILABLE:
-                    svg_path = filepath.with_suffix(".svg")
-                    if not svg_path.exists():
-                        _LOGGER.warning(
-                            "Generating missing SVG plot for pre-compiled: %s",
-                            filepath.name,
-                        )
-                        self._generate_plot_blocking(data, filepath)
-            except Exception as err:
-                _LOGGER.error(
-                    "Failed to compile missing grid for %s: %s", filepath.name, err
-                )
-
-    def _compile_and_save_kennfeld_blocking(
-        self, data: dict[str, Any], filepath: Path
-    ) -> dict[str, list[float]]:
-        """Run CubicSpline compilation and write the compact grid back to the JSON file."""
-        # On-demand import of Numpy (executed safely inside the thread pool)
-
-        known_x = data["known_x"]
-        known_y = data["known_y"]
-        known_t = sorted(data["known_t"])
-        raw_range = range(self._out_range_raw[0], self._out_range_raw[1] + 1)
-
-        # On-demand import of SciPy (CubicSpline)
-        use_scipy = SCIPY_AVAILABLE
-        if use_scipy:
-            try:
-                from scipy.interpolate import CubicSpline  # noqa: PLC0415
-            except ImportError:
-                use_scipy = False
-
-        splines = []
-        for r_idx in range(len(known_t)):
-            if use_scipy and CubicSpline is not None:
-                f = CubicSpline(known_x, known_y[r_idx], bc_type="natural")
-            else:
-                _LOGGER.warning(
-                    "SciPy fallback: Using Chebyshev interpolation for: %s",
-                    filepath.name,
-                )
-                from numpy.polynomial import Chebyshev  # noqa: PLC0415
-
-                f = Chebyshev.fit(known_x, known_y[r_idx], deg=8)
-            splines.append(f)
-
-        compiled_grid = {}
-        for out_val_raw in raw_range:
-            compiled_grid[str(out_val_raw)] = [
-                round(float(sp(out_val_raw / 10.0)), 1) for sp in splines
-            ]
-
-        # Inject and save compactly
-        data["compiled_grid"] = compiled_grid
-
-        lines = []
-        lines.append("{")
-        lines.append(f'  "known_x": {json.dumps(known_x)},')
-        lines.append(f'  "known_y": {json.dumps(known_y)},')
-        lines.append(f'  "known_t": {json.dumps(known_t)},')
-        lines.append('  "compiled_grid": {')
-        out_keys = sorted(compiled_grid.keys(), key=int)
-        for out_k in out_keys:
-            comma = "," if out_k != out_keys[-1] else ""
-            lines.append(f'    "{out_k}": {compiled_grid[out_k]}{comma}')
-        lines.append("  }")
-        lines.append("}")
-
-        try:
-            with filepath.open("w", encoding="utf-8") as f:
-                f.write("\n".join(lines))
-            _LOGGER.info(
-                "Injected and saved compact compiled grid back to: %s", filepath.name
+        if not filepath.with_suffix(".svg").exists():
+            await self.hass.async_add_executor_job(
+                self._generate_plot_blocking, data, filepath
             )
-        except OSError as err:
-            _LOGGER.error("Failed to save compiled power map to disk: %s", err)
-
-        # Plot the curves to SVG if Pygal is available
-        if PYGAL_AVAILABLE:
-            self._generate_plot_blocking(data, filepath)
-
-        return compiled_grid
+        www_dir = Path(f"{self.hass.config.config_dir}/www/local")
+        await self.hass.async_add_executor_job(
+            self._copy_powermap_plot, filepath, www_dir
+        )
 
     def _generate_plot_blocking(self, data: dict[str, Any], filepath: Path) -> None:
         """Generate an SVG plot using Pygal."""
-        if not PYGAL_AVAILABLE:
-            return
-
         import pygal  # noqa: PLC0415
         from pygal.style import Style  # noqa: PLC0415
 

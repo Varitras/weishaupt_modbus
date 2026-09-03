@@ -43,6 +43,10 @@ resolve_phcc = _load()
         ("homeassistant==2026.8.0b3", True),
         ("homeassistant==2026.8.0rc1", True),
         ("homeassistant==2026.8.0a1", True),
+        ("homeassistant==2026.8.0.dev0", True),
+        # A range is not a pin: pip would pick, and it picks betas.
+        ("homeassistant>=2026.8.0", True),
+        ("not a requirement at all", True),
         # No pin at all: we cannot tell what would be installed, and the whole
         # point of the script is not having to guess.
         (None, True),

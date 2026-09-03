@@ -23,4 +23,6 @@ pytest-timeout
 ruff==0.16.1
 mypy==2.3.1
 pip-audit==2.10.0
+# resolve_phcc.py parses versions with it.
+packaging
 -r requirements.txt

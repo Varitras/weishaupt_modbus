@@ -94,6 +94,30 @@ def test_every_shipped_grid_is_compiled_and_plotted():
     )
 
 
+async def test_a_grid_that_is_not_compiled_is_refused_not_compiled(
+    hass, caplog, tmp_path, monkeypatch
+):
+    """Compiling needs numpy, which no user has; the integration used to try,
+    fail on most hosts and leave the heat power at zero with three warnings.
+    Now it says what is missing and leaves the map empty."""
+    raw = {"known_x": [-10, 10], "known_y": [[5000, 6000]], "known_t": [35]}
+    (tmp_path / "raw_kennfeld.json").write_text(json.dumps(raw), encoding="utf-8")
+    entry = SimpleNamespace(
+        data={CONF.KENNFELD_FILE: "raw_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+    )
+    monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
+    power_map = PowerMap(entry, hass)
+
+    with caplog.at_level(logging.ERROR, logger=kennfeld.__name__):
+        await power_map.initialize()
+
+    assert "no compiled grid" in caplog.text
+    assert "compiled_grid" not in json.loads(
+        (tmp_path / "raw_kennfeld.json").read_text(encoding="utf-8")
+    ), "the integration compiled the grid after all"
+    assert power_map.map(0, 350) == 0.0
+
+
 def test_importing_the_module_does_not_warn_about_optional_libraries(
     monkeypatch, caplog
 ):

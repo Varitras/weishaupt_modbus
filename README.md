@@ -97,10 +97,10 @@ graphs in the Weishaupt documentation:
 - `weishaupt_wwp_ls_8_kennfeld.json`
 
 Pick the file matching your model. If yours is missing, copy the closest
-one, adjust `known_x`, `known_y` and `known_t` from your documentation, drop
-the `compiled_grid` key and the integration compiles the grid at first start
-(needs `numpy`; `scipy` gives a smoother curve). Contributions of new grids
-are welcome.
+one, adjust `known_x`, `known_y` and `known_t` from your documentation and
+compile it once with `.github/scripts/compile_kennfeld.py` (needs `numpy`;
+`scipy` gives a smoother curve). The integration only reads compiled grids;
+it draws the preview picture itself. Contributions of new grids are welcome.
 
 ## Setting up the heat pump
 
