@@ -1,10 +1,8 @@
 version: 2
 
-# Only the workflow actions. Python dependencies are deliberately absent:
-# a Home Assistant custom component installs into whatever environment HA
-# brings along, so pinning here would describe a machine that does not
-# exist. The test matrix in test.yaml is what proves the version range.
 updates:
+  # The workflow actions. Pinned to commits; Dependabot moves the pin and the
+  # version comment together.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -17,3 +15,25 @@ updates:
           - "*"
     commit-message:
       prefix: "ci"
+
+  # The Python requirements: requirements.txt (what the integration needs at
+  # runtime) and requirements_test.txt (the gates). Dependabot does not read
+  # manifest.json, and tests/test_requirements.py holds it equal to
+  # requirements.txt - so a runtime bump here is finished only once the same
+  # pin is copied into manifest.json in the same pull request.
+  #
+  # modbus-connection is excluded on purpose: its pin has to match the one
+  # Home Assistant's own modbus integration ships, so it moves with the
+  # declared minimum Home Assistant, never on its own.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      python:
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "modbus-connection"
+    commit-message:
+      prefix: "deps"
