@@ -3,4 +3,6 @@
 # reads nothing else, so tests/test_requirements.py holds the two lists equal -
 # a bound raised in only one of them is a fix nobody receives.
 pymodbus>=3.10.0
+# The pin the core modbus integration ships in Home Assistant 2026.9.
+modbus-connection==4.10.0
 pygal==3.1.3

@@ -369,5 +369,33 @@
     "old": "    ModbusItem(address=30001, name=\"Aussentemperatur\",",
     "new": "    ModbusItem(address=30001, name=\"Außentemperatur\",",
     "tests": "keeps_the_name_its_unique_id"
+  },
+  {
+    "label": "device: a refused band must be marked absent",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "                self._mark_absent(band)\n                continue\n",
+    "new": "                continue\n",
+    "tests": "refused_band_is_absent"
+  },
+  {
+    "label": "device: an unchanged value must not be written again",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        if item.state is not None and item.state == value:\n",
+    "new": "        if False:\n",
+    "tests": "unchanged_value_is_not_written_again"
+  },
+  {
+    "label": "device: rows must be grouped by band, one block per band",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "            self._rows[band_of(item.address)].append(item)\n",
+    "new": "            self._rows[BANDS[0]].append(item)\n",
+    "tests": "never_past_its_end"
+  },
+  {
+    "label": "fields: the no-sensor word must read as NO_SENSOR",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/fields.py",
+    "old": "        if raw == self.absent:\n            return NO_SENSOR\n",
+    "new": "        if False:\n            return NO_SENSOR\n",
+    "tests": "no_sensor_reads_as_none_and_marks_the_row_absent"
   }
 ]
