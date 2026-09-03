@@ -8,4 +8,6 @@
 # imports but cannot open a link.
 modbus-connection[tmodbus]==4.10.0
 tmodbus==0.6.2
+# Imported by the core modbus integration itself, which this one depends on.
+pymodbus==3.13.1
 pygal==3.1.3
