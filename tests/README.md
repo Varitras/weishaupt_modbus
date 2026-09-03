@@ -124,7 +124,11 @@ what it holds, and a row to [the guard table](#the-guards) above.
 
 ## Layout
 
-Tests move with their subject: `test_modbus_api.py` covers the batch-reading
-client, `test_coordinator.py` the two coordinators, `test_entities.py` the
-entity layer, `test_config_flow.py` and `test_e2e.py` the parts that only
-exist once Home Assistant is driving the integration (both marked `e2e`).
+Tests move with their subject: `test_device.py` covers the device library
+(one block per address band, sentinels, absent bands, writes) against the
+library's in-memory mock unit, `test_coordinator.py` the coordinator,
+`test_entities.py` the entity layer, `test_config_flow.py` and `test_e2e.py`
+the parts that only exist once Home Assistant is driving the integration (both
+marked `e2e`). The `mock_modbus` fixture in `conftest.py` stands in for the
+connection Home Assistant's `modbus` integration shares - a fresh in-memory
+connection per (re)load, the way the hub rebuilds the real one.

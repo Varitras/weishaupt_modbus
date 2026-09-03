@@ -9,6 +9,9 @@ It differs from upstream on purpose:
 - **Modbus only.** The experimental web-interface scraping is removed, together
   with its settings and entities. An entry that still carries web-interface
   settings is cleaned up on first start.
+- **One connection to the controller, shared.** Since 2.0 the integration
+  borrows its Modbus unit from Home Assistant's own `modbus` integration
+  instead of opening a socket of its own (see *What changed in 2.0*).
 - **Entity ids are yours.** The integration no longer rewrites entity ids on
   every start; a rename in Home Assistant stays.
 - **Two Home Assistant versions are tested** on every change: the declared
@@ -30,7 +33,31 @@ restart. Then add the integration:
 
 [![Start Config Flow](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start?domain=weishaupt_modbus)
 
-Minimum Home Assistant version: see `hacs.json`.
+**Minimum Home Assistant version: 2026.9.** Version 2.0 builds on the shared
+Modbus connection that arrived with 2026.9; older releases cannot load it.
+
+## What changed in 2.0
+
+The Weishaupt controller accepts a single Modbus TCP connection. Up to 1.x the
+integration opened that connection itself, with its own reconnect logic and
+block planner. Since 2.0 it asks Home Assistant's `modbus` integration for a
+*unit* on the connection to the controller's address. Home Assistant keeps one
+connection per endpoint and serialises everything that goes over it, so this
+integration and, for example, a YAML `modbus` sensor on the same controller
+share the socket instead of fighting over it. The wire is handled by the
+[modbus-connection](https://github.com/home-assistant-libs/modbus-connection)
+library (tmodbus backend), which Home Assistant installs with its `modbus`
+integration.
+
+What stays the same: the entities, their unique ids and history, the entity
+ids you chose, the options (poll interval, EEPROM write warning and limit), the
+power map and the write counters. What is gone: the `pymodbus` requirement,
+the integration's own reconnect and back-off logic, and the five-register
+block limit - the controller serves each address band in one read.
+
+Upgrading: install 2.0 and restart. Existing entries migrate on first start
+(entry version 11); an entry keeps the host and port you configured. If the
+controller does not answer during setup, Home Assistant retries.
 
 ## Configuration
 
@@ -117,7 +144,9 @@ PYTHON=/path/to/venv/bin/python .github/scripts/check.sh
 ```
 
 `tests/README.md` explains the guards, the budgets and the mutation run, and
-what to do when one of them turns red.
+what to do when one of them turns red. Tests never touch a real controller:
+the `mock_modbus` fixture replaces the connection Home Assistant's `modbus`
+integration hands out with the library's in-memory unit.
 
 ## Disclaimer
 
