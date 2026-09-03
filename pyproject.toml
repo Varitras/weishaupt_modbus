@@ -279,6 +279,8 @@ files = [
   "custom_components/weishaupt_modbus/__init__.py",
   "custom_components/weishaupt_modbus/config_flow.py",
   "custom_components/weishaupt_modbus/configentry.py",
+  "custom_components/weishaupt_modbus/coordinator.py",
+  "custom_components/weishaupt_modbus/entities.py",
   "custom_components/weishaupt_modbus/items.py",
   "custom_components/weishaupt_modbus/const.py",
   "custom_components/weishaupt_modbus/entity_helpers.py",

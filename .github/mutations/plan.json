@@ -58,8 +58,8 @@
   {
     "label": "entity: a number write must be scaled by the divider",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "            val = to_register_value(value, self._divider)\n",
-    "new": "            val = to_register_value(value, 1)\n",
+    "old": "            val = to_register_value(float(value), self._divider)\n",
+    "new": "            val = to_register_value(float(value), 1)\n",
     "tests": "number_write_is_scaled"
   },
   {

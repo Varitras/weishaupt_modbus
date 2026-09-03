@@ -270,3 +270,25 @@ def test_a_calculated_sensor_is_not_a_register(unit):
     pump = WeishauptHeatPump(unit, [calc], WriteBudget(warn_at=0, limit=0))
 
     assert pump.items == []
+
+
+H1_2_INPUT = 35103  # temperature input, or a digital status word
+
+
+async def test_a_switch_input_reads_as_no_temperature(pump, unit):
+    """Live: 35103 answers 0x800A (digital OFF) on a pump that uses H1.2 as a
+    switch input; read as a temperature that was -3275.8 °C."""
+    unit.load_raw({"input": {H1_2_INPUT: 0x800A}})
+
+    await pump.async_update()
+
+    assert _row(pump, H1_2_INPUT).state is None
+    assert _row(pump, H1_2_INPUT).is_invalid is False
+
+
+async def test_a_temperature_input_reads_in_tenths(pump, unit):
+    unit.load_raw({"input": {H1_2_INPUT: 215}})
+
+    await pump.async_update()
+
+    assert _row(pump, H1_2_INPUT).state == 215

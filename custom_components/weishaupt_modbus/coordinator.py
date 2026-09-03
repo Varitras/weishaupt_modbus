@@ -30,17 +30,14 @@ UPDATE_TIMEOUT_SECONDS = 60
 
 def check_configured(modbus_item: ModbusItem, config_entry: MyConfigEntry) -> bool:
     """Whether the entry enables the circuit this item belongs to."""
-    match modbus_item.device:
-        case DeviceConstants.HZ2:
-            return config_entry.data[CONF.HK2]
-        case DeviceConstants.HZ3:
-            return config_entry.data[CONF.HK3]
-        case DeviceConstants.HZ4:
-            return config_entry.data[CONF.HK4]
-        case DeviceConstants.HZ5:
-            return config_entry.data[CONF.HK5]
-        case _:
-            return True
+    switches = {
+        DeviceConstants.HZ2: CONF.HK2,
+        DeviceConstants.HZ3: CONF.HK3,
+        DeviceConstants.HZ4: CONF.HK4,
+        DeviceConstants.HZ5: CONF.HK5,
+    }
+    switch = switches.get(modbus_item.device)
+    return True if switch is None else bool(config_entry.data[switch])
 
 
 def scan_interval(config_entry: MyConfigEntry) -> timedelta:

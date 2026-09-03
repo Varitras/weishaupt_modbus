@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import timedelta
+from enum import StrEnum
 
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_PREFIX
 
@@ -49,9 +50,8 @@ class MainConstants:
 CONST = MainConstants()
 
 
-@dataclass(frozen=True)
-class FormatConstants:
-    """Format constants."""
+class FORMATS(StrEnum):
+    """How a register's word is to be read."""
 
     TEMPERATURE = "temperature"
     PERCENTAGE = "percentage"
@@ -61,21 +61,14 @@ class FormatConstants:
     TEXT = "text"
 
 
-FORMATS = FormatConstants()
-
-
-@dataclass(frozen=True)
-class TypeConstants:
-    """Type constants."""
+class TYPES(StrEnum):
+    """Which entity a register becomes."""
 
     SENSOR = "Sensor"
     SENSOR_CALC = "Sensor_Calc"
     SELECT = "Select"
     NUMBER = "Number"
     NUMBER_RO = "Number_RO"
-
-
-TYPES = TypeConstants()
 
 
 @dataclass(frozen=True)

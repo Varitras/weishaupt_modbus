@@ -11,7 +11,6 @@ from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .configentry import MyConfigEntry
@@ -34,23 +33,24 @@ def to_register_value(value: float, divider: int) -> int:
     return round(float(value) * divider)
 
 
-class MyEntity(Entity):
-    """An entity using CoordinatorEntity."""
+class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
+    """What every entity of a register row shares: naming, unit, limits, writes."""
 
-    _divider = 1
+    _divider: int = 1
     _attr_has_entity_name = True
-    _dynamic_min = None
-    _dynamic_max = None
+    _dynamic_min: float | None = None
+    _dynamic_max: float | None = None
     _has_dynamic_min = False
     _has_dynamic_max = False
-    _dev_device_base: str = ""
 
     def __init__(
         self,
+        coordinator: WeishauptModbusCoordinator,
         config_entry: MyConfigEntry,
         api_item: ModbusItem,
     ) -> None:
         """Initialize the entity."""
+        super().__init__(coordinator)
         self._config_entry = config_entry
         self._api_item: ModbusItem = api_item
 
@@ -110,11 +110,8 @@ class MyEntity(Entity):
             if icon is not None:
                 self._attr_icon = icon
 
-    def set_min_max(self, onlydynamic: bool = False):
+    def set_min_max(self, onlydynamic: bool = False) -> None:
         """Set min max to fixed or dynamic values."""
-        if self._api_item is None or self._api_item.params is None:
-            return
-
         if onlydynamic is True:
             if (self._has_dynamic_min is False) & (self._has_dynamic_max is False):
                 return
@@ -149,7 +146,7 @@ class MyEntity(Entity):
             val = self._api_item.get_number_from_translation_key(str(value))
         else:
             self.set_min_max(True)
-            val = to_register_value(value, self._divider)
+            val = to_register_value(float(value), self._divider)
 
         if val is None:
             return None
@@ -165,24 +162,18 @@ class MyEntity(Entity):
         return val
 
 
-class MySensorEntity(CoordinatorEntity, SensorEntity, MyEntity):
-    """Class that represents a sensor entity.
-
-    Derived from Sensorentity
-    and decorated with general parameters from MyEntity
-    """
+class MySensorEntity(MyEntity, SensorEntity):
+    """A read-only register as a sensor."""
 
     def __init__(
         self,
         config_entry: MyConfigEntry,
         modbus_item: ModbusItem,
         coordinator: WeishauptModbusCoordinator,
-        idx,
+        idx: int,
     ) -> None:
         """Initialize of MySensorEntity."""
-
-        super().__init__(coordinator, context=idx)
-        MyEntity.__init__(self, config_entry, modbus_item)
+        super().__init__(coordinator, config_entry, modbus_item)
 
         # Set sensor-specific state class
         if modbus_item.format in [
@@ -250,26 +241,21 @@ class MyCalcSensorEntity(MySensorEntity):
             result = formula(*arguments)
         except ZeroDivisionError:
             return 0.0
-        return round(result, self._attr_suggested_display_precision)
+        return float(round(result, self._attr_suggested_display_precision))
 
 
-class MyNumberEntity(CoordinatorEntity, NumberEntity, MyEntity):  # pylint: disable=abstract-method
-    """Represent a Number Entity.
-
-    Class that represents a sensor entity derived from Sensorentity
-    and decorated with general parameters from MyEntity
-    """
+class MyNumberEntity(MyEntity, NumberEntity):
+    """A writable register as a number."""
 
     def __init__(
         self,
         config_entry: MyConfigEntry,
         modbus_item: ModbusItem,
         coordinator: WeishauptModbusCoordinator,
-        idx: Any,
+        idx: int,
     ) -> None:
-        """Initialize NyNumberEntity."""
-        super().__init__(coordinator, context=idx)
-        MyEntity.__init__(self, config_entry, modbus_item)
+        """Initialize MyNumberEntity."""
+        super().__init__(coordinator, config_entry, modbus_item)
         self._attr_native_value = self.translate_val_number(modbus_item.state)
 
     def translate_val_number(self, val: Any) -> float | None:
@@ -294,23 +280,18 @@ class MyNumberEntity(CoordinatorEntity, NumberEntity, MyEntity):  # pylint: disa
             self.async_write_ha_state()
 
 
-class MySelectEntity(CoordinatorEntity, SelectEntity, MyEntity):  # pylint: disable=abstract-method
-    """Class that represents a sensor entity.
-
-    Class that represents a sensor entity derived from Sensorentity
-    and decorated with general parameters from MyEntity
-    """
+class MySelectEntity(MyEntity, SelectEntity):
+    """A writable status register as a select."""
 
     def __init__(
         self,
         config_entry: MyConfigEntry,
         modbus_item: ModbusItem,
         coordinator: WeishauptModbusCoordinator,
-        idx: Any,
+        idx: int,
     ) -> None:
         """Initialize MySelectEntity."""
-        super().__init__(coordinator, context=idx)
-        MyEntity.__init__(self, config_entry, modbus_item)
+        super().__init__(coordinator, config_entry, modbus_item)
         # option list build from the status list of the ModbusItem
         self._attr_options: list[str] = []
         for item in self._api_item.resultlist or []:

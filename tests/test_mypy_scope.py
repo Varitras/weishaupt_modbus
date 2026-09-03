@@ -21,10 +21,7 @@ PACKAGE = REPO / "custom_components" / "weishaupt_modbus"
 # What is deliberately still outside, and why - the error count mypy reported
 # on adoption. Emptying this list is the point; every entry is a promise, not
 # a permanent exemption.
-NOT_TYPE_CHECKED_YET = {
-    "coordinator.py": "12 errors: Any returns and an optional config_entry read without a guard",
-    "entities.py": "12 errors: MyEntity reads a coordinator attribute only its subclasses have",
-}
+NOT_TYPE_CHECKED_YET = {}
 
 
 def _modules_in_the_mypy_scope() -> set:

@@ -1402,13 +1402,16 @@ MODBUS_ST_ITEMS: list[ModbusItem] = [
 ]
 
 # --- INPUT / OUTPUT ITEMS (IO) ---
+# H1.2-H1.5 are "FormatSensor" in the 2025 data-point list: a temperature
+# input, or the digital status words 0x800A/0x800B when used as a switch
+# input (then no reading).
 MODBUS_IO_ITEMS: list[ModbusItem] = [
     ModbusItem(address=35101, name="SG-Ready 1", format=FORMATS.UNKNOWN, type=TYPES.SENSOR, device=DEVICES.IO, translation_key="sgr1", batch=35101),
     ModbusItem(address=35102, name="SG-Ready 2", format=FORMATS.UNKNOWN, type=TYPES.SENSOR, device=DEVICES.IO, translation_key="sgr2", batch=35101),
-    ModbusItem(address=35103, name="Ausgang H1.2", format=FORMATS.UNKNOWN, type=TYPES.SENSOR, device=DEVICES.IO, translation_key="ausg_h12", batch=35101),
-    ModbusItem(address=35104, name="Ausgang H1.3", format=FORMATS.UNKNOWN, type=TYPES.SENSOR, device=DEVICES.IO, translation_key="ausg_h13", batch=35101),
-    ModbusItem(address=35105, name="Ausgang H1.4", format=FORMATS.UNKNOWN, type=TYPES.SENSOR, device=DEVICES.IO, translation_key="ausg_h14", batch=35101),
-    ModbusItem(address=35106, name="Ausgang H1.5", format=FORMATS.UNKNOWN, type=TYPES.SENSOR, device=DEVICES.IO, translation_key="ausg_h15", batch=35106),
+    ModbusItem(address=35103, name="Ausgang H1.2", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.IO, params=PARAMS_STDTEMP, translation_key="ausg_h12", batch=35101),
+    ModbusItem(address=35104, name="Ausgang H1.3", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.IO, params=PARAMS_STDTEMP, translation_key="ausg_h13", batch=35101),
+    ModbusItem(address=35105, name="Ausgang H1.4", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.IO, params=PARAMS_STDTEMP, translation_key="ausg_h14", batch=35101),
+    ModbusItem(address=35106, name="Ausgang H1.5", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.IO, params=PARAMS_STDTEMP, translation_key="ausg_h15", batch=35106),
     ModbusItem(address=35107, name="Eingang DE1", format=FORMATS.STATUS, type=TYPES.SENSOR, device=DEVICES.IO, resultlist=W2_STATUS, translation_key="eing_de1", batch=35106),
     ModbusItem(address=35108, name="Eingang DE2", format=FORMATS.STATUS, type=TYPES.SENSOR, device=DEVICES.IO, resultlist=W2_STATUS, translation_key="eing_de2", batch=35106),
 
