@@ -264,7 +264,9 @@ def _tracked_files() -> list[Path]:
         capture_output=True,
         check=True,
     ).stdout
-    return [REPO / name.decode() for name in listed.split(b"\0") if name]
+    # A file deleted in the working tree is still listed until it is staged.
+    listed_paths = (REPO / name.decode() for name in listed.split(b"\0") if name)
+    return [path for path in listed_paths if path.is_file()]
 
 
 def _copy_tracked_tree(tree: Path) -> None:

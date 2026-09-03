@@ -63,7 +63,7 @@ class WriteCounterSensor(CoordinatorEntity[WeishauptModbusCoordinator], RestoreS
 
     @property
     def _budget(self) -> WriteBudget:
-        return self.coordinator.client.write_budget
+        return self.coordinator.device.write_budget
 
     @property
     def _daily(self) -> bool:

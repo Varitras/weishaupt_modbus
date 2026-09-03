@@ -9,18 +9,17 @@ Marked `e2e` because each test boots a full Home Assistant instance; the
 everyday run deselects them, CI runs them with `-m ""`.
 """
 
-from types import SimpleNamespace
-
+from modbus_connection import ModbusConnectionError
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.weishaupt_modbus.const import CONF, CONST
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.const import DEFAULT_PORT
+from custom_components.weishaupt_modbus.weishaupt_modbus_api.device import (
+    WeishauptHeatPump,
+)
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.exceptions import (
     WriteError,
-)
-from custom_components.weishaupt_modbus.weishaupt_modbus_api.modbus_api import (
-    WeishauptModbusClient,
 )
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
@@ -53,28 +52,10 @@ def _enable_custom_integrations(enable_custom_integrations):
 
 
 @pytest.fixture(autouse=True)
-def fake_modbus(monkeypatch):
-    """The wire, replaced: connects at once, and every update hands out one
-    outside temperature of 12.3 °C."""
-
-    async def connect(self, startup=False):
-        return True
-
-    async def update(self):
-        self.data = {OUTSIDE_TEMPERATURE: 123}
-        return self.data
-
-    monkeypatch.setattr(WeishauptModbusClient, "connect", connect)
-    monkeypatch.setattr(WeishauptModbusClient, "update", update)
-    # `connected` reads the real pymodbus transport, which never opens here.
-    monkeypatch.setattr(WeishauptModbusClient, "connected", property(lambda self: True))
-    disconnected = []
-
-    async def disconnect(self):
-        disconnected.append(self)
-
-    monkeypatch.setattr(WeishauptModbusClient, "disconnect", disconnect)
-    return disconnected
+def pump(mock_modbus):
+    """A pump that answers 12.3 °C outside on the shared in-memory connection."""
+    mock_modbus.load_raw({"input": {OUTSIDE_TEMPERATURE: 123}})
+    return mock_modbus
 
 
 def _entry(hass, data=None, version=11):
@@ -104,12 +85,12 @@ async def test_setup_creates_a_sensor_from_the_first_refresh(hass):
     assert hass.states.get(entity_id).state == "12.3"
 
 
-async def test_the_configured_port_reaches_the_client(hass):
+async def test_the_configured_port_reaches_the_client(hass, mock_modbus):
     """The port was stored by the config flow and never passed on: a pump on
     any port but 502 could not be reached with a valid configuration."""
-    entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.PORT: 5020}))
+    await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.PORT: 5020}))
 
-    assert entry.runtime_data.modbus_api._port == 5020
+    assert mock_modbus.params_seen[0].port == 5020
 
 
 async def test_setup_creates_all_three_platforms(hass):
@@ -120,14 +101,17 @@ async def test_setup_creates_all_three_platforms(hass):
     assert {"sensor", "select", "number"} <= domains
 
 
-async def test_unload_disconnects_the_modbus_client(hass, fake_modbus):
+async def test_unload_releases_the_shared_connection(hass, mock_modbus):
+    """The controller allows one TCP connection; the last entry to let go of
+    the shared one has to close it, or the next load finds the port busy."""
     entry = await _setup(hass, _entry(hass))
+    assert mock_modbus.connected
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
 
     assert entry.state is ConfigEntryState.NOT_LOADED
-    assert fake_modbus, "the Modbus connection was left open"
+    assert not mock_modbus.connected, "the Modbus connection was left open"
 
 
 async def test_an_old_entry_migrates_to_the_current_version(hass):
@@ -323,7 +307,7 @@ async def test_a_renamed_entity_keeps_its_id_across_a_restart(hass):
 
 
 async def test_reconfigure_reloads_once_through_the_update_listener(
-    hass, fake_modbus, caplog
+    hass, mock_modbus, caplog
 ):
     """Issue #180: Home Assistant warns - and from 2026.12 refuses - when a
     flow schedules a reload itself while the entry also has an update
@@ -342,16 +326,19 @@ async def test_reconfigure_reloads_once_through_the_update_listener(
     assert result["type"] is FlowResultType.ABORT
     assert entry.state is ConfigEntryState.LOADED
     assert entry.data[CONF.HOST] == "192.0.2.20"
-    assert len(fake_modbus) == 1, (
-        f"the entry was reloaded {len(fake_modbus)} times; the update listener "
-        "should reload it exactly once"
+    # The flow probes the new host once; then the update listener reloads
+    # the entry once. Any third connection to it is a second reload.
+    on_new_host = [p for p in mock_modbus.params_seen if p.host == "192.0.2.20"]
+    assert len(on_new_host) == 2, (
+        f"the new host was connected {len(on_new_host)} times (probe + reloads); "
+        "the update listener should reload the entry exactly once"
     )
     assert "has an update listener and should use it" not in caplog.text, (
         "Home Assistant reported the double-reload deprecation"
     )
 
 
-async def test_the_options_flow_sets_the_poll_interval(hass, fake_modbus):
+async def test_the_options_flow_sets_the_poll_interval(hass, mock_modbus):
     """Issue #183: the poll interval is a runtime setting - changed in the
     options dialog, stored in entry.options, picked up by the coordinator
     after the reload the update listener triggers."""
@@ -368,7 +355,7 @@ async def test_the_options_flow_sets_the_poll_interval(hass, fake_modbus):
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert entry.options[CONST.OPTION_SCAN_INTERVAL] == 60
-    assert len(fake_modbus) == 1, "the change was not applied by a reload"
+    assert len(mock_modbus.params_seen) == 2, "the change was not applied by a reload"
     assert entry.runtime_data.coordinator.update_interval.total_seconds() == 60
 
 
@@ -387,13 +374,6 @@ WRITES_TOTAL_UNIQUE_ID = "weishaupt_wbbeeprom_writes_total"
 WRITES_TODAY_UNIQUE_ID = "weishaupt_wbbeeprom_writes_today"
 
 
-def _writable_wire():
-    async def write_register(address, value, device_id):
-        return SimpleNamespace(isError=lambda: False)
-
-    return SimpleNamespace(connected=True, write_register=write_register)
-
-
 async def test_the_write_counters_survive_a_restart(hass):
     """Issue #187: a counter that starts at zero on every restart tells the
     user nothing about the 100 000 writes the EEPROM is rated for."""
@@ -407,9 +387,9 @@ async def test_the_write_counters_survive_a_restart(hass):
     )
     assert hass.states.get(total_id).state == "0"
 
-    client = entry.runtime_data.modbus_api
-    client._client = _writable_wire()
-    await client.write_register(PV_SETPOINT, 5)
+    pump = entry.runtime_data.device
+    setpoint = next(row for row in pump.items if row.address == PV_SETPOINT)
+    await pump.write(setpoint, 5)
     await hass.async_block_till_done()
     # At once, not after the next poll: a reload in between restored 0.
     assert hass.states.get(total_id).state == "1"
@@ -421,7 +401,7 @@ async def test_the_write_counters_survive_a_restart(hass):
 
     assert hass.states.get(total_id).state == "1", "the total was lost on reload"
     assert hass.states.get(today_id).state == "1", "today's count was lost on reload"
-    assert entry.runtime_data.modbus_api.write_budget.total == 1, (
+    assert entry.runtime_data.device.write_budget.total == 1, (
         "the sensor shows the old number but the client counts from zero again"
     )
 
@@ -438,10 +418,10 @@ async def test_a_refused_write_reaches_the_user_as_an_error(hass, monkeypatch):
         "number", CONST.DOMAIN, PV_SETPOINT_UNIQUE_ID
     )
 
-    async def refuse(self, address, value):
+    async def refuse(self, item, value):
         raise WriteError("Daily write limit of 1 reached")
 
-    monkeypatch.setattr(WeishauptModbusClient, "write_register", refuse)
+    monkeypatch.setattr(WeishauptHeatPump, "write", refuse)
 
     with pytest.raises(HomeAssistantError, match="limit"):
         await hass.services.async_call(
@@ -453,19 +433,43 @@ async def test_a_refused_write_reaches_the_user_as_an_error(hass, monkeypatch):
     assert entry.state is ConfigEntryState.LOADED
 
 
-async def test_a_pump_that_refuses_the_first_connection_retries_later(
-    hass, monkeypatch
-):
-    async def refuse(self, startup=False):
-        return False
-
-    monkeypatch.setattr(WeishauptModbusClient, "connect", refuse)
-    monkeypatch.setattr(
-        WeishauptModbusClient, "connected", property(lambda self: False)
-    )
+async def test_a_pump_that_refuses_the_first_connection_retries_later(hass, pump):
+    pump.fail_requests(ModbusConnectionError("connection refused"))
     entry = _entry(hass)
 
     assert not await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
     assert entry.state is ConfigEntryState.SETUP_RETRY
+
+
+HEATING_CIRCUIT_2_ROOM_TEMPERATURE = 31202
+
+
+async def test_a_disabled_heating_circuit_is_neither_polled_nor_an_entity(hass, pump):
+    """Audit P2-03: circuits 2-5 were read on every poll and registered as
+    entities showing unknown, whatever the entry said."""
+    await _setup(hass, _entry(hass))
+
+    registry = er.async_get(hass)
+    assert not any(
+        entry.unique_id.endswith("Raumtemperatur_2") or "heizkreis2" in entry.entity_id
+        for entry in registry.entities.values()
+    )
+    assert not any(
+        read.address
+        <= HEATING_CIRCUIT_2_ROOM_TEMPERATURE
+        <= read.address + read.count - 1
+        for read in pump.unit.read_events
+    ), "heating circuit 2 was polled although it is disabled"
+
+
+async def test_an_enabled_heating_circuit_is_polled(hass, pump):
+    await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK2: True}))
+
+    assert any(
+        read.address
+        <= HEATING_CIRCUIT_2_ROOM_TEMPERATURE
+        <= read.address + read.count - 1
+        for read in pump.unit.read_events
+    )

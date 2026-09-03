@@ -24,8 +24,6 @@ PACKAGE = REPO / "custom_components" / "weishaupt_modbus"
 NOT_TYPE_CHECKED_YET = {
     "coordinator.py": "12 errors: Any returns and an optional config_entry read without a guard",
     "entities.py": "12 errors: MyEntity reads a coordinator attribute only its subclasses have",
-    "items.py": "7 errors: unreachable None checks and Any returns from the lookups",
-    "weishaupt_modbus_api/modbus_api.py": "6 errors: list concatenation typed as item addition",
 }
 
 

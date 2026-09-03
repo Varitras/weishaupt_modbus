@@ -35,15 +35,15 @@ def _entry(prefix="weishaupt_wbb", postfix="", device_prefix=False, topic_prefix
 class FakeCoordinator:
     def __init__(self, values=None, cache=None):
         self.values = values or {}
-        self.client = SimpleNamespace(
-            get_value=(cache or {}).get,
-            write_register=self._write,
+        self.device = SimpleNamespace(
+            value_of=(cache or {}).get,
+            write=self._write,
         )
         self.writes: list = []
         self.data = None
 
-    async def _write(self, address, value):
-        self.writes.append((address, value))
+    async def _write(self, item, value):
+        self.writes.append((item.address, value))
 
     def get_value_from_item(self, key):
         return self.values.get(key)

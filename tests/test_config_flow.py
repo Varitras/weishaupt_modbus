@@ -4,6 +4,7 @@ Marked `e2e`: every test boots a Home Assistant core and loads the
 integration.
 """
 
+from modbus_connection import ModbusConnectionError
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -32,6 +33,11 @@ PAGE_ONE = {
 @pytest.fixture(autouse=True)
 def _enable_custom_integrations(enable_custom_integrations):
     return
+
+
+@pytest.fixture(autouse=True)
+def _pump_that_answers(mock_modbus):
+    return mock_modbus
 
 
 async def _start(hass):
@@ -116,3 +122,17 @@ async def test_reconfigure_updates_the_entry_in_place(hass):
     assert result["reason"] == "reconfigure_successful"
     assert entry.data[CONF.HOST] == "192.0.2.20"
     assert entry.data[CONF.KENNFELD_FILE] == CONST.DEF_KENNFELDFILE
+
+
+async def test_a_host_without_a_pump_is_reported(hass, mock_modbus):
+    """A typo in the address used to create an entry that then retried
+    forever; the flow now reads one register first."""
+    mock_modbus.fail_requests(ModbusConnectionError("refused"))
+    started = await _start(hass)
+
+    result = await hass.config_entries.flow.async_configure(
+        started["flow_id"], {**PAGE_ONE, CONF.HOST: "192.0.2.99"}
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_connect"}

@@ -1,6 +1,8 @@
 """Constants for the Weishaupt Modbus API."""
 
 DEFAULT_PORT = 502
+# The controller's Modbus unit (slave) id; the only one it answers.
+MODBUS_UNIT_ID = 1
 
 # Weishaupt Hardware-level limits
 MAX_BLOCK_READ_COUNT = 5
@@ -15,10 +17,6 @@ TEMPERATURE_SENSOR_SHORT = 0x8002
 TEMPERATURE_RESERVED_BAND_END = 0x80FF
 PERCENTAGE_NO_VALUE = 0xFFFF
 
-
-BACKOFF_BASE_SECONDS = 5 * 60  # 5 minutes
-BACKOFF_MAX_SECONDS = 60 * 60  # 60 minutes
-BACKOFF_THRESHOLD_FAILURES = 3
 
 # Weishaupt rates the register EEPROM for this many writes over the pump's
 # lifetime. The counters below make the consumption visible; the warning

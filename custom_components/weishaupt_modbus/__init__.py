@@ -4,9 +4,9 @@ import copy
 import logging
 import re
 
-from custom_components.weishaupt_modbus.weishaupt_modbus_api.modbus_api import (
-    WeishauptModbusClient,
-)
+from modbus_connection import ModbusTcpParams
+
+from homeassistant.components.modbus import async_get_unit
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
@@ -15,11 +15,12 @@ from homeassistant.util import slugify
 
 from .configentry import MyConfigEntry, MyData
 from .const import CONF, CONST
-from .coordinator import WeishauptModbusCoordinator, write_budget
+from .coordinator import WeishauptModbusCoordinator, check_configured, write_budget
 from .items import ModbusItem
 from .kennfeld import PowerMap
 from .migrate_helpers import entry_unique_id, unique_id_from_parts
-from .weishaupt_modbus_api.const import DEFAULT_PORT
+from .weishaupt_modbus_api.const import DEFAULT_PORT, MODBUS_UNIT_ID
+from .weishaupt_modbus_api.device import WeishauptHeatPump
 from .weishaupt_modbus_api.hpconst import DEVICELISTS
 
 _LOGGER = logging.getLogger(__name__)
@@ -91,31 +92,29 @@ PLATFORMS: list[str] = [
 
 async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     """Set up entry."""
-    # Independent copies per config entry: the items carry runtime state.
-    itemlist: list[ModbusItem] = []
-    for device in DEVICELISTS:
-        itemlist.extend(copy.deepcopy(item) for item in device)
-
-    modbus_api = WeishauptModbusClient(
-        host=entry.data[CONF.HOST],
-        port=int(entry.data.get(CONF.PORT, DEFAULT_PORT)),
-        items=itemlist,
-        write_budget=write_budget(entry),
+    # Independent copies per config entry: the rows carry runtime state. A
+    # circuit the entry does not enable is neither polled nor an entity.
+    itemlist: list[ModbusItem] = [
+        copy.deepcopy(item)
+        for device in DEVICELISTS
+        for item in device
+        if check_configured(item, entry)
+    ]
+    # The socket belongs to Home Assistant's modbus integration: one
+    # connection per endpoint, shared with anything else that talks to the
+    # controller, released when this entry unloads.
+    params = ModbusTcpParams(
+        host=entry.data[CONF.HOST], port=int(entry.data.get(CONF.PORT, DEFAULT_PORT))
     )
+    unit = async_get_unit(hass, entry, params, MODBUS_UNIT_ID)
+    pump = WeishauptHeatPump(unit, itemlist, write_budget(entry))
 
     modbus_coordinator = WeishauptModbusCoordinator(
-        hass=hass,
-        client=modbus_api,
-        api_items=itemlist,
-        p_config_entry=entry,
+        hass=hass, device=pump, api_items=itemlist, p_config_entry=entry
     )
     await modbus_coordinator.async_config_entry_first_refresh()
     entry.runtime_data = MyData(
-        modbus_api=modbus_api,
-        config_dir=hass.config.config_dir,
-        hass=hass,
-        coordinator=modbus_coordinator,
-        powermap=None,
+        device=pump, coordinator=modbus_coordinator, powermap=None
     )
 
     powermap = PowerMap(entry, hass)
@@ -236,9 +235,5 @@ def _entity_id_with_new_label(entity_id: str, labels: tuple) -> str | None:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload entry."""
-    # This is called when an entry/configured device is to be removed. The class
-    # needs to unload itself, and remove callbacks. See the classes for further
-    # details
-    await entry.runtime_data.modbus_api.disconnect()
+    """Unload the platforms; the unit is released with the entry's unload hooks."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

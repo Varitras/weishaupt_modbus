@@ -3,9 +3,11 @@
 from pathlib import Path
 from typing import Any
 
+from modbus_connection import ModbusError, ModbusTcpParams
 import voluptuous as vol
 
 from homeassistant import config_entries, exceptions
+from homeassistant.components.modbus import async_get_temporary_unit
 from homeassistant.core import HomeAssistant, callback
 import homeassistant.helpers.config_validation as cv
 
@@ -17,6 +19,7 @@ from .weishaupt_modbus_api.const import (
     DEFAULT_WRITE_LIMIT_PER_DAY,
     DEFAULT_WRITE_WARNING_PER_DAY,
     EEPROM_WRITE_RATING,
+    MODBUS_UNIT_ID,
 )
 
 
@@ -31,6 +34,24 @@ def _kennfeld_files(folder: Path) -> list[str]:
 async def build_kennfeld_list(hass: HomeAssistant) -> list[str]:
     """The power-map files a user can pick from."""
     return await hass.async_add_executor_job(_kennfeld_files, get_filepath(hass))
+
+
+# The outside temperature: every model serves it, so one read of it says
+# whether there is a Weishaupt controller at the address.
+PROBE_REGISTER = 30001
+
+
+async def pump_answers(hass: HomeAssistant, data: dict[str, Any]) -> bool:
+    """Whether a controller answers at the host and port the user entered."""
+    params = ModbusTcpParams(
+        host=data[CONF.HOST], port=int(data.get(CONF.PORT, DEFAULT_PORT))
+    )
+    try:
+        async with async_get_temporary_unit(hass, params, MODBUS_UNIT_ID) as unit:
+            await unit.read_input_registers(PROBE_REGISTER, 1)
+    except ModbusError, OSError, TimeoutError:
+        return False
+    return True
 
 
 def validate_input(data: dict[str, Any]) -> None:
@@ -73,6 +94,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 validate_input(user_input)
             except InvalidHost:
                 errors["base"] = "invalid_host"
+        if user_input is not None and not errors:
+            if not await pump_answers(self.hass, user_input):
+                errors["base"] = "cannot_connect"
         if user_input is not None and not errors:
             await self.async_set_unique_id(entry_unique_id(user_input))
             self._abort_if_unique_id_configured()
@@ -153,6 +177,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 validate_input(user_input)
             except InvalidHost:
                 errors["base"] = "invalid_host"
+        if user_input is not None and not errors:
+            if not await pump_answers(self.hass, user_input):
+                errors["base"] = "cannot_connect"
         if user_input is not None and not errors:
             self._stored_data.update(user_input)
             # Not async_update_reload_and_abort: that schedules a reload of

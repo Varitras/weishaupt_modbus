@@ -46,8 +46,6 @@ COMPLEXITY_LIMIT = 15
 COMPLEXITY_BUDGETS = {
     # 23 before the web-interface branch of the unique id left.
     "entities.py::MyEntity.__init__": 18,
-    "weishaupt_modbus_api/modbus_api.py::WeishauptModbusClient.connect": 26,
-    "weishaupt_modbus_api/modbus_api.py::WeishauptModbusClient.update": 46,
 }
 
 

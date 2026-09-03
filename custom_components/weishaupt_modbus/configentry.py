@@ -1,4 +1,4 @@
-"""my config entry."""
+"""What a loaded entry carries at runtime."""
 
 from __future__ import annotations
 
@@ -6,19 +6,17 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 
 if TYPE_CHECKING:
     from .coordinator import WeishauptModbusCoordinator
+    from .weishaupt_modbus_api.device import WeishauptHeatPump
 
 
 @dataclass
 class MyData:
-    """My config data."""
+    """The pump, its poller and the power map of one config entry."""
 
-    modbus_api: Any
-    config_dir: str
-    hass: HomeAssistant
+    device: WeishauptHeatPump
     coordinator: WeishauptModbusCoordinator
     powermap: Any
 

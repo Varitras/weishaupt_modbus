@@ -1,13 +1,5 @@
-"""Custom exceptions for the Weishaupt Modbus API."""
+"""Errors the device library raises on its own account."""
 
 
-class WeishauptModbusError(Exception):
-    """Base exception for Weishaupt Modbus communication."""
-
-
-class ConnectionFailedError(WeishauptModbusError):
-    """Exception raised when the Modbus connection fails."""
-
-
-class WriteError(WeishauptModbusError):
-    """Exception raised when a Modbus write operation fails."""
+class WriteError(Exception):
+    """A register write was refused before it reached the wire."""

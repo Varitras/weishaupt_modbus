@@ -5,35 +5,31 @@ from datetime import timedelta
 import logging
 from typing import Any
 
-from pymodbus import ModbusException
+from modbus_connection import ModbusError
 
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.const import (
     DEFAULT_WRITE_LIMIT_PER_DAY,
     DEFAULT_WRITE_WARNING_PER_DAY,
 )
-from custom_components.weishaupt_modbus.weishaupt_modbus_api.exceptions import (
-    ConnectionFailedError,
-)
-from custom_components.weishaupt_modbus.weishaupt_modbus_api.modbus_api import (
-    WeishauptModbusClient,
-)
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
 from .configentry import MyConfigEntry
-from .const import CONF, CONST, TYPES, DeviceConstants
+from .const import CONF, CONST, DeviceConstants
 from .items import ModbusItem
+from .weishaupt_modbus_api.device import WeishauptHeatPump
 from .weishaupt_modbus_api.write_budget import WriteBudget
 
 _LOGGER = logging.getLogger(__name__)
 
+# The library gives up on the first block the link cannot serve, so a whole
+# refresh takes at most one request timeout longer than a healthy one.
+UPDATE_TIMEOUT_SECONDS = 60
 
-async def check_configured(
-    modbus_item: ModbusItem, config_entry: MyConfigEntry
-) -> bool:
-    """Check if item is configured."""
+
+def check_configured(modbus_item: ModbusItem, config_entry: MyConfigEntry) -> bool:
+    """Whether the entry enables the circuit this item belongs to."""
     match modbus_item.device:
         case DeviceConstants.HZ2:
             return config_entry.data[CONF.HK2]
@@ -73,12 +69,12 @@ def write_budget(config_entry: MyConfigEntry) -> WriteBudget:
 
 
 class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
-    """Clean, lock-free DataUpdateCoordinator for batch Modbus register polling."""
+    """Polls the pump on the entry's interval and hands the rows to the entities."""
 
     def __init__(
         self,
         hass: HomeAssistant,
-        client: WeishauptModbusClient,
+        device: WeishauptHeatPump,
         api_items: list[ModbusItem],
         p_config_entry: MyConfigEntry,
     ) -> None:
@@ -90,7 +86,7 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=scan_interval(p_config_entry),
             always_update=True,
         )
-        self.client = client
+        self.device = device
         self._modbusitems = api_items
         self.modbus_items = api_items
         self._config_entry = p_config_entry
@@ -102,48 +98,15 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 return item.state
         return None
 
-    async def _async_setup(self) -> None:
-        """Verify client connection during integration startup."""
-        if not self.client.connected:
-            _LOGGER.debug("Establishing initial connection to heat pump...")
-            connected = await self.client.connect()
-            if not connected:
-                raise ConfigEntryNotReady(
-                    "Could not establish initial Modbus connection"
-                )
-
     async def _async_update_data(self) -> dict[str, Any]:
-        """Fetch all configured registers using high-efficiency batch reads."""
+        """Read every band; a link problem is a failed refresh."""
         try:
-            # The locking context is shifted down. The coordinator simply triggers the update.
-            async with asyncio.timeout(15):
-                await self.client.update()
-
-            return await self._process_cached_data()
-
-        except (TimeoutError, ConnectionFailedError, ModbusException) as err:
+            async with asyncio.timeout(UPDATE_TIMEOUT_SECONDS):
+                await self.device.async_update()
+        except (TimeoutError, ModbusError) as err:
             raise UpdateFailed(f"Modbus communication failure: {err}") from err
-        except Exception as err:
-            raise UpdateFailed(f"Unexpected coordinator update error: {err}") from err
+        return self._results()
 
-    async def _process_cached_data(self) -> dict[str, Any]:
-        """Map the raw/sanitized cache to the expected translation keys."""
-        results: dict[str, Any] = {}
-
-        for item in self._modbusitems:
-            # Skip items belonging to unconfigured heating circuits
-            if not await check_configured(item, self._config_entry):
-                continue
-
-            # 1. Catch purely virtual calculated sensors immediately.
-            # They never poll Modbus directly and evaluate entirely in-memory.
-            if item.type == TYPES.SENSOR_CALC:
-                item.state = None
-                results[item.translation_key] = None
-                continue
-
-            val = self.client.get_value(item.address)
-            item.state = val
-            results[item.translation_key] = val
-
-        return results
+    def _results(self) -> dict[str, Any]:
+        """The rows by translation key; a calculated sensor never gets a register value."""
+        return {item.translation_key: item.state for item in self._modbusitems}

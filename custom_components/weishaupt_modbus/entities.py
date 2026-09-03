@@ -3,6 +3,8 @@
 import logging
 from typing import Any
 
+from modbus_connection import ModbusError
+
 from homeassistant.components.number import NumberEntity
 from homeassistant.components.select import SelectEntity
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
@@ -17,7 +19,7 @@ from .const import CONF, CONST, FORMATS
 from .coordinator import WeishauptModbusCoordinator
 from .items import ModbusItem
 from .migrate_helpers import create_unique_id, device_postfix
-from .weishaupt_modbus_api.exceptions import ConnectionFailedError, WriteError
+from .weishaupt_modbus_api.exceptions import WriteError
 from .weishaupt_modbus_api.hpconst import reverse_device_list
 
 _LOGGER = logging.getLogger(__name__)
@@ -152,15 +154,13 @@ class MyEntity(Entity):
         if val is None:
             return None
 
-        address = self._api_item.address
-        client = self.coordinator.client
         # Raised, not logged: a refused or failed write has to reach the user
         # who moved the slider and the automation that called the service.
         try:
-            await client.write_register(address=address, value=val)
-        except (WriteError, ConnectionFailedError) as err:
+            await self.coordinator.device.write(self._api_item, val)
+        except (WriteError, ModbusError) as err:
             raise HomeAssistantError(
-                f"Writing register {address} failed: {err}"
+                f"Writing register {self._api_item.address} failed: {err}"
             ) from err
         return val
 
@@ -234,7 +234,7 @@ class MyCalcSensorEntity(MySensorEntity):
         formula = params.get("calculation")
         if formula is None:
             return None
-        own = self.coordinator.client.get_value(self._api_item.address)
+        own = self.coordinator.device.value_of(self._api_item.address)
         siblings = [
             self.coordinator.get_value_from_item(key)
             for key in params.get("operands", ())

@@ -1,107 +1,16 @@
 [
   {
-    "label": "client: the no-sensor sentinel must read as absent",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "    if raw_val == TEMPERATURE_NO_SENSOR:\n        item.is_invalid = True\n",
-    "new": "    if raw_val == TEMPERATURE_NO_SENSOR:\n        item.is_invalid = False\n",
-    "tests": "no_sensor_sentinel"
-  },
-  {
-    "label": "client: a negative temperature must be converted from two's complement",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "    if raw_val > TEMPERATURE_NO_SENSOR:\n        return raw_val - 65536\n",
-    "new": "    if raw_val > TEMPERATURE_NO_SENSOR:\n        return raw_val\n",
-    "tests": "negative_temperature_is_read"
-  },
-  {
-    "label": "client: the percentage sentinel must read as absent",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "                if raw_val == PERCENTAGE_NO_VALUE:",
-    "new": "                if raw_val == 65536:",
-    "tests": "percentage_sentinel"
-  },
-  {
-    "label": "client: an illegal-address block must nullify every register in it",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "                            if response.exception_code == 2:\n                                nullify_batch(start, count)\n                                continue",
-    "new": "                            if response.exception_code == 2:\n                                continue",
-    "tests": "illegal_address_block"
-  },
-  {
-    "label": "client: an unchanged value must not be written again",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "                if cached_val is not None and cached_val == value:",
-    "new": "                if False:",
-    "tests": "unchanged_value_is_not_written"
-  },
-  {
-    "label": "client: input registers must not be writable",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "        if not (40000 <= address < 50000):",
-    "new": "        if False:",
-    "tests": "input_register_is_not_writable"
-  },
-  {
-    "label": "client: a negative temperature write must be two's complement",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "                    if item.format == FORMATS.TEMPERATURE and value < 0:\n                        value += 65536",
-    "new": "                    if item.format == FORMATS.TEMPERATURE and value < 0:\n                        value += 0",
-    "tests": "negative_temperature_write"
-  },
-  {
-    "label": "client: a write error must be raised",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "                if response.isError():\n                    raise WriteError(",
-    "new": "                if False:\n                    raise WriteError(",
-    "tests": "write_error_is_raised"
-  },
-  {
-    "label": "client: the backoff window must be honoured",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "                if elapsed < backoff:",
-    "new": "                if False:",
-    "tests": "backoff_window"
-  },
-  {
-    "label": "client: a block must not exceed the hardware read limit",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "                or batch_sizes.get(current_batch_start, 0) >= 5",
-    "new": "                or batch_sizes.get(current_batch_start, 0) >= 50",
-    "tests": "batch_size_never_exceeds"
-  },
-  {
-    "label": "client: an update without a connection must raise",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "                    raise ConnectionFailedError(\"Modbus client is not connected\")",
-    "new": "                    return self.data",
-    "tests": "update_without_connection"
-  },
-  {
-    "label": "client: writes must take the shared lock",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "        async with self._lock:\n            if not self._client.connected:\n                # Raised, not returned: a False here was taken for a\n                # successful write by every caller.\n",
-    "new": "        async with contextlib.nullcontext():\n            if not self._client.connected:\n                # Raised, not returned: a False here was taken for a\n                # successful write by every caller.\n",
-    "tests": "writes_and_updates_share_one_lock"
-  },
-  {
-    "label": "coordinator: unconfigured circuits must stay out of the result",
-    "path": "custom_components/weishaupt_modbus/coordinator.py",
-    "old": "            if not await check_configured(item, self._config_entry):\n                continue",
-    "new": "            if False:\n                continue",
-    "tests": "unconfigured_circuit_items"
-  },
-  {
-    "label": "coordinator: a calculated sensor must not read the cache",
-    "path": "custom_components/weishaupt_modbus/coordinator.py",
-    "old": "            if item.type == TYPES.SENSOR_CALC:",
-    "new": "            if False:",
-    "tests": "calculated_sensor_is_not_polled"
+    "label": "setup: a disabled circuit must be neither polled nor an entity",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        if check_configured(item, entry)\n",
+    "new": "        if True\n",
+    "tests": "disabled_heating_circuit_is_neither_polled"
   },
   {
     "label": "coordinator: transport failure must be UpdateFailed",
     "path": "custom_components/weishaupt_modbus/coordinator.py",
-    "old": "        except (TimeoutError, ConnectionFailedError, ModbusException) as err:\n            raise UpdateFailed(f\"Modbus communication failure: {err}\") from err",
-    "new": "        except (TimeoutError, ConnectionFailedError, ModbusException) as err:\n            raise err",
+    "old": "        except (TimeoutError, ModbusError) as err:\n",
+    "new": "        except () as err:\n",
     "tests": "communication_failure_is_update_failed"
   },
   {
@@ -168,13 +77,6 @@
     "tests": "stripped_of_its_settings"
   },
   {
-    "label": "setup: unload must disconnect the Modbus client",
-    "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "    await entry.runtime_data.modbus_api.disconnect()",
-    "new": "    pass",
-    "tests": "unload_disconnects"
-  },
-  {
     "label": "items: the text lookup must return the text",
     "path": "custom_components/weishaupt_modbus/items.py",
     "old": "        return status.text if status else f\"unbekannt <{val}>\"\n",
@@ -222,13 +124,6 @@
     "old": "                registry.async_remove(registry_entry.entity_id)\n",
     "new": "                pass\n",
     "tests": "stripped_of_its_settings"
-  },
-  {
-    "label": "client: the client must poll the items it was given, not the module table",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "        batches = self._process_and_validate_batches(self._items)\n",
-    "new": "        batches = self._process_and_validate_batches(\n            [item for group in DEVICELISTS for item in group]\n        )\n",
-    "tests": "two_clients_do_not_share"
   },
   {
     "label": "setup: the update listener must reload the entry after a reconfigure",
@@ -280,20 +175,6 @@
     "tests": "relabelled_registers_take_their_history"
   },
   {
-    "label": "client: a write that reached the wire must be counted",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "                if self.write_budget.record_write():\n",
-    "new": "                if False:\n",
-    "tests": "only_a_write_that_reaches_the_wire_is_counted or write_counters_survive"
-  },
-  {
-    "label": "client: the daily limit must refuse the write",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "                if not self.write_budget.allows_write():\n",
-    "new": "                if False:\n",
-    "tests": "daily_limit_refuses_the_write"
-  },
-  {
     "label": "write counter: the restored total must reach the client",
     "path": "custom_components/weishaupt_modbus/write_counter_sensor.py",
     "old": "            self._budget.restore_total(count)\n",
@@ -310,23 +191,9 @@
   {
     "label": "entity: a failed write must be raised, not swallowed",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "        except (WriteError, ConnectionFailedError) as err:\n            raise HomeAssistantError(\n                f\"Writing register {address} failed: {err}\"\n            ) from err\n",
-    "new": "        except (WriteError, ConnectionFailedError) as err:\n            _LOGGER.error(\"Failed to write to register %s: %s\", address, err)\n            return None\n",
+    "old": "        except (WriteError, ModbusError) as err:\n            raise HomeAssistantError(\n                f\"Writing register {self._api_item.address} failed: {err}\"\n            ) from err\n",
+    "new": "        except (WriteError, ModbusError) as err:\n            _LOGGER.error(\"Failed to write to register %s: %s\", self._api_item.address, err)\n            return None\n",
     "tests": "refused_write_reaches_the_user"
-  },
-  {
-    "label": "client: a write that cannot reconnect must raise",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "                if not await self.connect(startup=False):\n                    raise ConnectionFailedError(\n                        f\"Not connected; register {address} not written\"\n                    )\n",
-    "new": "                if not await self.connect(startup=False):\n                    return False\n",
-    "tests": "cannot_reconnect_raises"
-  },
-  {
-    "label": "client: sensor faults and status words must not decode as a temperature",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/modbus_api.py",
-    "old": "    if TEMPERATURE_NO_SENSOR < raw_val <= TEMPERATURE_RESERVED_BAND_END:\n        # Sensor open/short, or a status word: a sensor is present, so the\n        # entity stays; it just has no reading.\n        return None\n",
-    "new": "    if False:\n        return None\n",
-    "tests": "reserved_band_is_not_a_temperature or faulty_sensor_reads_as_none"
   },
   {
     "label": "write budget: listeners must hear a counted write",
@@ -397,5 +264,12 @@
     "old": "        if raw == self.absent:\n            return NO_SENSOR\n",
     "new": "        if False:\n            return NO_SENSOR\n",
     "tests": "no_sensor_reads_as_none_and_marks_the_row_absent"
+  },
+  {
+    "label": "config flow: a host without a pump must be refused",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    except ModbusError, OSError, TimeoutError:\n        return False\n",
+    "new": "    except ModbusError, OSError, TimeoutError:\n        return True\n",
+    "tests": "host_without_a_pump_is_reported"
   }
 ]
