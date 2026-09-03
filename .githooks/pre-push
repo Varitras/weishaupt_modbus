@@ -16,7 +16,7 @@
 #     HA_TEST_PYTHON   interpreter with Home Assistant and the test plugin
 #                      (default: $HOME/ha-dev/venv/bin/python, inside WSL)
 #     MIN_HA_PYTHON    interpreter with the MINIMUM Home Assistant hacs.json
-#                      declares (default: $HOME/ha-dev/venv-min/bin/python)
+#                      declares (default: $HOME/ha-dev/venv-min-2026.9/bin/python)
 #     WSL_DISTRO       the distribution to use from Windows (default: Ubuntu)
 set -eu
 
@@ -25,7 +25,7 @@ repository="$(git rev-parse --show-toplevel)"
 run_gates() {
     cd "$1"
     PYTHON="${HA_TEST_PYTHON:-$HOME/ha-dev/venv/bin/python}" \
-        MIN_HA_PYTHON="${MIN_HA_PYTHON:-$HOME/ha-dev/venv-min/bin/python}" \
+        MIN_HA_PYTHON="${MIN_HA_PYTHON:-$HOME/ha-dev/venv-min-2026.9/bin/python}" \
         sh .github/scripts/check.sh
 
     # Fail-closed: a missing scanner is a failed gate, not a skip. Secrets are
