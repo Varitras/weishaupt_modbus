@@ -1,11 +1,14 @@
 {
   "config" : {
     "abort" : {
-      "already_configured" : "Account is reeds geconfigureerd"
+      "already_configured" : "Deze warmtepomp is al geconfigureerd",
+      "reconfigure_successful" : "Configuratie bijgewerkt"
     },
     "error" : {
       "cannot_connect" : "Connectie gefaald",
-      "invalid_auth" : "Ongeldige logingegevens",
+      "invalid_host" : "Voer het adres van de warmtepomp in (naam of IP, zonder spaties)",
+      "postfix_in_use" : "Een andere warmtepomp gebruikt deze apparaat-postfix al",
+      "postfix_required" : "Een tweede warmtepomp heeft een apparaat-postfix nodig",
       "unknown" : "Onverwachte fout"
     },
     "step" : {

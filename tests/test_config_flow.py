@@ -15,6 +15,9 @@ pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
 
 HOST = "192.0.2.10"
 
+# Prefix and postfix are fixed at creation: the reconfigure page has no field for them.
+FIXED_AT_CREATION = (CONF.PREFIX, CONF.DEVICE_POSTFIX)
+
 PAGE_ONE = {
     CONF.HOST: HOST,
     CONF.PORT: 502,
@@ -28,6 +31,9 @@ PAGE_ONE = {
     CONF.NAME_DEVICE_PREFIX: False,
     CONF.NAME_TOPIC_PREFIX: False,
 }
+
+
+RECONFIGURE_PAGE = {k: v for k, v in PAGE_ONE.items() if k not in FIXED_AT_CREATION}
 
 
 @pytest.fixture(autouse=True)
@@ -102,6 +108,40 @@ async def test_the_same_pump_cannot_be_set_up_twice(hass):
     assert result["reason"] == "already_configured"
 
 
+def _second_pump(**overrides):
+    return {**PAGE_ONE, CONF.HOST: "192.0.2.11", **overrides}
+
+
+async def _create(hass, page):
+    started = await _start(hass)
+    return await hass.config_entries.flow.async_configure(started["flow_id"], page)
+
+
+async def test_a_second_pump_needs_a_postfix_of_its_own(hass):
+    """Entity ids are prefix + name + postfix. A second entry with the same
+    names loaded with zero entities and said LOADED (audit 2026-09-03)."""
+    assert (await _create(hass, PAGE_ONE))["type"] is FlowResultType.CREATE_ENTRY
+
+    # One flow, corrected in place: a flow that showed an error keeps its
+    # unique id, and a second flow on the same pump would abort as in progress.
+    started = await _start(hass)
+    empty = await hass.config_entries.flow.async_configure(
+        started["flow_id"], _second_pump()
+    )
+    assert empty["errors"] == {"base": "postfix_required"}
+
+    own = await hass.config_entries.flow.async_configure(
+        started["flow_id"], _second_pump(**{CONF.DEVICE_POSTFIX: "keller"})
+    )
+    assert own["type"] is FlowResultType.CREATE_ENTRY
+
+    reused = await _create(
+        hass,
+        {**_second_pump(**{CONF.DEVICE_POSTFIX: "keller"}), CONF.HOST: "192.0.2.12"},
+    )
+    assert reused["errors"] == {"base": "postfix_in_use"}
+
+
 async def _reconfigure(hass, entry, user_input):
     result = await hass.config_entries.flow.async_init(
         CONST.DOMAIN,
@@ -116,7 +156,9 @@ async def test_reconfigure_updates_the_entry_in_place(hass):
     entry = MockConfigEntry(domain=CONST.DOMAIN, data=PAGE_ONE, version=9)
     entry.add_to_hass(hass)
 
-    result = await _reconfigure(hass, entry, {**PAGE_ONE, CONF.HOST: "192.0.2.20"})
+    result = await _reconfigure(
+        hass, entry, {**RECONFIGURE_PAGE, CONF.HOST: "192.0.2.20"}
+    )
 
     assert result["type"] is FlowResultType.ABORT, result.get("errors")
     assert result["reason"] == "reconfigure_successful"
@@ -136,3 +178,42 @@ async def test_a_host_without_a_pump_is_reported(hass, mock_modbus):
 
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "cannot_connect"}
+
+
+async def test_prefix_and_postfix_cannot_be_changed_afterwards(hass):
+    """Every unique id is built from them: a change orphaned 120 entities'
+    history and reset the EEPROM write counters (audit 2026-09-03)."""
+    entry = MockConfigEntry(domain=CONST.DOMAIN, data=PAGE_ONE, version=11)
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.flow.async_init(
+        CONST.DOMAIN, context={"source": "reconfigure", "entry_id": entry.entry_id}
+    )
+
+    offered = {str(key) for key in result["data_schema"].schema}
+    assert not offered & set(FIXED_AT_CREATION), offered
+    assert CONF.HOST in offered
+
+
+async def test_reconfigure_onto_another_entrys_pump_is_refused(hass):
+    """Home Assistant only logs a duplicate unique id on update; two entries
+    on one endpoint would poll and write the same pump."""
+    first = MockConfigEntry(
+        domain=CONST.DOMAIN, data=PAGE_ONE, version=11, unique_id="192.0.2.10:502"
+    )
+    first.add_to_hass(hass)
+    second = MockConfigEntry(
+        domain=CONST.DOMAIN,
+        data={**PAGE_ONE, CONF.HOST: "192.0.2.11", CONF.DEVICE_POSTFIX: "keller"},
+        version=11,
+        unique_id="192.0.2.11:502",
+    )
+    second.add_to_hass(hass)
+
+    result = await _reconfigure(
+        hass, second, {**RECONFIGURE_PAGE, CONF.HOST: "192.0.2.10"}
+    )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert second.data[CONF.HOST] == "192.0.2.11", "the entry was changed anyway"

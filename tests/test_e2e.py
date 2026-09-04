@@ -181,6 +181,24 @@ async def test_an_old_entry_migrates_to_the_current_version(hass):
     )
 
 
+async def test_two_legacy_entries_on_one_pump_do_not_get_the_same_identity(
+    hass, caplog
+):
+    """Before version 11 nothing stopped two entries on one host. The first
+    to migrate keeps the identity; the second is left without one and the
+    log says which two to look at."""
+    first = _entry(hass, version=10)
+    second = _entry(hass, data={**BASE_DATA, CONF.DEVICE_POSTFIX: "2"}, version=10)
+
+    # Loading the domain loads every entry of it, in the order they were added.
+    await _setup(hass, first)
+    await hass.async_block_till_done()
+
+    assert first.unique_id == "192.0.2.10:502"
+    assert second.unique_id is None
+    assert "same host and port" in caplog.text
+
+
 async def test_a_web_interface_entry_is_stripped_of_its_settings_and_entities(hass):
     """Versions 5 to 8 stored web-interface credentials and switches in the
     entry and registered web-interface sensors. Version 9 takes both out, so
@@ -350,8 +368,13 @@ async def test_reconfigure_reloads_once_through_the_update_listener(
     result = await hass.config_entries.flow.async_init(
         CONST.DOMAIN, context={"source": "reconfigure", "entry_id": entry.entry_id}
     )
+    reconfigure_page = {
+        key: value
+        for key, value in BASE_DATA.items()
+        if key not in (CONF.PREFIX, CONF.DEVICE_POSTFIX)
+    }
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {**BASE_DATA, CONF.HOST: "192.0.2.20"}
+        result["flow_id"], {**reconfigure_page, CONF.HOST: "192.0.2.20"}
     )
     await hass.async_block_till_done()
 

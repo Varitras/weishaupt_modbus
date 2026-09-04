@@ -1,11 +1,14 @@
 {
   "config": {
     "abort": {
-      "already_configured": "Account is already configured"
+      "already_configured": "This heat pump is already configured",
+      "reconfigure_successful": "Configuration updated"
     },
     "error": {
       "cannot_connect": "Failed to connect",
-      "invalid_auth": "Invalid authentication",
+      "invalid_host": "Enter the address of the heat pump (name or IP, no spaces)",
+      "postfix_in_use": "Another heat pump already uses this device postfix",
+      "postfix_required": "A second heat pump needs a device postfix",
       "unknown": "Unexpected error"
     },
     "step": {

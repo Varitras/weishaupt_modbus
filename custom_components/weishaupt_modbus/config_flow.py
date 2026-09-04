@@ -54,6 +54,32 @@ async def pump_answers(hass: HomeAssistant, data: dict[str, Any]) -> bool:
     return True
 
 
+def namespace_error(
+    hass: HomeAssistant, data: dict[str, Any], entry_id: str | None = None
+) -> str | None:
+    """Why a second pump could not get entities of its own, or None.
+
+    Entity and device ids are built from prefix and postfix only, so two
+    entries with the same postfix collide entity for entity - the second
+    pump loads with nothing. Once another entry exists the postfix has to
+    be set, and set to something no other entry uses.
+    """
+    others = [
+        entry
+        for entry in hass.config_entries.async_entries(CONST.DOMAIN)
+        if entry.entry_id != entry_id
+    ]
+    if not others:
+        return None
+    postfix = str(data.get(CONF.DEVICE_POSTFIX, "")).strip()
+    if not postfix:
+        return "postfix_required"
+    taken = {str(entry.data.get(CONF.DEVICE_POSTFIX, "")).strip() for entry in others}
+    if postfix in taken:
+        return "postfix_in_use"
+    return None
+
+
 def validate_input(data: dict[str, Any]) -> None:
     """Normalise the host in place; raise InvalidHost for one that cannot be dialled."""
     host = str(data.get(CONF.HOST, "")).strip()
@@ -95,11 +121,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
             except InvalidHost:
                 errors["base"] = "invalid_host"
         if user_input is not None and not errors:
+            # The same pump twice is an abort, before any other objection.
+            await self.async_set_unique_id(entry_unique_id(user_input))
+            self._abort_if_unique_id_configured()
+            reason = namespace_error(self.hass, user_input)
+            if reason:
+                errors["base"] = reason
+        if user_input is not None and not errors:
             if not await pump_answers(self.hass, user_input):
                 errors["base"] = "cannot_connect"
         if user_input is not None and not errors:
-            await self.async_set_unique_id(entry_unique_id(user_input))
-            self._abort_if_unique_id_configured()
             self._stored_data.update(user_input)
             return self.async_create_entry(
                 title=self._stored_data[CONF.HOST], data=self._stored_data
@@ -182,16 +213,29 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 errors["base"] = "cannot_connect"
         if user_input is not None and not errors:
             self._stored_data.update(user_input)
+            new_unique_id = entry_unique_id(self._stored_data)
+            holder = self.hass.config_entries.async_entry_for_domain_unique_id(
+                CONST.DOMAIN, new_unique_id
+            )
+            # Home Assistant only logs a duplicate unique id on update; two
+            # entries on one endpoint would poll and write the same pump.
+            if (
+                holder is not None
+                and holder.entry_id != self._reconfigure_entry.entry_id
+            ):
+                return self.async_abort(reason="already_configured")
             # Not async_update_reload_and_abort: that schedules a reload of
             # its own while the update listener in __init__ reloads too.
             self.hass.config_entries.async_update_entry(
                 self._reconfigure_entry,
                 data=self._stored_data,
-                unique_id=entry_unique_id(self._stored_data),
+                unique_id=new_unique_id,
             )
             return self.async_abort(reason="reconfigure_successful")
 
-        # We display the same schema as user step 1 for consistency
+        # The user step's schema without prefix and postfix: every unique id
+        # is built from them, so a change would orphan every entity's history
+        # and start the write counters over. They are fixed at creation.
         schema_reconfigure = vol.Schema(
             schema={
                 vol.Required(
@@ -202,14 +246,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                     schema=CONF.PORT,
                     default=self._stored_data.get(CONF.PORT, DEFAULT_PORT),
                 ): cv.port,
-                vol.Optional(
-                    schema=CONF.PREFIX,
-                    default=self._stored_data.get(CONF.PREFIX, CONST.DEF_PREFIX),
-                ): str,
-                vol.Optional(
-                    schema=CONF.DEVICE_POSTFIX,
-                    default=self._stored_data.get(CONF.DEVICE_POSTFIX, ""),
-                ): str,
                 vol.Optional(
                     schema=CONF.KENNFELD_FILE,
                     default=self._stored_data.get(CONF.KENNFELD_FILE),

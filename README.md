@@ -67,7 +67,13 @@ The only mandatory parameter is the address of your heat pump. The port is
 - **Prefix** is part of every entity's unique id. Leave it alone unless you
   are migrating from another integration and want to keep the recorded history.
 - **Device postfix** lets you add more than one heat pump. Leave it empty for
-  a single pump; give every further pump a short name.
+  a single pump; every further pump needs a postfix of its own, the flow
+  refuses an empty or reused one.
+
+Prefix and device postfix are part of every entity's unique id and cannot
+be changed afterwards: a change would orphan the recorded history of every
+entity and start the EEPROM write counters over. To rename, remove the
+entry and add it again.
 - **Heizkreis 2–5** enable the entities of additional heating circuits.
 - **Kennfeld file** selects the power map for your model (see below).
 

@@ -183,13 +183,28 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) 
         _move_relabelled_entities(hass, new_data)
 
     # Version 11: the entry gets its identity (host:port), so a pump cannot
-    # be set up twice.
+    # be set up twice. Two legacy entries on one endpoint: the first keeps
+    # the identity, the second stays without one and says so - Home
+    # Assistant would otherwise log a duplicate and carry on with both.
+    candidate = entry_unique_id(new_data)
+    unique_id: str | None = candidate
+    holder = hass.config_entries.async_entry_for_domain_unique_id(
+        CONST.DOMAIN, candidate
+    )
+    if holder is not None and holder.entry_id != config_entry.entry_id:
+        _LOGGER.warning(
+            "Entry %s uses the same host and port as entry %s; both poll and "
+            "write the same pump. Remove one of them",
+            config_entry.title,
+            holder.title,
+        )
+        unique_id = None
     hass.config_entries.async_update_entry(
         config_entry,
         data=new_data,
         minor_version=1,
         version=11,
-        unique_id=entry_unique_id(new_data),
+        unique_id=unique_id,
     )
     _LOGGER.warning("Config entries updated to version 11")
     return True
