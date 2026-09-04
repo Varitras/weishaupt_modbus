@@ -310,3 +310,22 @@ def test_the_status_lists_reach_as_far_as_the_data_point_list():
     push = {status.number for status in hpconst.WW_PUSH}
 
     assert push == {0} | set(range(5, 245, 5))
+
+
+def test_the_constant_flow_temperatures_reach_the_controllers_own_range():
+    """These rows shared the room-temperature limits (16-28 degC) and refused
+    a live 35 degC. The controller's menu offers 7-66 heating and 7-30
+    cooling, and clamps further to its own min/max flow settings."""
+    rows = {item.address: item for item in _items(hpconst)}
+
+    for address in (41110, 41111):
+        assert rows[address].params["min"] <= 7
+        assert rows[address].params["max"] >= 66
+    assert rows[41112].params["min"] <= 7
+    assert rows[41112].params["max"] >= 30
+
+
+def test_the_dhw_pump_variant_is_code_8():
+    """The manufacturer numbers the pump variant of the DHW configuration 8;
+    the table said 2, so a pump system read as an unknown code."""
+    assert {status.number for status in hpconst.WW_KONFIGURATION} == {0, 1, 8}

@@ -665,7 +665,9 @@ HZ_PARTY_PAUSE: list[StatusItem] = [
 WW_KONFIGURATION: list[StatusItem] = [
     StatusItem(number=0, text="aus", translation_key="ww_konf_aus"),
     StatusItem(number=1, text="Umlenkventil", translation_key="ww_konf_umlenkventil"),
-    StatusItem(number=2, text="Pumpe", translation_key="ww_konf_pumpe"),
+    # 8, not 2: the manufacturer's register list (2022 xlsx) numbers the pump
+    # variant 8; nothing answers 2.
+    StatusItem(number=8, text="Pumpe", translation_key="ww_konf_pumpe"),
 ]
 
 HP_KONFIGURATION: list[StatusItem] = [
@@ -912,6 +914,15 @@ PARAMS_ROOMTEMP: dict[str, Any] = {
     "unit": UnitOfTemperature.CELSIUS,
     "stateclass": SensorStateClass.MEASUREMENT,
 }
+
+
+# The constant flow temperatures are NOT room temperatures: the controller's
+# menu offers 7-66 degC heating and 7-30 degC cooling (WBB, 2026-09), and
+# then clamps to the circuit's own minimum/maximum flow settings, which have
+# no Modbus register. A narrower limit here refused a live 35 degC; the
+# controller keeps its own limits on top of these.
+PARAMS_CONSTANT_FLOW_HEATING: dict[str, Any] = {**PARAMS_ROOMTEMP, "min": 7, "max": 66}
+PARAMS_CONSTANT_FLOW_COOLING: dict[str, Any] = {**PARAMS_ROOMTEMP, "min": 7, "max": 30}
 
 
 PARAMS_SUMMER_WINTER_SWITCH_TEMP: dict[str, Any] = {
@@ -1282,9 +1293,9 @@ MODBUS_HZ_ITEMS = [
     ModbusItem(address=41107, name="Raumsolltemperatur Absenk", format=FORMATS.TEMPERATURE, type=TYPES.NUMBER, device=DEVICES.HZ, params=PARAMS_ROOMTEMP_LOW, translation_key="raum_soll_temp_absenk"),
     ModbusItem(address=41108, name="Heizkennlinie", format=FORMATS.NUMBER, type=TYPES.NUMBER, device=DEVICES.HZ, params=PARAMS_HZKENNLINIE, translation_key="heizkennlinie"),
     ModbusItem(address=41109, name="Sommer Winter Umschaltung", format=FORMATS.TEMPERATURE, type=TYPES.NUMBER, device=DEVICES.HZ, params=PARAMS_SUMMER_WINTER_SWITCH_TEMP, translation_key="so_wi_umschalt"),
-    ModbusItem(address=41110, name="Heizen Konstanttemperatur", format=FORMATS.TEMPERATURE, type=TYPES.NUMBER, device=DEVICES.HZ, params=PARAMS_ROOMTEMP, translation_key="heiz_konstanttemp"),
-    ModbusItem(address=41111, name="Heizen Konstanttemp Absenk", format=FORMATS.TEMPERATURE, type=TYPES.NUMBER, device=DEVICES.HZ, params=PARAMS_ROOMTEMP, translation_key="heiz_konstanttemp_absenk"),
-    ModbusItem(address=41112, name="Kühlen Konstanttemperatur", format=FORMATS.TEMPERATURE, type=TYPES.NUMBER, device=DEVICES.HZ, params=PARAMS_ROOMTEMP, translation_key="kuehl_konstanttemp"),
+    ModbusItem(address=41110, name="Heizen Konstanttemperatur", format=FORMATS.TEMPERATURE, type=TYPES.NUMBER, device=DEVICES.HZ, params=PARAMS_CONSTANT_FLOW_HEATING, translation_key="heiz_konstanttemp"),
+    ModbusItem(address=41111, name="Heizen Konstanttemp Absenk", format=FORMATS.TEMPERATURE, type=TYPES.NUMBER, device=DEVICES.HZ, params=PARAMS_CONSTANT_FLOW_HEATING, translation_key="heiz_konstanttemp_absenk"),
+    ModbusItem(address=41112, name="Kühlen Konstanttemperatur", format=FORMATS.TEMPERATURE, type=TYPES.NUMBER, device=DEVICES.HZ, params=PARAMS_CONSTANT_FLOW_COOLING, translation_key="kuehl_konstanttemp"),
 ]
 
 # --- DYNAMIC ADDITIONAL HEATING CIRCUITS (HZ2 - HZ5) ---

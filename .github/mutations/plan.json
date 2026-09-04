@@ -390,5 +390,19 @@
     "old": "            if 0 < limit < warning:\n",
     "new": "            if False:\n",
     "tests": "warning_above_the_limit_is_refused"
+  },
+  {
+    "label": "table: the constant flow temperature must reach the controller's range",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "PARAMS_CONSTANT_FLOW_HEATING: dict[str, Any] = {**PARAMS_ROOMTEMP, \"min\": 7, \"max\": 66}\n",
+    "new": "PARAMS_CONSTANT_FLOW_HEATING: dict[str, Any] = {**PARAMS_ROOMTEMP, \"min\": 7, \"max\": 28}\n",
+    "tests": "constant_flow_temperatures_reach"
+  },
+  {
+    "label": "table: the DHW pump variant must be code 8",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "    StatusItem(number=8, text=\"Pumpe\", translation_key=\"ww_konf_pumpe\"),\n",
+    "new": "    StatusItem(number=2, text=\"Pumpe\", translation_key=\"ww_konf_pumpe\"),\n",
+    "tests": "dhw_pump_variant_is_code_8"
   }
 ]
