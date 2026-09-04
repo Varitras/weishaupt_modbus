@@ -13,3 +13,9 @@ ef0b4b15c0b79538bca33daa36c83a9a7dbd4fa2:.storage/auth:generic-api-key:83
 62845e56da2a83e7e5122e99e1eb94aea6091884:.storage/auth:generic-api-key:66
 62845e56da2a83e7e5122e99e1eb94aea6091884:.storage/auth:generic-api-key:82
 62845e56da2a83e7e5122e99e1eb94aea6091884:.storage/auth:generic-api-key:83
+
+# Two synthetic strings in this repository's own proof-of-red test for the
+# gitleaks allowlist (tests/test_secret_scan.py). They were spelled out in
+# that one commit and are assembled at runtime since.
+a5982dc7cee423eed52dee69bff4089edeefabd0:tests/test_secret_scan.py:generic-api-key:71
+a5982dc7cee423eed52dee69bff4089edeefabd0:tests/test_secret_scan.py:aws-access-token:24

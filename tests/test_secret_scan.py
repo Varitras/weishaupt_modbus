@@ -19,9 +19,14 @@ import pytest
 REPO = pathlib.Path(__file__).resolve().parents[1]
 CONFIG = REPO / ".gitleaks.toml"
 
-# Synthetic. The AWS access-key rule matches AKIA + 16 characters; this one
-# is not a key anyone was ever issued.
-SYNTHETIC_TOKEN = "AKIAQ7Q7Q7Q7Q7Q7Q7Q7"
+# Synthetic, and assembled rather than written out: a literal that looks
+# like a credential makes the scanner this test exercises report the test
+# itself, in every scan of the history from here on. Neither string was
+# ever issued to anyone.
+# AKIA and 16 more characters is what the AWS access-key rule matches.
+SYNTHETIC_TOKEN = "AKIA" + "Q7" * 8
+# 40 hex characters is the shape the generic-api-key rule reads as a token.
+SYNTHETIC_HEX = "9f8e7d6c5b4a3f2e" + "1d0c9b8a7f6e5d4c" + "3b2a1f0e"
 LEAK_FOUND = 2  # gitleaks' exit code for "findings" with --exit-code 2
 
 
@@ -68,5 +73,5 @@ def test_a_token_next_to_a_translation_key_is_still_found(tmp_path):
 def test_a_hex_token_in_the_key_position_is_still_found(tmp_path):
     """A hex string has no letter beyond f and no underscore - the allowlist
     must not take it for a translation key."""
-    line = 'api_key="9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e"\n'
+    line = f'api_key="{SYNTHETIC_HEX}"\n'
     assert _scan(tmp_path, line) == LEAK_FOUND
