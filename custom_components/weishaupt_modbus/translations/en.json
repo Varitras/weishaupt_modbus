@@ -1287,7 +1287,7 @@
         }
       },
       "kuehl_energie_heute": {
-        "name": "{prefix}Cooling energy heute"
+        "name": "{prefix}Cooling energy today"
       },
       "kuehl_energie_jahr": {
         "name": "{prefix}Cooling energy year"

@@ -432,5 +432,12 @@
     "old": "PARAMS_WATERTEMP_HIGH: dict = {\n    \"min\": 20,\n",
     "new": "PARAMS_WATERTEMP_HIGH: dict = {\n    \"min\": 5.5,\n",
     "tests": "constant_flow_temperatures_reach"
+  },
+  {
+    "label": "table: yesterday's energy must not be a total-increasing sensor",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "PARAMS_ENERGY_YESTERDAY: dict[str, Any] = {**PARAMS_ENERGY, \"stateclass\": None}\n",
+    "new": "PARAMS_ENERGY_YESTERDAY: dict[str, Any] = {**PARAMS_ENERGY}\n",
+    "tests": "yesterdays_energy_has_no_long_term_statistics"
   }
 ]

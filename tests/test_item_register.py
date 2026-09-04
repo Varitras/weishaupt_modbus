@@ -23,6 +23,7 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api import hpconst
 from custom_components.weishaupt_modbus.write_counter_sensor import (
     WRITE_COUNTER_DESCRIPTIONS,
 )
+from homeassistant.components.sensor import SensorStateClass
 
 PACKAGE = (
     pathlib.Path(__file__).resolve().parents[1]
@@ -333,3 +334,15 @@ def test_the_dhw_pump_variant_is_code_8():
     """The manufacturer numbers the pump variant of the DHW configuration 8;
     the table said 2, so a pump system read as an unknown code."""
     assert {status.number for status in hpconst.WW_KONFIGURATION} == {0, 1, 8}
+
+
+def test_yesterdays_energy_has_no_long_term_statistics():
+    """A yesterday value changes once a day and may fall; as a total-increasing
+    sensor every fall read as a meter reset and the energy dashboard summed
+    phantom energy. Today, month and year only fall at their real reset."""
+    for item in _items(hpconst):
+        if not 36101 <= item.address <= 36704 or item.type != TYPES.SENSOR:
+            continue
+        yesterday = item.address % 100 == 2
+        expected = None if yesterday else SensorStateClass.TOTAL_INCREASING
+        assert item.params["stateclass"] == expected, item.name
