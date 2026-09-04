@@ -84,8 +84,6 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
 
         if self._api_item.format == FORMATS.STATUS:
             self._divider = 1
-        elif self._api_item.format == FORMATS.TEXT:
-            self._attr_suggested_display_precision = None
         else:
             if self._api_item.params is not None:
                 self._attr_native_unit_of_measurement = self._api_item.params.get(
@@ -197,9 +195,6 @@ class MySensorEntity(MyEntity, SensorEntity):
                 self._attr_state_class = modbus_item.params.get(
                     "stateclass", SensorStateClass.MEASUREMENT
                 )
-        if modbus_item.format == FORMATS.TEXT:
-            # self._attr_state_class = SensorStateClass.NONE
-            self._attr_suggested_display_precision = None
         # The first refresh ran before the platforms; the listener only fires
         # on the next one, so without this every sensor reads unknown for a
         # whole scan interval after setup.

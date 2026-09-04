@@ -2,7 +2,7 @@
 
 A reason or error key without a text renders as the raw key in the dialog.
 `unknown` sat in all four files for a year without the flow ever producing
-it, while the postfix rules arrived with none of theirs (audit 2026-09-03) -
+it, while the postfix rules arrived with none of theirs -
 two directions of the same drift, and nothing looked at either.
 """
 

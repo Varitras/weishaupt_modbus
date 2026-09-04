@@ -45,7 +45,7 @@ COMPLEXITY_LIMIT = 15
 # improvement is written down.
 COMPLEXITY_BUDGETS = {
     # 23 before the web-interface branch of the unique id left.
-    "entities.py::MyEntity.__init__": 18,
+    "entities.py::MyEntity.__init__": 17,
 }
 
 

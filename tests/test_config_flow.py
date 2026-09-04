@@ -119,7 +119,7 @@ async def _create(hass, page):
 
 async def test_a_second_pump_needs_a_postfix_of_its_own(hass):
     """Entity ids are prefix + name + postfix. A second entry with the same
-    names loaded with zero entities and said LOADED (audit 2026-09-03)."""
+    names loaded with zero entities and said LOADED."""
     assert (await _create(hass, PAGE_ONE))["type"] is FlowResultType.CREATE_ENTRY
 
     # One flow, corrected in place: a flow that showed an error keeps its
@@ -185,7 +185,7 @@ async def test_a_host_without_a_pump_is_reported(hass, mock_modbus):
 
 async def test_prefix_and_postfix_cannot_be_changed_afterwards(hass):
     """Every unique id is built from them: a change orphaned 120 entities'
-    history and reset the EEPROM write counters (audit 2026-09-03)."""
+    history and reset the EEPROM write counters."""
     entry = MockConfigEntry(domain=CONST.DOMAIN, data=PAGE_ONE, version=11)
     entry.add_to_hass(hass)
 

@@ -69,6 +69,7 @@ because the thing it prevents happened, here or in a sibling project.
 | `test_guards.py` | No guard binds itself to one source file; every guard is listed; `check.sh` matches CI |
 | `test_imports.py` | Every module imports outside the author's own tree - the `from config.custom_components...` line that shipped on main cannot ship again |
 | `test_item_register.py` | Every register definition is complete (a name in every translation file, result list, address range, unique key), no translation outlives its item, and every item keeps the name its unique id is built from (`legacy_unique_ids.json`) |
+| `test_kennfeld.py` | The power map: interpolation, the per-entry preview, static SVGs, a broken custom grid disables only the heat power; and no module in the package imports numpy, scipy or pygal at import time |
 | `test_mutation_harness.py` | The mutation run fails loudly rather than printing "all caught" without having checked |
 | `test_mypy_scope.py` | Every module is in the mypy scope or carries a written reason why not yet |
 | `test_platform_entities.py` | Every platform builds its entities through the one shared helper |
@@ -102,8 +103,9 @@ is 15, SonarSource's default.
 
 ## The register table
 
-`weishaupt_modbus_api/hpconst.py` is the integration's data: every register,
-with the batch number the client groups block reads by. `test_item_register.py`
+`weishaupt_modbus_api/hpconst.py` is the integration's data: every register the
+controller serves, read in one block per address band (`BANDS` in `device.py`,
+checked against `documented_registers.json`). `test_item_register.py`
 holds it complete and lists, by name, what was already wrong when the guard
 was adopted - so the **next** gap fails, not the ones that were there.
 

@@ -1,5 +1,6 @@
 """The power map: interpolation on the compiled grid, and the shipped grids."""
 
+import ast
 import importlib
 import importlib.util
 import json
@@ -58,7 +59,7 @@ def test_outside_temperature_is_clamped_to_the_grid():
 
 def test_an_empty_grid_reads_as_none_not_zero():
     """A missing or uncompiled map used to read as 0 W - recorded as a real
-    heat output of zero (audit 2026-09-03)."""
+    heat output of zero."""
     power_map = _power_map()
     power_map._compiled_grid = {}
 
@@ -124,34 +125,45 @@ async def test_a_grid_that_is_not_compiled_is_refused_not_compiled(
     assert power_map.map(0, 350) is None
 
 
-def test_importing_the_module_does_not_warn_about_optional_libraries(
-    monkeypatch, caplog
-):
-    """Every shipped grid is precompiled, so numpy and scipy are only needed
-    to compile a NEW grid - and that path says so when it runs. Warning at
-    import time put three lines into every user's log on every start for a
-    situation none of them was in."""
-    real_find_spec = importlib.util.find_spec
+OPTIONAL_LIBRARIES = {"numpy", "scipy", "pygal"}
 
-    def without_the_optional_libraries(name, *args, **kwargs):
-        if name in ("numpy", "scipy", "pygal"):
-            return None
-        return real_find_spec(name, *args, **kwargs)
 
-    monkeypatch.setattr(importlib.util, "find_spec", without_the_optional_libraries)
-    try:
-        with caplog.at_level(logging.WARNING, logger=kennfeld.__name__):
-            importlib.reload(kennfeld)
-    finally:
-        monkeypatch.undo()
-        importlib.reload(kennfeld)
+def _module_level(source: pathlib.Path) -> tuple[set[str], set[str]]:
+    """The packages a module imports at top level, and the calls it makes there."""
+    module = ast.parse(source.read_text(encoding="utf-8"))
+    imports = {
+        (
+            node.names[0].name if isinstance(node, ast.Import) else node.module or ""
+        ).split(".")[0]
+        for node in module.body
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+    }
+    calls = {
+        ast.unparse(node.value.func)
+        for node in module.body
+        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
+    }
+    return imports, calls
 
-    warned = [
-        record.getMessage()
-        for record in caplog.records
-        if record.name == kennfeld.__name__
-    ]
-    assert not warned, f"import-time noise: {warned}"
+
+def test_importing_the_integration_needs_no_optional_library_and_says_nothing():
+    """Every shipped grid is precompiled; numpy and scipy are only needed to
+    compile a NEW grid, pygal only to draw one. Importing them at module level
+    used to put three warning lines into every user's log on every start for
+    a situation none of them was in.
+
+    Read statically over the whole package: a reload with a patched finder
+    proved nothing, because the module never consulted the finder.
+    """
+    offenders = []
+    for source in sorted(PACKAGE.rglob("*.py")):
+        imports, calls = _module_level(source)
+        for library in sorted(imports & OPTIONAL_LIBRARIES):
+            offenders.append(f"{source.name} imports {library} at module level")
+        for call in sorted(call for call in calls if call.startswith("_LOGGER.")):
+            offenders.append(f"{source.name} logs at import time: {call}")
+
+    assert not offenders, offenders
 
 
 def test_the_preview_file_is_named_per_entry():
@@ -195,7 +207,7 @@ async def test_a_broken_grid_file_disables_the_heat_power_only(
 ):
     """A corrupt custom grid raised out of setup and Home Assistant put the
     whole entry into SETUP_ERROR - every Modbus entity gone for one optional
-    calculated sensor (audit 2026-09-03)."""
+    calculated sensor."""
     (tmp_path / "bad_kennfeld.json").write_text(content, encoding="utf-8")
     entry = SimpleNamespace(
         data={CONF.KENNFELD_FILE: "bad_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
@@ -225,7 +237,7 @@ def _compile_script():
 
 def test_the_compile_script_keeps_each_curve_with_its_flow_temperature():
     """It sorted known_t and left known_y in file order: an unsorted raw grid
-    got its curves swapped (audit 2026-09-03)."""
+    got its curves swapped."""
     known_t, known_y = _compile_script().sorted_curves(
         [55, 35], [[4000, 5000], [5000, 6000]]
     )

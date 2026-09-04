@@ -41,8 +41,6 @@ class MainConstants:
     SCAN_INTERVAL_MAX_SECONDS: int = 600
     OPTION_WRITE_WARNING_PER_DAY: str = "write_warning_per_day"
     OPTION_WRITE_LIMIT_PER_DAY: str = "write_limit_per_day"
-    UNIQUE_ID: str = "unique_id"
-    APPID: int = 100
     DEF_KENNFELDFILE: str = "weishaupt_wbb_kennfeld.json"
     DEF_PREFIX: str = "weishaupt_wbb"
 
@@ -58,7 +56,6 @@ class FORMATS(StrEnum):
     NUMBER = "number"
     STATUS = "status"
     UNKNOWN = "unknown"
-    TEXT = "text"
 
 
 class TYPES(StrEnum):

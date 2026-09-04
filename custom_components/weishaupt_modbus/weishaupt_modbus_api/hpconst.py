@@ -20,19 +20,12 @@ from homeassistant.const import (
     UnitOfVolumeFlowRate,
 )
 
+# Topic prefix per device: the attribute name of each DEVICES value, so a
+# device added to DeviceConstants cannot silently prefix its topics with UK.
 reverse_device_list: dict[str, str] = {
-    "dev_system": "SYS",
-    "dev_waermepumpe": "WP",
-    "dev_warmwasser": "WW",
-    "dev_heizkreis": "HZ",
-    "dev_heizkreis2": "HZ2",
-    "dev_heizkreis3": "HZ3",
-    "dev_heizkreis4": "HZ4",
-    "dev_heizkreis5": "HZ5",
-    "dev_waermeerzeuger2": "W2",
-    "dev_statistik": "ST",
-    "dev_unknown": "UK",
-    "dev_ein_aus": "IO",
+    value: name
+    for name, value in vars(type(DEVICES)).items()
+    if isinstance(value, str) and not name.startswith("_")
 }
 
 ################################################################################

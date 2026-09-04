@@ -36,25 +36,12 @@ class ModbusItem:
             return None
         return next((s for s in self.resultlist if s.number == number), None)
 
-    def get_text_from_number(self, val: int | None) -> str | None:
-        """The status text for a number; unknown numbers name themselves."""
-        if val is None or self.resultlist is None:
-            return None
-        status = self._status(val)
-        return status.text if status else f"unbekannt <{val}>"
-
     def get_translation_key_from_number(self, val: int | None) -> str | None:
         """The state translation key for a number; unknown numbers name themselves."""
         if val is None or self.resultlist is None:
             return None
         status = self._status(val)
         return status.translation_key if status else f"unbekannt <{val}>"
-
-    def get_number_from_text(self, val: str) -> int | None:
-        """The number behind a status text, None for a text that is not one."""
-        if self.resultlist is None:
-            return None
-        return next((s.number for s in self.resultlist if s.text == val), None)
 
     def get_number_from_translation_key(self, val: str | None) -> int | None:
         """The number behind a state key, None for a key that is not one."""

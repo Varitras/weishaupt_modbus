@@ -349,7 +349,7 @@ def test_a_formula_with_an_absent_operand_reads_as_none():
 
 def test_a_formula_without_a_value_reads_as_none_not_zero():
     """performance_factor with 0 kWh electric energy - the first poll of a
-    new day - used to publish a coefficient of 0.0 (audit 2026-09-03)."""
+    new day - used to publish a coefficient of 0.0."""
     item = ModbusItem(
         33111,
         "x",

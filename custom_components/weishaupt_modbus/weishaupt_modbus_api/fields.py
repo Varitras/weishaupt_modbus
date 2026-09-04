@@ -14,6 +14,7 @@ from .const import (
     PERCENTAGE_NO_VALUE,
     TEMPERATURE_NO_SENSOR,
     TEMPERATURE_RESERVED_BAND_END,
+    TEMPERATURE_SENSOR_OPEN,
 )
 from .hpconst import FORMATS, TYPES, ModbusItem
 
@@ -73,7 +74,7 @@ def field_for(item: ModbusItem) -> RegisterWord:
             signed=True,
             writable=writable,
             absent=TEMPERATURE_NO_SENSOR,
-            no_reading=(TEMPERATURE_NO_SENSOR + 1, TEMPERATURE_RESERVED_BAND_END),
+            no_reading=(TEMPERATURE_SENSOR_OPEN, TEMPERATURE_RESERVED_BAND_END),
         )
     if item.format == FORMATS.PERCENTAGE:
         return RegisterWord(

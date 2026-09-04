@@ -148,18 +148,16 @@ select = [
 ]
 
 ignore = [
-  # Findings that were in the tree when `ruff check .` became a gate (20 of
-  # them, in items.py, entities.py, modbus_api.py, kennfeld.py, config_flow.py,
-  # coordinator.py and the two hpconst tables). Frozen rather than fixed, so
-  # the gate can be red about the NEXT one; each line comes out again once its
-  # findings are gone.
-  "BLE001",   # 2 blind `except Exception` around a Modbus write and a connect
-  "D401",     # 2 docstrings not in imperative mood
-  "D417",     # 1 undocumented argument (ModbusItem.batch)
-  "PERF401",  # 3 loops that could be comprehensions
-  "PLR0917",  # 3 item constructors with more than five positional arguments
-  "SLF001",   # 5 private-member reads across the item/client boundary
-  "TRY300",   # 3 returns inside try blocks
+  # Findings that were in the tree when `ruff check .` became a gate, frozen
+  # rather than fixed. A global ignore silences the rule everywhere, so each
+  # line here is a rule the gate does NOT enforce; a line comes out again
+  # once `ruff check --select <code>` is clean.
+  "BLE001",   # blind `except Exception`
+  "D401",     # docstrings not in imperative mood
+  "PERF401",  # loops that could be comprehensions
+  "PLR0917",  # item constructors with more than five positional arguments
+  "SLF001",   # private-member reads across the item/client boundary
+  "TRY300",   # returns inside try blocks
   "ASYNC109", # Async function definition with a `timeout` parameter Use `asyncio.timeout` instead
   "ASYNC110", # Use `asyncio.Event` instead of awaiting `asyncio.sleep` in a `while` loop
   "D202",     # No blank lines allowed after function docstring

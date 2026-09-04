@@ -77,11 +77,11 @@
     "tests": "stripped_of_its_settings"
   },
   {
-    "label": "items: the text lookup must return the text",
+    "label": "items: the key lookup must return the translation key",
     "path": "custom_components/weishaupt_modbus/items.py",
-    "old": "        return status.text if status else f\"unbekannt <{val}>\"\n",
-    "new": "        return status.translation_key if status else f\"unbekannt <{val}>\"\n",
-    "tests": "text_from_number"
+    "old": "        return status.translation_key if status else f\"unbekannt <{val}>\"\n",
+    "new": "        return status.text if status else f\"unbekannt <{val}>\"\n",
+    "tests": "translation_key_from_number"
   },
   {
     "label": "migration: the unique id must carry the postfix",

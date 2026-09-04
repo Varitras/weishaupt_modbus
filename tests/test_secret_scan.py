@@ -3,7 +3,7 @@
 The allowlist in .gitleaks.toml exists because the generic-api-key rule reads
 every `translation_key="..."` in the register table as a credential. Matched
 against the whole LINE, that exception also hid a real token that sat on the
-same line (audit 2026-09-03, reproduced with a synthetic key). It is matched
+same line (reproduced with a synthetic key). It is matched
 against the rule's match now - and this test is the proof that a second token
 on the line is still reported, and that a plain translation key is not.
 

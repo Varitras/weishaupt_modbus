@@ -119,7 +119,7 @@ async def test_a_second_poll_reaches_every_platform(hass, pump):
     """Every entity followed the poll only through its coordinator listener,
     and nothing exercised that listener: the callbacks could be emptied and
     the suite stayed green, while every entity in Home Assistant would keep
-    the reading of its first refresh forever (audit 2026-09-03)."""
+    the reading of its first refresh forever."""
     pump.load_raw(
         {
             "holding": {
