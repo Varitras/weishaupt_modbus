@@ -15,11 +15,20 @@ from pathlib import Path
 import sys
 
 
+def sorted_curves(known_t: list, known_y: list) -> tuple[list, list]:
+    """The flow temperatures ascending, each with the curve that belongs to it.
+
+    Sorting known_t alone reordered the temperatures away from their curves:
+    an unsorted raw grid then shipped the 35 degC curve under 55 degC.
+    """
+    pairs = sorted(zip(known_t, known_y, strict=True), key=lambda pair: pair[0])
+    return [t for t, _ in pairs], [ys for _, ys in pairs]
+
+
 def compile_grid(data: dict) -> dict[str, list[float]]:
     """A value per 0.1 °C of outside temperature for every flow curve."""
     known_x = data["known_x"]
-    known_y = data["known_y"]
-    known_t = sorted(data["known_t"])
+    known_t, known_y = sorted_curves(data["known_t"], data["known_y"])
     try:
         from scipy.interpolate import CubicSpline  # noqa: PLC0415
 
@@ -43,7 +52,7 @@ def main(argv: list[str]) -> int:
         return 2
     path = Path(argv[1])
     data = json.loads(path.read_text(encoding="utf-8"))
-    data["known_t"] = sorted(data["known_t"])
+    data["known_t"], data["known_y"] = sorted_curves(data["known_t"], data["known_y"])
     data["compiled_grid"] = compile_grid(data)
     path.write_text(json.dumps(data, separators=(",", ":")) + "\n", encoding="utf-8")
     print(f"compiled {path.name}: {len(data['compiled_grid'])} outside temperatures")

@@ -102,6 +102,10 @@ graphs in the Weishaupt documentation:
 - `weishaupt_wwp_ls_10_kennfeld.json`
 - `weishaupt_wwp_ls_8_kennfeld.json`
 
+Known gap: the two `wwp_ls` grids carry 0 W at -20 °C on the 55 °C flow curve,
+as read from the source graphs. The heat power is understated on very cold days
+for those models until someone with the documentation supplies the point.
+
 Pick the file matching your model. If yours is missing, copy the closest
 one, adjust `known_x`, `known_y` and `known_t` from your documentation and
 compile it once with `.github/scripts/compile_kennfeld.py` (needs `numpy`;

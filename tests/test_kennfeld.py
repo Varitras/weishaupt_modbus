@@ -208,3 +208,27 @@ async def test_a_broken_grid_file_disables_the_heat_power_only(
 
     assert power_map.map(0, 350) is None, why
     assert "Power map" in caplog.text or "Failed to load" in caplog.text
+
+
+def _compile_script():
+    spec = importlib.util.spec_from_file_location(
+        "compile_kennfeld",
+        pathlib.Path(__file__).resolve().parents[1]
+        / ".github"
+        / "scripts"
+        / "compile_kennfeld.py",
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_the_compile_script_keeps_each_curve_with_its_flow_temperature():
+    """It sorted known_t and left known_y in file order: an unsorted raw grid
+    got its curves swapped (audit 2026-09-03)."""
+    known_t, known_y = _compile_script().sorted_curves(
+        [55, 35], [[4000, 5000], [5000, 6000]]
+    )
+
+    assert known_t == [35, 55]
+    assert known_y == [[5000, 6000], [4000, 5000]]
