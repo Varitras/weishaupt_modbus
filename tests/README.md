@@ -62,6 +62,7 @@ because the thing it prevents happened, here or in a sibling project.
 | Guard | Holds |
 |---|---|
 | `test_budgets.py` | No module or function grows past its frozen budget |
+| `test_flow_messages.py` | Every abort reason and error key the config flow can show has a text in `strings.json` and all three translations, and none outlives its use |
 | `test_ci_matrix.py` | The CI matrix tests the Home Assistant releases it claims to: the declared minimum, and the newest final release (never a beta) |
 | `test_comment_narration.py` | No comment merely restates the code it sits on (heuristic; a genuine why-comment passes) |
 | `test_durations.py` | No single test quietly starts taking minutes (budget in `durations.py`, enforced from `conftest.py`), and a run that stops making progress is cut off rather than only measured |

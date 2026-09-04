@@ -29,6 +29,7 @@ PACKAGE = REPO / "custom_components" / "weishaupt_modbus"
 GUARD_FILES = {
     "test_budgets.py": "no module or function grows past its frozen budget",
     "test_ci_matrix.py": "the CI workflow tests the Home Assistant release it claims to",
+    "test_flow_messages.py": "every config-flow message has a text in every language",
     "test_comment_narration.py": "no comment merely restates the code it sits on",
     "test_durations.py": "no test quietly starts taking minutes",
     "test_imports.py": "every module imports outside the author's own tree",

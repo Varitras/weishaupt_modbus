@@ -334,13 +334,33 @@ SYS_BETRIEBSANZEIGE: list[StatusItem] = [
     ),
     StatusItem(
         number=37,
-        text="Heizbetrieb SGR",
-        translation_key="system_operationmode_heating_sgr",
+        text="Heizbetrieb SGR3",
+        translation_key="system_operationmode_heating_sgr3",
+    ),
+    StatusItem(
+        number=38,
+        text="Kühlbetrieb SGR3",
+        translation_key="system_operationmode_cooling_sgr3",
     ),
     StatusItem(
         number=39,
-        text="Warmwasserbetrieb SGR",
-        translation_key="system_operationmode_hotwater_sgr",
+        text="Warmwasserbetrieb SGR3",
+        translation_key="system_operationmode_hotwater_sgr3",
+    ),
+    StatusItem(
+        number=40,
+        text="Heizbetrieb SGR4",
+        translation_key="system_operationmode_heating_sgr4",
+    ),
+    StatusItem(
+        number=41,
+        text="Kühlbetrieb SGR4",
+        translation_key="system_operationmode_cooling_sgr4",
+    ),
+    StatusItem(
+        number=42,
+        text="Warmwasserbetrieb SGR4",
+        translation_key="system_operationmode_hotwater_sgr4",
     ),
     StatusItem(
         number=43,
@@ -514,13 +534,33 @@ HP_BETRIEB: list[StatusItem] = [
     ),
     StatusItem(
         number=37,
-        text="Heizbetrieb SGR",
-        translation_key="heatpump_operationmode_heating_sgr",
+        text="Heizbetrieb SGR3",
+        translation_key="heatpump_operationmode_heating_sgr3",
+    ),
+    StatusItem(
+        number=38,
+        text="Kühlbetrieb SGR3",
+        translation_key="heatpump_operationmode_cooling_sgr3",
     ),
     StatusItem(
         number=39,
-        text="Warmwasserbetrieb SGR",
-        translation_key="heatpump_operationmode_hotwater_sgr",
+        text="Warmwasserbetrieb SGR3",
+        translation_key="heatpump_operationmode_hotwater_sgr3",
+    ),
+    StatusItem(
+        number=40,
+        text="Heizbetrieb SGR4",
+        translation_key="heatpump_operationmode_heating_sgr4",
+    ),
+    StatusItem(
+        number=41,
+        text="Kühlbetrieb SGR4",
+        translation_key="heatpump_operationmode_cooling_sgr4",
+    ),
+    StatusItem(
+        number=42,
+        text="Warmwasserbetrieb SGR4",
+        translation_key="heatpump_operationmode_hotwater_sgr4",
     ),
     StatusItem(
         number=43,
@@ -646,8 +686,8 @@ HP_KONFIGURATION: list[StatusItem] = [
 WW_PUSH: list[StatusItem] = [
     StatusItem(number=0, text="AUS", translation_key="ww_push_aus"),
 ]
-# Fill WW_PUSH with values for every 5 Minutes
-for i in range(5, 240, 5):
+# Every five minutes up to the 240 the controller accepts (83807301).
+for i in range(5, 245, 5):
     WW_PUSH.append(
         StatusItem(
             number=i,

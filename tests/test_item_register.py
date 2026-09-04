@@ -298,3 +298,15 @@ def test_every_item_keeps_the_name_its_unique_id_is_built_from():
     gone = sorted(set(snapshot) - set(current))
     assert not renamed, f"item name(s) changed - unique ids move: {renamed}"
     assert not gone, f"item(s) gone - their entities orphan: {gone}"
+
+
+def test_the_status_lists_reach_as_far_as_the_data_point_list():
+    """Operating status 0-43 and DHW push up to 240 minutes, per 83807301
+    (1/2025-11). Codes 38 and 40-42 were missing and the push list stopped at
+    235, so a pump in one of those states showed the raw number."""
+    for statuses in (hpconst.SYS_BETRIEBSANZEIGE, hpconst.HP_BETRIEB):
+        assert {status.number for status in statuses} >= set(range(44))
+
+    push = {status.number for status in hpconst.WW_PUSH}
+
+    assert push == {0} | set(range(5, 245, 5))

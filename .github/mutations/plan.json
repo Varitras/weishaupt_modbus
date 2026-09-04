@@ -348,5 +348,19 @@
     "old": "                title=self._stored_data[CONF.HOST],\n",
     "new": "",
     "tests": "reconfigure_updates_the_entry_in_place"
+  },
+  {
+    "label": "translations: a message with no text must be caught",
+    "path": "custom_components/weishaupt_modbus/strings.json",
+    "old": "      \"postfix_in_use\": \"Another heat pump already uses this device postfix\",\n",
+    "new": "",
+    "tests": "every_message_the_flow_shows_has_a_text"
+  },
+  {
+    "label": "table: the DHW push list must reach 240 minutes",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "for i in range(5, 245, 5):\n",
+    "new": "for i in range(5, 240, 5):\n",
+    "tests": "status_lists_reach_as_far_as_the_data_point_list"
   }
 ]
