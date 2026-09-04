@@ -155,6 +155,29 @@ async def test_no_sensor_reads_as_none_and_marks_the_row_absent(pump, unit):
         assert _row(pump, address).is_invalid is True
 
 
+@pytest.mark.parametrize("word", [0x8100, 0x7FFF, 0xFDA7])
+async def test_a_temperature_word_outside_the_documented_domain_is_no_reading(
+    pump, unit, word
+):
+    """The register list documents -50.0 to 500.0 degC. 0x8100 decoded as
+    -3251.2 degC and 0x7FFF as 3276.7 degC - published as measurements, and
+    recorded. 0xFDA7 is -50.1 degC, one tenth below the domain."""
+    unit.load_raw({"input": {OUTSIDE_TEMPERATURE: word}})
+
+    await pump.async_update()
+
+    assert _row(pump, OUTSIDE_TEMPERATURE).state is None
+    assert _row(pump, OUTSIDE_TEMPERATURE).is_invalid is False
+
+
+async def test_the_coldest_documented_temperature_is_still_a_reading(pump, unit):
+    unit.load_raw({"input": {OUTSIDE_TEMPERATURE: 0xFE0C}})  # -500 = -50.0 degC
+
+    await pump.async_update()
+
+    assert _row(pump, OUTSIDE_TEMPERATURE).state == -500
+
+
 @pytest.mark.parametrize("word", [0x8001, 0x8002, 0x800A, 0x80FF])
 async def test_a_faulty_sensor_or_status_word_is_no_reading_but_present(
     pump, unit, word

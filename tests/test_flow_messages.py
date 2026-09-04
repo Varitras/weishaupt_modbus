@@ -49,8 +49,14 @@ def _flow_messages() -> set[str]:
 
 
 def _texts_of(name: str) -> set[str]:
-    config = json.loads((FLOW.parent / name).read_text(encoding="utf-8"))["config"]
-    return set(config.get("abort", {})) | set(config.get("error", {}))
+    """Abort and error keys of both the config and the options flow."""
+    translation = json.loads((FLOW.parent / name).read_text(encoding="utf-8"))
+    return {
+        key
+        for flow in ("config", "options")
+        for kind in ("abort", "error")
+        for key in translation.get(flow, {}).get(kind, {})
+    }
 
 
 @pytest.mark.parametrize("name", TRANSLATION_FILES)

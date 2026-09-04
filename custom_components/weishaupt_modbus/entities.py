@@ -87,13 +87,15 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
         else:
             if self._api_item.params is not None:
                 self._attr_native_unit_of_measurement = self._api_item.params.get(
-                    "unit", ""
+                    "unit"
                 )
                 self._attr_native_step = self._api_item.params.get("step", 1)
                 self._divider = self._api_item.params.get("divider", 1)
                 self._attr_device_class = self._api_item.params.get("deviceclass", None)
+                # A row without params is a whole number (a counter, a code):
+                # two decimals showed hours as 12.00 h.
                 self._attr_suggested_display_precision = self._api_item.params.get(
-                    "precision", 2
+                    "precision", 0
                 )
                 self._attr_native_min_value = self._api_item.params.get("min", -999999)
                 self._attr_native_max_value = self._api_item.params.get("max", 999999)

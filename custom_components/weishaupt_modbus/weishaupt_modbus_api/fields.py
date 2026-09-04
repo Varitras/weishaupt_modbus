@@ -13,6 +13,8 @@ from modbus_connection.model.fields import NumberField
 from .const import (
     PERCENTAGE_NO_VALUE,
     TEMPERATURE_NO_SENSOR,
+    TEMPERATURE_RAW_MAX,
+    TEMPERATURE_RAW_MIN,
     TEMPERATURE_RESERVED_BAND_END,
     TEMPERATURE_SENSOR_OPEN,
 )
@@ -35,7 +37,9 @@ class RegisterWord(NumberField[int]):
 
     ``absent`` is the word that means "no sensor" (the entity goes
     unavailable); ``no_reading`` is the closed range of words that mean "a
-    sensor, but no usable value" (the entity stays, with no state).
+    sensor, but no usable value" (the entity stays, with no state);
+    ``plausible`` is the closed range a decoded value may lie in - outside
+    it the word is a status or garbage, not a reading.
     """
 
     def __init__(
@@ -46,11 +50,13 @@ class RegisterWord(NumberField[int]):
         writable: bool,
         absent: int | None = None,
         no_reading: tuple[int, int] | None = None,
+        plausible: tuple[int, int] | None = None,
     ) -> None:
         """A word at ``address``; ``absent`` and ``no_reading`` are its sentinels."""
         super().__init__(address, signed=signed, writable=writable)
         self.absent = absent
         self.no_reading = no_reading
+        self.plausible = plausible
 
     def decode(self, words: list[int], scale_exponent: int | None = None) -> Any:
         """NO_SENSOR, None or the signed/unsigned word."""
@@ -62,7 +68,12 @@ class RegisterWord(NumberField[int]):
             and self.no_reading[0] <= raw <= self.no_reading[1]
         ):
             return None
-        return super().decode(words, scale_exponent)
+        value = super().decode(words, scale_exponent)
+        if self.plausible is not None and not (
+            self.plausible[0] <= value <= self.plausible[1]
+        ):
+            return None
+        return value
 
 
 def field_for(item: ModbusItem) -> RegisterWord:
@@ -75,6 +86,7 @@ def field_for(item: ModbusItem) -> RegisterWord:
             writable=writable,
             absent=TEMPERATURE_NO_SENSOR,
             no_reading=(TEMPERATURE_SENSOR_OPEN, TEMPERATURE_RESERVED_BAND_END),
+            plausible=(TEMPERATURE_RAW_MIN, TEMPERATURE_RAW_MAX),
         )
     if item.format == FORMATS.PERCENTAGE:
         return RegisterWord(

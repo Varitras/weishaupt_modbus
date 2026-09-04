@@ -65,6 +65,18 @@ def _temperature(params=None, address=30001):
     )
 
 
+def test_a_row_without_params_is_a_whole_number_without_a_unit():
+    """Counters and configuration codes carry no params. They used to get an
+    empty-string unit and two decimals: operating hours read 12.00 h."""
+    item = ModbusItem(
+        34103, "Schaltspiele 2. WEZ", FORMATS.NUMBER, TYPES.SENSOR, DEVICES.W2, "x"
+    )
+    sensor = entities.MySensorEntity(_entry(), item, FakeCoordinator(), 0)
+
+    assert sensor._attr_native_unit_of_measurement is None
+    assert sensor._attr_suggested_display_precision == 0
+
+
 # --- availability -----------------------------------------------------------
 
 

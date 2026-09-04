@@ -185,7 +185,7 @@ SYS_FEHLERFREI: list[StatusItem] = [
 
 SYS_BETRIEBSANZEIGE: list[StatusItem] = [
     StatusItem(
-        number=0, text="undefiniert", translation_key="system_operationmode_pvmode"
+        number=0, text="undefiniert", translation_key="system_operationmode_undefined"
     ),
     StatusItem(
         number=1, text="Relaistest", translation_key="system_operationmode_relaistest"
@@ -377,7 +377,7 @@ SYS_BETRIEBSART: list[StatusItem] = [
 
 HP_BETRIEB: list[StatusItem] = [
     StatusItem(
-        number=0, text="Undefiniert", translation_key="heatpump_operationmode_pvmode"
+        number=0, text="undefiniert", translation_key="heatpump_operationmode_undefined"
     ),
     StatusItem(
         number=1, text="Relaistest", translation_key="heatpump_operationmode_relaistest"

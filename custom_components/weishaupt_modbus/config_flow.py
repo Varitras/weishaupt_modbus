@@ -299,8 +299,15 @@ class OptionsFlow(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """The one options page."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            return self.async_create_entry(data=user_input)
+            warning = user_input[CONST.OPTION_WRITE_WARNING_PER_DAY]
+            limit = user_input[CONST.OPTION_WRITE_LIMIT_PER_DAY]
+            # Writes stop at the limit, so a warning above it never fires.
+            if 0 < limit < warning:
+                errors["base"] = "warning_above_limit"
+            else:
+                return self.async_create_entry(data=user_input)
 
         options = self.config_entry.options
         current_interval = options.get(
@@ -336,7 +343,7 @@ class OptionsFlow(config_entries.OptionsFlow):
                 ): writes_per_day,
             }
         )
-        return self.async_show_form(step_id="init", data_schema=schema)
+        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
 
 
 class InvalidHost(exceptions.HomeAssistantError):

@@ -675,16 +675,16 @@
                 "name": "{prefix}Adr. 31106"
             },
             "adr311062": {
-                "name": "{prefix}Adr. 311062"
+                "name": "{prefix}Adr. 31206"
             },
             "adr311063": {
-                "name": "{prefix}Adr. 311063"
+                "name": "{prefix}Adr. 31306"
             },
             "adr311064": {
-                "name": "{prefix}Adr. 311064"
+                "name": "{prefix}Adr. 31406"
             },
             "adr311065": {
-                "name": "{prefix}Adr. 311065"
+                "name": "{prefix}Adr. 31506"
             },
             "adr36801": {
                 "name": "{prefix}Adr. 36801"
@@ -724,7 +724,7 @@
             "betriebsanzeige": {
                 "name": "{prefix}Betriebsanzeige",
                 "state": {
-                    "system_operationmode_pvmode": "PV Modus",
+                    "system_operationmode_undefined": "Undefiniert",
                     "system_operationmode_relaistest": "Relaistest",
                     "system_operationmode_evu": "EVU-Sperre",
                     "system_operationmode_sgtariff": "SG Tarif",
@@ -1530,7 +1530,7 @@
             "wp_betrieb": {
                 "name": "{prefix}Betrieb",
                 "state": {
-                    "heatpump_operationmode_pvmode": "PV Modus",
+                    "heatpump_operationmode_undefined": "Undefiniert",
                     "heatpump_operationmode_relaistest": "Relaistest",
                     "heatpump_operationmode_evu": "EVU_SPERRE",
                     "heatpump_operationmode_sgtariff": "SG Tarif",
@@ -1644,6 +1644,9 @@
     },
     "title": "Weishaupt Wärmepumpe",
     "options": {
+        "error": {
+          "warning_above_limit": "Die Warnschwelle liegt über dem Tageslimit, Schreibzugriffe würden abgelehnt, bevor sie greifen könnte"
+        },
         "step": {
             "init": {
                 "data": {

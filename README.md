@@ -59,6 +59,10 @@ power map and the write counters. What is gone: this integration's own
 five-register block limit - the controller serves each address band in one
 read.
 
+One state string changed: operating status 0 (undefined) used to be
+published as `..._pvmode`; it is `..._undefined` now. An automation that
+matched on that state needs the new name.
+
 Upgrading: install 2.0 and restart. Existing entries migrate on first start
 (entry version 11); an entry keeps the host and port you configured. If the
 controller does not answer during setup, Home Assistant retries.

@@ -675,16 +675,16 @@
         "name": "{prefix}Adr. 31106"
       },
       "adr311062": {
-        "name": "{prefix}Adr. 311062"
+        "name": "{prefix}Adr. 31206"
       },
       "adr311063": {
-        "name": "{prefix}Adr. 311063"
+        "name": "{prefix}Adr. 31306"
       },
       "adr311064": {
-        "name": "{prefix}Adr. 311064"
+        "name": "{prefix}Adr. 31406"
       },
       "adr311065": {
-        "name": "{prefix}Adr. 311065"
+        "name": "{prefix}Adr. 31506"
       },
       "adr36801": {
         "name": "{prefix}Adr. 36801"
@@ -724,7 +724,7 @@
       "betriebsanzeige": {
         "name": "{prefix}Operation indicator",
         "state": {
-          "system_operationmode_pvmode": "PV Mode",
+          "system_operationmode_undefined": "Undefined",
           "system_operationmode_relaistest": "Relais test",
           "system_operationmode_evu": "Utility grid lock",
           "system_operationmode_sgtariff": "SG tariff",
@@ -1360,7 +1360,7 @@
         "name": "{prefix}Compressor suction gas temp"
       },
       "vl_praeziese_summenvorlauf_b7": {
-        "name": "{prefix}Feed temperature präzise(Summenvorlauf(B7))"
+        "name": "{prefix}Precise flow temperature (total flow B7)"
       },
       "vl_temp": {
         "name": "{prefix}Feed temperature"
@@ -1521,7 +1521,7 @@
       "wp_betrieb": {
         "name": "{prefix}Operation",
         "state": {
-          "heatpump_operationmode_pvmode": "PV Mode",
+          "heatpump_operationmode_undefined": "Undefined",
           "heatpump_operationmode_relaistest": "Relay test",
           "heatpump_operationmode_evu": "Utility grid lock",
           "heatpump_operationmode_sgtariff": "SG tariff",
@@ -1644,6 +1644,9 @@
   },
   "title": "Weishaupt Heat Pump",
   "options": {
+    "error": {
+      "warning_above_limit": "The warning threshold is above the daily limit, so writes would be refused before it could fire"
+    },
     "step": {
       "init": {
         "data": {

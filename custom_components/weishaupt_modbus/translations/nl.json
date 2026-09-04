@@ -675,16 +675,16 @@
         "name" : "{prefix}Adr. 31106"
       },
       "adr311062" : {
-        "name" : "{prefix}Adr. 311062"
+        "name" : "{prefix}Adr. 31206"
       },
       "adr311063" : {
-        "name" : "{prefix}Adr. 311063"
+        "name" : "{prefix}Adr. 31306"
       },
       "adr311064" : {
-        "name" : "{prefix}Adr. 311064"
+        "name" : "{prefix}Adr. 31406"
       },
       "adr311065" : {
-        "name" : "{prefix}Adr. 311065"
+        "name" : "{prefix}Adr. 31506"
       },
       "adr36801" : {
         "name" : "{prefix}Adr. 36801"
@@ -724,7 +724,7 @@
       "betriebsanzeige" : {
         "name" : "{prefix}Vermogensweergave",
         "state" : {
-          "system_operationmode_pvmode" : "PV-mode",
+          "system_operationmode_undefined" : "Ongedefinieerd",
           "system_operationmode_relaistest" : "relais-test",
           "system_operationmode_evu" : "EVU-blokkering",
           "system_operationmode_sgtariff" : "SG-tarief",
@@ -1509,7 +1509,7 @@
       "wp_betrieb" : {
         "name" : "{prefix}Operation",
         "state" : {
-          "heatpump_operationmode_pvmode" : "PV-mode",
+          "heatpump_operationmode_undefined" : "Ongedefinieerd",
           "heatpump_operationmode_relaistest" : "relais-test",
           "heatpump_operationmode_evu" : "EVU-blokkering",
           "heatpump_operationmode_sgtariff" : "SG-tarief",
@@ -1644,6 +1644,9 @@
   },
   "title" : "Weishaupt Warmtepomp",
   "options" : {
+    "error" : {
+      "warning_above_limit" : "De waarschuwingsdrempel ligt boven de daglimiet, schrijfacties zouden worden geweigerd voordat die kan afgaan"
+    },
     "step" : {
       "init" : {
         "data" : {

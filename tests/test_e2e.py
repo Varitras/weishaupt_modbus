@@ -461,6 +461,36 @@ async def test_the_options_flow_sets_the_poll_interval(hass, mock_modbus):
     assert entry.runtime_data.coordinator.update_interval.total_seconds() == 60
 
 
+async def test_a_warning_above_the_limit_is_refused(hass):
+    """Writes are refused at the limit, so a warning threshold above it
+    could never fire; the form said nothing and stored it."""
+    entry = await _setup(hass, _entry(hass))
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            CONST.OPTION_SCAN_INTERVAL: 60,
+            CONST.OPTION_WRITE_WARNING_PER_DAY: 60,
+            CONST.OPTION_WRITE_LIMIT_PER_DAY: 50,
+        },
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "warning_above_limit"}
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            CONST.OPTION_SCAN_INTERVAL: 60,
+            CONST.OPTION_WRITE_WARNING_PER_DAY: 50,
+            CONST.OPTION_WRITE_LIMIT_PER_DAY: 60,
+        },
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+
 async def test_an_out_of_range_poll_interval_is_refused(hass):
     entry = await _setup(hass, _entry(hass))
 

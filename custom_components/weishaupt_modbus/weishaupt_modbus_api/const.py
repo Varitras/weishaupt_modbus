@@ -11,6 +11,10 @@ TEMPERATURE_NO_SENSOR = 0x8000
 # status words (digital off/on at 0x800A/0x800B) - none of them a temperature.
 TEMPERATURE_SENSOR_OPEN = 0x8001
 TEMPERATURE_RESERVED_BAND_END = 0x80FF
+# The documented temperature domain, raw tenths: -50.0 to 500.0 degC. A word
+# outside it is not a temperature, whatever its sign bit says.
+TEMPERATURE_RAW_MIN = -500
+TEMPERATURE_RAW_MAX = 5000
 PERCENTAGE_NO_VALUE = 0xFFFF
 
 

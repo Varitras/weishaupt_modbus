@@ -369,5 +369,26 @@
     "old": "          GITLEAKS_CONFIG: ${{ github.workspace }}/.gitleaks.toml\n",
     "new": "",
     "tests": "secret_scan_in_ci_uses_the_repositorys_own_rules"
+  },
+  {
+    "label": "entity: a row without params must show whole numbers",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "                    \"precision\", 0\n",
+    "new": "                    \"precision\", 2\n",
+    "tests": "row_without_params_is_a_whole_number"
+  },
+  {
+    "label": "fields: a temperature outside the documented domain must be no reading",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/fields.py",
+    "old": "            plausible=(TEMPERATURE_RAW_MIN, TEMPERATURE_RAW_MAX),\n",
+    "new": "",
+    "tests": "outside_the_documented_domain_is_no_reading"
+  },
+  {
+    "label": "options: a warning above the limit must be refused",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "            if 0 < limit < warning:\n",
+    "new": "            if False:\n",
+    "tests": "warning_above_the_limit_is_refused"
   }
 ]
