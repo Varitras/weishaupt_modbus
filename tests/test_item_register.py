@@ -323,6 +323,10 @@ def test_the_constant_flow_temperatures_reach_the_controllers_own_range():
         assert rows[address].params["max"] >= 66
     assert rows[41112].params["min"] <= 7
     assert rows[41112].params["max"] >= 30
+    # DHW: normal from 20 degC, lowering from 10 degC (controller menu)
+    assert rows[42103].params["min"] == 20
+    assert rows[42104].params["min"] == 10
+    assert rows[42103].params["max"] == 80, "the DHW maximum setting reaches 80"
 
 
 def test_the_dhw_pump_variant_is_code_8():

@@ -1041,9 +1041,13 @@ PARAMS_WATERTEMP: dict = {
     "stateclass": SensorStateClass.MEASUREMENT,
 }
 
+# Lower bounds from the controller's own menu (WBB, 2026-09): lowering from
+# 10 degC, normal from 20 degC. The upper bound of "normal" is the DHW
+# maximum temperature setting, which has no register and itself goes up to
+# 80 degC - so 80 is the widest, and the controller clamps below it.
 PARAMS_WATERTEMP_LOW: dict = {
-    "min": 5.5,
-    "max": 60,
+    "min": 10,
+    "max": 80,
     "step": 0.5,
     "divider": 10,
     "deviceclass": SensorDeviceClass.TEMPERATURE,
@@ -1055,8 +1059,8 @@ PARAMS_WATERTEMP_LOW: dict = {
 }
 
 PARAMS_WATERTEMP_HIGH: dict = {
-    "min": 5.5,
-    "max": 60,
+    "min": 20,
+    "max": 80,
     "step": 0.5,
     "divider": 10,
     "deviceclass": SensorDeviceClass.TEMPERATURE,

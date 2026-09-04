@@ -425,5 +425,12 @@
     "old": "        value = self._api_item.last_setting\n        if value is None:\n",
     "new": "        value = None\n        if value is None:\n",
     "tests": "on_restores_the_value"
+  },
+  {
+    "label": "table: the DHW normal setpoint must start at the controller's 20 degC",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "PARAMS_WATERTEMP_HIGH: dict = {\n    \"min\": 20,\n",
+    "new": "PARAMS_WATERTEMP_HIGH: dict = {\n    \"min\": 5.5,\n",
+    "tests": "constant_flow_temperatures_reach"
   }
 ]
