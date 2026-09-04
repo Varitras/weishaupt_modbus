@@ -313,5 +313,26 @@
     "old": "        except (OSError, ValueError) as err:\n",
     "new": "        except OSError as err:\n",
     "tests": "broken_grid_file_disables"
+  },
+  {
+    "label": "select: a poll must reach the entity",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        self._attr_current_option = self.translate_val_select(self._api_item.state)\n        self.async_write_ha_state()\n",
+    "new": "        self.async_write_ha_state()\n",
+    "tests": "second_poll_reaches_every_platform"
+  },
+  {
+    "label": "number: a poll must reach the entity",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        self._attr_native_value = self.translate_val_number(self._api_item.state)\n        self.async_write_ha_state()\n\n    async def async_set_native_value",
+    "new": "        self.async_write_ha_state()\n\n    async def async_set_native_value",
+    "tests": "second_poll_reaches_every_platform"
+  },
+  {
+    "label": "bands: a band must not reach past the documented registers",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "    (34101, 34107),\n",
+    "new": "    (34101, 34110),\n",
+    "tests": "bands_cover_exactly_the_documented_registers"
   }
 ]

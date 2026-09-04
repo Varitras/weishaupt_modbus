@@ -30,6 +30,11 @@ pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
 
 OUTSIDE_TEMPERATURE = 30001
 OUTSIDE_TEMPERATURE_UNIQUE_ID = "weishaupt_wbbAussentemperatur"
+SYSTEM_OPERATION_MODE = 40001
+SYSTEM_OPERATION_MODE_UNIQUE_ID = "weishaupt_wbbSystembetriebsart"
+COMFORT_ROOM_TEMPERATURE = 41105
+COMFORT_ROOM_TEMPERATURE_UNIQUE_ID = "weishaupt_wbbRaumsolltemperatur Komfort"
+SUMMER = 3
 
 BASE_DATA = {
     CONF.HOST: "192.0.2.10",
@@ -108,6 +113,48 @@ async def test_a_register_without_a_sensor_is_unavailable_not_unknown(hass, pump
     await hass.async_block_till_done()
 
     assert hass.states.get(entity_id).state == "12.3"
+
+
+async def test_a_second_poll_reaches_every_platform(hass, pump):
+    """Every entity followed the poll only through its coordinator listener,
+    and nothing exercised that listener: the callbacks could be emptied and
+    the suite stayed green, while every entity in Home Assistant would keep
+    the reading of its first refresh forever (audit 2026-09-03)."""
+    pump.load_raw(
+        {
+            "holding": {
+                SYSTEM_OPERATION_MODE: 0,
+                COMFORT_ROOM_TEMPERATURE: 215,
+            }
+        }
+    )
+    entry = await _setup(hass, _entry(hass))
+    registry = er.async_get(hass)
+    entity_ids = {
+        platform: registry.async_get_entity_id(platform, CONST.DOMAIN, unique_id)
+        for platform, unique_id in (
+            ("sensor", OUTSIDE_TEMPERATURE_UNIQUE_ID),
+            ("select", SYSTEM_OPERATION_MODE_UNIQUE_ID),
+            ("number", COMFORT_ROOM_TEMPERATURE_UNIQUE_ID),
+        )
+    }
+    assert hass.states.get(entity_ids["select"]).state == "sys_operationmode_automatic"
+
+    pump.load_raw(
+        {
+            "input": {OUTSIDE_TEMPERATURE: 456},
+            "holding": {
+                SYSTEM_OPERATION_MODE: SUMMER,
+                COMFORT_ROOM_TEMPERATURE: 230,
+            },
+        }
+    )
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert hass.states.get(entity_ids["sensor"]).state == "45.6"
+    assert hass.states.get(entity_ids["select"]).state == "sys_operationmode_summer"
+    assert hass.states.get(entity_ids["number"]).state == "23.0"
 
 
 async def test_a_refused_band_leaves_its_entities_unavailable(hass, pump):

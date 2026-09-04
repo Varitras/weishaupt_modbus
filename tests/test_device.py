@@ -6,6 +6,8 @@ tmodbus backend takes, minus the wire.
 
 import copy
 import itertools
+import json
+import pathlib
 
 from modbus_connection import (
     IllegalDataAddressError,
@@ -20,6 +22,7 @@ from custom_components.weishaupt_modbus.items import ModbusItem
 from custom_components.weishaupt_modbus.weishaupt_modbus_api import hpconst
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.device import (
     BANDS,
+    HOLDING_REGISTERS,
     WeishauptHeatPump,
     band_of,
 )
@@ -51,6 +54,18 @@ def pump(unit):
     return WeishauptHeatPump(unit, _all_items(), WriteBudget(warn_at=0, limit=0))
 
 
+def _documented_registers() -> set[int]:
+    """Every address the manufacturer documents, from the checked-in list.
+
+    Read from a file rather than derived from BANDS: a guard whose oracle
+    is the thing it guards passes whatever BANDS happens to say (audit
+    2026-09-03). Changing a band now means changing this file too, and
+    that means going back to the data-point list.
+    """
+    path = pathlib.Path(__file__).with_name("documented_registers.json")
+    return set(json.loads(path.read_text(encoding="utf-8"))["addresses"])
+
+
 def _row(pump, address):
     return next(item for item in pump.items if item.address == address)
 
@@ -69,6 +84,25 @@ def test_every_table_register_lies_in_a_band():
     for item in _all_items():
         if item.type != TYPES.SENSOR_CALC:
             band_of(item.address)
+
+
+def test_the_bands_cover_exactly_the_documented_registers():
+    """A band reaching past the last documented register makes the block
+    read cross into addresses the controller does not serve, and the whole
+    band answers a broken exception frame; a band that stops short leaves
+    documented rows unreadable."""
+    covered = {address for low, high in BANDS for address in range(low, high + 1)}
+
+    assert covered == _documented_registers()
+
+
+def test_no_band_mixes_input_and_holding_registers():
+    """One band is one block read, and the two spaces take different
+    function codes (FC4 and FC3)."""
+    for low, high in BANDS:
+        assert (low in HOLDING_REGISTERS) == (high in HOLDING_REGISTERS), (
+            f"band {low}-{high} spans both register spaces"
+        )
 
 
 def test_an_address_outside_every_band_is_refused():
