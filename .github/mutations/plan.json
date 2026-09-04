@@ -42,11 +42,11 @@
     "tests": "select_options_are_the_status"
   },
   {
-    "label": "entity: a division by zero in a formula must read as zero",
-    "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "        except ZeroDivisionError:\n            return 0.0",
-    "new": "        except ZeroDivisionError:\n            return None",
-    "tests": "division_by_zero"
+    "label": "calculation: a performance factor without electric energy must be undefined",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/calculations.py",
+    "old": "    if electric_energy == 0:\n        return None\n",
+    "new": "    if electric_energy == 0:\n        return 0.0\n",
+    "tests": "undefined_without_electric_energy"
   },
   {
     "label": "entity: a dynamic maximum must be scaled by the divider",
@@ -299,5 +299,19 @@
     "old": "        unique_id = None\n",
     "new": "        pass\n",
     "tests": "two_legacy_entries_on_one_pump"
+  },
+  {
+    "label": "power map: an empty grid must read as None, not 0 W",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "        if not self._compiled_grid:\n            return None\n",
+    "new": "        if not self._compiled_grid:\n            return 0.0\n",
+    "tests": "empty_grid_reads_as_none"
+  },
+  {
+    "label": "power map: a broken grid file must not raise out of setup",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "        except (OSError, ValueError) as err:\n",
+    "new": "        except OSError as err:\n",
+    "tests": "broken_grid_file_disables"
   }
 ]

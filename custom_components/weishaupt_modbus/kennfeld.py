@@ -27,6 +27,21 @@ def _load_json(path: Path) -> dict[str, Any]:
     return loaded
 
 
+def _looks_like_a_grid(data: Any) -> bool:
+    """Whether the file has the shape map() indexes without checking each call."""
+    if not isinstance(data, dict):
+        return False
+    known_t = data.get("known_t")
+    grid = data.get("compiled_grid")
+    if not isinstance(known_t, list) or len(known_t) < 2:
+        return False
+    if grid is None:
+        return True  # reported separately: not compiled
+    return isinstance(grid, dict) and all(
+        isinstance(row, list) and len(row) == len(known_t) for row in grid.values()
+    )
+
+
 def powermap_file_name(entry_data: Mapping[str, Any]) -> str:
     """The preview under www/local - one per entry, so two pumps do not race for it."""
     return f"{CONST.DOMAIN}_powermap{device_postfix(entry_data)}.svg"
@@ -50,8 +65,18 @@ class PowerMap:
         )
         try:
             data = await self.hass.async_add_executor_job(_load_json, filepath)
-        except OSError as err:
+        except (OSError, ValueError) as err:
+            # ValueError covers a corrupt JSON file: the heat power is one
+            # sensor, not a reason to fail the whole entry's setup.
             _LOGGER.error("Failed to load power map file %s: %s", filepath, err)
+            return
+        if not _looks_like_a_grid(data):
+            _LOGGER.error(
+                "Power map %s is not a compiled grid (known_t with at least two "
+                "flow temperatures, one value per curve and outside temperature). "
+                "The heat power stays unknown",
+                filepath.name,
+            )
             return
         if "compiled_grid" not in data:
             _LOGGER.error(
@@ -167,10 +192,14 @@ class PowerMap:
                 "Failed to copy power map image to local www directory: %s", err
             )
 
-    def map(self, outside_temp_raw: float, flow_temp_raw: float) -> float:
-        """Map raw temperature values using 1D flow temperature interpolation on the compact grid."""
+    def map(self, outside_temp_raw: float, flow_temp_raw: float) -> float | None:
+        """Rated power at an outside and flow temperature (raw tenths), interpolated.
+
+        None without a map: 0 W here became a recorded heat output of zero for
+        a configuration problem.
+        """
         if not self._compiled_grid:
-            return 0.0
+            return None
 
         # Convert flow temp to actual °C for fractional interpolation
         flow_temp = flow_temp_raw / 10
@@ -187,7 +216,7 @@ class PowerMap:
         # 1. Direct O(1) outside temperature key lookup
         vals = self._compiled_grid.get(str(outside_raw))
         if not vals:
-            return 0.0
+            return None
 
         # 2. Find surrounding Flow Temp curve intervals in known_t
         y0_idx = 0

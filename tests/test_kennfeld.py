@@ -56,11 +56,13 @@ def test_outside_temperature_is_clamped_to_the_grid():
     assert _power_map().map(-999, 350) == 5000.0
 
 
-def test_an_empty_grid_reads_as_zero():
+def test_an_empty_grid_reads_as_none_not_zero():
+    """A missing or uncompiled map used to read as 0 W - recorded as a real
+    heat output of zero (audit 2026-09-03)."""
     power_map = _power_map()
     power_map._compiled_grid = {}
 
-    assert power_map.map(0, 350) == 0.0
+    assert power_map.map(0, 350) is None
 
 
 def test_the_fallback_path_is_the_shipped_grid_folder():
@@ -100,7 +102,11 @@ async def test_a_grid_that_is_not_compiled_is_refused_not_compiled(
     """Compiling needs numpy, which no user has; the integration used to try,
     fail on most hosts and leave the heat power at zero with three warnings.
     Now it says what is missing and leaves the map empty."""
-    raw = {"known_x": [-10, 10], "known_y": [[5000, 6000]], "known_t": [35]}
+    raw = {
+        "known_x": [-10, 10],
+        "known_y": [[5000, 6000], [4000, 5000]],
+        "known_t": [35, 55],
+    }
     (tmp_path / "raw_kennfeld.json").write_text(json.dumps(raw), encoding="utf-8")
     entry = SimpleNamespace(
         data={CONF.KENNFELD_FILE: "raw_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
@@ -115,7 +121,7 @@ async def test_a_grid_that_is_not_compiled_is_refused_not_compiled(
     assert "compiled_grid" not in json.loads(
         (tmp_path / "raw_kennfeld.json").read_text(encoding="utf-8")
     ), "the integration compiled the grid after all"
-    assert power_map.map(0, 350) == 0.0
+    assert power_map.map(0, 350) is None
 
 
 def test_importing_the_module_does_not_warn_about_optional_libraries(
@@ -170,3 +176,35 @@ def test_shipped_plots_are_static_pictures():
         text = plot.read_text(encoding="utf-8")
         assert "<script" not in text, f"{plot.name} carries script"
         assert not re.search(r'href="https?://', text), f"{plot.name} links to the web"
+
+
+@pytest.mark.parametrize(
+    ("content", "why"),
+    [
+        ("{not json", "corrupt JSON"),
+        ('{"known_t": [35], "compiled_grid": {"0": [1.0]}}', "one flow curve only"),
+        (
+            '{"known_t": [35, 55], "compiled_grid": {"0": [1.0]}}',
+            "row shorter than known_t",
+        ),
+        ("[1, 2, 3]", "not an object"),
+    ],
+)
+async def test_a_broken_grid_file_disables_the_heat_power_only(
+    hass, caplog, tmp_path, monkeypatch, content, why
+):
+    """A corrupt custom grid raised out of setup and Home Assistant put the
+    whole entry into SETUP_ERROR - every Modbus entity gone for one optional
+    calculated sensor (audit 2026-09-03)."""
+    (tmp_path / "bad_kennfeld.json").write_text(content, encoding="utf-8")
+    entry = SimpleNamespace(
+        data={CONF.KENNFELD_FILE: "bad_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+    )
+    monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
+    power_map = PowerMap(entry, hass)
+
+    with caplog.at_level(logging.ERROR, logger=kennfeld.__name__):
+        await power_map.initialize()
+
+    assert power_map.map(0, 350) is None, why
+    assert "Power map" in caplog.text or "Failed to load" in caplog.text

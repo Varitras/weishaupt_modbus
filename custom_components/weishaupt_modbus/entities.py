@@ -246,10 +246,9 @@ class MyCalcSensorEntity(MySensorEntity):
         arguments: list[Any] = [own / self._divider, *siblings]
         if params.get("uses_power_map"):
             arguments.append(self._config_entry.runtime_data.powermap)
-        try:
-            result = formula(*arguments)
-        except ZeroDivisionError:
-            return 0.0
+        result = formula(*arguments)
+        if result is None:
+            return None
         return float(round(result, self._attr_suggested_display_precision))
 
 

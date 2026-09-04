@@ -12,6 +12,9 @@ import pytest
 from custom_components.weishaupt_modbus import entities
 from custom_components.weishaupt_modbus.const import CONF, DEVICES, FORMATS, TYPES
 from custom_components.weishaupt_modbus.items import ModbusItem
+from custom_components.weishaupt_modbus.weishaupt_modbus_api.calculations import (
+    performance_factor,
+)
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.hpconst import (
     PARAMS_CALCPOWER,
     PARAMS_CALCSPREIZUNG,
@@ -344,7 +347,9 @@ def test_a_formula_with_an_absent_operand_reads_as_none():
     assert sensor.translate_val(None) is None
 
 
-def test_a_division_by_zero_in_the_formula_reads_as_zero():
+def test_a_formula_without_a_value_reads_as_none_not_zero():
+    """performance_factor with 0 kWh electric energy - the first poll of a
+    new day - used to publish a coefficient of 0.0 (audit 2026-09-03)."""
     item = ModbusItem(
         33111,
         "x",
@@ -352,13 +357,33 @@ def test_a_division_by_zero_in_the_formula_reads_as_zero():
         TYPES.SENSOR_CALC,
         DEVICES.WP,
         "k",
-        params={"unit": "W", "precision": 0, "calculation": lambda own: 1 / own},
+        params={"unit": "W", "precision": 0, "calculation": lambda own: None},
     )
     sensor = entities.MyCalcSensorEntity(
         _entry(), item, FakeCoordinator(cache={33111: 0}), 0
     )
 
-    assert sensor.translate_val(None) == 0.0
+    assert sensor.translate_val(None) is None
+
+
+def test_the_heat_output_is_unknown_without_a_power_map():
+    item = ModbusItem(
+        33103,
+        "Wärmeleistung",
+        FORMATS.NUMBER,
+        TYPES.SENSOR_CALC,
+        DEVICES.WP,
+        "waermeleistung",
+        params=PARAMS_CALCPOWER,
+    )
+    coordinator = FakeCoordinator(
+        values={"luftansautgemp": 100, "vl_temp": 350}, cache={33103: 50}
+    )
+    entry = _entry()
+    entry.runtime_data.powermap = SimpleNamespace(map=lambda outside, flow: None)
+    sensor = entities.MyCalcSensorEntity(entry, item, coordinator, 0)
+
+    assert sensor.translate_val(None) is None
 
 
 def test_a_calculated_sensor_whose_own_register_is_absent_reads_as_none():
@@ -414,3 +439,8 @@ def test_a_user_value_becomes_the_nearest_register_word(value, divider, word):
     """int(1.15 * 100) is 114: the heating curve the user set was written one
     step too low, silently."""
     assert entities.to_register_value(value, divider) == word
+
+
+def test_the_performance_factor_is_undefined_without_electric_energy():
+    assert performance_factor(12.0, 0) is None
+    assert performance_factor(12.0, 4) == 3.0
