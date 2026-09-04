@@ -15,6 +15,4 @@ regexes = [
     # with a letter beyond a-f or an underscore - a hex token has neither.
     '''^key="[a-z0-9_]*[g-z_][a-z0-9_]*"$''',
 ]
-# No path allowlist: it would also hide a NEW leak under that path. The ten
-# findings in the shared upstream history are excluded by fingerprint in
-# .gitleaksignore.
+# No path allowlist: it would also hide a NEW leak under that path.
