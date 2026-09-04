@@ -18,13 +18,13 @@ updates:
 
   # The Python requirements: requirements.txt (what the integration needs at
   # runtime) and requirements_test.txt (the gates). Dependabot does not read
-  # manifest.json, and tests/test_requirements.py holds it equal to
-  # requirements.txt - so a runtime bump here is finished only once the same
-  # pin is copied into manifest.json in the same pull request.
+  # manifest.json, and tests/test_requirements.py holds the manifest to a
+  # subset of requirements.txt - so a runtime bump here is finished only once
+  # the same line is copied into manifest.json in the same pull request.
   #
-  # modbus-connection is excluded on purpose: its pin has to match the one
-  # Home Assistant's own modbus integration ships, so it moves with the
-  # declared minimum Home Assistant, never on its own.
+  # The three modbus packages are excluded on purpose: Home Assistant's own
+  # modbus integration installs them and pins them, so they move with the
+  # declared minimum Home Assistant, never on their own.
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
@@ -35,5 +35,7 @@ updates:
           - "*"
     ignore:
       - dependency-name: "modbus-connection"
+      - dependency-name: "tmodbus"
+      - dependency-name: "pymodbus"
     commit-message:
       prefix: "deps"

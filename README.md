@@ -42,18 +42,22 @@ The Weishaupt controller accepts a single Modbus TCP connection. Up to 1.x the
 integration opened that connection itself, with its own reconnect logic and
 block planner. Since 2.0 it asks Home Assistant's `modbus` integration for a
 *unit* on the connection to the controller's address. Home Assistant keeps one
-connection per endpoint and serialises everything that goes over it, so this
-integration and, for example, a YAML `modbus` sensor on the same controller
-share the socket instead of fighting over it. The wire is handled by the
+connection per endpoint and serialises everything that goes over it, so two
+entries of this integration - or another integration asking for the same
+endpoint - queue up behind one link instead of fighting over it. A hub from
+the YAML `modbus:` configuration is *not* part of that: it opens a client of
+its own, so pointing one at the same controller still costs the second
+connection the controller does not have. The wire is handled by the
 [modbus-connection](https://github.com/home-assistant-libs/modbus-connection)
 library (tmodbus backend), which Home Assistant installs with its `modbus`
 integration.
 
 What stays the same: the entities, their unique ids and history, the entity
 ids you chose, the options (poll interval, EEPROM write warning and limit), the
-power map and the write counters. What is gone: the `pymodbus` requirement,
-the integration's own reconnect and back-off logic, and the five-register
-block limit - the controller serves each address band in one read.
+power map and the write counters. What is gone: this integration's own
+`pymodbus` requirement, its reconnect and back-off logic, and the
+five-register block limit - the controller serves each address band in one
+read.
 
 Upgrading: install 2.0 and restart. Existing entries migrate on first start
 (entry version 11); an entry keeps the host and port you configured. If the

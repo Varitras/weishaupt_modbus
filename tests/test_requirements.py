@@ -1,11 +1,16 @@
-"""The two places that name the runtime dependencies say the same thing.
+"""Everything the manifest asks for is installed for the tests as well.
 
 Home Assistant installs an integration's dependencies from `manifest.json`
-and from nothing else. `requirements.txt` repeats the same lines so the
-modules import during test collection - two copies of one list. On adoption
-they disagreed in four of six entries (a lower pymodbus bound, a matplotlib
-pin the code no longer uses, no httpx, no pygal), which is what an unheld
-copy looks like after a year.
+and from nothing else. `requirements.txt` repeats those lines so the modules
+import during test collection. On adoption the two disagreed in four of six
+entries (a lower pymodbus bound, a matplotlib pin the code no longer uses,
+no httpx, no pygal), which is what an unheld copy looks like after a year.
+
+A subset, not an equal set: the test environment also installs what Home
+Assistant's own modbus integration brings along (tmodbus, pymodbus), pinned
+to the versions core 2026.9 ships. Those pins must not be in the manifest -
+a custom component that pins them differently from core cannot be installed
+beside it.
 
 Dependabot is what makes that drift expensive. It understands requirements
 files and not Home Assistant manifests, so a security update raises the bound
@@ -41,19 +46,36 @@ def _manifest() -> dict:
     return json.loads(manifests[0].read_text(encoding="utf-8"))
 
 
-def test_the_manifest_and_the_runtime_file_name_the_same_requirements():
+def test_every_manifest_requirement_is_installed_for_the_tests():
     """A bound raised in only one of them is a fix nobody receives."""
     installed_by_home_assistant = set(_manifest()["requirements"])
     installed_for_the_tests = _requirements_of(
         RUNTIME_REQUIREMENTS.read_text(encoding="utf-8")
     )
 
-    assert installed_by_home_assistant == installed_for_the_tests, (
-        f"manifest.json and requirements.txt disagree: "
-        f"{installed_by_home_assistant ^ installed_for_the_tests}. Home "
+    assert installed_by_home_assistant <= installed_for_the_tests, (
+        f"requirements.txt is missing "
+        f"{installed_by_home_assistant - installed_for_the_tests}. Home "
         "Assistant installs from the manifest and reads nothing else, so a "
-        "version changed in only one place never reaches an installation. "
-        "Change both."
+        "version changed in only one place is never tested. Change both."
+    )
+
+
+def test_the_manifest_pins_nothing_the_core_modbus_integration_owns():
+    """`modbus-connection`, `tmodbus` and `pymodbus` belong to the modbus
+    integration this one depends on. An `==` pin on any of them in a custom
+    component collides with core's own pin and the integration cannot be
+    installed at all."""
+    core_owned = ("modbus-connection", "tmodbus", "pymodbus")
+    pinned = [
+        requirement
+        for requirement in _manifest()["requirements"]
+        if "==" in requirement and requirement.split("[")[0].split("=")[0] in core_owned
+    ]
+
+    assert not pinned, (
+        f"{pinned} pinned in the manifest; core pins the same packages and "
+        "pip cannot satisfy both. Use a lower bound."
     )
 
 

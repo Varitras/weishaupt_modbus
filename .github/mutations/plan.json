@@ -334,5 +334,12 @@
     "old": "    (34101, 34107),\n",
     "new": "    (34101, 34110),\n",
     "tests": "bands_cover_exactly_the_documented_registers"
+  },
+  {
+    "label": "manifest: a package core pins must not be pinned here too",
+    "path": "custom_components/weishaupt_modbus/manifest.json",
+    "old": "    \"modbus-connection[tmodbus]>=4.10.0\",\n",
+    "new": "    \"modbus-connection[tmodbus]==4.10.0\",\n",
+    "tests": "pins_nothing_the_core_modbus_integration_owns"
   }
 ]
