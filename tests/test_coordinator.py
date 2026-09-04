@@ -4,6 +4,7 @@ It maps the client's register cache onto the item list. Driven with a real
 Home Assistant core (the `hass` fixture) and a fake client.
 """
 
+import copy
 from types import SimpleNamespace
 
 from modbus_connection import ModbusConnectionError
@@ -71,7 +72,13 @@ def _modbus_coordinator(hass, entry, device, items):
 
 async def test_the_cached_register_value_reaches_the_item(hass):
     entry = _entry(hass)
-    items = [item for item in MODBUS_SYS_ITEMS if item.address == OUTSIDE_TEMPERATURE]
+    # A copy: the rows carry the last poll's state, and a test that writes
+    # into the module's own table leaves it there for every later test.
+    items = [
+        copy.deepcopy(item)
+        for item in MODBUS_SYS_ITEMS
+        if item.address == OUTSIDE_TEMPERATURE
+    ]
     client = FakeDevice(items, {OUTSIDE_TEMPERATURE: 123})
     coordinator = _modbus_coordinator(hass, entry, client, items)
 

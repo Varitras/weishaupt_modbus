@@ -7,6 +7,7 @@ on:
     branches:
       - main
       - dev
+      - test-suite
   pull_request:
   # A quiet branch is rescanned with the current queries once a week.
   schedule:

@@ -164,6 +164,9 @@ async def test_reconfigure_updates_the_entry_in_place(hass):
     assert result["reason"] == "reconfigure_successful"
     assert entry.data[CONF.HOST] == "192.0.2.20"
     assert entry.data[CONF.KENNFELD_FILE] == CONST.DEF_KENNFELDFILE
+    # The title is the host, and a moved pump that keeps the old one in the
+    # integration list is the wrong address in the only place a user looks.
+    assert entry.title == "192.0.2.20"
 
 
 async def test_a_host_without_a_pump_is_reported(hass, mock_modbus):

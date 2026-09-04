@@ -230,6 +230,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 self._reconfigure_entry,
                 data=self._stored_data,
                 unique_id=new_unique_id,
+                title=self._stored_data[CONF.HOST],
             )
             return self.async_abort(reason="reconfigure_successful")
 

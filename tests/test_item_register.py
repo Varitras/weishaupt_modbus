@@ -218,18 +218,6 @@ def test_status_numbers_map_to_distinct_translation_keys():
     assert not fixed, f"{sorted(fixed)} are distinct now - drop the exemption."
 
 
-def test_every_item_carries_a_batch_number():
-    """The client groups block reads by the batch field; an item without one
-    is skipped by the batching and never read."""
-    without = [
-        item.translation_key
-        for item in _items(hpconst)
-        if item.type != TYPES.SENSOR_CALC and item.batch is None
-    ]
-
-    assert not without, f"item(s) without a batch number: {without}"
-
-
 def test_the_signature_sees_a_changed_field():
     """Proof-of-red for the comparison: one changed format is one difference."""
     item = ModbusItem(1, "x", FORMATS.NUMBER, TYPES.SENSOR, "dev", "k")

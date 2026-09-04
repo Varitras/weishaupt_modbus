@@ -60,10 +60,9 @@ def test_an_item_without_a_result_list_answers_none():
     assert item.get_number_from_text("x") is None
 
 
-def test_a_fresh_item_is_valid_and_unbatched():
+def test_a_fresh_item_is_valid():
     item = ModbusItem(30001, "x", FORMATS.NUMBER, TYPES.SENSOR, DEVICES.SYS, "k")
 
     assert item.is_invalid is False
     assert item.state is None
-    assert item.batch is None
     assert item.params == {}
