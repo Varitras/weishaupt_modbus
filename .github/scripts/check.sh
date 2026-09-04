@@ -26,6 +26,15 @@ echo "== mypy =="
 echo "== pip-audit =="
 "$PYTHON" -m pip_audit -r requirements.txt --strict
 
+# The whole history, fail-closed: a missing scanner is a failed gate, not a
+# skipped one - this script says "all gates passed" and has to mean it.
+echo "== gitleaks =="
+if ! command -v gitleaks >/dev/null 2>&1; then
+    echo "gitleaks is not installed; install it (apt/brew/winget) - the secret gate cannot be skipped" >&2
+    exit 1
+fi
+gitleaks detect --no-banner --redact --source .
+
 echo "== pytest =="
 # -m "" cancels the `-m "not e2e"` default from pyproject.toml, so the slow
 # end-to-end tests against a real Home Assistant run here too.

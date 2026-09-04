@@ -36,7 +36,8 @@ run_gates() {
     fi
     # `detect`, not `git`: the Ubuntu package ships 8.16, which predates the
     # `git` subcommand; `detect` exists in both old and current releases.
-    gitleaks detect --no-banner --source .
+    # --redact: a hit must not print the secret it found into the terminal.
+    gitleaks detect --no-banner --redact --source .
 }
 
 case "$(uname -s)" in

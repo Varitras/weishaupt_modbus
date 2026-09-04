@@ -54,9 +54,11 @@ jobs:
         run: pip-audit -r requirements.txt --strict
 
   gitleaks:
-    # The whole history, on every push: the pre-push hook is per clone and
-    # opt-in. Known historical findings are listed by fingerprint in
-    # .gitleaksignore, nothing is allowlisted by path.
+    # The commits of this push (the action scans the push range on a push
+    # event); the whole history runs weekly in gitleaks.yml. The pre-push
+    # hook is per clone and opt-in, so CI has to look too. Known historical
+    # findings are listed by fingerprint in .gitleaksignore, nothing is
+    # allowlisted by path.
     name: gitleaks
     runs-on: "ubuntu-latest"
     steps:

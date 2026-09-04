@@ -1,18 +1,20 @@
-# gitleaks configuration for the pre-push secret scan (.githooks/pre-push).
+# gitleaks configuration: the pre-push hook, check.sh and the CI jobs all use it.
 
 [extend]
 useDefault = true
 
 [allowlist]
 description = "What the default rules flag here and is not a secret"
-# Match the regexes against the whole line, not the captured "secret": the
-# captured part of `translation_key="hp_konf"` is just `hp_konf`, which no
-# pattern could tell from a real token.
-regexTarget = "line"
+# Matched against the rule's MATCH (e.g. `key="hp_konf"` out of
+# `translation_key="hp_konf"`), never against the whole line: a line-wide
+# allowlist hid a real token that sat on the same line as a translation key.
+regexTarget = "match"
 regexes = [
-    # ModbusItem(..., translation_key="...") - the generic-api-key rule reads
-    # `key="..."` as a credential; these are entity translation keys.
-    '''translation_key="[a-z0-9_]+"''',
+    # The generic-api-key rule reads `key="..."` as a credential; these are
+    # entity translation keys: lowercase words, digits and underscores, always
+    # with a letter beyond a-f or an underscore - a hex token has neither.
+    '''^key="[a-z0-9_]*[g-z_][a-z0-9_]*"$''',
 ]
-# Historical findings are excluded one by one, by fingerprint, in
-# .gitleaksignore - a path allowlist would also hide a NEW .storage leak.
+# No path allowlist: it would also hide a NEW leak under that path. The ten
+# findings in the shared upstream history are excluded by fingerprint in
+# .gitleaksignore.

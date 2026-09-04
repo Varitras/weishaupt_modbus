@@ -37,6 +37,7 @@ GUARD_FILES = {
     "test_mypy_scope.py": "every module is type-checked or says why it is not yet",
     "test_platform_entities.py": "every platform builds its entities through the shared helper",
     "test_requirements.py": "the manifest and requirements.txt name the same dependencies",
+    "test_secret_scan.py": "the gitleaks allowlist does not hide a token on the same line",
     "test_guards.py": "the guards stay package-wide and stay present",
 }
 
@@ -224,6 +225,7 @@ TOOL_INVOCATIONS = {
         "run: pip-audit -r requirements.txt",
         "-m pip_audit -r requirements.txt",
     ),
+    "gitleaks": ("uses: gitleaks/gitleaks-action", "gitleaks detect"),
     "pytest": ("run: pytest tests/", "-m pytest tests/"),
     "check_min_ha.py": (
         "run: python .github/scripts/check_min_ha.py",
