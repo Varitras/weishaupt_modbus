@@ -362,5 +362,12 @@
     "old": "for i in range(5, 245, 5):\n",
     "new": "for i in range(5, 240, 5):\n",
     "tests": "status_lists_reach_as_far_as_the_data_point_list"
+  },
+  {
+    "label": "ci: the secret scan must use this repository's rules",
+    "path": ".github/workflows/test.yaml",
+    "old": "          GITLEAKS_CONFIG: ${{ github.workspace }}/.gitleaks.toml\n",
+    "new": "",
+    "tests": "secret_scan_in_ci_uses_the_repositorys_own_rules"
   }
 ]

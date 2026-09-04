@@ -215,6 +215,19 @@ def test_the_workflow_still_runs_ruff_pinned():
     assert re.search(r'pip install "ruff==[\d.]+"', workflow)
 
 
+def test_the_secret_scan_in_ci_uses_the_repositorys_own_rules():
+    """The allowlist for the register table lives in .gitleaks.toml. The
+    action does not read it unless told, and then flags the translation keys
+    as credentials - a red job for a file with no secret in it."""
+    steps = _steps_of("gitleaks")
+
+    assert any("GITLEAKS_CONFIG:" in line for line in steps), (
+        "the gitleaks job does not name .gitleaks.toml, so CI scans with "
+        "different rules than check.sh and the pre-push hook"
+    )
+    assert any(".gitleaks.toml" in line for line in steps)
+
+
 def _pins_of(text: str) -> dict[str, str]:
     """Every `tool==version` in a text, whatever quotes it sits in."""
     return {
