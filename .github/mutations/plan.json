@@ -271,5 +271,12 @@
     "old": "    except ModbusError, OSError, TimeoutError:\n        return False\n",
     "new": "    except ModbusError, OSError, TimeoutError:\n        return True\n",
     "tests": "host_without_a_pump_is_reported"
+  },
+  {
+    "label": "entity: an invalid row must make the entity unavailable",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        return super().available and not self._api_item.is_invalid\n",
+    "new": "        return super().available\n",
+    "tests": "absent_sensor_makes_the_entity_unavailable or without_a_sensor_is_unavailable"
   }
 ]

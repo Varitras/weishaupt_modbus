@@ -5,6 +5,7 @@ and a matching Home Assistant install), keeps every test off real hardware,
 and holds the runtime budget per test - see durations.py for why one exists.
 """
 
+from modbus_connection import IllegalDataAddressError
 from modbus_connection.mock import MockModbusConnection
 import pytest
 
@@ -95,6 +96,7 @@ class SharedMockModbus:
         self.connections: list[MockModbusConnection] = []
         self._raw: dict = {"input": {}, "holding": {}}
         self._request_failure: Exception | None = None
+        self._read_failures: list = []
 
     def __call__(self, params, **_kwargs) -> MockModbusConnection:
         self.params_seen.append(params)
@@ -102,6 +104,8 @@ class SharedMockModbus:
         unit = connection.for_unit(1)
         unit.load_raw(self._raw)
         unit.fail_requests(self._request_failure)
+        for address, error in self._read_failures:
+            unit.fail_read(address, error, register_type="input")
         self.connections.append(connection)
         return connection
 
@@ -119,6 +123,14 @@ class SharedMockModbus:
             self._raw[space].update(values)
         for connection in self.connections:
             connection.for_unit(1).load_raw(raw)
+
+    def fail_read_band(self, address: int) -> None:
+        """The controller refuses the input band starting at ``address``."""
+        self._read_failures.append((address, IllegalDataAddressError()))
+        for connection in self.connections:
+            connection.for_unit(1).fail_read(
+                address, IllegalDataAddressError(), register_type="input"
+            )
 
     def fail_requests(self, error: Exception | None) -> None:
         self._request_failure = error

@@ -41,6 +41,7 @@ class FakeCoordinator:
         )
         self.writes: list = []
         self.data = None
+        self.last_update_success = True
 
     async def _write(self, item, value):
         self.writes.append((item.address, value))
@@ -59,6 +60,30 @@ def _temperature(params=None, address=30001):
         "aussentemp",
         params=params or {"unit": "°C", "divider": 10, "precision": 1},
     )
+
+
+# --- availability -----------------------------------------------------------
+
+
+def test_an_absent_sensor_makes_the_entity_unavailable():
+    """The device marks a row invalid for the no-sensor word and for a refused
+    band; until now nothing read that flag and the entity showed unknown,
+    as if a connected sensor had no reading."""
+    item = _temperature()
+    sensor = entities.MySensorEntity(_entry(), item, FakeCoordinator(), 0)
+    assert sensor.available is True
+
+    item.is_invalid = True
+
+    assert sensor.available is False
+
+
+def test_a_failed_refresh_makes_the_entity_unavailable_too():
+    coordinator = FakeCoordinator()
+    sensor = entities.MySensorEntity(_entry(), _temperature(), coordinator, 0)
+    coordinator.last_update_success = False
+
+    assert sensor.available is False
 
 
 # --- naming ---------------------------------------------------------------

@@ -93,6 +93,38 @@ async def test_the_configured_port_reaches_the_client(hass, mock_modbus):
     assert mock_modbus.params_seen[0].port == 5020
 
 
+async def test_a_register_without_a_sensor_is_unavailable_not_unknown(hass, pump):
+    """Decision E1: 0x8000 means nothing is connected, and that is
+    unavailable - not an unknown reading of a sensor that exists."""
+    pump.load_raw({"input": {OUTSIDE_TEMPERATURE: 0x8000}})
+    entry = await _setup(hass, _entry(hass))
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "sensor", CONST.DOMAIN, OUTSIDE_TEMPERATURE_UNIQUE_ID
+    )
+    assert hass.states.get(entity_id).state == "unavailable"
+
+    pump.load_raw({"input": {OUTSIDE_TEMPERATURE: 123}})
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert hass.states.get(entity_id).state == "12.3"
+
+
+async def test_a_refused_band_leaves_its_entities_unavailable(hass, pump):
+    entry = _entry(hass)
+    pump.fail_read_band(34101)
+    await _setup(hass, entry)
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "sensor", CONST.DOMAIN, "weishaupt_wbbStatus 2. WEZ"
+    )
+
+    assert hass.states.get(entity_id).state == "unavailable"
+    outside = er.async_get(hass).async_get_entity_id(
+        "sensor", CONST.DOMAIN, OUTSIDE_TEMPERATURE_UNIQUE_ID
+    )
+    assert hass.states.get(outside).state == "12.3"
+
+
 async def test_setup_creates_all_three_platforms(hass):
     await _setup(hass, _entry(hass))
 

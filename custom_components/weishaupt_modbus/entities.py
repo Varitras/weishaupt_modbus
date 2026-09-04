@@ -110,6 +110,15 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
             if icon is not None:
                 self._attr_icon = icon
 
+    @property
+    def available(self) -> bool:
+        """The register answered with a value; an absent sensor or band is unavailable.
+
+        A sensor that is present but faulty keeps the entity: its state is
+        unknown, not unavailable (see fields.py).
+        """
+        return super().available and not self._api_item.is_invalid
+
     def set_min_max(self, onlydynamic: bool = False) -> None:
         """Set min max to fixed or dynamic values."""
         if onlydynamic is True:
