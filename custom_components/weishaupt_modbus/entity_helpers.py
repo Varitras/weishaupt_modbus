@@ -5,13 +5,25 @@ import logging
 from .configentry import MyConfigEntry
 from .const import TYPES
 from .coordinator import WeishauptModbusCoordinator
-from .entities import MyCalcSensorEntity, MyNumberEntity, MySelectEntity, MySensorEntity
+from .entities import (
+    MyCalcSensorEntity,
+    MyNumberEntity,
+    MySelectEntity,
+    MySensorEntity,
+    MySetpointSwitchEntity,
+)
 from .items import ModbusItem
 
 _LOGGER = logging.getLogger(__name__)
 
 # Type alias for entity types
-EntityType = MySensorEntity | MyCalcSensorEntity | MySelectEntity | MyNumberEntity
+EntityType = (
+    MySensorEntity
+    | MyCalcSensorEntity
+    | MySelectEntity
+    | MyNumberEntity
+    | MySetpointSwitchEntity
+)
 
 
 async def build_entity_list(
@@ -20,6 +32,7 @@ async def build_entity_list(
     api_items: list[ModbusItem],
     item_types: str | tuple[str, ...],
     coordinator: WeishauptModbusCoordinator,
+    as_off_switch: bool = False,
 ) -> list[EntityType]:
     """Build entity list.
 
@@ -32,6 +45,8 @@ async def build_entity_list(
         api_items: list of modbus items
         item_types: type or types of modbus item to build
         coordinator: the update coordinator
+        as_off_switch: build the on/off switch of a setpoint with an off
+            word instead of its number (the switch platform)
 
     Returns:
         Updated list of entities
@@ -53,6 +68,11 @@ async def build_entity_list(
                 )
             case TYPES.SELECT:
                 entries.append(MySelectEntity(config_entry, item, coordinator, index))
+            case TYPES.NUMBER if as_off_switch:
+                if item.params.get("off_is_a_setting"):
+                    entries.append(
+                        MySetpointSwitchEntity(config_entry, item, coordinator, index)
+                    )
             case TYPES.NUMBER:
                 entries.append(MyNumberEntity(config_entry, item, coordinator, index))
 

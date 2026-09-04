@@ -34,6 +34,7 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.write_budget import
 )
 
 OUTSIDE_TEMPERATURE = 30001
+CONSTANT_LOWERING = 41111  # TEMPERATURE setpoint whose 0x8000 means off
 POWER_REQUEST = 33103  # PERCENTAGE
 PV_SETPOINT = 40002  # NUMBER, holding
 BIVALENCE_TEMPERATURE = 44105  # TEMPERATURE, holding, writable
@@ -168,6 +169,56 @@ async def test_a_temperature_word_outside_the_documented_domain_is_no_reading(
 
     assert _row(pump, OUTSIDE_TEMPERATURE).state is None
     assert _row(pump, OUTSIDE_TEMPERATURE).is_invalid is False
+
+
+async def test_a_setpoint_at_its_off_word_is_off_not_absent(pump, unit):
+    """Live: 41111 and 42105 read 0x8000, and the controller's menu shows
+    "Aus" for them. Treated as a missing sensor, the entity went unavailable
+    and the setting could not be turned back on from Home Assistant."""
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 0x8000}})
+
+    await pump.async_update()
+
+    row = _row(pump, CONSTANT_LOWERING)
+    assert row.is_off is True
+    assert row.is_invalid is False
+    assert row.state is None
+
+
+async def test_a_sensor_at_the_same_word_is_still_absent(pump, unit):
+    unit.load_raw({"input": {OUTSIDE_TEMPERATURE: 0x8000}})
+
+    await pump.async_update()
+
+    assert _row(pump, OUTSIDE_TEMPERATURE).is_invalid is True
+    assert _row(pump, OUTSIDE_TEMPERATURE).is_off is False
+
+
+async def test_switching_a_setpoint_off_writes_the_off_word(pump, unit):
+    writes = []
+    unit.on_write(writes.append)
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 185}})
+    await pump.async_update()
+    row = _row(pump, CONSTANT_LOWERING)
+
+    assert await pump.write_off(row) is True
+
+    assert writes[0].values == [0x8000]
+    assert row.is_off is True
+    assert row.state is None
+    assert row.last_setting == 185, "the value to come back to"
+    assert await pump.write_off(row) is False, "already off: no EEPROM write"
+
+
+async def test_writing_a_value_switches_the_setpoint_back_on(pump, unit):
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 0x8000}})
+    await pump.async_update()
+    row = _row(pump, CONSTANT_LOWERING)
+
+    await pump.write(row, 185)
+
+    assert row.is_off is False
+    assert row.state == 185
 
 
 async def test_the_coldest_documented_temperature_is_still_a_reading(pump, unit):

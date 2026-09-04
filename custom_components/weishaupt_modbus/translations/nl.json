@@ -226,6 +226,71 @@
         "name" : "{prefix}Setpoint PV"
       }
     },
+    "switch" : {
+      "so_wi_umschalt_active" : {
+        "name" : "{prefix}Zomer-winterschakeling actief"
+      },
+      "so_wi_umschalt2_active" : {
+        "name" : "{prefix}Zomer-winterschakeling2 actief"
+      },
+      "so_wi_umschalt3_active" : {
+        "name" : "{prefix}Zomer-winterschakeling3 actief"
+      },
+      "so_wi_umschalt4_active" : {
+        "name" : "{prefix}Zomer-winterschakeling4 actief"
+      },
+      "so_wi_umschalt5_active" : {
+        "name" : "{prefix}Zomer-winterschakeling5 actief"
+      },
+      "heiz_konstanttemp_active" : {
+        "name" : "{prefix}Verwarming constante temperatuur actief"
+      },
+      "heiz_konstanttemp2_active" : {
+        "name" : "{prefix}Verwarming constante temperatuur2 actief"
+      },
+      "heiz_konstanttemp3_active" : {
+        "name" : "{prefix}Verwarming constante temperatuur3 actief"
+      },
+      "heiz_konstanttemp4_active" : {
+        "name" : "{prefix}Verwarming constante temperatuur4 actief"
+      },
+      "heiz_konstanttemp5_active" : {
+        "name" : "{prefix}Verwarming constante temperatuur5 actief"
+      },
+      "heiz_konstanttemp_absenk_active" : {
+        "name" : "{prefix}Verwarming constante temperatuur verlaging actief"
+      },
+      "heiz_konstanttemp_absenk2_active" : {
+        "name" : "{prefix}Verwarming constante temperatuur verlaging2 actief"
+      },
+      "heiz_konstanttemp_absenk3_active" : {
+        "name" : "{prefix}Verwarming constante temperatuur verlaging3 actief"
+      },
+      "heiz_konstanttemp_absenk4_active" : {
+        "name" : "{prefix}Verwarming constante temperatuur verlaging4 actief"
+      },
+      "heiz_konstanttemp_absenk5_active" : {
+        "name" : "{prefix}Verwarming constante temperatuur verlaging5 actief"
+      },
+      "kuehl_konstanttemp_active" : {
+        "name" : "{prefix}Koelconstante temperatuur actief"
+      },
+      "kuehl_konstanttemp2_active" : {
+        "name" : "{prefix}Koelconstante temperatuur 2 actief"
+      },
+      "kuehl_konstanttemp3_active" : {
+        "name" : "{prefix}Koelconstante temperatuur 3 actief"
+      },
+      "kuehl_konstanttemp4_active" : {
+        "name" : "{prefix}Koelconstante temperatuur 4 actief"
+      },
+      "kuehl_konstanttemp5_active" : {
+        "name" : "{prefix}Koelconstante temperatuur 5 actief"
+      },
+      "sgr_anhebung_active" : {
+        "name" : "{prefix}SG Ready-boost actief"
+      }
+    },
     "select" : {
       "hz_operationmode" : {
         "name" : "{prefix}Bedrijfsmodus",

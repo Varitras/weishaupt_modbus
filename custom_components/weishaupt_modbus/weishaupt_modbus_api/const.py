@@ -15,6 +15,11 @@ TEMPERATURE_RESERVED_BAND_END = 0x80FF
 # outside it is not a temperature, whatever its sign bit says.
 TEMPERATURE_RAW_MIN = -500
 TEMPERATURE_RAW_MAX = 5000
+# Some setpoints use the no-sensor word as a setting: 0x8000 means "off"
+# (constant flow temperatures, summer/winter switch, SG-Ready boost) and the
+# controller's own menu offers it as a value. Written signed, as the field
+# encodes temperatures.
+SETPOINT_OFF_SIGNED = -32768
 PERCENTAGE_NO_VALUE = 0xFFFF
 
 

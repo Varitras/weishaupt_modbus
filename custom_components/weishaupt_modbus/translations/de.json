@@ -226,6 +226,71 @@
                 "name": "{prefix}Sollwert PV"
             }
         },
+        "switch": {
+          "so_wi_umschalt_active": {
+            "name": "{prefix}Sommer Winter Umschaltung aktiv"
+          },
+          "so_wi_umschalt2_active": {
+            "name": "{prefix}Sommer Winter Umschaltung2 aktiv"
+          },
+          "so_wi_umschalt3_active": {
+            "name": "{prefix}Sommer Winter Umschaltung3 aktiv"
+          },
+          "so_wi_umschalt4_active": {
+            "name": "{prefix}Sommer Winter Umschaltung4 aktiv"
+          },
+          "so_wi_umschalt5_active": {
+            "name": "{prefix}Sommer Winter Umschaltung5 aktiv"
+          },
+          "heiz_konstanttemp_active": {
+            "name": "{prefix}Heizen Konstanttemperatur aktiv"
+          },
+          "heiz_konstanttemp2_active": {
+            "name": "{prefix}Heizen Konstanttemperatur2 aktiv"
+          },
+          "heiz_konstanttemp3_active": {
+            "name": "{prefix}Heizen Konstanttemperatur3 aktiv"
+          },
+          "heiz_konstanttemp4_active": {
+            "name": "{prefix}Heizen Konstanttemperatur4 aktiv"
+          },
+          "heiz_konstanttemp5_active": {
+            "name": "{prefix}Heizen Konstanttemperatur5 aktiv"
+          },
+          "heiz_konstanttemp_absenk_active": {
+            "name": "{prefix}Heizen Konstanttemp Absenk aktiv"
+          },
+          "heiz_konstanttemp_absenk2_active": {
+            "name": "{prefix}Heizen Konstanttemp Absenk2 aktiv"
+          },
+          "heiz_konstanttemp_absenk3_active": {
+            "name": "{prefix}Heizen Konstanttemp Absenk3 aktiv"
+          },
+          "heiz_konstanttemp_absenk4_active": {
+            "name": "{prefix}Heizen Konstanttemp Absenk4 aktiv"
+          },
+          "heiz_konstanttemp_absenk5_active": {
+            "name": "{prefix}Heizen Konstanttemp Absenk5 aktiv"
+          },
+          "kuehl_konstanttemp_active": {
+            "name": "{prefix}Kühlen Konstanttemperatur aktiv"
+          },
+          "kuehl_konstanttemp2_active": {
+            "name": "{prefix}Kühlen Konstanttemperatur2 aktiv"
+          },
+          "kuehl_konstanttemp3_active": {
+            "name": "{prefix}Kühlen Konstanttemperatur3 aktiv"
+          },
+          "kuehl_konstanttemp4_active": {
+            "name": "{prefix}Kühlen Konstanttemperatur4 aktiv"
+          },
+          "kuehl_konstanttemp5_active": {
+            "name": "{prefix}Kühlen Konstanttemperatur5 aktiv"
+          },
+          "sgr_anhebung_active": {
+            "name": "{prefix}SG Ready Anhebung aktiv"
+          }
+        },
         "select": {
             "hz_operationmode": {
                 "name": "{prefix}Betriebsart",

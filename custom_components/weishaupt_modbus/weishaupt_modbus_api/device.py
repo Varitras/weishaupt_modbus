@@ -15,9 +15,9 @@ from typing import Any
 from modbus_connection import ModbusExceptionError, ModbusUnit
 from modbus_connection.model import Component
 
-from .const import EEPROM_WRITE_RATING
+from .const import EEPROM_WRITE_RATING, SETPOINT_OFF_SIGNED
 from .exceptions import WriteError
-from .fields import NO_SENSOR, field_for
+from .fields import NO_SENSOR, OFF, field_for
 from .hpconst import TYPES, ModbusItem
 from .write_budget import WriteBudget
 
@@ -59,6 +59,15 @@ def band_of(address: int) -> Band:
         if band[0] <= address <= band[1]:
             return band
     raise ValueError(f"register {address} lies in no known band")
+
+
+def _apply(row: ModbusItem, value: Any) -> None:
+    """What one decoded word means for the row: absent, off, or a value."""
+    row.is_invalid = value is NO_SENSOR
+    row.is_off = value is OFF
+    row.state = None if row.is_invalid or row.is_off else value
+    if row.state is not None:
+        row.last_setting = row.state
 
 
 def _field_name(item: ModbusItem) -> str:
@@ -110,15 +119,14 @@ class WeishauptHeatPump:
                 continue
             self.present[band] = True
             for row in self._rows[band]:
-                value = getattr(component, _field_name(row))
-                row.is_invalid = value is NO_SENSOR
-                row.state = None if value is NO_SENSOR else value
+                _apply(row, getattr(component, _field_name(row)))
 
     def _mark_absent(self, band: Band) -> None:
         self.present[band] = False
         for row in self._rows[band]:
             row.state = None
             row.is_invalid = True
+            row.is_off = False
 
     async def write(self, item: ModbusItem, value: int) -> bool:
         """Write a raw register word; False when it was already active.
@@ -131,14 +139,29 @@ class WeishauptHeatPump:
                 "Register %d already holds %d, not written", item.address, value
             )
             return False
+        await self._write_word(item, value)
+        item.state = value
+        item.is_off = False
+        item.last_setting = value
+        return True
+
+    async def write_off(self, item: ModbusItem) -> bool:
+        """Switch a setpoint off (its off word); False when it already was."""
+        if item.is_off:
+            return False
+        await self._write_word(item, SETPOINT_OFF_SIGNED)
+        item.state = None
+        item.is_off = True
+        return True
+
+    async def _write_word(self, item: ModbusItem, word: int) -> None:
         if not self.write_budget.allows_write():
             raise WriteError(
                 f"Daily write limit of {self.write_budget.limit} reached; "
                 f"register {item.address} not written"
             )
         component = self._components[band_of(item.address)]
-        await component.write(_field_name(item), value)
-        item.state = value
+        await component.write(_field_name(item), word)
         if self.write_budget.record_write():
             _LOGGER.warning(
                 "%d register writes today. The EEPROM is rated for %d writes "
@@ -146,7 +169,6 @@ class WeishauptHeatPump:
                 self.write_budget.writes_today,
                 EEPROM_WRITE_RATING,
             )
-        return True
 
     def value_of(self, address: int) -> Any:
         """The last value read for a register, None when absent or unread."""

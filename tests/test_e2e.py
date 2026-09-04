@@ -157,6 +157,40 @@ async def test_a_second_poll_reaches_every_platform(hass, pump):
     assert hass.states.get(entity_ids["number"]).state == "23.0"
 
 
+SG_READY_BOOST = 42105
+SG_READY_BOOST_UNIQUE_ID = "weishaupt_wbbSG Ready Anhebung"
+
+
+async def test_a_switched_off_setpoint_has_a_switch_and_an_unknown_number(hass, pump):
+    """Live: the SG-Ready boost reads 0x8000, which the controller's menu
+    calls off. As a missing sensor it was unavailable and could not be
+    turned on again from Home Assistant."""
+    pump.load_raw({"holding": {SG_READY_BOOST: 0x8000}})
+    entry = await _setup(hass, _entry(hass))
+    registry = er.async_get(hass)
+    number_id = registry.async_get_entity_id(
+        "number", CONST.DOMAIN, SG_READY_BOOST_UNIQUE_ID
+    )
+    switch_id = registry.async_get_entity_id(
+        "switch", CONST.DOMAIN, SG_READY_BOOST_UNIQUE_ID + "_active"
+    )
+    assert hass.states.get(number_id).state == "unknown"
+    assert hass.states.get(switch_id).state == "off"
+
+    writes = []
+    pump.unit.on_write(writes.append)
+    await hass.services.async_call(
+        "switch", "turn_on", {"entity_id": switch_id}, blocking=True
+    )
+    await hass.async_block_till_done()
+
+    assert [(event.address, event.values) for event in writes] == [
+        (SG_READY_BOOST, [0])
+    ]
+    assert hass.states.get(switch_id).state == "on"
+    assert entry.runtime_data.device.write_budget.total == 1
+
+
 async def test_a_refused_band_leaves_its_entities_unavailable(hass, pump):
     entry = _entry(hass)
     pump.fail_read_band(34101)

@@ -41,6 +41,7 @@ class FakeCoordinator:
         self.device = SimpleNamespace(
             value_of=(cache or {}).get,
             write=self._write,
+            write_off=self._write_off,
         )
         self.writes: list = []
         self.data = None
@@ -48,6 +49,9 @@ class FakeCoordinator:
 
     async def _write(self, item, value):
         self.writes.append((item.address, value))
+
+    async def _write_off(self, item):
+        self.writes.append((item.address, "off"))
 
     def get_value_from_item(self, key):
         return self.values.get(key)
@@ -75,6 +79,75 @@ def test_a_row_without_params_is_a_whole_number_without_a_unit():
 
     assert sensor._attr_native_unit_of_measurement is None
     assert sensor._attr_suggested_display_precision == 0
+
+
+# --- the off switch ----------------------------------------------------------
+
+
+def _switchable_setpoint():
+    return ModbusItem(
+        41111,
+        "Heizen Konstanttemp Absenk",
+        FORMATS.TEMPERATURE,
+        TYPES.NUMBER,
+        DEVICES.HZ,
+        "heiz_konstanttemp_absenk",
+        params={
+            "unit": "°C",
+            "divider": 10,
+            "precision": 1,
+            "min": 7,
+            "max": 66,
+            "off_is_a_setting": True,
+        },
+    )
+
+
+def test_the_switch_reads_the_setpoints_off_state():
+    item = _switchable_setpoint()
+    switch = entities.MySetpointSwitchEntity(_entry(), item, FakeCoordinator(), 0)
+    assert switch.is_on is True
+    assert switch.unique_id == "weishaupt_wbbHeizen Konstanttemp Absenk_active"
+
+    item.is_off = True
+    switch.async_write_ha_state = lambda: None
+    switch._handle_coordinator_update()
+
+    assert switch.is_on is False
+
+
+async def test_turning_off_writes_the_off_word_and_on_restores_the_value():
+    item = _switchable_setpoint()
+    item.last_setting = 185
+    coordinator = FakeCoordinator()
+    switch = entities.MySetpointSwitchEntity(_entry(), item, coordinator, 0)
+    switch.hass = None
+    switch.async_write_ha_state = lambda: None
+
+    await switch.async_turn_off()
+    await switch.async_turn_on()
+
+    assert coordinator.writes == [(41111, "off"), (41111, 185)]
+
+
+async def test_turning_on_a_setpoint_never_seen_on_uses_the_minimum():
+    item = _switchable_setpoint()
+    coordinator = FakeCoordinator()
+    switch = entities.MySetpointSwitchEntity(_entry(), item, coordinator, 0)
+    switch.async_write_ha_state = lambda: None
+
+    await switch.async_turn_on()
+
+    assert coordinator.writes == [(41111, 70)], "7.0 degC, the range's minimum"
+
+
+def test_a_number_stays_available_while_its_setpoint_is_off():
+    item = _switchable_setpoint()
+    item.is_off = True
+    number = entities.MyNumberEntity(_entry(), item, FakeCoordinator(), 0)
+
+    assert number.available is True
+    assert number.native_value is None
 
 
 # --- availability -----------------------------------------------------------

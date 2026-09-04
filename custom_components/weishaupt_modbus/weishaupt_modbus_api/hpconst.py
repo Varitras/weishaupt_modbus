@@ -921,13 +921,26 @@ PARAMS_ROOMTEMP: dict[str, Any] = {
 # then clamps to the circuit's own minimum/maximum flow settings, which have
 # no Modbus register. A narrower limit here refused a live 35 degC; the
 # controller keeps its own limits on top of these.
-PARAMS_CONSTANT_FLOW_HEATING: dict[str, Any] = {**PARAMS_ROOMTEMP, "min": 7, "max": 66}
-PARAMS_CONSTANT_FLOW_COOLING: dict[str, Any] = {**PARAMS_ROOMTEMP, "min": 7, "max": 30}
+# off_is_a_setting: the menu offers "Aus" beside the value, reported as 0x8000.
+PARAMS_CONSTANT_FLOW_HEATING: dict[str, Any] = {
+    **PARAMS_ROOMTEMP,
+    "min": 7,
+    "max": 66,
+    "off_is_a_setting": True,
+}
+PARAMS_CONSTANT_FLOW_COOLING: dict[str, Any] = {
+    **PARAMS_ROOMTEMP,
+    "min": 7,
+    "max": 30,
+    "off_is_a_setting": True,
+}
 
 
 PARAMS_SUMMER_WINTER_SWITCH_TEMP: dict[str, Any] = {
     "min": 3,
     "max": 30,
+    # 0x8000 = no summer shutdown (manufacturer's register list)
+    "off_is_a_setting": True,
     "step": 0.5,
     "divider": 10,
     "deviceclass": SensorDeviceClass.TEMPERATURE,
@@ -1058,6 +1071,7 @@ PARAMS_WATERTEMP_HIGH: dict = {
 PARAMS_SGREADYTEMP: dict = {
     "min": 0,
     "max": 30,
+    "off_is_a_setting": True,
     "step": 0.5,
     "divider": 10,
     "deviceclass": SensorDeviceClass.TEMPERATURE,

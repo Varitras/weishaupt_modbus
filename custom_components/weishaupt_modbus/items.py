@@ -30,6 +30,10 @@ class ModbusItem:
     # Runtime state, written by the client and the coordinator.
     state: Any = field(default=None, init=False)
     is_invalid: bool = field(default=False, init=False)
+    # A setpoint the controller reports as switched off (see fields.OFF), and
+    # the value it held before, so a switch can turn it back on.
+    is_off: bool = field(default=False, init=False)
+    last_setting: int | None = field(default=None, init=False)
 
     def _status(self, number: int | None) -> StatusItem | None:
         if number is None or self.resultlist is None:

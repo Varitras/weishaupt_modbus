@@ -59,6 +59,9 @@ power map and the write counters. What is gone: this integration's own
 five-register block limit - the controller serves each address band in one
 read.
 
+New in 2.0: a switch beside every setpoint the controller can switch off
+(see *Configuration*). New entities, nothing existing is renamed.
+
 One state string changed: operating status 0 (undefined) used to be
 published as `..._pvmode`; it is `..._undefined` now. An automation that
 matched on that state needs the new name.
@@ -84,6 +87,13 @@ entity and start the EEPROM write counters over. To rename, remove the
 entry and add it again.
 - **Heizkreis 2–5** enable the entities of additional heating circuits.
 - **Kennfeld file** selects the power map for your model (see below).
+
+Some setpoints can be switched off at the controller - the constant flow
+temperatures, the summer/winter switchover and the SG-Ready boost. The
+register then reports an "off" word instead of a temperature. Each of
+these comes as a number *and* a switch (`… active`): the number reads
+unknown while the setpoint is off, the switch turns it off and back on
+(restoring the value it held before, or the lowest allowed one).
 
 The **poll interval** (default 30 s) is an option, not part of the setup:
 open the integration's *Options* dialog to change it. A change reloads the

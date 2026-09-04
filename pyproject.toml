@@ -290,6 +290,7 @@ files = [
   "custom_components/weishaupt_modbus/migrate_helpers.py",
   "custom_components/weishaupt_modbus/number.py",
   "custom_components/weishaupt_modbus/select.py",
+  "custom_components/weishaupt_modbus/switch.py",
   "custom_components/weishaupt_modbus/sensor.py",
   "custom_components/weishaupt_modbus/write_counter_sensor.py",
   "custom_components/weishaupt_modbus/weishaupt_modbus_api/write_budget.py",

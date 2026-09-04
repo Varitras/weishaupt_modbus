@@ -8,6 +8,7 @@ from modbus_connection import ModbusError
 from homeassistant.components.number import NumberEntity
 from homeassistant.components.select import SelectEntity
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
+from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -283,6 +284,61 @@ class MyNumberEntity(MyEntity, NumberEntity):
             self._api_item.state = result
             self._attr_native_value = self.translate_val_number(self._api_item.state)
             self.async_write_ha_state()
+
+
+class MySetpointSwitchEntity(MyEntity, SwitchEntity):
+    """On/off for a setpoint whose off state is a register word.
+
+    The controller's menu offers "Aus" beside the temperature for these
+    registers; the number entity cannot express that, so this switch does.
+    Turning on restores the value the register held before, or the range's
+    minimum when none was ever seen.
+    """
+
+    def __init__(
+        self,
+        config_entry: MyConfigEntry,
+        modbus_item: ModbusItem,
+        coordinator: WeishauptModbusCoordinator,
+        idx: int,
+    ) -> None:
+        """Share the number's row; own id and translation key."""
+        super().__init__(coordinator, config_entry, modbus_item)
+        self._attr_unique_id = f"{self._attr_unique_id}_active"
+        self._attr_translation_key = f"{modbus_item.translation_key}_active"
+        self._attr_device_class = SwitchDeviceClass.SWITCH
+        self._attr_is_on = not modbus_item.is_off
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self._attr_is_on = not self._api_item.is_off
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Write the off word."""
+        try:
+            await self.coordinator.device.write_off(self._api_item)
+        except (WriteError, ModbusError) as err:
+            raise HomeAssistantError(
+                f"Switching register {self._api_item.address} off failed: {err}"
+            ) from err
+        self._attr_is_on = False
+        self.async_write_ha_state()
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Restore the last value, or the range's minimum."""
+        value = self._api_item.last_setting
+        if value is None:
+            value = to_register_value(self._attr_native_min_value, self._divider)
+        try:
+            await self.coordinator.device.write(self._api_item, value)
+        except (WriteError, ModbusError) as err:
+            raise HomeAssistantError(
+                f"Switching register {self._api_item.address} on failed: {err}"
+            ) from err
+        self._attr_is_on = True
+        self.async_write_ha_state()
 
 
 class MySelectEntity(MyEntity, SelectEntity):

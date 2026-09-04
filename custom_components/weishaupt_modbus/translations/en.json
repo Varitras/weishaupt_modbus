@@ -226,6 +226,71 @@
         "name": "{prefix}PV setpoint"
       }
     },
+    "switch": {
+      "so_wi_umschalt_active": {
+        "name": "{prefix}Summer winter changeover active"
+      },
+      "so_wi_umschalt2_active": {
+        "name": "{prefix}Summer winter changeover2 active"
+      },
+      "so_wi_umschalt3_active": {
+        "name": "{prefix}Summer winter changeover3 active"
+      },
+      "so_wi_umschalt4_active": {
+        "name": "{prefix}Summer winter changeover4 active"
+      },
+      "so_wi_umschalt5_active": {
+        "name": "{prefix}Summer winter changeover5 active"
+      },
+      "heiz_konstanttemp_active": {
+        "name": "{prefix}Heating constant temperature active"
+      },
+      "heiz_konstanttemp2_active": {
+        "name": "{prefix}Heating constant temperature 2 active"
+      },
+      "heiz_konstanttemp3_active": {
+        "name": "{prefix}Heating constant temperature 3 active"
+      },
+      "heiz_konstanttemp4_active": {
+        "name": "{prefix}Heating constant temperature 4 active"
+      },
+      "heiz_konstanttemp5_active": {
+        "name": "{prefix}Heating constant temperature 5 active"
+      },
+      "heiz_konstanttemp_absenk_active": {
+        "name": "{prefix}Heating constant temp. lowering active"
+      },
+      "heiz_konstanttemp_absenk2_active": {
+        "name": "{prefix}Heating constant temp. lowering2 active"
+      },
+      "heiz_konstanttemp_absenk3_active": {
+        "name": "{prefix}Heating constant temp. lowering3 active"
+      },
+      "heiz_konstanttemp_absenk4_active": {
+        "name": "{prefix}Heating constant temp. lowering4 active"
+      },
+      "heiz_konstanttemp_absenk5_active": {
+        "name": "{prefix}Heating constant temp. lowering5 active"
+      },
+      "kuehl_konstanttemp_active": {
+        "name": "{prefix}Cooling constant temperature active"
+      },
+      "kuehl_konstanttemp2_active": {
+        "name": "{prefix}Cooling constant temperature 2 active"
+      },
+      "kuehl_konstanttemp3_active": {
+        "name": "{prefix}Cooling constant temperature 3 active"
+      },
+      "kuehl_konstanttemp4_active": {
+        "name": "{prefix}Cooling constant temperature 4 active"
+      },
+      "kuehl_konstanttemp5_active": {
+        "name": "{prefix}Cooling constant temperature 5 active"
+      },
+      "sgr_anhebung_active": {
+        "name": "{prefix}SG Ready increase active"
+      }
+    },
     "select": {
       "hz_operationmode": {
         "name": "{prefix}Operation mode",
