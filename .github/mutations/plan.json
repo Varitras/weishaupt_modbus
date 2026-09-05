@@ -446,5 +446,26 @@
     "old": "    return \"<script\" not in svg and re.search(r'href=\"https?://', svg) is None\n",
     "new": "    return True\n",
     "tests": "carries_script_is_not_copied"
+  },
+  {
+    "label": "device: a refused system band must fail the poll",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        if self.present.get(SYSTEM_BAND) is False:\n",
+    "new": "        if False:\n",
+    "tests": "refused_system_band_is_a_failed_poll"
+  },
+  {
+    "label": "coordinator: the fourth failed poll must not keep the last values",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "            if self.data is not None and self._failed_polls <= FAILED_POLLS_TOLERATED:\n",
+    "new": "            if self.data is not None:\n",
+    "tests": "three_failed_polls_keep_the_last_values"
+  },
+  {
+    "label": "coordinator: a good poll must reset the failure count",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        self._failed_polls = 0\n        return self._results()\n",
+    "new": "        return self._results()\n",
+    "tests": "three_failed_polls_keep_the_last_values"
   }
 ]

@@ -100,6 +100,11 @@ The **poll interval** (default 30 s) is an option, not part of the setup:
 open the integration's *Options* dialog to change it. A change reloads the
 integration.
 
+A poll that fails keeps the last values; the entities go unavailable on the
+fourth failed poll in a row and come back with the next good one. A device
+that answers but refuses the system registers 30001-30006 is not treated as
+a heat pump with missing modules: that poll fails.
+
 ### The power map
 
 The heat power (*Wärmeleistung*) is calculated from the power request,

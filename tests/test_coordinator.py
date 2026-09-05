@@ -116,6 +116,34 @@ async def test_communication_failure_is_update_failed(hass):
         await coordinator._async_update_data()
 
 
+async def test_three_failed_polls_keep_the_last_values_the_fourth_does_not(hass):
+    """A controller that misses one poll took every entity to unavailable
+    for a scan interval and back; automations on unavailable fired on every
+    hiccup. Three polls of grace, never before the first values exist."""
+    entry = _entry(hass)
+    item = copy.deepcopy(
+        next(i for i in MODBUS_SYS_ITEMS if i.address == OUTSIDE_TEMPERATURE)
+    )
+    device = FakeDevice([item], data={OUTSIDE_TEMPERATURE: 123})
+    coordinator = _modbus_coordinator(hass, entry, device, [item])
+    coordinator.data = await coordinator._async_update_data()
+    assert coordinator.data[item.translation_key] == 123
+
+    device.fail = ModbusConnectionError("down")
+    for _ in range(3):
+        assert (await coordinator._async_update_data())[item.translation_key] == 123
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+    device.fail = None
+    coordinator.data = await coordinator._async_update_data()
+    device.fail = ModbusConnectionError("down again")
+
+    assert (await coordinator._async_update_data())[item.translation_key] == 123, (
+        "a good poll resets the count"
+    )
+
+
 async def test_a_value_is_looked_up_by_translation_key(hass):
     entry = _entry(hass)
     item = ModbusItem(

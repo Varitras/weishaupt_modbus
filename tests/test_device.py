@@ -27,6 +27,7 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.device import (
     band_of,
 )
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.exceptions import (
+    SystemBandRefused,
     WriteError,
 )
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.write_budget import (
@@ -286,6 +287,18 @@ async def test_any_exception_code_means_absent(pump, unit):
     await pump.async_update()
 
     assert pump.present[band_of(SECOND_HEAT_SOURCE_STATUS)] is False
+
+
+async def test_a_refused_system_band_is_a_failed_poll_not_an_empty_pump(pump, unit):
+    """A wrong device under the address refused every block; all 30 bands
+    read as absent modules and the poll counted as healthy with no values.
+    Every Weishaupt serves 30001-30006."""
+    unit.fail_read(
+        OUTSIDE_TEMPERATURE, IllegalDataAddressError(), register_type="input"
+    )
+
+    with pytest.raises(SystemBandRefused, match="30001-30006"):
+        await pump.async_update()
 
 
 async def test_a_band_that_answers_again_is_present_again(pump, unit):

@@ -26,6 +26,11 @@ _LOGGER = logging.getLogger(__name__)
 # The library gives up on the first block the link cannot serve, so a whole
 # refresh takes at most one request timeout longer than a healthy one.
 UPDATE_TIMEOUT_SECONDS = 60
+# A short outage keeps the last values; only a longer one takes every entity
+# to unavailable. Counted from the first failed poll after a good one, so
+# entities go unavailable on the fourth failed poll in a row - and never
+# before the first refresh has produced values to keep.
+FAILED_POLLS_TOLERATED = 3
 
 
 def check_configured(modbus_item: ModbusItem, config_entry: MyConfigEntry) -> bool:
@@ -85,6 +90,7 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
         self.device = device
         self._modbusitems = api_items
+        self._failed_polls = 0
         self.modbus_items = api_items
         self._config_entry = p_config_entry
 
@@ -101,7 +107,17 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             async with asyncio.timeout(UPDATE_TIMEOUT_SECONDS):
                 await self.device.async_update()
         except (TimeoutError, ModbusError) as err:
+            self._failed_polls += 1
+            if self.data is not None and self._failed_polls <= FAILED_POLLS_TOLERATED:
+                _LOGGER.warning(
+                    "Poll failed (%d of %d tolerated), keeping the last values: %s",
+                    self._failed_polls,
+                    FAILED_POLLS_TOLERATED,
+                    err,
+                )
+                return self.data
             raise UpdateFailed(f"Modbus communication failure: {err}") from err
+        self._failed_polls = 0
         return self._results()
 
     def _results(self) -> dict[str, Any]:

@@ -16,7 +16,7 @@ from modbus_connection import ModbusExceptionError, ModbusUnit
 from modbus_connection.model import Component
 
 from .const import EEPROM_WRITE_RATING, SETPOINT_OFF_SIGNED
-from .exceptions import WriteError
+from .exceptions import SystemBandRefused, WriteError
 from .fields import NO_SENSOR, OFF, field_for
 from .hpconst import TYPES, ModbusItem
 from .write_budget import WriteBudget
@@ -47,6 +47,8 @@ BANDS: tuple[Band, ...] = (
     (36801, 36801),
 )
 HOLDING_REGISTERS = range(40000, 50000)
+# Outside temperature to operating status: every Weishaupt serves these.
+SYSTEM_BAND: Band = (30001, 30006)
 
 
 def band_of(address: int) -> Band:
@@ -105,7 +107,9 @@ class WeishauptHeatPump:
         """Read every band; a band the pump refuses is absent, not an error.
 
         A link problem (ModbusConnectionError, ModbusTimeoutError) propagates:
-        that is the coordinator's failed refresh, not an absent module.
+        that is the coordinator's failed refresh, not an absent module. So
+        does a refused system band: a wrong device under the address answered
+        every block with an exception and counted as a healthy poll.
         """
         for band, component in self._components.items():
             try:
@@ -120,6 +124,11 @@ class WeishauptHeatPump:
             self.present[band] = True
             for row in self._rows[band]:
                 _apply(row, getattr(component, _field_name(row)))
+        if self.present.get(SYSTEM_BAND) is False:
+            raise SystemBandRefused(
+                f"registers {SYSTEM_BAND[0]}-{SYSTEM_BAND[1]} refused; "
+                "is this a Weishaupt controller?"
+            )
 
     def _mark_absent(self, band: Band) -> None:
         self.present[band] = False
