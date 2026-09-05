@@ -290,6 +290,35 @@ async def test_any_exception_code_means_absent(pump, unit):
     assert pump.present[band_of(SECOND_HEAT_SOURCE_STATUS)] is False
 
 
+async def test_a_poll_that_fails_halfway_leaves_every_row_as_it_was(pump, unit):
+    """Rows were written band by band; a link error in a later band left
+    the earlier ones fresh and the rest stale, and the coordinator's grace
+    then published that mix as the last good values."""
+    unit.load_raw({"input": {OUTSIDE_TEMPERATURE: 123}})
+    await pump.async_update()
+    unit.load_raw({"input": {OUTSIDE_TEMPERATURE: 234}})
+    unit.fail_read(33101, ModbusConnectionError("timed out"), register_type="input")
+
+    with pytest.raises(ModbusConnectionError):
+        await pump.async_update()
+
+    assert _row(pump, OUTSIDE_TEMPERATURE).state == 123
+
+
+async def test_a_refused_system_band_leaves_every_row_as_it_was(pump, unit):
+    unit.load_raw({"input": {OUTSIDE_TEMPERATURE: 123}})
+    await pump.async_update()
+    unit.fail_read(
+        OUTSIDE_TEMPERATURE, IllegalDataAddressError(), register_type="input"
+    )
+
+    with pytest.raises(SystemBandRefused):
+        await pump.async_update()
+
+    assert _row(pump, OUTSIDE_TEMPERATURE).state == 123
+    assert _row(pump, OUTSIDE_TEMPERATURE).is_invalid is False
+
+
 async def test_a_refused_system_band_is_a_failed_poll_not_an_empty_pump(pump, unit):
     """A wrong device under the address refused every block; all 30 bands
     read as absent modules and the poll counted as healthy with no values.

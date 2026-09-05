@@ -450,7 +450,7 @@
   {
     "label": "device: a refused system band must fail the poll",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "        if self.present.get(SYSTEM_BAND) is False:\n",
+    "old": "        if SYSTEM_BAND in served and served[SYSTEM_BAND] is None:\n",
     "new": "        if False:\n",
     "tests": "refused_system_band_is_a_failed_poll"
   },
@@ -495,5 +495,12 @@
     "old": "        async with self._write_lock:\n            if item.state is not None and item.state == value:\n",
     "new": "        async with asyncio.Lock():\n            if item.state is not None and item.state == value:\n",
     "tests": "concurrent_writes_share_one_daily_allowance"
+  },
+  {
+    "label": "device: a poll must not touch the rows before it has succeeded as a whole",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "            served[band] = component\n",
+    "new": "            served[band] = component\n            for row in self._rows[band]:\n                _apply(row, getattr(component, _field_name(row)))\n",
+    "tests": "fails_halfway_leaves_every_row"
   }
 ]

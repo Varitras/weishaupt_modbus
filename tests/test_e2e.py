@@ -191,6 +191,35 @@ async def test_a_switched_off_setpoint_has_a_switch_and_an_unknown_number(hass, 
     assert entry.runtime_data.device.write_budget.total == 1
 
 
+async def test_a_tolerated_failed_poll_keeps_the_published_values(hass, pump):
+    """The grace returned the old dictionary while the rows the entities read
+    were already half rewritten: a refused system band made the outside
+    temperature unavailable at once, and a later link error published the
+    new outside value with everything else a poll old."""
+    entry = await _setup(hass, _entry(hass))
+    outside = er.async_get(hass).async_get_entity_id(
+        "sensor", CONST.DOMAIN, OUTSIDE_TEMPERATURE_UNIQUE_ID
+    )
+    coordinator = entry.runtime_data.coordinator
+
+    pump.fail_read_band(30001)
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert coordinator.last_update_success is True
+    assert hass.states.get(outside).state == "12.3"
+
+    pump.unit.fail_read(30001, None, register_type="input")
+    pump.load_raw({"input": {OUTSIDE_TEMPERATURE: 234}})
+    pump.unit.fail_read(
+        33101, ModbusConnectionError("later band timed out"), register_type="input"
+    )
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert coordinator.last_update_success is True
+    assert hass.states.get(outside).state == "12.3", "a half-read poll must not show"
+
+
 async def test_the_number_and_its_switch_agree_right_after_a_write(hass, pump):
     """Each cached its own state: setting the number left the switch off,
     switching off left the number at 5.0, until the next poll."""

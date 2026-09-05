@@ -116,6 +116,10 @@ class WeishauptHeatPump:
         does a refused system band: a wrong device under the address answered
         every block with an exception and counted as a healthy poll.
         """
+        # Read everything first, apply afterwards: the rows are what the
+        # entities show, and a poll that fails halfway used to leave them
+        # half new, half old - published as if the poll had succeeded.
+        served: dict[Band, Component | None] = {}
         for band, component in self._components.items():
             try:
                 await component.async_update()
@@ -124,16 +128,21 @@ class WeishauptHeatPump:
                 # malformed exception frame whose code is not meaningful.
                 if self.present[band]:
                     _LOGGER.debug("Registers %d-%d not served: %s", *band, err)
-                self._mark_absent(band)
+                served[band] = None
                 continue
-            self.present[band] = True
-            for row in self._rows[band]:
-                _apply(row, getattr(component, _field_name(row)))
-        if self.present.get(SYSTEM_BAND) is False:
+            served[band] = component
+        if SYSTEM_BAND in served and served[SYSTEM_BAND] is None:
             raise SystemBandRefused(
                 f"registers {SYSTEM_BAND[0]}-{SYSTEM_BAND[1]} refused; "
                 "is this a Weishaupt controller?"
             )
+        for band, answered in served.items():
+            if answered is None:
+                self._mark_absent(band)
+                continue
+            self.present[band] = True
+            for row in self._rows[band]:
+                _apply(row, getattr(answered, _field_name(row)))
 
     def _mark_absent(self, band: Band) -> None:
         self.present[band] = False
