@@ -23,7 +23,7 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.exceptions import (
 )
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 
 pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
@@ -189,6 +189,67 @@ async def test_a_switched_off_setpoint_has_a_switch_and_an_unknown_number(hass, 
     ]
     assert hass.states.get(switch_id).state == "on"
     assert entry.runtime_data.device.write_budget.total == 1
+
+
+async def test_the_number_and_its_switch_agree_right_after_a_write(hass, pump):
+    """Each cached its own state: setting the number left the switch off,
+    switching off left the number at 5.0, until the next poll."""
+    pump.load_raw({"holding": {SG_READY_BOOST: 0x8000}})
+    await _setup(hass, _entry(hass))
+    registry = er.async_get(hass)
+    number = registry.async_get_entity_id(
+        "number", CONST.DOMAIN, SG_READY_BOOST_UNIQUE_ID
+    )
+    switch = registry.async_get_entity_id(
+        "switch", CONST.DOMAIN, SG_READY_BOOST_UNIQUE_ID + "_active"
+    )
+
+    await hass.services.async_call(
+        "number", "set_value", {"entity_id": number, "value": 5}, blocking=True
+    )
+    assert hass.states.get(number).state == "5.0"
+    assert hass.states.get(switch).state == "on"
+
+    await hass.services.async_call(
+        "switch", "turn_off", {"entity_id": switch}, blocking=True
+    )
+    assert hass.states.get(switch).state == "off"
+    assert hass.states.get(number).state == "unknown"
+
+
+DHW_NORMAL = 42103
+DHW_LOWERING = 42104
+
+
+async def test_dhw_setpoints_keep_their_own_floor_and_the_latest_neighbour(hass, pump):
+    """15 degC reached register 42103 although normal starts at 20, and 50 degC
+    reached 42104 right after normal had been lowered to 40."""
+    pump.load_raw({"holding": {DHW_NORMAL: 600, DHW_LOWERING: 100}})
+    await _setup(hass, _entry(hass))
+    registry = er.async_get(hass)
+    normal = registry.async_get_entity_id(
+        "number", CONST.DOMAIN, "weishaupt_wbbWarmwasser Normal"
+    )
+    lowering = registry.async_get_entity_id(
+        "number", CONST.DOMAIN, "weishaupt_wbbWarmwasser Absenk"
+    )
+    assert hass.states.get(normal).attributes["min"] == 20
+    writes = []
+    pump.unit.on_write(writes.append)
+
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            "number", "set_value", {"entity_id": normal, "value": 15}, blocking=True
+        )
+    await hass.services.async_call(
+        "number", "set_value", {"entity_id": normal, "value": 40}, blocking=True
+    )
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            "number", "set_value", {"entity_id": lowering, "value": 50}, blocking=True
+        )
+
+    assert [(event.address, event.values) for event in writes] == [(DHW_NORMAL, [400])]
 
 
 async def test_a_refused_band_leaves_its_entities_unavailable(hass, pump):

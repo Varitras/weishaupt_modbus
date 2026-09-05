@@ -20,6 +20,7 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.hpconst import (
     PARAMS_CALCSPREIZUNG,
     SYS_BETRIEBSART,
 )
+from homeassistant.exceptions import ServiceValidationError
 
 
 def _entry(prefix="weishaupt_wbb", postfix="", device_prefix=False, topic_prefix=False):
@@ -49,9 +50,13 @@ class FakeCoordinator:
 
     async def _write(self, item, value):
         self.writes.append((item.address, value))
+        item.state = value  # what the real device does after the wire confirmed
 
     async def _write_off(self, item):
         self.writes.append((item.address, "off"))
+
+    def async_update_listeners(self):
+        pass
 
     def get_value_from_item(self, key):
         return self.values.get(key)
@@ -79,6 +84,54 @@ def test_a_row_without_params_is_a_whole_number_without_a_unit():
 
     assert sensor._attr_native_unit_of_measurement is None
     assert sensor._attr_suggested_display_precision == 0
+
+
+# --- bounds -------------------------------------------------------------------
+
+
+def _dhw_normal(coordinator):
+    item = ModbusItem(
+        42103,
+        "Warmwasser Normal",
+        FORMATS.TEMPERATURE,
+        TYPES.NUMBER,
+        DEVICES.WW,
+        "ww_normal",
+        params={
+            "unit": "°C",
+            "divider": 10,
+            "precision": 1,
+            "min": 20,
+            "max": 80,
+            "dynamic_min": "ww_absenk",
+        },
+    )
+    return entities.MyNumberEntity(_entry(), item, coordinator, 0)
+
+
+def test_a_related_setpoint_narrows_the_bounds_but_never_widens_them():
+    """DHW lowering may sit at 10 degC; that used to become the minimum of
+    DHW normal, whose own floor is 20 degC, and 15 degC reached the wire."""
+    number = _dhw_normal(FakeCoordinator(values={"ww_absenk": 100}))
+    number.set_min_max(True)
+    assert number.native_min_value == 20
+
+    number = _dhw_normal(FakeCoordinator(values={"ww_absenk": 350}))
+    number.set_min_max(True)
+    assert number.native_min_value == 35
+
+
+async def test_a_value_outside_the_current_bounds_is_refused_at_the_write():
+    """Home Assistant validates against the bounds it was told a poll ago; a
+    related setpoint written since has moved them."""
+    coordinator = FakeCoordinator(values={"ww_absenk": 350})
+    number = _dhw_normal(coordinator)
+
+    with pytest.raises(ServiceValidationError):
+        await number.set_translate_val(30)
+
+    assert coordinator.writes == []
+    assert await number.set_translate_val(40) == 400
 
 
 # --- the off switch ----------------------------------------------------------
@@ -121,8 +174,7 @@ async def test_turning_off_writes_the_off_word_and_on_restores_the_value():
     item.last_setting = 185
     coordinator = FakeCoordinator()
     switch = entities.MySetpointSwitchEntity(_entry(), item, coordinator, 0)
-    switch.hass = None
-    switch.async_write_ha_state = lambda: None
+    coordinator.async_update_listeners = lambda: None
 
     await switch.async_turn_off()
     await switch.async_turn_on()
@@ -134,7 +186,7 @@ async def test_turning_on_a_setpoint_never_seen_on_uses_the_minimum():
     item = _switchable_setpoint()
     coordinator = FakeCoordinator()
     switch = entities.MySetpointSwitchEntity(_entry(), item, coordinator, 0)
-    switch.async_write_ha_state = lambda: None
+    coordinator.async_update_listeners = lambda: None
 
     await switch.async_turn_on()
 
@@ -332,6 +384,7 @@ async def test_a_number_write_is_scaled_by_the_divider():
     number.async_write_ha_state = lambda: None
 
     await number.async_set_native_value(21.5)
+    number._handle_coordinator_update()  # what async_update_listeners triggers
 
     assert coordinator.writes == [(41001, 215)]
     assert number._attr_native_value == 21.5
@@ -353,6 +406,7 @@ async def test_a_select_write_sends_the_number_behind_the_key():
     chosen = SYS_BETRIEBSART[1]
 
     await select.async_select_option(chosen.translation_key)
+    select._handle_coordinator_update()  # what async_update_listeners triggers
 
     assert coordinator.writes == [(40001, chosen.number)]
     assert select._attr_current_option == chosen.translation_key

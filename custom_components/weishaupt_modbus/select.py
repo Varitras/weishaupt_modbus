@@ -18,7 +18,6 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Select entry setup."""
-    _useless = hass
     # start with an empty list of entries
     entries: list[Any] = []
 

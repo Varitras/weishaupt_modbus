@@ -10,7 +10,7 @@ from homeassistant.components.select import SelectEntity
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
 from homeassistant.core import callback
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -41,6 +41,9 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
     _attr_has_entity_name = True
     _dynamic_min: float | None = None
     _dynamic_max: float | None = None
+    # The table's own bounds; a dynamic bound can only narrow them.
+    _fixed_min: float = -999999
+    _fixed_max: float = 999999
     _has_dynamic_min = False
     _has_dynamic_max = False
 
@@ -98,8 +101,10 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
                 self._attr_suggested_display_precision = self._api_item.params.get(
                     "precision", 0
                 )
-                self._attr_native_min_value = self._api_item.params.get("min", -999999)
-                self._attr_native_max_value = self._api_item.params.get("max", 999999)
+                self._fixed_min = self._api_item.params.get("min", -999999)
+                self._fixed_max = self._api_item.params.get("max", 999999)
+                self._attr_native_min_value = self._fixed_min
+                self._attr_native_max_value = self._fixed_max
                 if self._api_item.params.get("dynamic_min", None) is not None:
                     self._has_dynamic_min = True
                 if self._api_item.params.get("dynamic_max", None) is not None:
@@ -121,24 +126,33 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
         return super().available and not self._api_item.is_invalid
 
     def set_min_max(self, onlydynamic: bool = False) -> None:
-        """Set min max to fixed or dynamic values."""
+        """The effective bounds: the table's, narrowed by a related setpoint.
+
+        Narrowed, never replaced: the DHW lowering setpoint may sit at 10 degC,
+        and that used to become the minimum of DHW normal, whose own floor
+        is 20 degC.
+        """
         if onlydynamic is True:
             if (self._has_dynamic_min is False) & (self._has_dynamic_max is False):
                 return
 
         if self._has_dynamic_min:
             min_key = self._api_item.params.get("dynamic_min") or ""
-            # Safely fetch the dynamic min from the coordinator
             self._dynamic_min = self.coordinator.get_value_from_item(min_key)
+            self._attr_native_min_value = self._fixed_min
             if self._dynamic_min is not None:
-                self._attr_native_min_value = self._dynamic_min / self._divider
+                self._attr_native_min_value = max(
+                    self._fixed_min, self._dynamic_min / self._divider
+                )
 
         if self._has_dynamic_max:
             max_key = self._api_item.params.get("dynamic_max") or ""
-            # Safely fetch the dynamic max from the coordinator
             self._dynamic_max = self.coordinator.get_value_from_item(max_key)
+            self._attr_native_max_value = self._fixed_max
             if self._dynamic_max is not None:
-                self._attr_native_max_value = self._dynamic_max / self._divider
+                self._attr_native_max_value = min(
+                    self._fixed_max, self._dynamic_max / self._divider
+                )
 
     def translate_val(self, val: Any) -> float | str | None:
         """Translate modbus value into senseful format."""
@@ -155,8 +169,18 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
         if self._api_item.format == FORMATS.STATUS:
             val = self._api_item.get_number_from_translation_key(str(value))
         else:
+            # The bounds Home Assistant validated against may be a poll old:
+            # a related setpoint written a moment ago moves them. Check here,
+            # where the write is.
             self.set_min_max(True)
-            val = to_register_value(float(value), self._divider)
+            wanted = float(value)
+            low, high = self._attr_native_min_value, self._attr_native_max_value
+            if not low <= wanted <= high:
+                raise ServiceValidationError(
+                    f"{wanted} is outside the current range {low} to {high} "
+                    f"of register {self._api_item.address}"
+                )
+            val = to_register_value(wanted, self._divider)
 
         if val is None:
             return None
@@ -212,12 +236,6 @@ class MySensorEntity(MyEntity, SensorEntity):
 
 class MyCalcSensorEntity(MySensorEntity):
     """A sensor computed from other registers by a function in calculations.py."""
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        self._attr_native_value = self.translate_val(self._api_item.state)
-        self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
         """When entity is added to Hass, perform immediate initial calculation."""
@@ -278,12 +296,9 @@ class MyNumberEntity(MyEntity, NumberEntity):
         self.async_write_ha_state()
 
     async def async_set_native_value(self, value: float) -> None:
-        """Send value over modbus and refresh HA."""
-        result = await self.set_translate_val(value)
-        if result is not None:
-            self._api_item.state = result
-            self._attr_native_value = self.translate_val_number(self._api_item.state)
-            self.async_write_ha_state()
+        """Write the value; every entity on the register learns of it at once."""
+        if await self.set_translate_val(value) is not None:
+            self.coordinator.async_update_listeners()
 
 
 class MySetpointSwitchEntity(MyEntity, SwitchEntity):
@@ -323,8 +338,8 @@ class MySetpointSwitchEntity(MyEntity, SwitchEntity):
             raise HomeAssistantError(
                 f"Switching register {self._api_item.address} off failed: {err}"
             ) from err
-        self._attr_is_on = False
-        self.async_write_ha_state()
+        # The number beside this switch shows the same register.
+        self.coordinator.async_update_listeners()
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Restore the last value, or the range's minimum."""
@@ -337,8 +352,7 @@ class MySetpointSwitchEntity(MyEntity, SwitchEntity):
             raise HomeAssistantError(
                 f"Switching register {self._api_item.address} on failed: {err}"
             ) from err
-        self._attr_is_on = True
-        self.async_write_ha_state()
+        self.coordinator.async_update_listeners()
 
 
 class MySelectEntity(MyEntity, SelectEntity):
@@ -367,12 +381,9 @@ class MySelectEntity(MyEntity, SelectEntity):
         return None
 
     async def async_select_option(self, option: str) -> None:
-        """Write the selected option to modbus and refresh HA."""
-        result = await self.set_translate_val(option)
-        if result is not None:
-            self._api_item.state = result
-            self._attr_current_option = self.translate_val_select(self._api_item.state)
-            self.async_write_ha_state()
+        """Write the selected option; every entity on the register learns of it."""
+        if await self.set_translate_val(option) is not None:
+            self.coordinator.async_update_listeners()
 
     @callback
     def _handle_coordinator_update(self) -> None:

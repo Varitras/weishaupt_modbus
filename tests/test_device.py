@@ -4,6 +4,7 @@ Driven against the library's in-memory mock unit - the same code path the
 tmodbus backend takes, minus the wire.
 """
 
+import asyncio
 import copy
 import itertools
 import json
@@ -356,6 +357,31 @@ async def test_a_negative_temperature_is_written_as_twos_complement(pump, unit):
     await pump.write(_row(pump, BIVALENCE_TEMPERATURE), -50)
 
     assert writes[0].values == [65486]
+
+
+async def test_concurrent_writes_share_one_daily_allowance(pump, unit, monkeypatch):
+    """Two automations firing together, one write left for the day: both
+    saw the allowance before either had used it, and both reached the wire.
+    The backend serialises the wire, not the budget decision."""
+    pump.write_budget.limit = 1
+    rows = [_row(pump, PV_SETPOINT), _row(pump, 41105)]
+    writes = []
+    unit.on_write(writes.append)
+    wire = asyncio.Lock()
+    real_write = unit.write_register
+
+    async def serialised_but_slow(address, value):
+        async with wire:
+            await asyncio.sleep(0)
+            await real_write(address, value)
+
+    monkeypatch.setattr(unit, "write_register", serialised_but_slow)
+    outcomes = await asyncio.gather(
+        *(pump.write(row, 1) for row in rows), return_exceptions=True
+    )
+
+    assert len(writes) == 1, outcomes
+    assert sum(1 for outcome in outcomes if isinstance(outcome, WriteError)) == 1
 
 
 async def test_the_daily_limit_refuses_the_write(pump, unit):

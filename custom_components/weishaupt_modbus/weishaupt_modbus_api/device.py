@@ -8,6 +8,7 @@ simply marked absent. The unit itself - the socket, the lock, reconnects -
 belongs to Home Assistant's modbus integration.
 """
 
+import asyncio
 from collections import defaultdict
 import logging
 from typing import Any
@@ -85,6 +86,10 @@ class WeishauptHeatPump:
         """Group the register rows by band and build a component per band."""
         self.items = [item for item in items if item.type != TYPES.SENSOR_CALC]
         self.write_budget = write_budget
+        # The budget decision and the write it guards are one operation: two
+        # automations firing together both saw one allowance left and both
+        # wrote. The backend's own lock serialises the wire, not this.
+        self._write_lock = asyncio.Lock()
         self.present: dict[Band, bool] = {}
         self._components: dict[Band, Component] = {}
         self._rows: dict[Band, list[ModbusItem]] = defaultdict(list)
@@ -143,25 +148,27 @@ class WeishauptHeatPump:
         The EEPROM is rated for EEPROM_WRITE_RATING writes, so an unchanged
         value is not written again and the daily limit is honoured.
         """
-        if item.state is not None and item.state == value:
-            _LOGGER.debug(
-                "Register %d already holds %d, not written", item.address, value
-            )
-            return False
-        await self._write_word(item, value)
-        item.state = value
-        item.is_off = False
-        item.last_setting = value
-        return True
+        async with self._write_lock:
+            if item.state is not None and item.state == value:
+                _LOGGER.debug(
+                    "Register %d already holds %d, not written", item.address, value
+                )
+                return False
+            await self._write_word(item, value)
+            item.state = value
+            item.is_off = False
+            item.last_setting = value
+            return True
 
     async def write_off(self, item: ModbusItem) -> bool:
         """Switch a setpoint off (its off word); False when it already was."""
-        if item.is_off:
-            return False
-        await self._write_word(item, SETPOINT_OFF_SIGNED)
-        item.state = None
-        item.is_off = True
-        return True
+        async with self._write_lock:
+            if item.is_off:
+                return False
+            await self._write_word(item, SETPOINT_OFF_SIGNED)
+            item.state = None
+            item.is_off = True
+            return True
 
     async def _write_word(self, item: ModbusItem, word: int) -> None:
         if not self.write_budget.allows_write():

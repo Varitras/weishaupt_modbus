@@ -51,15 +51,15 @@
   {
     "label": "entity: a dynamic maximum must be scaled by the divider",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "                self._attr_native_max_value = self._dynamic_max / self._divider",
-    "new": "                self._attr_native_max_value = self._dynamic_max",
+    "old": "                self._attr_native_max_value = min(\n                    self._fixed_max, self._dynamic_max / self._divider\n                )\n",
+    "new": "                self._attr_native_max_value = min(\n                    self._fixed_max, self._dynamic_max\n                )\n",
     "tests": "dynamic_limits"
   },
   {
     "label": "entity: a number write must be scaled by the divider",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "            val = to_register_value(float(value), self._divider)\n",
-    "new": "            val = to_register_value(float(value), 1)\n",
+    "old": "            val = to_register_value(wanted, self._divider)\n",
+    "new": "            val = to_register_value(wanted, 1)\n",
     "tests": "number_write_is_scaled"
   },
   {
@@ -467,5 +467,33 @@
     "old": "        self._failed_polls = 0\n        return self._results()\n",
     "new": "        return self._results()\n",
     "tests": "three_failed_polls_keep_the_last_values"
+  },
+  {
+    "label": "entity: a dynamic bound must narrow the fixed one, not replace it",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "                self._attr_native_min_value = max(\n                    self._fixed_min, self._dynamic_min / self._divider\n                )\n",
+    "new": "                self._attr_native_min_value = self._dynamic_min / self._divider\n",
+    "tests": "narrows_the_bounds_but_never_widens"
+  },
+  {
+    "label": "entity: a value outside the current bounds must be refused at the write",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "            if not low <= wanted <= high:\n",
+    "new": "            if False:\n",
+    "tests": "outside_the_current_bounds_is_refused"
+  },
+  {
+    "label": "entity: a write must reach every entity on the register",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        if await self.set_translate_val(value) is not None:\n            self.coordinator.async_update_listeners()\n",
+    "new": "        if await self.set_translate_val(value) is not None:\n            self.async_write_ha_state()\n",
+    "tests": "number_and_its_switch_agree"
+  },
+  {
+    "label": "device: concurrent writes must share one daily allowance",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        async with self._write_lock:\n            if item.state is not None and item.state == value:\n",
+    "new": "        async with asyncio.Lock():\n            if item.state is not None and item.state == value:\n",
+    "tests": "concurrent_writes_share_one_daily_allowance"
   }
 ]

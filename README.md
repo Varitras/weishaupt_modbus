@@ -71,6 +71,13 @@ Upgrading: install 2.0 and restart. Existing entries migrate on first start
 (entry version 11); an entry keeps the host and port you configured. If the
 controller does not answer during setup, Home Assistant retries.
 
+After the upgrade the recorder warns once per sensor whose unit changed:
+the three relabelled second-heat-source counters (hours and cycles had
+swapped names), the H1.x inputs (now °C, as the data-point list says) and
+a few unit-less rows (an empty unit became none). Open *Developer tools ->
+Statistics*, and for each listed entity choose to update the unit of the
+recorded statistics - the history is the register's and stays.
+
 ## Configuration
 
 The only mandatory parameter is the address of your heat pump. The port is
