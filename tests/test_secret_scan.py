@@ -25,7 +25,9 @@ CONFIG = REPO / ".gitleaks.toml"
 # itself, in every scan of the history from here on. Neither string was
 # ever issued to anyone.
 # AKIA and 16 more characters is what the AWS access-key rule matches.
-SYNTHETIC_TOKEN = "AKIA" + "Q7" * 8
+# Mixed characters on purpose: gitleaks 8.30 drops a low-entropy AKIAQ7Q7... as
+# not a credential, and the test then proved nothing.
+SYNTHETIC_TOKEN = "AKIA" + "J7Q2X9M4" + "T6B3W8N5"
 # 32 lowercase alphanumerics with no underscore: the shape the old allowlist
 # still exempted when it sat in a bare `key="..."`.
 SYNTHETIC_BARE = "7j4g9q2m" + "8z6n3p5r" + "1v0x9s8t" + "7w6y5h4k"
@@ -74,6 +76,21 @@ def test_a_token_next_to_a_translation_key_is_still_found(tmp_path):
     assert _scan(tmp_path, line) == LEAK_FOUND
 
 
+def test_the_high_entropy_table_keys_are_not_findings(tmp_path):
+    """The rows gitleaks 8.30 flagged on the push of main: long keys with a
+    letter beyond f, matched as translation_key=... as a whole."""
+    rows = "\n".join(
+        f'ModbusItem(address={address}, translation_key="{key}")'
+        for address, key in (
+            (33111, "vl_temp_praezise"),
+            (34103, "schaltsp_2wez"),
+            (45103, "konf_ausg_h12"),
+            (45106, "konf_ausg_h15"),
+        )
+    )
+    assert _scan(tmp_path, rows + "\n") == 0
+
+
 def test_a_bare_alphanumeric_key_outside_the_table_is_still_found(tmp_path):
     """A lowercase credential with a letter beyond f passed the old allowlist,
     which only ruled out hex. Translation keys have underscores or are short."""
@@ -90,13 +107,14 @@ def test_every_table_key_fits_the_allowlist():
         / "weishaupt_modbus_api"
         / "hpconst.py"
     ).read_text(encoding="utf-8")
-    allowlist = re.search(
-        r"'''(\^key=.*)'''", CONFIG.read_text(encoding="utf-8")
-    ).group(1)
+    allowlist = re.search(r"'''(\^.*)'''", CONFIG.read_text(encoding="utf-8")).group(1)
     keys = set(re.findall(r'translation_key="([a-z0-9_]+)"', table))
     keys |= {key + suffix for key in keys for suffix in "2345"}
 
     assert not [key for key in keys if not re.match(allowlist, f'key="{key}"')]
+    assert not [
+        key for key in keys if not re.match(allowlist, f'translation_key="{key}"')
+    ], "gitleaks 8.30 hands the allowlist the whole translation_key=... match"
 
 
 def test_a_hex_token_in_the_key_position_is_still_found(tmp_path):
