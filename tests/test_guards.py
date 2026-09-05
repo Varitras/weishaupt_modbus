@@ -45,7 +45,10 @@ GUARD_FILES = {
 
 # Reading ONE source file is right where the subject genuinely is one file.
 # Each exemption names why; anything else has to scan the package.
-SINGLE_FILE_EXEMPTIONS: set = set()
+SINGLE_FILE_EXEMPTIONS: set = {
+    # the translation keys the secret-scan allowlist must fit live in the one table
+    ("test_secret_scan.py", "hpconst"),
+}
 
 
 def _a_source_file_of_this_package(target) -> set:

@@ -11,6 +11,7 @@ Needs the gitleaks binary; the pre-push hook and check.sh need it anyway.
 """
 
 import pathlib
+import re
 import shutil
 import subprocess
 
@@ -25,6 +26,9 @@ CONFIG = REPO / ".gitleaks.toml"
 # ever issued to anyone.
 # AKIA and 16 more characters is what the AWS access-key rule matches.
 SYNTHETIC_TOKEN = "AKIA" + "Q7" * 8
+# 32 lowercase alphanumerics with no underscore: the shape the old allowlist
+# still exempted when it sat in a bare `key="..."`.
+SYNTHETIC_BARE = "7j4g9q2m" + "8z6n3p5r" + "1v0x9s8t" + "7w6y5h4k"
 # 40 hex characters is the shape the generic-api-key rule reads as a token.
 SYNTHETIC_HEX = "9f8e7d6c5b4a3f2e" + "1d0c9b8a7f6e5d4c" + "3b2a1f0e"
 LEAK_FOUND = 2  # gitleaks' exit code for "findings" with --exit-code 2
@@ -68,6 +72,31 @@ def test_a_translation_key_alone_is_not_a_finding(tmp_path):
 def test_a_token_next_to_a_translation_key_is_still_found(tmp_path):
     line = f'ModbusItem(translation_key="hp_konf", token="{SYNTHETIC_TOKEN}")\n'
     assert _scan(tmp_path, line) == LEAK_FOUND
+
+
+def test_a_bare_alphanumeric_key_outside_the_table_is_still_found(tmp_path):
+    """A lowercase credential with a letter beyond f passed the old allowlist,
+    which only ruled out hex. Translation keys have underscores or are short."""
+    assert _scan(tmp_path, f'key="{SYNTHETIC_BARE}"\n') == LEAK_FOUND
+
+
+def test_every_table_key_fits_the_allowlist():
+    """A new translation key of the wrong shape would light up the scanner on
+    the next push; better to hear it here."""
+    table = (
+        REPO
+        / "custom_components"
+        / "weishaupt_modbus"
+        / "weishaupt_modbus_api"
+        / "hpconst.py"
+    ).read_text(encoding="utf-8")
+    allowlist = re.search(
+        r"'''(\^key=.*)'''", CONFIG.read_text(encoding="utf-8")
+    ).group(1)
+    keys = set(re.findall(r'translation_key="([a-z0-9_]+)"', table))
+    keys |= {key + suffix for key in keys for suffix in "2345"}
+
+    assert not [key for key in keys if not re.match(allowlist, f'key="{key}"')]
 
 
 def test_a_hex_token_in_the_key_position_is_still_found(tmp_path):

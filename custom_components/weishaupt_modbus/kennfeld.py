@@ -11,6 +11,7 @@ from pathlib import Path
 import re
 import shutil
 from typing import Any
+import xml.etree.ElementTree as ET
 
 from homeassistant.core import HomeAssistant
 
@@ -42,13 +43,42 @@ def _looks_like_a_grid(data: Any) -> bool:
     )
 
 
-def is_static_picture(svg: str) -> bool:
-    """Whether an SVG carries nothing that runs or loads: no script, no web link.
+# Elements that run or embed something; the tag name without its namespace.
+ACTIVE_ELEMENTS = frozenset({"script", "foreignobject", "iframe", "embed", "object"})
+# Anything that loads or executes from an attribute or a stylesheet.
+LOADS_OR_RUNS = re.compile(r"javascript:|https?:|data:|url\(|@import", re.IGNORECASE)
 
-    A custom grid may come with a picture from anywhere; under www/ it would
-    run in Home Assistant's origin.
+
+def is_static_picture(svg: str) -> bool:
+    """Whether an SVG carries nothing that runs or loads.
+
+    Parsed, not grepped: a substring test let an `onload` handler, a
+    namespace-prefixed script, a single-quoted external image and a
+    `javascript:` link through. A custom grid may come with a picture from
+    anywhere; under www/ it would run in Home Assistant's origin.
     """
-    return "<script" not in svg and re.search(r'href="https?://', svg) is None
+    # No document type or entity declarations: nothing for the parser to
+    # expand, which is what makes the stdlib parser safe enough here (S314).
+    if re.search(r"<!(?:DOCTYPE|ENTITY)", svg, re.IGNORECASE):
+        return False
+    try:
+        root = ET.fromstring(svg)  # noqa: S314
+    except ET.ParseError:
+        return False
+    return all(_element_is_static(element) for element in root.iter())
+
+
+def _element_is_static(element: ET.Element) -> bool:
+    tag = str(element.tag).rsplit("}", 1)[-1].lower()
+    if tag in ACTIVE_ELEMENTS:
+        return False
+    if tag == "style" and LOADS_OR_RUNS.search(element.text or ""):
+        return False
+    return all(
+        not name.rsplit("}", 1)[-1].lower().startswith("on")
+        and not LOADS_OR_RUNS.search(value)
+        for name, value in element.attrib.items()
+    )
 
 
 def powermap_file_name(entry_data: Mapping[str, Any]) -> str:

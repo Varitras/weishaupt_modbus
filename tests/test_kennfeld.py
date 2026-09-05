@@ -227,6 +227,48 @@ async def test_a_static_preview_is_copied_under_www(hass, tmp_path, monkeypatch)
     assert (tmp_path / "www" / "local" / "weishaupt_modbus_powermap.svg").exists()
 
 
+@pytest.mark.parametrize(
+    ("payload", "why"),
+    [
+        (
+            '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>',
+            "event handler",
+        ),
+        (
+            '<svg xmlns="http://www.w3.org/2000/svg" xmlns:s="http://www.w3.org/2000/svg"><s:script>alert(1)</s:script></svg>',
+            "namespace-prefixed script",
+        ),
+        (
+            "<svg xmlns=\"http://www.w3.org/2000/svg\"><image href='https://example.invalid/p.svg'/></svg>",
+            "single-quoted external image",
+        ),
+        (
+            '<svg xmlns="http://www.w3.org/2000/svg"><a href="javascript:alert(1)"><text>x</text></a></svg>',
+            "javascript link",
+        ),
+        (
+            '<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><body xmlns="http://www.w3.org/1999/xhtml" onload="alert(1)"/></foreignObject></svg>',
+            "foreign HTML content",
+        ),
+        (
+            '<svg xmlns="http://www.w3.org/2000/svg"><style>@import url(https://e.invalid/x.css)</style></svg>',
+            "stylesheet import",
+        ),
+        ("<!DOCTYPE svg [<!ENTITY x 'y'>]><svg>&x;</svg>", "entity declaration"),
+        ("<svg><path d='M0 0'", "not even XML"),
+    ],
+)
+def test_a_picture_that_runs_or_loads_is_not_static(payload, why):
+    """Five of these passed the old substring test."""
+    assert kennfeld.is_static_picture(payload) is False, why
+
+
+def test_a_plain_drawing_is_static():
+    assert kennfeld.is_static_picture(
+        '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><defs><path id="p" d="M0 0"/></defs><use xlink:href="#p"/><text>35°C</text></svg>'
+    )
+
+
 def test_shipped_plots_are_static_pictures():
     """pygal's default SVG carries inline script and fetches tooltip JavaScript
     from the web; copied under Home Assistant's www it would run in its

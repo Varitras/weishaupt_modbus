@@ -443,8 +443,8 @@
   {
     "label": "kennfeld: a preview with script must not be copied under www",
     "path": "custom_components/weishaupt_modbus/kennfeld.py",
-    "old": "    return \"<script\" not in svg and re.search(r'href=\"https?://', svg) is None\n",
-    "new": "    return True\n",
+    "old": "    if tag in ACTIVE_ELEMENTS:\n        return False\n",
+    "new": "    if tag in ACTIVE_ELEMENTS:\n        pass\n",
     "tests": "carries_script_is_not_copied"
   },
   {
@@ -502,5 +502,12 @@
     "old": "            served[band] = component\n",
     "new": "            served[band] = component\n            for row in self._rows[band]:\n                _apply(row, getattr(component, _field_name(row)))\n",
     "tests": "fails_halfway_leaves_every_row"
+  },
+  {
+    "label": "kennfeld: an event handler attribute must not pass as a static picture",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "        not name.rsplit(\"}\", 1)[-1].lower().startswith(\"on\")\n",
+    "new": "        True\n",
+    "tests": "runs_or_loads_is_not_static"
   }
 ]
