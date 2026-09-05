@@ -49,8 +49,9 @@ blocklist_gate() {
     patterns=$(mktemp)
     grep -vE '^[[:space:]]*(#|$)' "$blocklist" | sed 's/\r$//' > "$patterns"
     scan=$( { git log --format='%B' "$range"; git diff "$range" | grep -E '^\+' | grep -v '^+++'; } )
-    hits=$(printf '%s\n' "$scan" | grep -n -i -E -f "$patterns")
-    status=$?
+    # grep exits 1 on a clean range; under set -e that must not end the hook.
+    status=0
+    hits=$(printf '%s\n' "$scan" | grep -n -i -E -f "$patterns") || status=$?
     rm -f "$patterns"
     if [ "$status" -eq 2 ]; then
         echo "pre-push: the blocklist scan itself failed (grep exit 2) - push refused" >&2
