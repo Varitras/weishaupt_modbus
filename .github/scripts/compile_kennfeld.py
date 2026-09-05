@@ -7,11 +7,14 @@ which is why it happens here, once, and not on every user's machine.
 
     python .github/scripts/compile_kennfeld.py custom_components/weishaupt_modbus/kennfeld/my_kennfeld.json
 
-The integration draws the missing preview SVG at first start.
+It also draws the preview picture next to the grid (needs pygal); the
+integration only copies that picture under www/ and refuses one that
+carries script.
 """
 
 import json
 from pathlib import Path
+import re
 import sys
 
 
@@ -45,6 +48,53 @@ def compile_grid(data: dict) -> dict[str, list[float]]:
     }
 
 
+def draw_preview(data: dict, svg_path: Path) -> bool:
+    """A static SVG of the flow curves; False when pygal is not installed."""
+    try:
+        import pygal  # noqa: PLC0415
+        from pygal.style import Style  # noqa: PLC0415
+    except ImportError:
+        print("pygal not installed - no preview drawn", file=sys.stderr)
+        return False
+    grid = data["compiled_grid"]
+    known_t = data["known_t"]
+    # Home Assistant's dark cards
+    style = Style(
+        background="#1c1c1e",
+        plot_background="#1c1c1e",
+        foreground="#e5e5ea",
+        foreground_strong="#ffffff",
+        foreground_subtle="#8e8e93",
+        colors=("#30d158", "#0a84ff", "#ff453a", "#bf5af2"),
+        stroke_width=2.5,
+    )
+    chart = pygal.XY(
+        stroke=True,
+        show_dots=False,
+        width=500,
+        height=320,
+        style=style,
+        legend_at_bottom=True,
+        js=[],
+    )
+    chart.title = f"Kennfeld Heizleistung - {svg_path.stem}"
+    for index, flow in enumerate(known_t):
+        # one point per whole degree is plenty for a picture
+        points = [
+            (raw / 10.0, values[index])
+            for raw, values in ((int(r), v) for r, v in grid.items())
+            if raw % 10 == 0
+        ]
+        chart.add(f"{flow}°C Vorlauf", sorted(points))
+    # pygal inlines its own config as a <script> even with js=[]; a picture
+    # under www/ carries no script at all.
+    static = re.sub(
+        r"<script.*?</script>", "", chart.render().decode("utf-8"), flags=re.DOTALL
+    )
+    svg_path.write_text(static, encoding="utf-8")
+    return True
+
+
 def main(argv: list[str]) -> int:
     """Write compiled_grid into the file named on the command line."""
     if len(argv) != 2:
@@ -56,6 +106,8 @@ def main(argv: list[str]) -> int:
     data["compiled_grid"] = compile_grid(data)
     path.write_text(json.dumps(data, separators=(",", ":")) + "\n", encoding="utf-8")
     print(f"compiled {path.name}: {len(data['compiled_grid'])} outside temperatures")
+    if draw_preview(data, path.with_suffix(".svg")):
+        print(f"drew {path.with_suffix('.svg').name}")
     return 0
 
 

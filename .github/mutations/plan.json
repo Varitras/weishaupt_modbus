@@ -338,8 +338,8 @@
   {
     "label": "manifest: a package core pins must not be pinned here too",
     "path": "custom_components/weishaupt_modbus/manifest.json",
-    "old": "    \"modbus-connection[tmodbus]>=4.10.0\",\n",
-    "new": "    \"modbus-connection[tmodbus]==4.10.0\",\n",
+    "old": "    \"modbus-connection[tmodbus]>=4.10.0\"\n",
+    "new": "    \"modbus-connection[tmodbus]==4.10.0\"\n",
     "tests": "pins_nothing_the_core_modbus_integration_owns"
   },
   {
@@ -439,5 +439,12 @@
     "old": "PARAMS_ENERGY_YESTERDAY: dict[str, Any] = {**PARAMS_ENERGY, \"stateclass\": None}\n",
     "new": "PARAMS_ENERGY_YESTERDAY: dict[str, Any] = {**PARAMS_ENERGY}\n",
     "tests": "yesterdays_energy_has_no_long_term_statistics"
+  },
+  {
+    "label": "kennfeld: a preview with script must not be copied under www",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "    return \"<script\" not in svg and re.search(r'href=\"https?://', svg) is None\n",
+    "new": "    return True\n",
+    "tests": "carries_script_is_not_copied"
   }
 ]

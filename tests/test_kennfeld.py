@@ -6,7 +6,6 @@ import importlib.util
 import json
 import logging
 import pathlib
-import re
 from types import SimpleNamespace
 
 import pytest
@@ -178,6 +177,56 @@ def test_the_preview_file_is_named_per_entry():
     )
 
 
+async def test_a_preview_that_carries_script_is_not_copied_under_www(
+    hass, caplog, tmp_path, monkeypatch
+):
+    """A custom grid may come with a picture from anywhere; copied unchanged
+    under www/ it would run in Home Assistant's origin. The shipped
+    pictures were already checked; the copy path was not."""
+    grid = {
+        "known_t": [35, 55],
+        "known_x": [-10, 10],
+        "compiled_grid": {"0": [1.0, 2.0]},
+    }
+    (tmp_path / "own_kennfeld.json").write_text(json.dumps(grid), encoding="utf-8")
+    (tmp_path / "own_kennfeld.svg").write_text(
+        "<svg><script>alert(1)</script></svg>", encoding="utf-8"
+    )
+    entry = SimpleNamespace(
+        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+    )
+    monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
+    www = tmp_path / "www" / "local"
+    hass.config.config_dir = str(tmp_path)
+
+    with caplog.at_level(logging.ERROR, logger=kennfeld.__name__):
+        await PowerMap(entry, hass).initialize()
+
+    assert not (www / "weishaupt_modbus_powermap.svg").exists()
+    assert "carries script" in caplog.text
+
+
+async def test_a_static_preview_is_copied_under_www(hass, tmp_path, monkeypatch):
+    grid = {
+        "known_t": [35, 55],
+        "known_x": [-10, 10],
+        "compiled_grid": {"0": [1.0, 2.0]},
+    }
+    (tmp_path / "own_kennfeld.json").write_text(json.dumps(grid), encoding="utf-8")
+    (tmp_path / "own_kennfeld.svg").write_text(
+        "<svg><path d='M0 0'/></svg>", encoding="utf-8"
+    )
+    entry = SimpleNamespace(
+        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+    )
+    monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
+    hass.config.config_dir = str(tmp_path)
+
+    await PowerMap(entry, hass).initialize()
+
+    assert (tmp_path / "www" / "local" / "weishaupt_modbus_powermap.svg").exists()
+
+
 def test_shipped_plots_are_static_pictures():
     """pygal's default SVG carries inline script and fetches tooltip JavaScript
     from the web; copied under Home Assistant's www it would run in its
@@ -185,9 +234,7 @@ def test_shipped_plots_are_static_pictures():
     shipped = list((PACKAGE / "kennfeld").glob("*.svg"))
     assert shipped
     for plot in shipped:
-        text = plot.read_text(encoding="utf-8")
-        assert "<script" not in text, f"{plot.name} carries script"
-        assert not re.search(r'href="https?://', text), f"{plot.name} links to the web"
+        assert kennfeld.is_static_picture(plot.read_text(encoding="utf-8")), plot.name
 
 
 @pytest.mark.parametrize(
@@ -244,3 +291,15 @@ def test_the_compile_script_keeps_each_curve_with_its_flow_temperature():
 
     assert known_t == [35, 55]
     assert known_y == [[5000, 6000], [4000, 5000]]
+
+
+def test_the_integration_does_not_draw_pictures_at_runtime():
+    """pygal left the manifest: drawing happens in compile_kennfeld.py. A
+    module that imported it again would fail on every installation."""
+    mentions = [
+        source.name
+        for source in PACKAGE.rglob("*.py")
+        if "pygal" in source.read_text(encoding="utf-8")
+    ]
+
+    assert mentions == []

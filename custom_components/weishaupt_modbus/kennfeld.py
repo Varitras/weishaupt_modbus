@@ -42,13 +42,26 @@ def _looks_like_a_grid(data: Any) -> bool:
     )
 
 
+def is_static_picture(svg: str) -> bool:
+    """Whether an SVG carries nothing that runs or loads: no script, no web link.
+
+    A custom grid may come with a picture from anywhere; under www/ it would
+    run in Home Assistant's origin.
+    """
+    return "<script" not in svg and re.search(r'href="https?://', svg) is None
+
+
 def powermap_file_name(entry_data: Mapping[str, Any]) -> str:
     """The preview under www/local - one per entry, so two pumps do not race for it."""
     return f"{CONST.DOMAIN}_powermap{device_postfix(entry_data)}.svg"
 
 
 class PowerMap:
-    """PowerMap class that loads pre-compiled grids and renders dynamic Pygal SVG graphs."""
+    """The compiled power-map grid of one entry, and its preview under www/local.
+
+    Reads only: compiling a grid and drawing its preview happen once, in
+    .github/scripts/compile_kennfeld.py, not on every user's machine.
+    """
 
     def __init__(self, config_entry: MyConfigEntry, hass: HomeAssistant) -> None:
         """Initialize the PowerMap."""
@@ -91,79 +104,10 @@ class PowerMap:
         self._out_range_raw = [min(known_x) * 10, max(known_x) * 10]
         self._compiled_grid = data["compiled_grid"]
 
-        if not filepath.with_suffix(".svg").exists():
-            await self.hass.async_add_executor_job(
-                self._generate_plot_blocking, data, filepath
-            )
         www_dir = Path(f"{self.hass.config.config_dir}/www/local")
         await self.hass.async_add_executor_job(
             self._copy_powermap_plot, filepath, www_dir
         )
-
-    def _generate_plot_blocking(self, data: dict[str, Any], filepath: Path) -> None:
-        """Generate an SVG plot using Pygal."""
-        import pygal  # noqa: PLC0415
-        from pygal.style import Style  # noqa: PLC0415
-
-        compiled_grid: dict[str, Any] = data.get("compiled_grid") or {}
-        known_t = sorted(data.get("known_t", [35, 55]))
-        known_x = data.get("known_x", [-30, 40])
-
-        # Determine the ranges
-        out_min_raw = min(known_x) * 10
-        out_max_raw = max(known_x) * 10
-        raw_range = range(
-            out_min_raw, out_max_raw + 10, 10
-        )  # 1°C steps for rendering speed
-
-        # Custom dark-theme style to match Home Assistant Cards
-        custom_style = Style(
-            background="#1c1c1e",
-            plot_background="#1c1c1e",
-            foreground="#e5e5ea",
-            foreground_strong="#ffffff",
-            foreground_subtle="#8e8e93",
-            colors=("#30d158", "#0a84ff", "#ff453a", "#bf5af2"),
-            stroke_width=2.5,
-        )
-
-        try:
-            chart = pygal.XY(
-                stroke=True,
-                show_dots=False,
-                width=500,
-                height=320,
-                style=custom_style,
-                legend_at_bottom=True,
-                # A static picture: no inline script, no JavaScript fetched
-                # from the web into Home Assistant's origin.
-                js=[],
-            )
-            chart.title = f"Kennfeld Heizleistung - {filepath.stem}"
-
-            for r_idx, flow_val in enumerate(known_t):
-                # Retrieve the values for this flow temperature curve
-                curve_points = []
-                for r in raw_range:
-                    if str(r) in compiled_grid:
-                        curve_points.append((r / 10.0, compiled_grid[str(r)][r_idx]))
-
-                if curve_points:
-                    chart.add(f"{flow_val}°C Vorlauf", curve_points)
-
-            svg_path = filepath.with_suffix(".svg")
-            # pygal inlines its own config as a <script> even with js=[];
-            # a picture under www/ carries no script at all.
-            static = re.sub(
-                r"<script.*?</script>",
-                "",
-                chart.render().decode("utf-8"),
-                flags=re.DOTALL,
-            )
-            svg_path.write_text(static, encoding="utf-8")
-            _LOGGER.info("Successfully generated missing SVG plot: %s", svg_path.name)
-        except Exception as err:
-            _LOGGER.debug("Pygal SVG plot generation failed: %s", err)
 
     def _copy_powermap_plot(self, json_filepath: Path, www_dir: Path) -> None:
         """Copy the compiled SVG from the kennfeld folder to Home Assistant's local www directory.
@@ -172,10 +116,21 @@ class PowerMap:
         """
         png_src = json_filepath.with_suffix(".svg")
         if not png_src.exists():
-            _LOGGER.debug("No power map plot found at %s to copy", png_src.name)
+            _LOGGER.info(
+                "No preview %s beside the power map; draw one with "
+                ".github/scripts/compile_kennfeld.py",
+                png_src.name,
+            )
             return
-
         try:
+            if not is_static_picture(png_src.read_text(encoding="utf-8")):
+                _LOGGER.error(
+                    "Preview %s carries script or links to the web and is not "
+                    "copied under www/, where it would run in Home Assistant's "
+                    "origin. Redraw it with compile_kennfeld.py",
+                    png_src.name,
+                )
+                return
             # Ensure the /config/www/local directory exists
             www_dir.mkdir(parents=True, exist_ok=True)
 

@@ -9,7 +9,6 @@
 # custom component that pins a different version cannot be installed beside
 # it. The bound is the release that introduced the shared connection.
 modbus-connection[tmodbus]>=4.10.0
-pygal==3.1.3
 
 # Not ours: Home Assistant's modbus integration installs these, and this
 # integration depends on it. Pinned here to what core 2026.9 ships so the

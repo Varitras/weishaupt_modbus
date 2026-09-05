@@ -55,9 +55,10 @@ integration.
 What stays the same: the entities, their unique ids and history, the entity
 ids you chose, the options (poll interval, EEPROM write warning and limit), the
 power map and the write counters. What is gone: this integration's own
-`pymodbus` requirement, its reconnect and back-off logic, and the
-five-register block limit - the controller serves each address band in one
-read.
+`pymodbus` requirement, the `pygal` requirement (the preview picture is drawn
+by the compile script, not at runtime), its reconnect and back-off logic, and
+the five-register block limit - the controller serves each address band in
+one read.
 
 New in 2.0: a switch beside every setpoint the controller can switch off
 (see *Configuration*). New entities, nothing existing is renamed.
@@ -132,8 +133,10 @@ in the WEM portal. The yearly performance factor therefore has no value.
 Pick the file matching your model. If yours is missing, copy the closest
 one, adjust `known_x`, `known_y` and `known_t` from your documentation and
 compile it once with `.github/scripts/compile_kennfeld.py` (needs `numpy`;
-`scipy` gives a smoother curve). The integration only reads compiled grids;
-it draws the preview picture itself. Contributions of new grids are welcome.
+`scipy` gives a smoother curve, `pygal` draws the preview picture). The
+integration only reads compiled grids and copies the picture next to the
+grid under `www/local/`; a picture that carries script or links to the web
+is refused. Contributions of new grids are welcome.
 
 ## Setting up the heat pump
 
