@@ -126,9 +126,10 @@ graphs in the Weishaupt documentation:
 - `weishaupt_wwp_ls_10_kennfeld.json`
 - `weishaupt_wwp_ls_8_kennfeld.json`
 
-Known gap: the two `wwp_ls` grids carry 0 W at -20 °C on the 55 °C flow curve,
-as read from the source graphs. The heat power is understated on very cold days
-for those models until someone with the documentation supplies the point.
+The two `wwp_ls` grids follow the "compressor frequency maximal" curves of the
+outdoor-unit manuals (83306301, 83306401). Their 55 °C curve ends at -15 °C,
+the operating limit; below it the value is carried on flat rather than
+dropping to 0 W, which used to halve the interpolated power for 45 °C flow.
 
 Known gap of another kind: the yearly energy registers (36104 and the other
 `… Jahr` rows) answer but stay at 0 on every controller seen so far, even
