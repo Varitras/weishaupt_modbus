@@ -289,6 +289,22 @@ def test_shipped_plots_are_static_pictures():
             "row shorter than known_t",
         ),
         ("[1, 2, 3]", "not an object"),
+        (
+            '{"known_t": [35, 55], "known_x": [], "compiled_grid": {"0": [1.0, 2.0]}}',
+            "no outside temperatures",
+        ),
+        (
+            '{"known_t": [35, {}], "known_x": [-10, 10], "compiled_grid": {"0": [1.0, 2.0]}}',
+            "a flow temperature that is no number",
+        ),
+        (
+            '{"known_t": [55, 35], "known_x": [-10, 10], "compiled_grid": {"0": [1.0, 2.0]}}',
+            "flow temperatures out of order: the rows would be swapped",
+        ),
+        (
+            '{"known_t": [35, 55], "known_x": [-10, 10], "compiled_grid": {"0": ["1", "2"]}}',
+            "a row of strings",
+        ),
     ],
 )
 async def test_a_broken_grid_file_disables_the_heat_power_only(

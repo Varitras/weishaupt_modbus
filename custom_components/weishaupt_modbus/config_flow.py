@@ -39,6 +39,7 @@ async def build_kennfeld_list(hass: HomeAssistant) -> list[str]:
 # The outside temperature: every model serves it, so one read of it says
 # whether there is a Weishaupt controller at the address.
 PROBE_REGISTER = 30001
+RESERVED_POSTFIXES = f"{CONST.DOMAIN}_reserved_postfixes"
 
 
 async def pump_answers(hass: HomeAssistant, data: dict[str, Any]) -> bool:
@@ -55,7 +56,10 @@ async def pump_answers(hass: HomeAssistant, data: dict[str, Any]) -> bool:
 
 
 def namespace_error(
-    hass: HomeAssistant, data: dict[str, Any], entry_id: str | None = None
+    hass: HomeAssistant,
+    data: dict[str, Any],
+    entry_id: str | None = None,
+    pending: set[str] | None = None,
 ) -> str | None:
     """Why a second pump could not get entities of its own, or None.
 
@@ -63,18 +67,23 @@ def namespace_error(
     entries with the same postfix collide entity for entity - the second
     pump loads with nothing. Once another entry exists the postfix has to
     be set, and set to something no other entry uses.
+
+    ``pending`` are the postfixes other flows are probing with right now:
+    two dialogs submitted together both passed this check before either
+    entry existed, and one pump then loaded with no entities.
     """
     others = [
         entry
         for entry in hass.config_entries.async_entries(CONST.DOMAIN)
         if entry.entry_id != entry_id
     ]
-    if not others:
+    taken = {str(entry.data.get(CONF.DEVICE_POSTFIX, "")).strip() for entry in others}
+    taken |= pending or set()
+    if not taken:
         return None
     postfix = str(data.get(CONF.DEVICE_POSTFIX, "")).strip()
     if not postfix:
         return "postfix_required"
-    taken = {str(entry.data.get(CONF.DEVICE_POSTFIX, "")).strip() for entry in others}
     if postfix in taken:
         return "postfix_in_use"
     return None
@@ -109,27 +118,58 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         self._stored_data: dict[str, Any] = {}
         self._reconfigure_entry: config_entries.ConfigEntry | None = None
 
+    def _postfixes_of_other_flows(self) -> set[str]:
+        """The postfixes every other open flow of this integration has reserved."""
+        return {
+            postfix
+            for flow_id, postfix in self._reservations().items()
+            if flow_id != self.flow_id
+        }
+
+    def _reservations(self) -> dict[str, str]:
+        """Postfix each open flow is probing with, by flow id, kept on hass.
+
+        Two dialogs submitted together both passed the namespace check before
+        either entry existed. The flow's typed context has no room for it.
+        """
+        reservations: dict[str, str] = self.hass.data.setdefault(RESERVED_POSTFIXES, {})
+        return reservations
+
+    @callback
+    def async_remove(self) -> None:
+        """Release the reservation with the flow, however it ended."""
+        self._reservations().pop(self.flow_id, None)
+
+    async def _objection(self, user_input: dict[str, Any]) -> dict[str, str]:
+        """Why this input cannot become an entry, as the form's errors; {} if it can."""
+        try:
+            validate_input(user_input)
+        except InvalidHost:
+            return {"base": "invalid_host"}
+        # The same pump twice is an abort, before any other objection.
+        await self.async_set_unique_id(entry_unique_id(user_input))
+        self._abort_if_unique_id_configured()
+        self._reservations()[self.flow_id] = str(
+            user_input.get(CONF.DEVICE_POSTFIX, "")
+        ).strip()
+        reason = namespace_error(
+            self.hass, user_input, pending=self._postfixes_of_other_flows()
+        )
+        if reason:
+            return {"base": reason}
+        if not await pump_answers(self.hass, user_input):
+            return {"base": "cannot_connect"}
+        # Once more after the probe: an entry may have been created meanwhile.
+        reason = namespace_error(self.hass, user_input)
+        return {"base": reason} if reason else {}
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Step 1: Core configuration setup."""
         errors: dict[str, str] = {}
-
         if user_input is not None:
-            try:
-                validate_input(user_input)
-            except InvalidHost:
-                errors["base"] = "invalid_host"
-        if user_input is not None and not errors:
-            # The same pump twice is an abort, before any other objection.
-            await self.async_set_unique_id(entry_unique_id(user_input))
-            self._abort_if_unique_id_configured()
-            reason = namespace_error(self.hass, user_input)
-            if reason:
-                errors["base"] = reason
-        if user_input is not None and not errors:
-            if not await pump_answers(self.hass, user_input):
-                errors["base"] = "cannot_connect"
+            errors = await self._objection(user_input)
         if user_input is not None and not errors:
             self._stored_data.update(user_input)
             return self.async_create_entry(

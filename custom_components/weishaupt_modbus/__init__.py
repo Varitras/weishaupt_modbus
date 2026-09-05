@@ -218,6 +218,14 @@ def _move_relabelled_entities(hass: HomeAssistant, entry_data: dict) -> None:
         if entity_id is None:
             continue
         new_entity_id = _entity_id_with_new_label(entity_id, labels)
+        if new_entity_id and registry.async_get(new_entity_id) is not None:
+            # Somebody else's entity already has that id; the rename is
+            # cosmetic, the unique id is not. Keep the old id rather than
+            # fail the whole migration.
+            _LOGGER.warning(
+                "%s is taken, %s keeps its entity id", new_entity_id, entity_id
+            )
+            new_entity_id = None
         registry.async_update_entity(
             entity_id,
             new_unique_id=unique_id_from_parts(entry_data, new_name),

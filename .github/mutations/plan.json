@@ -226,8 +226,8 @@
   {
     "label": "config flow: the same pump must not be set up twice",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "            self._abort_if_unique_id_configured()\n",
-    "new": "            pass\n",
+    "old": "        self._abort_if_unique_id_configured()\n",
+    "new": "        pass\n",
     "tests": "same_pump_cannot_be_set_up_twice"
   },
   {
@@ -509,5 +509,26 @@
     "old": "        not name.rsplit(\"}\", 1)[-1].lower().startswith(\"on\")\n",
     "new": "        True\n",
     "tests": "runs_or_loads_is_not_static"
+  },
+  {
+    "label": "config flow: a postfix another flow is probing with must count as taken",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    taken |= pending or set()\n",
+    "new": "",
+    "tests": "holds_its_postfix_against"
+  },
+  {
+    "label": "migration: a taken target entity id must keep the old id, not fail",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        if new_entity_id and registry.async_get(new_entity_id) is not None:\n",
+    "new": "        if False:\n",
+    "tests": "taken_entity_id_does_not_stop"
+  },
+  {
+    "label": "kennfeld: flow temperatures out of order must be refused",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "    if not _numbers(known_t, at_least=2) or known_t != sorted(set(known_t)):\n",
+    "new": "    if not _numbers(known_t, at_least=2):\n",
+    "tests": "broken_grid_file_disables"
   }
 ]

@@ -4,10 +4,13 @@ Marked `e2e`: every test boots a Home Assistant core and loads the
 integration.
 """
 
+import asyncio
+
 from modbus_connection import ModbusConnectionError
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.weishaupt_modbus import config_flow
 from custom_components.weishaupt_modbus.const import CONF, CONST
 from homeassistant.data_entry_flow import FlowResultType
 
@@ -150,6 +153,43 @@ async def _reconfigure(hass, entry, user_input):
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "reconfigure"
     return await hass.config_entries.flow.async_configure(result["flow_id"], user_input)
+
+
+async def test_a_flow_still_probing_holds_its_postfix_against_a_second_one(
+    hass, monkeypatch
+):
+    """Two dialogs submitted together both passed the namespace check before
+    either entry existed, both created an entry with the default empty
+    postfix, and one pump loaded with zero entities."""
+    probing = asyncio.Event()
+    release = asyncio.Event()
+
+    async def held_probe(_hass, _data):
+        probing.set()
+        await release.wait()
+        return True
+
+    monkeypatch.setattr(config_flow, "pump_answers", held_probe)
+    first = await hass.config_entries.flow.async_init(
+        CONST.DOMAIN, context={"source": "user"}
+    )
+    first_result = hass.async_create_task(
+        hass.config_entries.flow.async_configure(first["flow_id"], dict(PAGE_ONE))
+    )
+    await asyncio.wait_for(probing.wait(), timeout=5)
+
+    second = await hass.config_entries.flow.async_init(
+        CONST.DOMAIN, context={"source": "user"}
+    )
+    refused = await hass.config_entries.flow.async_configure(
+        second["flow_id"], {**PAGE_ONE, CONF.HOST: "192.0.2.11"}
+    )
+    release.set()
+    created = await asyncio.wait_for(first_result, timeout=5)
+
+    assert created["type"] is FlowResultType.CREATE_ENTRY
+    assert refused["type"] is FlowResultType.FORM
+    assert refused["errors"] == {"base": "postfix_required"}
 
 
 async def test_reconfigure_updates_the_entry_in_place(hass):

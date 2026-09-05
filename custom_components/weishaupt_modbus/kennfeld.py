@@ -28,18 +28,35 @@ def _load_json(path: Path) -> dict[str, Any]:
     return loaded
 
 
+def _numbers(values: Any, at_least: int) -> bool:
+    return (
+        isinstance(values, list)
+        and len(values) >= at_least
+        and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in values)
+    )
+
+
 def _looks_like_a_grid(data: Any) -> bool:
-    """Whether the file has the shape map() indexes without checking each call."""
+    """Whether the file has the shape map() indexes without checking each call.
+
+    The numbers too: an empty known_x, a flow temperature that is not a number
+    and a row of strings all passed a shape check and then raised out of
+    setup. Flow temperatures must be ascending, because the rows are: sorting
+    only the temperatures swapped the curves of a hand-edited file.
+    """
     if not isinstance(data, dict):
         return False
-    known_t = data.get("known_t")
+    known_t, known_x = data.get("known_t") or [], data.get("known_x") or []
     grid = data.get("compiled_grid")
-    if not isinstance(known_t, list) or len(known_t) < 2:
+    if not _numbers(known_t, at_least=2) or known_t != sorted(set(known_t)):
+        return False
+    if not _numbers(known_x, at_least=1):
         return False
     if grid is None:
         return True  # reported separately: not compiled
     return isinstance(grid, dict) and all(
-        isinstance(row, list) and len(row) == len(known_t) for row in grid.values()
+        _numbers(row, at_least=len(known_t)) and len(row) == len(known_t)
+        for row in grid.values()
     )
 
 
@@ -129,8 +146,8 @@ class PowerMap:
             )
             return
 
-        self._known_t = sorted(data.get("known_t", [35, 55]))
-        known_x = data.get("known_x", [-30, 40])
+        self._known_t = list(data["known_t"])
+        known_x = data["known_x"]
         self._out_range_raw = [min(known_x) * 10, max(known_x) * 10]
         self._compiled_grid = data["compiled_grid"]
 

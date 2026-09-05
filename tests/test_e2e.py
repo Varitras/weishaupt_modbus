@@ -281,6 +281,35 @@ async def test_dhw_setpoints_keep_their_own_floor_and_the_latest_neighbour(hass,
     assert [(event.address, event.values) for event in writes] == [(DHW_NORMAL, [400])]
 
 
+async def test_a_taken_entity_id_does_not_stop_the_relabel_migration(hass, pump):
+    """An unrelated entity already owned the id the relabel wanted; the
+    registry raised and the entry ended in MIGRATION_ERROR, retry after retry."""
+    entry = _entry(hass, version=9)
+    registry = er.async_get(hass)
+    old = registry.async_get_or_create(
+        "sensor",
+        CONST.DOMAIN,
+        "weishaupt_wbbBetriebsstunden E1",
+        config_entry=entry,
+        suggested_object_id="wh_2nd_heat_source_operation_hours_e1",
+    )
+    occupied = registry.async_get_or_create(
+        "sensor",
+        "test",
+        "independent-device",
+        suggested_object_id="wh_2nd_heat_source_switching_cycles_2nd_heat_source",
+    )
+
+    await _setup(hass, entry)
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.version == 11
+    kept = registry.async_get(old.entity_id)
+    assert kept is not None, "the old id stays when the new one is taken"
+    assert kept.unique_id == "weishaupt_wbbSchaltspiele 2. WEZ"
+    assert registry.async_get(occupied.entity_id).unique_id == "independent-device"
+
+
 async def test_a_refused_band_leaves_its_entities_unavailable(hass, pump):
     entry = _entry(hass)
     pump.fail_read_band(34101)
