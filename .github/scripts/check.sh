@@ -42,6 +42,16 @@ if ! command -v gitleaks >/dev/null 2>&1; then
     echo "gitleaks is not installed; install it (apt/brew/winget) - the secret gate cannot be skipped" >&2
     exit 1
 fi
+# Two versions judged the same commits differently (8.16 clean, 8.30 thirteen
+# findings): the allowlist is written for the match shape of 8.30, so an
+# older scanner is not a weaker gate but a different one - refuse it.
+GITLEAKS_MIN=8.30
+GITLEAKS_FOUND=$(gitleaks version 2>/dev/null | grep -oE "[0-9]+\.[0-9]+" | head -1)
+if [ -z "$GITLEAKS_FOUND" ] || [ "$(printf '%s\n' "$GITLEAKS_MIN" "$GITLEAKS_FOUND" | sort -V | head -1)" != "$GITLEAKS_MIN" ]; then
+    echo "gitleaks ${GITLEAKS_FOUND:-of unknown version} found, $GITLEAKS_MIN or newer required (the Ubuntu package is older; put a current binary first in PATH)" >&2
+    exit 1
+fi
+echo "gitleaks $GITLEAKS_FOUND"
 gitleaks detect --no-banner --redact --source . --log-opts="$FORK_BASE..HEAD"
 
 echo "== pytest =="

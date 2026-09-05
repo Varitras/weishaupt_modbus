@@ -3,10 +3,16 @@
 #
 #     git config core.hooksPath .githooks
 #
-# One gate, fail-closed: the project's own definition of done
-# (.github/scripts/check.sh). It ends with a machine secret scan over every
-# commit this fork added - the prose rule "check before pushing" does not
-# survive a tired evening; a scan does.
+# Two gates, both fail-closed:
+#   1. The project's own definition of done (.github/scripts/check.sh). It
+#      ends with a machine secret scan over every commit this fork added -
+#      the prose rule "check before pushing" does not survive a tired evening;
+#      a scan does.
+#   2. A blocklist over what this push adds: commit messages and added lines.
+#      Words a secret scanner does not know - a home address, an operator's
+#      name, internal note files, tool attribution. The list lives OUTSIDE the
+#      repository (<project>/.local/push-blocklist.txt), because several of
+#      its entries are the very words it keeps out.
 #
 # The gates need Home Assistant, which only runs on Linux. Pushed from Windows
 # (Git for Windows, GitHub Desktop) the hook therefore hands the work to WSL;
@@ -27,6 +33,43 @@ run_gates() {
     PYTHON="${HA_TEST_PYTHON:-$HOME/ha-dev/venv/bin/python}" \
         MIN_HA_PYTHON="${MIN_HA_PYTHON:-$HOME/ha-dev/venv-min-2026.9/bin/python}" \
         sh .github/scripts/check.sh
+    blocklist_gate
+}
+
+blocklist_gate() {
+    blocklist="../.local/push-blocklist.txt"
+    if [ ! -s "$blocklist" ]; then
+        echo "pre-push: $blocklist missing or empty - push refused" >&2
+        exit 1
+    fi
+    # What leaves the machine: everything past the remote's main. A branch
+    # without an upstream (this one) falls back to it as well.
+    base=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || echo origin/main)
+    range="$base..HEAD"
+    patterns=$(mktemp)
+    grep -vE '^[[:space:]]*(#|$)' "$blocklist" | sed 's/\r$//' > "$patterns"
+    scan=$( { git log --format='%B' "$range"; git diff "$range" | grep -E '^\+' | grep -v '^+++'; } )
+    hits=$(printf '%s\n' "$scan" | grep -n -i -E -f "$patterns")
+    status=$?
+    rm -f "$patterns"
+    if [ "$status" -eq 2 ]; then
+        echo "pre-push: the blocklist scan itself failed (grep exit 2) - push refused" >&2
+        exit 1
+    fi
+    addresses=$(printf '%s\n' "$scan" \
+        | grep -o -i -E '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[a-z]{2,}' \
+        | grep -v -i -E '@(example\.|users\.noreply\.github\.com)' || true)
+    if [ -n "$addresses" ]; then
+        hits="$hits
+private address: $addresses"
+    fi
+    if [ -n "$hits" ]; then
+        echo "pre-push: the range $range adds text the blocklist forbids - push refused:" >&2
+        printf '%s\n' "$hits" | head -20 >&2
+        exit 1
+    fi
+    echo "== blocklist =="
+    echo "nothing forbidden in $range"
 }
 
 case "$(uname -s)" in
