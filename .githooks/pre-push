@@ -48,7 +48,8 @@ blocklist_gate() {
     range="$base..HEAD"
     patterns=$(mktemp)
     grep -vE '^[[:space:]]*(#|$)' "$blocklist" | sed 's/\r$//' > "$patterns"
-    scan=$( { git log --format='%B' "$range"; git diff "$range" | grep -E '^\+' | grep -v '^+++'; } )
+    # An empty range leaves grep with nothing to match; that is not a failure.
+    scan=$( { git log --format='%B' "$range"; git diff "$range" | grep -E '^\+' | grep -v '^+++'; } || true)
     # grep exits 1 on a clean range; under set -e that must not end the hook.
     status=0
     hits=$(printf '%s\n' "$scan" | grep -n -i -E -f "$patterns") || status=$?
