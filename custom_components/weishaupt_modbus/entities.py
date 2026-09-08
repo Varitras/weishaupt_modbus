@@ -1,5 +1,7 @@
 """Entity classes used in this integration."""
 
+from collections.abc import Callable
+from functools import partial
 import logging
 from typing import Any
 
@@ -164,23 +166,31 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
         self.set_min_max(True)
         return float(val) / self._divider
 
+    def _refuse_outside_current_bounds(self, wanted: float) -> None:
+        """Raise unless the value still fits the bounds as they are right now.
+
+        The bounds Home Assistant validated against may be a poll old: a
+        related setpoint moves them. Read inside the device's write lock, so
+        a setpoint waiting for that lock cannot pass on bounds its neighbour
+        is in the middle of invalidating.
+        """
+        self.set_min_max(True)
+        low, high = self._attr_native_min_value, self._attr_native_max_value
+        if not low <= wanted <= high:
+            raise ServiceValidationError(
+                f"{wanted} is outside the current range {low} to {high} "
+                f"of register {self._api_item.address}"
+            )
+
     async def set_translate_val(self, value: str | float) -> int | None:
         """Translate and write a value directly to the Modbus client."""
+        check: Callable[[], None] | None = None
         if self._api_item.format == FORMATS.STATUS:
             val = self._api_item.get_number_from_translation_key(str(value))
         else:
-            # The bounds Home Assistant validated against may be a poll old:
-            # a related setpoint written a moment ago moves them. Check here,
-            # where the write is.
-            self.set_min_max(True)
             wanted = float(value)
-            low, high = self._attr_native_min_value, self._attr_native_max_value
-            if not low <= wanted <= high:
-                raise ServiceValidationError(
-                    f"{wanted} is outside the current range {low} to {high} "
-                    f"of register {self._api_item.address}"
-                )
             val = to_register_value(wanted, self._divider)
+            check = partial(self._refuse_outside_current_bounds, wanted)
 
         if val is None:
             return None
@@ -188,7 +198,7 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
         # Raised, not logged: a refused or failed write has to reach the user
         # who moved the slider and the automation that called the service.
         try:
-            await self.coordinator.device.write(self._api_item, val)
+            await self.coordinator.device.write(self._api_item, val, check=check)
         except (WriteError, ModbusError) as err:
             raise HomeAssistantError(
                 f"Writing register {self._api_item.address} failed: {err}"

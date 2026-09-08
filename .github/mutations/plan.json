@@ -226,22 +226,29 @@
   {
     "label": "config flow: the same pump must not be set up twice",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "        self._abort_if_unique_id_configured()\n",
-    "new": "        pass\n",
+    "old": "        await self.async_set_unique_id(entry_unique_id(user_input))\n        self._abort_if_unique_id_configured()\n",
+    "new": "        await self.async_set_unique_id(entry_unique_id(user_input))\n",
     "tests": "same_pump_cannot_be_set_up_twice"
+  },
+  {
+    "label": "config flow: an endpoint taken while probing must still abort",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        self._abort_if_unique_id_configured()\n        reason = namespace_error(self.hass, user_input)",
+    "new": "        reason = namespace_error(self.hass, user_input)",
+    "tests": "reconfigure_taking_the_endpoint"
   },
   {
     "label": "table: an item's name must not silently change",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
     "old": "    ModbusItem(address=30001, name=\"Aussentemperatur\",",
-    "new": "    ModbusItem(address=30001, name=\"Außentemperatur\",",
+    "new": "    ModbusItem(address=30001, name=\"Au\u00dfentemperatur\",",
     "tests": "keeps_the_name_its_unique_id"
   },
   {
     "label": "device: a refused band must be marked absent",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "                self._mark_absent(band)\n                continue\n",
-    "new": "                continue\n",
+    "old": "            self._mark_absent(band)\n            return\n",
+    "new": "            return\n",
     "tests": "refused_band_is_absent"
   },
   {
@@ -478,8 +485,8 @@
   {
     "label": "entity: a value outside the current bounds must be refused at the write",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "            if not low <= wanted <= high:\n",
-    "new": "            if False:\n",
+    "old": "        if not low <= wanted <= high:\n",
+    "new": "        if False:\n",
     "tests": "outside_the_current_bounds_is_refused"
   },
   {
@@ -492,8 +499,8 @@
   {
     "label": "device: concurrent writes must share one daily allowance",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "        async with self._write_lock:\n            if item.state is not None and item.state == value:\n",
-    "new": "        async with asyncio.Lock():\n            if item.state is not None and item.state == value:\n",
+    "old": "        async with self._write_lock:\n            if check is not None:\n",
+    "new": "        async with asyncio.Lock():\n            if check is not None:\n",
     "tests": "concurrent_writes_share_one_daily_allowance"
   },
   {
@@ -530,5 +537,19 @@
     "old": "    if not _numbers(known_t, at_least=2) or known_t != sorted(set(known_t)):\n",
     "new": "    if not _numbers(known_t, at_least=2):\n",
     "tests": "broken_grid_file_disables"
+  },
+  {
+    "label": "device: a write during a poll must survive that poll",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        return row.address in self._written_while_polling\n",
+    "new": "        return False\n",
+    "tests": "confirmed_write_outlives_a_poll"
+  },
+  {
+    "label": "entity: current bounds must be checked inside the write lock",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "            check = partial(self._refuse_outside_current_bounds, wanted)",
+    "new": "            self._refuse_outside_current_bounds(wanted)",
+    "tests": "setpoints_written_together"
   }
 ]

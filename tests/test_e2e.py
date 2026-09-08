@@ -703,7 +703,7 @@ async def test_a_refused_write_reaches_the_user_as_an_error(hass, monkeypatch):
         "number", CONST.DOMAIN, PV_SETPOINT_UNIQUE_ID
     )
 
-    async def refuse(self, item, value):
+    async def refuse(self, item, value, check=None):
         raise WriteError("Daily write limit of 1 reached")
 
     monkeypatch.setattr(WeishauptHeatPump, "write", refuse)
