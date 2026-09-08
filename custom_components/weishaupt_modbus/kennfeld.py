@@ -7,6 +7,7 @@ a new one is made); at runtime it is only read, interpolated and drawn.
 from collections.abc import Mapping
 import json
 import logging
+from math import isfinite
 from pathlib import Path
 import re
 import shutil
@@ -32,7 +33,10 @@ def _numbers(values: Any, at_least: int) -> bool:
     return (
         isinstance(values, list)
         and len(values) >= at_least
-        and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in values)
+        and all(
+            isinstance(v, (int, float)) and not isinstance(v, bool) and isfinite(v)
+            for v in values
+        )
     )
 
 
@@ -184,7 +188,9 @@ class PowerMap:
 
         self._known_t = list(data["known_t"])
         known_x = data["known_x"]
-        self._out_range_raw = [min(known_x) * 10, max(known_x) * 10]
+        # Rounded to whole tenths: the compiled keys are integers, and a
+        # known_x of -10.0 clamped to "-100.0", which no grid has.
+        self._out_range_raw = [round(min(known_x) * 10), round(max(known_x) * 10)]
         self._compiled_grid = data["compiled_grid"]
 
         www_dir = Path(f"{self.hass.config.config_dir}/www/local")
@@ -206,7 +212,16 @@ class PowerMap:
             )
             return
         try:
-            if not is_static_picture(png_src.read_text(encoding="utf-8")):
+            picture = png_src.read_text(encoding="utf-8")
+        except (OSError, ValueError) as err:
+            # As for the grid file: the preview is an optional decoration, and
+            # a file that is not UTF-8 must not take the entry down with it.
+            _LOGGER.error(
+                "Preview %s cannot be read and is not copied: %s", png_src.name, err
+            )
+            return
+        try:
+            if not is_static_picture(picture):
                 _LOGGER.error(
                     "Preview %s carries script or links to the web and is not "
                     "copied under www/, where it would run in Home Assistant's "

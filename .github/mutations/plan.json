@@ -317,8 +317,8 @@
   {
     "label": "power map: a broken grid file must not raise out of setup",
     "path": "custom_components/weishaupt_modbus/kennfeld.py",
-    "old": "        except (OSError, ValueError) as err:\n",
-    "new": "        except OSError as err:\n",
+    "old": "        except (OSError, ValueError) as err:\n            # ValueError covers a corrupt JSON file",
+    "new": "        except OSError as err:\n            # ValueError covers a corrupt JSON file",
     "tests": "broken_grid_file_disables"
   },
   {
@@ -579,5 +579,26 @@
     "old": "'''^translation_key=\"[a-z0-9_]+\"$''',",
     "new": "'''^(?:translation_)?key=\"[a-z0-9_]+\"$''',",
     "tests": "underscored_bare_key_outside_the_table"
+  },
+  {
+    "label": "power map: a value that is not finite must not be a grid",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": " and isfinite(v)\n",
+    "new": "\n",
+    "tests": "not_a_finite_number_is_not_a_grid"
+  },
+  {
+    "label": "power map: the clamped bound must match the compiled key",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "        self._out_range_raw = [round(min(known_x) * 10), round(max(known_x) * 10)]\n",
+    "new": "        self._out_range_raw = [min(known_x) * 10, max(known_x) * 10]\n",
+    "tests": "integral_floats_still_reach_the_curve"
+  },
+  {
+    "label": "power map: an unreadable preview must not fail the entry",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "        except (OSError, ValueError) as err:\n            # As for the grid file",
+    "new": "        except OSError as err:\n            # As for the grid file",
+    "tests": "not_text_leaves_the_entry_alone"
   }
 ]
