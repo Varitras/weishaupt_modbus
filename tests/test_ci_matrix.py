@@ -261,3 +261,23 @@ def test_the_step_reader_skips_comments_and_stops_at_the_next_job():
     assert not any(line.strip() == "pytest:" for line in steps), (
         "the reader ran into the next job"
     )
+
+
+def test_ci_scans_with_a_gitleaks_the_local_floor_would_accept():
+    """The allowlist is anchored on the exact match a rule reports, and that
+    spelling changed between 8.16 and 8.30. Left to the action's default, CI
+    would decide which spelling it is."""
+    check = (REPO / ".github" / "scripts" / "check.sh").read_text(encoding="utf-8")
+    floor = re.search(r"GITLEAKS_MIN=([\d.]+)", check).group(1)
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    pinned = re.findall(r'GITLEAKS_VERSION:\s*"([\d.]+)"', workflow)
+
+    assert len(pinned) == 1, f"one pin for the whole workflow, found {pinned}"
+    version = tuple(int(part) for part in pinned[0].split("."))
+    assert version >= tuple(int(part) for part in floor.split(".")), (
+        f"CI scans with gitleaks {pinned[0]}, check.sh demands {floor}"
+    )
+    assert "Install gitleaks for the secret-scan controls" in workflow, (
+        "without the binary the secret-scan controls skip, and a skipped "
+        "control cannot fail"
+    )

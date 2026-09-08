@@ -361,3 +361,124 @@ def test_the_integration_does_not_draw_pictures_at_runtime():
     ]
 
     assert mentions == []
+
+
+@pytest.mark.parametrize(
+    ("payload", "why"),
+    [
+        (
+            (
+                '<svg xmlns="http://www.w3.org/2000/svg">'
+                '<a href="java&#x09;script:void(0)"><text>x</text></a></svg>'
+            ),
+            "a tab inside the scheme is removed before a browser parses the URL",
+        ),
+        (
+            (
+                "<?xml version='1.0'?><?xml-stylesheet href='evil.css'?>"
+                '<svg xmlns="http://www.w3.org/2000/svg">'
+                '<rect width="1" height="1"/></svg>'
+            ),
+            "the XML parser never shows a processing instruction to the filter",
+        ),
+        (
+            (
+                '<svg xmlns="http://www.w3.org/2000/svg">'
+                '<image href="//example.invalid/x.png" width="1" height="1"/></svg>'
+            ),
+            "a protocol-relative URL names no scheme and still loads",
+        ),
+        (
+            (
+                '<svg xmlns="http://www.w3.org/2000/svg">'
+                '<image href="x.png" width="1" height="1"/></svg>'
+            ),
+            "an element that loads is refused whether or not its URL looks remote",
+        ),
+        (
+            (
+                '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1">'
+                '<animate attributeName="fill" values="red;blue" dur="2s"/>'
+                "</rect></svg>"
+            ),
+            "nothing here loads or runs by name; a moving picture is not static",
+        ),
+    ],
+)
+def test_a_picture_outside_the_static_vocabulary_is_refused(payload, why):
+    assert kennfeld.is_static_picture(payload) is False, why
+
+
+def test_a_scheme_split_by_a_tab_is_still_a_scheme():
+    """XML resolves the character reference to a tab, and a URL parser drops
+    ASCII tabs before it reads the scheme. The filter has to do the same."""
+    assert (
+        kennfeld.is_static_picture(
+            '<svg xmlns="http://www.w3.org/2000/svg">'
+            '<text style="background:java&#x09;script:x">y</text></svg>'
+        )
+        is False
+    )
+
+
+async def test_a_preview_that_is_not_text_leaves_the_entry_alone(
+    hass, tmp_path, monkeypatch, caplog
+):
+    """Reading the optional preview as UTF-8 raised out of initialize, and
+    async_setup returned false: one unreadable picture, no sensors at all."""
+    grid = {
+        "known_t": [35, 55],
+        "known_x": [-10, 10],
+        "compiled_grid": {"0": [1.0, 2.0]},
+    }
+    (tmp_path / "own_kennfeld.json").write_text(json.dumps(grid), encoding="utf-8")
+    (tmp_path / "own_kennfeld.svg").write_bytes(b"<svg>\xff\xfe</svg>")
+    entry = SimpleNamespace(
+        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+    )
+    monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
+    hass.config.config_dir = str(tmp_path)
+    power_map = PowerMap(entry, hass)
+
+    await power_map.initialize()
+
+    assert power_map.map(0, 350) == 1.0, "the grid must load without its preview"
+    assert not (tmp_path / "www" / "local" / "weishaupt_modbus_powermap.svg").exists()
+    assert "own_kennfeld.svg" in caplog.text
+
+
+def test_a_row_that_is_not_a_finite_number_is_not_a_grid():
+    """JSON has no infinity, but 1e309 decodes to one: the flow temperature
+    45 degC then interpolated to infinite heat power."""
+    assert (
+        kennfeld._looks_like_a_grid(
+            {
+                "known_t": [35, 55],
+                "known_x": [-10, 10],
+                "compiled_grid": {"0": [5000, 1e309]},
+            }
+        )
+        is False
+    )
+
+
+async def test_bounds_written_as_integral_floats_still_reach_the_curve(
+    hass, tmp_path, monkeypatch
+):
+    """known_x of -10.0 clamped to the key "-100.0", which no compiled grid
+    has: every outside temperature below the boundary read as unknown."""
+    grid = {
+        "known_t": [35, 55],
+        "known_x": [-10.0, 10.0],
+        "compiled_grid": {"-100": [5000.0, 4000.0], "0": [1.0, 2.0]},
+    }
+    (tmp_path / "own_kennfeld.json").write_text(json.dumps(grid), encoding="utf-8")
+    entry = SimpleNamespace(
+        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+    )
+    monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
+    hass.config.config_dir = str(tmp_path)
+    power_map = PowerMap(entry, hass)
+    await power_map.initialize()
+
+    assert power_map.map(-200, 350) == 5000.0

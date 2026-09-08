@@ -31,6 +31,9 @@ SYNTHETIC_TOKEN = "AKIA" + "J7Q2X9M4" + "T6B3W8N5"
 # 32 lowercase alphanumerics with no underscore: the shape the old allowlist
 # still exempted when it sat in a bare `key="..."`.
 SYNTHETIC_BARE = "7j4g9q2m" + "8z6n3p5r" + "1v0x9s8t" + "7w6y5h4k"
+# The same shape with one underscore in it: the allowlist read any underscored
+# value in a bare `key="..."` as a translation key and dropped the finding.
+SYNTHETIC_UNDERSCORED = "7j4g9q2m" + "8z6n3p5r" + "1v0x9s8t" + "7w6y_h4k"
 # 40 hex characters is the shape the generic-api-key rule reads as a token.
 SYNTHETIC_HEX = "9f8e7d6c5b4a3f2e" + "1d0c9b8a7f6e5d4c" + "3b2a1f0e"
 LEAK_FOUND = 2  # gitleaks' exit code for "findings" with --exit-code 2
@@ -111,10 +114,12 @@ def test_every_table_key_fits_the_allowlist():
     keys = set(re.findall(r'translation_key="([a-z0-9_]+)"', table))
     keys |= {key + suffix for key in keys for suffix in "2345"}
 
-    assert not [key for key in keys if not re.match(allowlist, f'key="{key}"')]
     assert not [
         key for key in keys if not re.match(allowlist, f'translation_key="{key}"')
-    ], "gitleaks 8.30 hands the allowlist the whole translation_key=... match"
+    ], "gitleaks hands the allowlist the whole translation_key=... match"
+    assert not [key for key in keys if re.match(allowlist, f'key="{key}"')], (
+        "a bare key= is not a translation key and must not be exempt"
+    )
 
 
 def test_a_hex_token_in_the_key_position_is_still_found(tmp_path):
@@ -122,3 +127,9 @@ def test_a_hex_token_in_the_key_position_is_still_found(tmp_path):
     must not take it for a translation key."""
     line = f'api_key="{SYNTHETIC_HEX}"\n'
     assert _scan(tmp_path, line) == LEAK_FOUND
+
+
+def test_an_underscored_bare_key_outside_the_table_is_still_found(tmp_path):
+    """One underscore was enough to look like a translation key: the value
+    below is not one, and the allowlist made its finding disappear."""
+    assert _scan(tmp_path, f'key="{SYNTHETIC_UNDERSCORED}"\n') == LEAK_FOUND

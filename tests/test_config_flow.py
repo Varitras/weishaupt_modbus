@@ -260,3 +260,55 @@ async def test_reconfigure_onto_another_entrys_pump_is_refused(hass):
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
     assert second.data[CONF.HOST] == "192.0.2.11", "the entry was changed anyway"
+
+
+async def test_a_reconfigure_taking_the_endpoint_survives_a_probing_user_flow(
+    hass, monkeypatch
+):
+    """The user flow checked the endpoint before its probe and only the
+    postfix after it. A reconfigure moving an existing entry onto that same
+    endpoint meanwhile let the flow create its entry, and Home Assistant
+    replaced the reconfigured one, taking its entities with it."""
+    probing = asyncio.Event()
+    release = asyncio.Event()
+    probes = 0
+
+    async def held_probe(_hass, _data):
+        nonlocal probes
+        probes += 1
+        if probes > 1:  # the reconfigure below must not wait for itself
+            return True
+        probing.set()
+        await release.wait()
+        return True
+
+    monkeypatch.setattr(config_flow, "pump_answers", held_probe)
+    existing = MockConfigEntry(
+        domain=CONST.DOMAIN,
+        data={**PAGE_ONE, CONF.HOST: "192.0.2.30"},
+        version=11,
+        unique_id="192.0.2.30:502",
+    )
+    existing.add_to_hass(hass)
+
+    started = await hass.config_entries.flow.async_init(
+        CONST.DOMAIN, context={"source": "user"}
+    )
+    pending = hass.async_create_task(
+        hass.config_entries.flow.async_configure(
+            started["flow_id"],
+            {**PAGE_ONE, CONF.HOST: "192.0.2.31", CONF.DEVICE_POSTFIX: "new"},
+        )
+    )
+    await asyncio.wait_for(probing.wait(), timeout=5)
+
+    moved = await _reconfigure(
+        hass, existing, {**RECONFIGURE_PAGE, CONF.HOST: "192.0.2.31"}
+    )
+    assert moved["reason"] == "reconfigure_successful"
+    release.set()
+    result = await asyncio.wait_for(pending, timeout=5)
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert hass.config_entries.async_get_entry(existing.entry_id) is not None

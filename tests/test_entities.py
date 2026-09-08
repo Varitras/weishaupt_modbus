@@ -5,8 +5,11 @@ values and records writes, and the entity's own translation is what is
 asserted.
 """
 
+import asyncio
+import copy
 from types import SimpleNamespace
 
+from modbus_connection.mock import MockModbusConnection
 import pytest
 
 from custom_components.weishaupt_modbus import entities
@@ -15,10 +18,17 @@ from custom_components.weishaupt_modbus.items import ModbusItem
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.calculations import (
     performance_factor,
 )
+from custom_components.weishaupt_modbus.weishaupt_modbus_api.device import (
+    WeishauptHeatPump,
+)
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.hpconst import (
+    DEVICELISTS,
     PARAMS_CALCPOWER,
     PARAMS_CALCSPREIZUNG,
     SYS_BETRIEBSART,
+)
+from custom_components.weishaupt_modbus.weishaupt_modbus_api.write_budget import (
+    WriteBudget,
 )
 from homeassistant.exceptions import ServiceValidationError
 
@@ -48,7 +58,9 @@ class FakeCoordinator:
         self.data = None
         self.last_update_success = True
 
-    async def _write(self, item, value):
+    async def _write(self, item, value, check=None):
+        if check is not None:  # the real device calls it inside its write lock
+            check()
         self.writes.append((item.address, value))
         item.state = value  # what the real device does after the wire confirmed
 
@@ -583,3 +595,50 @@ def test_a_user_value_becomes_the_nearest_register_word(value, divider, word):
 def test_the_performance_factor_is_undefined_without_electric_energy():
     assert performance_factor(12.0, 0) is None
     assert performance_factor(12.0, 4) == 3.0
+
+
+class RealDeviceCoordinator:
+    """The two setpoints over a real device, so the real write lock is in play."""
+
+    def __init__(self, items):
+        self.items = items
+        self.device = WeishauptHeatPump(
+            MockModbusConnection().for_unit(1), items, WriteBudget(100, 0)
+        )
+        self.data = None
+        self.last_update_success = True
+
+    def async_update_listeners(self):
+        pass
+
+    def get_value_from_item(self, key):
+        return next(
+            (item.state for item in self.items if item.translation_key == key), None
+        )
+
+
+async def test_related_setpoints_written_together_cannot_cross_their_bounds():
+    """Both services validated before either had the write lock, so both
+    passed against the old pair: DHW lowering was set above DHW normal."""
+    normal, lowering = (
+        copy.deepcopy(item)
+        for group in DEVICELISTS
+        for item in group
+        if item.address in (42103, 42104)
+    )
+    coordinator = RealDeviceCoordinator([normal, lowering])
+    normal.state, lowering.state = 600, 300
+    entity_normal = entities.MyNumberEntity(_entry(), normal, coordinator, 0)
+    entity_lowering = entities.MyNumberEntity(_entry(), lowering, coordinator, 0)
+    for entity in (entity_normal, entity_lowering):
+        entity.async_write_ha_state = lambda: None
+
+    outcomes = await asyncio.gather(
+        entity_normal.async_set_native_value(40.0),
+        entity_lowering.async_set_native_value(50.0),
+        return_exceptions=True,
+    )
+
+    refused = [o for o in outcomes if isinstance(o, ServiceValidationError)]
+    assert len(refused) == 1, "one of the two must lose the race"
+    assert lowering.state <= normal.state, "lowering ended up above normal"

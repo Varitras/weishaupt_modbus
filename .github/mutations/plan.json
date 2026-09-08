@@ -226,22 +226,29 @@
   {
     "label": "config flow: the same pump must not be set up twice",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "        self._abort_if_unique_id_configured()\n",
-    "new": "        pass\n",
+    "old": "        await self.async_set_unique_id(entry_unique_id(user_input))\n        self._abort_if_unique_id_configured()\n",
+    "new": "        await self.async_set_unique_id(entry_unique_id(user_input))\n",
     "tests": "same_pump_cannot_be_set_up_twice"
+  },
+  {
+    "label": "config flow: an endpoint taken while probing must still abort",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        self._abort_if_unique_id_configured()\n        reason = namespace_error(self.hass, user_input)",
+    "new": "        reason = namespace_error(self.hass, user_input)",
+    "tests": "reconfigure_taking_the_endpoint"
   },
   {
     "label": "table: an item's name must not silently change",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
     "old": "    ModbusItem(address=30001, name=\"Aussentemperatur\",",
-    "new": "    ModbusItem(address=30001, name=\"Außentemperatur\",",
+    "new": "    ModbusItem(address=30001, name=\"Au\u00dfentemperatur\",",
     "tests": "keeps_the_name_its_unique_id"
   },
   {
     "label": "device: a refused band must be marked absent",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "                self._mark_absent(band)\n                continue\n",
-    "new": "                continue\n",
+    "old": "            self._mark_absent(band)\n            return\n",
+    "new": "            return\n",
     "tests": "refused_band_is_absent"
   },
   {
@@ -310,8 +317,8 @@
   {
     "label": "power map: a broken grid file must not raise out of setup",
     "path": "custom_components/weishaupt_modbus/kennfeld.py",
-    "old": "        except (OSError, ValueError) as err:\n",
-    "new": "        except OSError as err:\n",
+    "old": "        except (OSError, ValueError) as err:\n            # ValueError covers a corrupt JSON file",
+    "new": "        except OSError as err:\n            # ValueError covers a corrupt JSON file",
     "tests": "broken_grid_file_disables"
   },
   {
@@ -443,8 +450,8 @@
   {
     "label": "kennfeld: a preview with script must not be copied under www",
     "path": "custom_components/weishaupt_modbus/kennfeld.py",
-    "old": "    if tag in ACTIVE_ELEMENTS:\n        return False\n",
-    "new": "    if tag in ACTIVE_ELEMENTS:\n        pass\n",
+    "old": "    if tag not in STATIC_ELEMENTS:\n        return False\n",
+    "new": "",
     "tests": "carries_script_is_not_copied"
   },
   {
@@ -478,8 +485,8 @@
   {
     "label": "entity: a value outside the current bounds must be refused at the write",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "            if not low <= wanted <= high:\n",
-    "new": "            if False:\n",
+    "old": "        if not low <= wanted <= high:\n",
+    "new": "        if False:\n",
     "tests": "outside_the_current_bounds_is_refused"
   },
   {
@@ -492,8 +499,8 @@
   {
     "label": "device: concurrent writes must share one daily allowance",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "        async with self._write_lock:\n            if item.state is not None and item.state == value:\n",
-    "new": "        async with asyncio.Lock():\n            if item.state is not None and item.state == value:\n",
+    "old": "        async with self._write_lock:\n            if check is not None:\n",
+    "new": "        async with asyncio.Lock():\n            if check is not None:\n",
     "tests": "concurrent_writes_share_one_daily_allowance"
   },
   {
@@ -506,8 +513,8 @@
   {
     "label": "kennfeld: an event handler attribute must not pass as a static picture",
     "path": "custom_components/weishaupt_modbus/kennfeld.py",
-    "old": "        not name.rsplit(\"}\", 1)[-1].lower().startswith(\"on\")\n",
-    "new": "        True\n",
+    "old": "    if name.startswith(\"on\"):\n        return False\n",
+    "new": "",
     "tests": "runs_or_loads_is_not_static"
   },
   {
@@ -530,5 +537,68 @@
     "old": "    if not _numbers(known_t, at_least=2) or known_t != sorted(set(known_t)):\n",
     "new": "    if not _numbers(known_t, at_least=2):\n",
     "tests": "broken_grid_file_disables"
+  },
+  {
+    "label": "device: a write during a poll must survive that poll",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        return row.address in self._written_while_polling\n",
+    "new": "        return False\n",
+    "tests": "confirmed_write_outlives_a_poll"
+  },
+  {
+    "label": "entity: current bounds must be checked inside the write lock",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "            check = partial(self._refuse_outside_current_bounds, wanted)",
+    "new": "            self._refuse_outside_current_bounds(wanted)",
+    "tests": "setpoints_written_together"
+  },
+  {
+    "label": "kennfeld: only the static vocabulary may be copied",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "    if tag not in STATIC_ELEMENTS:\n",
+    "new": "    if tag in {'script'}:\n",
+    "tests": "outside_the_static_vocabulary"
+  },
+  {
+    "label": "kennfeld: a stylesheet instruction must not slip past the parser",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "    if FOREIGN_INSTRUCTION.search(svg):\n        return False\n",
+    "new": "",
+    "tests": "outside_the_static_vocabulary"
+  },
+  {
+    "label": "kennfeld: a URL is read the way a browser reads it",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "    return value.translate({0x09: None, 0x0A: None, 0x0D: None})\n",
+    "new": "    return value\n",
+    "tests": "scheme_split_by_a_tab"
+  },
+  {
+    "label": "secret scan: only a translation key is exempt from the scanner",
+    "path": ".gitleaks.toml",
+    "old": "'''^translation_key=\"[a-z0-9_]+\"$''',",
+    "new": "'''^(?:translation_)?key=\"[a-z0-9_]+\"$''',",
+    "tests": "underscored_bare_key_outside_the_table"
+  },
+  {
+    "label": "power map: a value that is not finite must not be a grid",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": " and isfinite(v)\n",
+    "new": "\n",
+    "tests": "not_a_finite_number_is_not_a_grid"
+  },
+  {
+    "label": "power map: the clamped bound must match the compiled key",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "        self._out_range_raw = [round(min(known_x) * 10), round(max(known_x) * 10)]\n",
+    "new": "        self._out_range_raw = [min(known_x) * 10, max(known_x) * 10]\n",
+    "tests": "integral_floats_still_reach_the_curve"
+  },
+  {
+    "label": "power map: an unreadable preview must not fail the entry",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "        except (OSError, ValueError) as err:\n            # As for the grid file",
+    "new": "        except OSError as err:\n            # As for the grid file",
+    "tests": "not_text_leaves_the_entry_alone"
   }
 ]

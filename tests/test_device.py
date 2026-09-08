@@ -468,3 +468,31 @@ async def test_a_temperature_input_reads_in_tenths(pump, unit):
     await pump.async_update()
 
     assert _row(pump, H1_2_INPUT).state == 215
+
+
+async def test_a_confirmed_write_outlives_a_poll_that_read_before_it(pump, unit):
+    """A poll reads its bands one by one and publishes them together. A write
+    landing in between was published over: the switch came back on, and the
+    next turn-on was skipped as a no-op because the revived state matched."""
+    row = _row(pump, CONSTANT_LOWERING)
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 185}})
+    await pump.async_update()
+    entered, release = asyncio.Event(), asyncio.Event()
+    last_band = list(pump._components)[-1]
+    read_last_band = pump._components[last_band].async_update
+
+    async def held_read():
+        entered.set()
+        await release.wait()
+        await read_last_band()
+
+    pump._components[last_band].async_update = held_read
+    polling = asyncio.create_task(pump.async_update())
+    await asyncio.wait_for(entered.wait(), timeout=5)
+
+    assert await pump.write_off(row) is True
+    release.set()
+    await polling
+
+    assert (row.state, row.is_off) == (None, True), "the poll revived a stale value"
+    assert await unit.read_holding_registers(CONSTANT_LOWERING, 1) == [0x8000]

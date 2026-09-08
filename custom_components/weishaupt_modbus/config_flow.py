@@ -159,7 +159,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
             return {"base": reason}
         if not await pump_answers(self.hass, user_input):
             return {"base": "cannot_connect"}
-        # Once more after the probe: an entry may have been created meanwhile.
+        # Once more after the probe: an entry may have appeared meanwhile, or
+        # a reconfigure may have moved an existing one onto this endpoint.
+        # Creating the entry then replaces it, taking its entities with it.
+        self._abort_if_unique_id_configured()
         reason = namespace_error(self.hass, user_input)
         return {"base": reason} if reason else {}
 

@@ -10,6 +10,7 @@ belongs to Home Assistant's modbus integration.
 
 import asyncio
 from collections import defaultdict
+from collections.abc import Callable
 import logging
 from typing import Any
 
@@ -90,6 +91,10 @@ class WeishauptHeatPump:
         # automations firing together both saw one allowance left and both
         # wrote. The backend's own lock serialises the wire, not this.
         self._write_lock = asyncio.Lock()
+        # A poll reads its bands one after another and publishes them all at
+        # the end. A write landing in between is newer than the read it would
+        # be overwritten by, so the poll skips those registers.
+        self._written_while_polling: set[int] = set()
         self.present: dict[Band, bool] = {}
         self._components: dict[Band, Component] = {}
         self._rows: dict[Band, list[ModbusItem]] = defaultdict(list)
@@ -120,6 +125,7 @@ class WeishauptHeatPump:
         # entities show, and a poll that fails halfway used to leave them
         # half new, half old - published as if the poll had succeeded.
         served: dict[Band, Component | None] = {}
+        self._written_while_polling.clear()
         for band, component in self._components.items():
             try:
                 await component.async_update()
@@ -137,27 +143,51 @@ class WeishauptHeatPump:
                 "is this a Weishaupt controller?"
             )
         for band, answered in served.items():
-            if answered is None:
-                self._mark_absent(band)
+            self._publish(band, answered)
+
+    def _publish(self, band: Band, answered: Component | None) -> None:
+        """Hand one band's reading to its rows, or mark the band absent."""
+        if answered is None:
+            self._mark_absent(band)
+            return
+        self.present[band] = True
+        for row in self._rows[band]:
+            if self._superseded(row):
                 continue
-            self.present[band] = True
-            for row in self._rows[band]:
-                _apply(row, getattr(answered, _field_name(row)))
+            _apply(row, getattr(answered, _field_name(row)))
+
+    def _superseded(self, row: ModbusItem) -> bool:
+        """Whether a write landed on this register while the poll was reading.
+
+        The poll publishes every band at the end, so its reading of a written
+        register is older than the write and must not replace it.
+        """
+        return row.address in self._written_while_polling
 
     def _mark_absent(self, band: Band) -> None:
         self.present[band] = False
         for row in self._rows[band]:
+            if self._superseded(row):
+                continue
             row.state = None
             row.is_invalid = True
             row.is_off = False
 
-    async def write(self, item: ModbusItem, value: int) -> bool:
+    async def write(
+        self, item: ModbusItem, value: int, check: Callable[[], None] | None = None
+    ) -> bool:
         """Write a raw register word; False when it was already active.
 
         The EEPROM is rated for EEPROM_WRITE_RATING writes, so an unchanged
         value is not written again and the daily limit is honoured.
+
+        `check` runs inside the lock and may raise to refuse the write. A
+        caller that checks before calling validates against setpoints another
+        write is about to move, and both requests then pass.
         """
         async with self._write_lock:
+            if check is not None:
+                check()
             if item.state is not None and item.state == value:
                 _LOGGER.debug(
                     "Register %d already holds %d, not written", item.address, value
@@ -167,6 +197,7 @@ class WeishauptHeatPump:
             item.state = value
             item.is_off = False
             item.last_setting = value
+            self._written_while_polling.add(item.address)
             return True
 
     async def write_off(self, item: ModbusItem) -> bool:
@@ -177,6 +208,7 @@ class WeishauptHeatPump:
             await self._write_word(item, SETPOINT_OFF_SIGNED)
             item.state = None
             item.is_off = True
+            self._written_while_polling.add(item.address)
             return True
 
     async def _write_word(self, item: ModbusItem, word: int) -> None:
