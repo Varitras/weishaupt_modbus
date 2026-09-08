@@ -60,10 +60,36 @@ def _looks_like_a_grid(data: Any) -> bool:
     )
 
 
-# Elements that run or embed something; the tag name without its namespace.
-ACTIVE_ELEMENTS = frozenset({"script", "foreignobject", "iframe", "embed", "object"})
+# What a drawing is made of, tag names without their namespace. An allowlist,
+# because the denylist it replaced grew one entry per payload and still let
+# through what it had never been told about.
+STATIC_ELEMENTS = frozenset(
+    {
+        "svg", "g", "defs", "title", "desc", "metadata", "style", "use",
+        "path", "rect", "circle", "ellipse", "line", "polyline", "polygon",
+        "text", "tspan", "clippath", "marker",
+        "lineargradient", "radialgradient", "stop",
+    }
+)  # fmt: skip
+# Attributes that name something to fetch; only a fragment of this document.
+REFERENCING_ATTRIBUTES = frozenset({"href", "src"})
+SAME_DOCUMENT = re.compile(r"#[\w.:-]*\Z")
 # Anything that loads or executes from an attribute or a stylesheet.
-LOADS_OR_RUNS = re.compile(r"javascript:|https?:|data:|url\(|@import", re.IGNORECASE)
+LOADS_OR_RUNS = re.compile(
+    r"javascript:|https?:|data:|url\(|@import|\A//", re.IGNORECASE
+)
+# A processing instruction can pull in a stylesheet, and ElementTree drops it
+# from the tree, so the filter would never see it. Only the declaration stays.
+FOREIGN_INSTRUCTION = re.compile(r"<\?(?!xml[\s?])")
+
+
+def _canonical(value: str) -> str:
+    """Strip what a URL parser strips before it reads the scheme.
+
+    ASCII tab and newline are removed first, so `java&#9;script:` is
+    `javascript:` by the time a browser decides what to do with it.
+    """
+    return value.translate({0x09: None, 0x0A: None, 0x0D: None})
 
 
 def is_static_picture(svg: str) -> bool:
@@ -78,6 +104,8 @@ def is_static_picture(svg: str) -> bool:
     # expand, which is what makes the stdlib parser safe enough here (S314).
     if re.search(r"<!(?:DOCTYPE|ENTITY)", svg, re.IGNORECASE):
         return False
+    if FOREIGN_INSTRUCTION.search(svg):
+        return False
     try:
         root = ET.fromstring(svg)  # noqa: S314
     except ET.ParseError:
@@ -87,15 +115,23 @@ def is_static_picture(svg: str) -> bool:
 
 def _element_is_static(element: ET.Element) -> bool:
     tag = str(element.tag).rsplit("}", 1)[-1].lower()
-    if tag in ACTIVE_ELEMENTS:
+    if tag not in STATIC_ELEMENTS:
         return False
-    if tag == "style" and LOADS_OR_RUNS.search(element.text or ""):
+    if tag == "style" and LOADS_OR_RUNS.search(_canonical(element.text or "")):
         return False
     return all(
-        not name.rsplit("}", 1)[-1].lower().startswith("on")
-        and not LOADS_OR_RUNS.search(value)
+        _attribute_is_static(name.rsplit("}", 1)[-1].lower(), value)
         for name, value in element.attrib.items()
     )
+
+
+def _attribute_is_static(name: str, value: str) -> bool:
+    canonical = _canonical(value)
+    if name.startswith("on"):
+        return False
+    if name in REFERENCING_ATTRIBUTES:
+        return SAME_DOCUMENT.fullmatch(canonical) is not None
+    return not LOADS_OR_RUNS.search(canonical)
 
 
 def powermap_file_name(entry_data: Mapping[str, Any]) -> str:

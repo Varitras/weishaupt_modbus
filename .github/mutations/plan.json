@@ -450,8 +450,8 @@
   {
     "label": "kennfeld: a preview with script must not be copied under www",
     "path": "custom_components/weishaupt_modbus/kennfeld.py",
-    "old": "    if tag in ACTIVE_ELEMENTS:\n        return False\n",
-    "new": "    if tag in ACTIVE_ELEMENTS:\n        pass\n",
+    "old": "    if tag not in STATIC_ELEMENTS:\n        return False\n",
+    "new": "",
     "tests": "carries_script_is_not_copied"
   },
   {
@@ -513,8 +513,8 @@
   {
     "label": "kennfeld: an event handler attribute must not pass as a static picture",
     "path": "custom_components/weishaupt_modbus/kennfeld.py",
-    "old": "        not name.rsplit(\"}\", 1)[-1].lower().startswith(\"on\")\n",
-    "new": "        True\n",
+    "old": "    if name.startswith(\"on\"):\n        return False\n",
+    "new": "",
     "tests": "runs_or_loads_is_not_static"
   },
   {
@@ -551,5 +551,33 @@
     "old": "            check = partial(self._refuse_outside_current_bounds, wanted)",
     "new": "            self._refuse_outside_current_bounds(wanted)",
     "tests": "setpoints_written_together"
+  },
+  {
+    "label": "kennfeld: only the static vocabulary may be copied",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "    if tag not in STATIC_ELEMENTS:\n",
+    "new": "    if tag in {'script'}:\n",
+    "tests": "outside_the_static_vocabulary"
+  },
+  {
+    "label": "kennfeld: a stylesheet instruction must not slip past the parser",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "    if FOREIGN_INSTRUCTION.search(svg):\n        return False\n",
+    "new": "",
+    "tests": "outside_the_static_vocabulary"
+  },
+  {
+    "label": "kennfeld: a URL is read the way a browser reads it",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "    return value.translate({0x09: None, 0x0A: None, 0x0D: None})\n",
+    "new": "    return value\n",
+    "tests": "scheme_split_by_a_tab"
+  },
+  {
+    "label": "secret scan: only a translation key is exempt from the scanner",
+    "path": ".gitleaks.toml",
+    "old": "'''^translation_key=\"[a-z0-9_]+\"$''',",
+    "new": "'''^(?:translation_)?key=\"[a-z0-9_]+\"$''',",
+    "tests": "underscored_bare_key_outside_the_table"
   }
 ]

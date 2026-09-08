@@ -361,3 +361,61 @@ def test_the_integration_does_not_draw_pictures_at_runtime():
     ]
 
     assert mentions == []
+
+
+@pytest.mark.parametrize(
+    ("payload", "why"),
+    [
+        (
+            (
+                '<svg xmlns="http://www.w3.org/2000/svg">'
+                '<a href="java&#x09;script:void(0)"><text>x</text></a></svg>'
+            ),
+            "a tab inside the scheme is removed before a browser parses the URL",
+        ),
+        (
+            (
+                "<?xml version='1.0'?><?xml-stylesheet href='evil.css'?>"
+                '<svg xmlns="http://www.w3.org/2000/svg">'
+                '<rect width="1" height="1"/></svg>'
+            ),
+            "the XML parser never shows a processing instruction to the filter",
+        ),
+        (
+            (
+                '<svg xmlns="http://www.w3.org/2000/svg">'
+                '<image href="//example.invalid/x.png" width="1" height="1"/></svg>'
+            ),
+            "a protocol-relative URL names no scheme and still loads",
+        ),
+        (
+            (
+                '<svg xmlns="http://www.w3.org/2000/svg">'
+                '<image href="x.png" width="1" height="1"/></svg>'
+            ),
+            "an element that loads is refused whether or not its URL looks remote",
+        ),
+        (
+            (
+                '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1">'
+                '<animate attributeName="fill" values="red;blue" dur="2s"/>'
+                "</rect></svg>"
+            ),
+            "nothing here loads or runs by name; a moving picture is not static",
+        ),
+    ],
+)
+def test_a_picture_outside_the_static_vocabulary_is_refused(payload, why):
+    assert kennfeld.is_static_picture(payload) is False, why
+
+
+def test_a_scheme_split_by_a_tab_is_still_a_scheme():
+    """XML resolves the character reference to a tab, and a URL parser drops
+    ASCII tabs before it reads the scheme. The filter has to do the same."""
+    assert (
+        kennfeld.is_static_picture(
+            '<svg xmlns="http://www.w3.org/2000/svg">'
+            '<text style="background:java&#x09;script:x">y</text></svg>'
+        )
+        is False
+    )
