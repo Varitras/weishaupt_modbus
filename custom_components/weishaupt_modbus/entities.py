@@ -351,13 +351,27 @@ class MySetpointSwitchEntity(MyEntity, SwitchEntity):
         # The number beside this switch shows the same register.
         self.coordinator.async_update_listeners()
 
+    def _value_to_restore(self) -> int:
+        """The value this setpoint last held, or the range's minimum.
+
+        Read inside the device's write lock, not before it: a number write
+        holding the lock moves both the setpoint and what it last held, and
+        the pre-lock reading put the superseded value back on the wire. The
+        bounds move with a related setpoint too, so the restored value is
+        held to the ones in force now.
+        """
+        self.set_min_max(True)
+        low = to_register_value(self._attr_native_min_value, self._divider)
+        high = to_register_value(self._attr_native_max_value, self._divider)
+        remembered = self._api_item.last_setting
+        if remembered is None:
+            return low
+        return max(low, min(remembered, high))
+
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Restore the last value, or the range's minimum."""
-        value = self._api_item.last_setting
-        if value is None:
-            value = to_register_value(self._attr_native_min_value, self._divider)
         try:
-            await self.coordinator.device.write(self._api_item, value)
+            await self.coordinator.device.write(self._api_item, self._value_to_restore)
         except (WriteError, ModbusError) as err:
             raise HomeAssistantError(
                 f"Switching register {self._api_item.address} on failed: {err}"

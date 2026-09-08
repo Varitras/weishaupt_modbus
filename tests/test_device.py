@@ -496,3 +496,31 @@ async def test_a_confirmed_write_outlives_a_poll_that_read_before_it(pump, unit)
 
     assert (row.state, row.is_off) == (None, True), "the poll revived a stale value"
     assert await unit.read_holding_registers(CONSTANT_LOWERING, 1) == [0x8000]
+
+
+async def test_a_queued_turn_on_does_not_restore_a_superseded_setpoint(pump, unit):
+    """The switch read last_setting before queueing for the write lock, so a
+    number write that finished first was undone by the older snapshot - and
+    the register took a second EEPROM write to get there."""
+    row = _row(pump, CONSTANT_LOWERING)
+    row.state = row.last_setting = 50
+    writes = []
+    unit.on_write(writes.append)
+    holding, release = asyncio.Event(), asyncio.Event()
+    write_word = pump._write_word
+
+    async def held_write(item, word):
+        holding.set()
+        await release.wait()
+        await write_word(item, word)
+
+    pump._write_word = held_write
+    first = asyncio.create_task(pump.write(row, 80))
+    await asyncio.wait_for(holding.wait(), timeout=5)
+    queued = asyncio.create_task(pump.write(row, lambda: row.last_setting or 0))
+    await asyncio.sleep(0)
+    release.set()
+    await asyncio.gather(first, queued)
+
+    assert row.state == 80, "the older remembered value came back"
+    assert [event.values for event in writes] == [[80]], "one write, not two"

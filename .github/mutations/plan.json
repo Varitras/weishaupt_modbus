@@ -621,5 +621,19 @@
     "old": " or _raw_bounds(known_x) is None",
     "new": "",
     "tests": "numbers_overflow_is_refused"
+  },
+  {
+    "label": "device: the value to write is chosen inside the lock",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "            if callable(value):\n                value = value()\n",
+    "new": "",
+    "tests": "queued_turn_on_does_not_restore"
+  },
+  {
+    "label": "switch: turning on must not decide before the lock",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "            await self.coordinator.device.write(self._api_item, self._value_to_restore)\n",
+    "new": "            await self.coordinator.device.write(self._api_item, self._value_to_restore())\n",
+    "tests": "turning_on_while_a_number_write"
   }
 ]
