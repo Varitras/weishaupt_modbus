@@ -269,12 +269,15 @@ def test_ci_scans_with_a_gitleaks_the_local_floor_would_accept():
     would decide which spelling it is."""
     check = (REPO / ".github" / "scripts" / "check.sh").read_text(encoding="utf-8")
     floor = re.search(r"GITLEAKS_MIN=([\d.]+)", check).group(1)
-    in_ci = re.search(
-        r'GITLEAKS_VERSION:\s*"([\d.]+)"', WORKFLOW.read_text(encoding="utf-8")
-    )
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    pinned = re.findall(r'GITLEAKS_VERSION:\s*"([\d.]+)"', workflow)
 
-    assert in_ci, "the gitleaks job does not pin a version"
-    version = tuple(int(part) for part in in_ci.group(1).split("."))
+    assert len(pinned) == 1, f"one pin for the whole workflow, found {pinned}"
+    version = tuple(int(part) for part in pinned[0].split("."))
     assert version >= tuple(int(part) for part in floor.split(".")), (
-        f"CI scans with gitleaks {in_ci.group(1)}, check.sh demands {floor}"
+        f"CI scans with gitleaks {pinned[0]}, check.sh demands {floor}"
+    )
+    assert "Install gitleaks for the secret-scan controls" in workflow, (
+        "without the binary the secret-scan controls skip, and a skipped "
+        "control cannot fail"
     )

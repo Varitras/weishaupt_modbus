@@ -15,6 +15,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# One scanner version for every job that scans or tests the scanning rules:
+# the allowlist in .gitleaks.toml is anchored on the exact match a rule
+# reports, and that spelling changed between 8.16 and 8.30. Held to
+# check.sh's floor by tests/test_ci_matrix.py.
+env:
+  GITLEAKS_VERSION: "8.30.1"
+
 jobs:
   lint:
     # Its own job, not a step of the test job: a formatting complaint and a
@@ -83,10 +90,8 @@ jobs:
           # default rules and reports every `translation_key="..."` in the
           # register table as a credential (six of them, first run 2026-09-04).
           GITLEAKS_CONFIG: ${{ github.workspace }}/.gitleaks.toml
-          # Pinned, not defaulted: the allowlist is anchored on the exact
-          # match a rule reports, and that spelling changed between 8.16 and
-          # 8.30. tests/test_ci_matrix.py holds this to check.sh's floor.
-          GITLEAKS_VERSION: "8.30.1"
+          # GITLEAKS_VERSION comes from the workflow environment above; the
+          # action would otherwise pick a version of its own.
 
   mypy:
     name: mypy
@@ -172,6 +177,14 @@ jobs:
       - name: The minimum job must run the version hacs.json declares
         if: matrix.check-declared-minimum
         run: python .github/scripts/check_min_ha.py
+      # Without a scanner the secret-scan controls skip themselves, and a
+      # skipped control proves nothing: the mutation harness found the
+      # allowlist mutation surviving this job for exactly that reason.
+      - name: Install gitleaks for the secret-scan controls
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
       # -m "" cancels the `-m "not e2e"` default from pyproject.toml, so the
       # slow end-to-end tests against a real Home Assistant run here.
       - name: Run test suite
