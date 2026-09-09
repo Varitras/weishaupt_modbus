@@ -61,6 +61,8 @@ class FakeCoordinator:
     async def _write(self, item, value, check=None):
         if check is not None:  # the real device calls it inside its write lock
             check()
+        if callable(value):  # and resolves the value there too
+            value = value()
         self.writes.append((item.address, value))
         item.state = value  # what the real device does after the wire confirmed
 
@@ -602,9 +604,8 @@ class RealDeviceCoordinator:
 
     def __init__(self, items):
         self.items = items
-        self.device = WeishauptHeatPump(
-            MockModbusConnection().for_unit(1), items, WriteBudget(100, 0)
-        )
+        self.unit = MockModbusConnection().for_unit(1)
+        self.device = WeishauptHeatPump(self.unit, items, WriteBudget(100, 0))
         self.data = None
         self.last_update_success = True
 
@@ -642,3 +643,40 @@ async def test_related_setpoints_written_together_cannot_cross_their_bounds():
     refused = [o for o in outcomes if isinstance(o, ServiceValidationError)]
     assert len(refused) == 1, "one of the two must lose the race"
     assert lowering.state <= normal.state, "lowering ended up above normal"
+
+
+async def test_turning_on_while_a_number_write_runs_keeps_the_newer_value():
+    """The switch chose what to restore before it queued for the write lock:
+    the number write finished first and the switch put the old value back."""
+    setpoint = next(
+        copy.deepcopy(item)
+        for group in DEVICELISTS
+        for item in group
+        if item.address == 42103
+    )
+    coordinator = RealDeviceCoordinator([setpoint])
+    setpoint.state = setpoint.last_setting = 500
+    number = entities.MyNumberEntity(_entry(), setpoint, coordinator, 0)
+    switch = entities.MySetpointSwitchEntity(_entry(), setpoint, coordinator, 0)
+    for entity in (number, switch):
+        entity.async_write_ha_state = lambda: None
+    writes = []
+    coordinator.unit.on_write(writes.append)
+    holding, release = asyncio.Event(), asyncio.Event()
+    write_word = coordinator.device._write_word
+
+    async def held_write(item, word):
+        holding.set()
+        await release.wait()
+        await write_word(item, word)
+
+    coordinator.device._write_word = held_write
+    changing = asyncio.create_task(number.async_set_native_value(70.0))
+    await asyncio.wait_for(holding.wait(), timeout=5)
+    turning_on = asyncio.create_task(switch.async_turn_on())
+    await asyncio.sleep(0)
+    release.set()
+    await asyncio.gather(changing, turning_on)
+
+    assert setpoint.state == 700, "the switch restored the superseded setpoint"
+    assert [event.values for event in writes] == [[700]], "one write, not two"

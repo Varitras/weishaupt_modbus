@@ -482,3 +482,112 @@ async def test_bounds_written_as_integral_floats_still_reach_the_curve(
     await power_map.initialize()
 
     assert power_map.map(-200, 350) == 5000.0
+
+
+@pytest.mark.parametrize(
+    ("style", "why"),
+    [
+        (r'@\69mport "a.css";', "an escape spells the keyword without writing it"),
+        (r"rect{fill:u\72l(\2f\2f e.invalid/a.svg)}", "escaped url and host"),
+        (r"@\49MPORT 'a.css';", "escapes are hexadecimal and case-insensitive"),
+    ],
+)
+def test_css_written_with_escapes_is_not_a_static_picture(style, why):
+    """CSS identifiers and URLs may be written as escape sequences, so a
+    substring search for `@import` or `url(` reads a stylesheet that loads
+    as harmless text. No shipped preview contains a backslash."""
+    assert (
+        kennfeld.is_static_picture(
+            f'<svg xmlns="http://www.w3.org/2000/svg"><style>{style}</style></svg>'
+        )
+        is False
+    ), why
+
+
+def test_a_style_attribute_written_with_escapes_is_refused():
+    assert (
+        kennfeld.is_static_picture(
+            '<svg xmlns="http://www.w3.org/2000/svg">'
+            r'<rect style="fill:u\72l(#a)" width="1" height="1"/></svg>'
+        )
+        is False
+    )
+
+
+@pytest.mark.parametrize(
+    ("grid", "why"),
+    [
+        (
+            {
+                "known_t": [35, 55],
+                "known_x": [-10, 10],
+                "compiled_grid": {"0": [5000, 10**400]},
+            },
+            "an integer too large for a float is not a finite number either",
+        ),
+        (
+            {
+                "known_t": [35, 55],
+                "known_x": [-5e307, 5e307],
+                "compiled_grid": {"0": [1.0, 2.0]},
+            },
+            "a bound this map could compute with until it is scaled by ten",
+        ),
+    ],
+)
+def test_a_grid_whose_numbers_overflow_is_refused_not_raised(grid, why):
+    """Both raised OverflowError out of setup and left the whole entry in
+    SETUP_ERROR: one bad optional file, no Modbus entities at all."""
+    assert kennfeld._looks_like_a_grid(grid) is False, why
+
+
+@pytest.mark.parametrize(
+    "attribute", ["fill", "stroke", "filter", "clip-path", "marker-start"]
+)
+def test_an_escaped_resource_in_a_presentation_attribute_is_refused(attribute):
+    """SVG presentation attributes are CSS property values, so the escape
+    policy that guards style has to guard them too. It guarded style alone."""
+    assert (
+        kennfeld.is_static_picture(
+            '<svg xmlns="http://www.w3.org/2000/svg">'
+            rf'<rect {attribute}="u\72l(\2f\2f e.invalid/a.svg)" '
+            'width="1" height="1"/></svg>'
+        )
+        is False
+    )
+
+
+def test_an_ordinary_presentation_attribute_still_draws():
+    assert kennfeld.is_static_picture(
+        '<svg xmlns="http://www.w3.org/2000/svg">'
+        '<rect fill="#ff0000" stroke="none" width="1" height="1"/></svg>'
+    )
+
+
+def test_a_grid_whose_neighbours_cannot_be_subtracted_is_refused():
+    """Each flow temperature was finite on its own, and the distance between
+    two of them - what the interpolation divides by - was not."""
+    assert (
+        kennfeld._looks_like_a_grid(
+            {
+                "known_t": [-(10**308), 10**308],
+                "known_x": [-10, 10],
+                "compiled_grid": {"0": [5000, 4000]},
+            }
+        )
+        is False
+    )
+
+
+def test_a_grid_whose_curve_values_cannot_be_subtracted_is_refused():
+    """The same distance is taken between the two curve values as well."""
+    assert (
+        kennfeld._looks_like_a_grid(
+            {
+                "known_t": [35, 55],
+                "known_x": [-10, 10],
+                "compiled_grid": {"0": [-(10**308), 10**308]},
+            }
+        )
+        is False
+    )

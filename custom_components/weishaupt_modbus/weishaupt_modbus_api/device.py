@@ -174,20 +174,27 @@ class WeishauptHeatPump:
             row.is_off = False
 
     async def write(
-        self, item: ModbusItem, value: int, check: Callable[[], None] | None = None
+        self,
+        item: ModbusItem,
+        value: int | Callable[[], int],
+        check: Callable[[], None] | None = None,
     ) -> bool:
         """Write a raw register word; False when it was already active.
 
         The EEPROM is rated for EEPROM_WRITE_RATING writes, so an unchanged
         value is not written again and the daily limit is honoured.
 
-        `check` runs inside the lock and may raise to refuse the write. A
-        caller that checks before calling validates against setpoints another
-        write is about to move, and both requests then pass.
+        `check` runs inside the lock and may raise to refuse the write, and a
+        callable `value` is resolved there too. Whatever a caller decides
+        before calling was decided against a register another write may be
+        holding the lock to change: the switch restored a setpoint a newer
+        number write had already replaced.
         """
         async with self._write_lock:
             if check is not None:
                 check()
+            if callable(value):
+                value = value()
             if item.state is not None and item.state == value:
                 _LOGGER.debug(
                     "Register %d already holds %d, not written", item.address, value
