@@ -7,10 +7,10 @@ a new one is made); at runtime it is only read, interpolated and drawn.
 from collections.abc import Mapping
 import json
 import logging
-from math import isfinite
 from pathlib import Path
 import re
 import shutil
+import sys
 from typing import Any
 import xml.etree.ElementTree as ET
 
@@ -29,26 +29,29 @@ def _load_json(path: Path) -> dict[str, Any]:
     return loaded
 
 
-def _is_finite_number(value: Any) -> bool:
+# Interpolating takes the distance between two accepted values, and
+# float(a - b) overflows where a and b are each finite on their own. Half the
+# largest float is the largest value whose differences all still fit.
+LARGEST_USABLE = sys.float_info.max / 2
+
+
+def _is_usable_number(value: Any) -> bool:
     """Whether the value is a number this map can compute with.
 
-    isfinite() is not total over Python integers: one with more digits than a
-    float can hold raises instead of answering, and an unanswerable number is
-    not a valid grid value either.
+    One comparison answers for every input, where isfinite() does not: it
+    raises for an integer wider than a float rather than saying no. Infinity
+    and not-a-number fail the comparison as they should.
     """
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return False
-    try:
-        return isfinite(value)
-    except OverflowError:
-        return False
+    return abs(value) <= LARGEST_USABLE
 
 
 def _numbers(values: Any, at_least: int) -> bool:
     return (
         isinstance(values, list)
         and len(values) >= at_least
-        and all(_is_finite_number(v) for v in values)
+        and all(_is_usable_number(v) for v in values)
     )
 
 
@@ -159,14 +162,15 @@ def _element_is_static(element: ET.Element) -> bool:
 
 
 def _attribute_is_static(name: str, value: str) -> bool:
-    canonical = _canonical(value)
     if name.startswith("on"):
         return False
     if name in REFERENCING_ATTRIBUTES:
-        return SAME_DOCUMENT.fullmatch(canonical) is not None
-    if name == "style":
-        return _css_is_static(value)
-    return not LOADS_OR_RUNS.search(canonical)
+        return SAME_DOCUMENT.fullmatch(_canonical(value)) is not None
+    # Every other attribute goes through the CSS policy, not only style:
+    # SVG presentation attributes (fill, stroke, filter, clip-path, the
+    # marker family) are CSS property values, and guarding style alone left
+    # the same escaped url() accepted one attribute over.
+    return _css_is_static(value)
 
 
 def _css_is_static(css: str) -> bool:

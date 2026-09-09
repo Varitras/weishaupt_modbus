@@ -581,13 +581,6 @@
     "tests": "underscored_bare_key_outside_the_table"
   },
   {
-    "label": "power map: a value that is not finite must not be a grid",
-    "path": "custom_components/weishaupt_modbus/kennfeld.py",
-    "old": "        return isfinite(value)\n",
-    "new": "        return True\n",
-    "tests": "not_a_finite_number_is_not_a_grid"
-  },
-  {
     "label": "power map: the clamped bound must match the compiled key",
     "path": "custom_components/weishaupt_modbus/kennfeld.py",
     "old": "        return [round(min(known_x) * 10), round(max(known_x) * 10)]\n",
@@ -609,10 +602,10 @@
     "tests": "css_written_with_escapes"
   },
   {
-    "label": "power map: a number that cannot be answered for is not finite",
+    "label": "power map: a number too large to compute with is refused",
     "path": "custom_components/weishaupt_modbus/kennfeld.py",
-    "old": "    except OverflowError:\n        return False\n",
-    "new": "    except OverflowError:\n        return True\n",
+    "old": "    return abs(value) <= LARGEST_USABLE\n",
+    "new": "    return True\n",
     "tests": "numbers_overflow_is_refused"
   },
   {
@@ -635,5 +628,19 @@
     "old": "            await self.coordinator.device.write(self._api_item, self._value_to_restore)\n",
     "new": "            await self.coordinator.device.write(self._api_item, self._value_to_restore())\n",
     "tests": "turning_on_while_a_number_write"
+  },
+  {
+    "label": "kennfeld: a presentation attribute is CSS too",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "    return _css_is_static(value)\n",
+    "new": "    return not LOADS_OR_RUNS.search(_canonical(value))\n",
+    "tests": "escaped_resource_in_a_presentation_attribute"
+  },
+  {
+    "label": "power map: neighbours must be far enough apart to subtract",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "LARGEST_USABLE = sys.float_info.max / 2\n",
+    "new": "LARGEST_USABLE = sys.float_info.max\n",
+    "tests": "cannot_be_subtracted"
   }
 ]

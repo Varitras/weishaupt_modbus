@@ -528,10 +528,10 @@ def test_a_style_attribute_written_with_escapes_is_refused():
         (
             {
                 "known_t": [35, 55],
-                "known_x": [-1e308, 1e308],
+                "known_x": [-5e307, 5e307],
                 "compiled_grid": {"0": [1.0, 2.0]},
             },
-            "a bound that is finite until it is scaled to raw tenths",
+            "a bound this map could compute with until it is scaled by ten",
         ),
     ],
 )
@@ -539,3 +539,55 @@ def test_a_grid_whose_numbers_overflow_is_refused_not_raised(grid, why):
     """Both raised OverflowError out of setup and left the whole entry in
     SETUP_ERROR: one bad optional file, no Modbus entities at all."""
     assert kennfeld._looks_like_a_grid(grid) is False, why
+
+
+@pytest.mark.parametrize(
+    "attribute", ["fill", "stroke", "filter", "clip-path", "marker-start"]
+)
+def test_an_escaped_resource_in_a_presentation_attribute_is_refused(attribute):
+    """SVG presentation attributes are CSS property values, so the escape
+    policy that guards style has to guard them too. It guarded style alone."""
+    assert (
+        kennfeld.is_static_picture(
+            '<svg xmlns="http://www.w3.org/2000/svg">'
+            rf'<rect {attribute}="u\72l(\2f\2f e.invalid/a.svg)" '
+            'width="1" height="1"/></svg>'
+        )
+        is False
+    )
+
+
+def test_an_ordinary_presentation_attribute_still_draws():
+    assert kennfeld.is_static_picture(
+        '<svg xmlns="http://www.w3.org/2000/svg">'
+        '<rect fill="#ff0000" stroke="none" width="1" height="1"/></svg>'
+    )
+
+
+def test_a_grid_whose_neighbours_cannot_be_subtracted_is_refused():
+    """Each flow temperature was finite on its own, and the distance between
+    two of them - what the interpolation divides by - was not."""
+    assert (
+        kennfeld._looks_like_a_grid(
+            {
+                "known_t": [-(10**308), 10**308],
+                "known_x": [-10, 10],
+                "compiled_grid": {"0": [5000, 4000]},
+            }
+        )
+        is False
+    )
+
+
+def test_a_grid_whose_curve_values_cannot_be_subtracted_is_refused():
+    """The same distance is taken between the two curve values as well."""
+    assert (
+        kennfeld._looks_like_a_grid(
+            {
+                "known_t": [35, 55],
+                "known_x": [-10, 10],
+                "compiled_grid": {"0": [-(10**308), 10**308]},
+            }
+        )
+        is False
+    )
