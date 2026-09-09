@@ -110,6 +110,7 @@ jobs:
       # the same resolver. Mypy is pinned for the reason Ruff is.
       - name: Resolve the plugin version to install
         run: |
+          set -o pipefail
           pip install packaging
           python .github/scripts/resolve_phcc.py latest-stable-ha \
             | tee -a "$GITHUB_ENV"
@@ -162,6 +163,10 @@ jobs:
         # tee, not a plain redirect: the chosen version has to be visible in
         # the log too, or a job that disagrees with a local run is guesswork.
         run: |
+          # pipefail: tee returns 0 for a resolver that died, so the version
+          # never reached the environment and the job failed two steps later
+          # with "No module named homeassistant" (2026-09-09, PyPI reset).
+          set -o pipefail
           pip install packaging
           python .github/scripts/resolve_phcc.py "${{ matrix.phcc }}" | tee -a "$GITHUB_ENV"
       - name: Install test dependencies
@@ -182,6 +187,7 @@ jobs:
       # allowlist mutation surviving this job for exactly that reason.
       - name: Install gitleaks for the secret-scan controls
         run: |
+          set -o pipefail
           curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
             | sudo tar -xz -C /usr/local/bin gitleaks
           gitleaks version

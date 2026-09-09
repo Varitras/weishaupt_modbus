@@ -20,6 +20,7 @@ from pathlib import Path
 import re
 
 import pytest
+import yaml
 
 REPO = Path(__file__).resolve().parents[1]
 SCRIPT = REPO / ".github" / "scripts" / "resolve_phcc.py"
@@ -281,3 +282,19 @@ def test_ci_scans_with_a_gitleaks_the_local_floor_would_accept():
         "without the binary the secret-scan controls skip, and a skipped "
         "control cannot fail"
     )
+
+
+def test_no_step_hides_a_failure_behind_a_pipe():
+    """A pipeline reports the last command's status. A resolver that died
+    still left tee returning 0, so the job ran on without the version it had
+    just failed to fetch and failed two steps later on something else."""
+    workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    piped = []
+    for name, job in workflow["jobs"].items():
+        for step in job["steps"]:
+            script = step.get("run", "")
+            pipes = re.search(r"(?<!\|)\|(?!\|)", script)
+            if pipes and "pipefail" not in script:
+                piped.append(f"{name}: {step.get('name', 'unnamed step')}")
+
+    assert not piped, f"these steps pipe without pipefail: {piped}"
