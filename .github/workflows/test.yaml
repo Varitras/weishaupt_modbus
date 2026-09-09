@@ -188,7 +188,10 @@ jobs:
       - name: Install gitleaks for the secret-scan controls
         run: |
           set -o pipefail
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+          # Retried: the runner's connection to the release host was reset
+          # mid-download once already, and a torn tarball is not a finding.
+          curl -sSfL --retry 3 --retry-all-errors --retry-delay 2 \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
             | sudo tar -xz -C /usr/local/bin gitleaks
           gitleaks version
       # -m "" cancels the `-m "not e2e"` default from pyproject.toml, so the
