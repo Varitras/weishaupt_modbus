@@ -591,3 +591,25 @@ def test_a_grid_whose_curve_values_cannot_be_subtracted_is_refused():
         )
         is False
     )
+
+
+def test_the_compiler_removes_script_the_way_the_runtime_looks_for_it():
+    """pygal inlines its own config as a script element. The compiler took it
+    out with a regular expression on the tag's spelling - the very kind of
+    filter the runtime replaced with a parser. Both sides now share one
+    definition of "static": what is_static_picture accepts."""
+    compiler = _compile_script()
+    drawn = (
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">'
+        '<defs><style type="text/css">.a{fill:#fff}</style></defs>'
+        '<SCRIPT type="text/javascript">alert(1)</SCRIPT>'
+        '<script type="text/javascript" ><![CDATA[window.x=1]]></script>'
+        '<g><rect width="1" height="1"/></g></svg>'
+    )
+
+    static = compiler.without_scripts(drawn)
+
+    assert kennfeld.is_static_picture(static), static
+    assert "alert" not in static and "window.x" not in static
+    assert "<rect" in static and "<style" in static, "the drawing itself stays"

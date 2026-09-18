@@ -642,5 +642,12 @@
     "old": "LARGEST_USABLE = sys.float_info.max / 2\n",
     "new": "LARGEST_USABLE = sys.float_info.max\n",
     "tests": "cannot_be_subtracted"
+  },
+  {
+    "label": "compiler: a script element must not survive into the preview",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "        if str(child.tag).rsplit(\"}\", 1)[-1].lower() == \"script\"\n",
+    "new": "        if False\n",
+    "tests": "compiler_removes_script"
   }
 ]

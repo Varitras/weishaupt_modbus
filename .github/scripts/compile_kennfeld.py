@@ -14,8 +14,11 @@ carries script.
 
 import json
 from pathlib import Path
-import re
 import sys
+import xml.etree.ElementTree as ET
+
+SVG_NAMESPACE = "http://www.w3.org/2000/svg"
+XLINK_NAMESPACE = "http://www.w3.org/1999/xlink"
 
 
 def sorted_curves(known_t: list, known_y: list) -> tuple[list, list]:
@@ -88,11 +91,33 @@ def draw_preview(data: dict, svg_path: Path) -> bool:
         chart.add(f"{flow}°C Vorlauf", sorted(points))
     # pygal inlines its own config as a <script> even with js=[]; a picture
     # under www/ carries no script at all.
-    static = re.sub(
-        r"<script.*?</script>", "", chart.render().decode("utf-8"), flags=re.DOTALL
+    svg_path.write_text(
+        without_scripts(chart.render().decode("utf-8")), encoding="utf-8"
     )
-    svg_path.write_text(static, encoding="utf-8")
     return True
+
+
+def without_scripts(svg: str) -> str:
+    """The picture with every script element taken out.
+
+    Parsed, not matched by a regular expression on the tag's spelling: that
+    is the filter the integration itself replaced with a parser, and a
+    `<SCRIPT>` or a tag with attributes would have slipped past it. The
+    element name is compared the way the runtime compares it.
+    """
+    ET.register_namespace("", SVG_NAMESPACE)
+    ET.register_namespace("xlink", XLINK_NAMESPACE)
+    # What is parsed here is pygal's own rendering, not a file from anywhere.
+    root = ET.fromstring(svg)  # noqa: S314
+    scripts = [
+        (parent, child)
+        for parent in root.iter()
+        for child in parent
+        if str(child.tag).rsplit("}", 1)[-1].lower() == "script"
+    ]
+    for parent, child in scripts:
+        parent.remove(child)
+    return ET.tostring(root, encoding="unicode", xml_declaration=True)
 
 
 def main(argv: list[str]) -> int:
