@@ -590,15 +590,15 @@
   {
     "label": "power map: an unreadable preview must not fail the entry",
     "path": "custom_components/weishaupt_modbus/kennfeld.py",
-    "old": "        except (OSError, ValueError) as err:\n            # As for the grid file",
-    "new": "        except OSError as err:\n            # As for the grid file",
+    "old": "    except (OSError, ValueError) as err:\n        # As for the grid file",
+    "new": "    except OSError as err:\n        # As for the grid file",
     "tests": "not_text_leaves_the_entry_alone"
   },
   {
     "label": "kennfeld: escaped CSS must not pass as a static picture",
     "path": "custom_components/weishaupt_modbus/kennfeld.py",
-    "old": "    return not CSS_ESCAPE.search(canonical) and not LOADS_OR_RUNS.search(canonical)",
-    "new": "    return not LOADS_OR_RUNS.search(canonical)",
+    "old": "    if CSS_ESCAPE.search(canonical) or \"@\" in canonical:\n",
+    "new": "    if \"@\" in canonical:\n",
     "tests": "css_written_with_escapes"
   },
   {
@@ -649,5 +649,33 @@
     "old": "        if str(child.tag).rsplit(\"}\", 1)[-1].lower() == \"script\"\n",
     "new": "        if False\n",
     "tests": "compiler_removes_script"
+  },
+  {
+    "label": "kennfeld: CSS may call only the functions a drawing needs",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "    if any(name.lower() not in CSS_FUNCTIONS for name in calls):\n        return False\n",
+    "new": "",
+    "tests": "names_a_resource_by_function"
+  },
+  {
+    "label": "kennfeld: no at-rule in a drawing's CSS",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "    if CSS_ESCAPE.search(canonical) or \"@\" in canonical:\n        return False\n",
+    "new": "    if CSS_ESCAPE.search(canonical):\n        return False\n",
+    "tests": "at_rules_are_refused"
+  },
+  {
+    "label": "power map: a map without an accepted preview leaves none behind",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "                destination.unlink(missing_ok=True)\n                return\n",
+    "new": "                return\n",
+    "tests": "removes_the_previous_one"
+  },
+  {
+    "label": "power map: what reaches www is the text that passed",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "            destination.write_text(picture, encoding=\"utf-8\")\n",
+    "new": "            destination.write_text(json_filepath.with_suffix(\".svg\").read_text(encoding=\"utf-8\"), encoding=\"utf-8\")\n",
+    "tests": "bytes_copied_are_the_bytes_that_passed"
   }
 ]

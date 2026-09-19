@@ -235,6 +235,10 @@ async def test_a_static_preview_is_copied_under_www(hass, tmp_path, monkeypatch)
             "event handler",
         ),
         (
+            '<svg xmlns="http://www.w3.org/2000/svg" onclick="x=1"/>',
+            "event handler that calls nothing: only its name gives it away",
+        ),
+        (
             '<svg xmlns="http://www.w3.org/2000/svg" xmlns:s="http://www.w3.org/2000/svg"><s:script>alert(1)</s:script></svg>',
             "namespace-prefixed script",
         ),
@@ -490,6 +494,7 @@ async def test_bounds_written_as_integral_floats_still_reach_the_curve(
         (r'@\69mport "a.css";', "an escape spells the keyword without writing it"),
         (r"rect{fill:u\72l(\2f\2f e.invalid/a.svg)}", "escaped url and host"),
         (r"@\49MPORT 'a.css';", "escapes are hexadecimal and case-insensitive"),
+        (r"\40import 'a.css';", "the at-sign itself escaped: no @ to see, no function"),
     ],
 )
 def test_css_written_with_escapes_is_not_a_static_picture(style, why):
@@ -613,3 +618,115 @@ def test_the_compiler_removes_script_the_way_the_runtime_looks_for_it():
     assert kennfeld.is_static_picture(static), static
     assert "alert" not in static and "window.x" not in static
     assert "<rect" in static and "<style" in static, "the drawing itself stays"
+
+
+@pytest.mark.parametrize(
+    ("css", "why"),
+    [
+        (
+            "background-image:image-set('//e.invalid/p.png' 1x)",
+            "a string inside image-set() is a URL, and no url( is spelled",
+        ),
+        ("background:image('p.png')", "image() names a resource too"),
+        ("content:src('p.png')", "so does src()"),
+        ("cursor:cross-fade(a, b)", "and any function this drawing never calls"),
+    ],
+)
+def test_css_that_names_a_resource_by_function_is_refused(css, why):
+    """CSS reaches a resource through a function, and url() is only the best
+    known one. Three rounds of forbidding the next spelling were enough: the
+    functions a drawing may call are listed, everything else is refused."""
+    assert (
+        kennfeld.is_static_picture(
+            f'<svg xmlns="http://www.w3.org/2000/svg" style="{css}">'
+            '<rect width="1" height="1"/></svg>'
+        )
+        is False
+    ), why
+
+
+@pytest.mark.parametrize(
+    "rule",
+    [
+        "@font-face{font-family:x;src:local(y)}",
+        "@media print{.a{fill:red}}",  # calls nothing, loads nothing: only the @
+    ],
+)
+def test_css_at_rules_are_refused_whatever_they_are_called(rule):
+    assert (
+        kennfeld.is_static_picture(
+            f'<svg xmlns="http://www.w3.org/2000/svg"><style>{rule}</style></svg>'
+        )
+        is False
+    )
+
+
+def test_the_css_a_drawing_uses_still_passes():
+    assert kennfeld.is_static_picture(
+        '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">'
+        '<style type="text/css">.t{font-family:Consolas,"Liberation Mono",monospace;'
+        "fill:rgba(1,2,3,.5)} .a:not(.b){stroke:#fff}</style>"
+        '<g transform="translate(60, 46)"><rect width="1" height="1"/></g></svg>'
+    )
+
+
+def _grid_file(folder, name):
+    grid = {
+        "known_t": [35, 55],
+        "known_x": [-10, 10],
+        "compiled_grid": {"0": [1.0, 2.0]},
+    }
+    (folder / f"{name}.json").write_text(json.dumps(grid), encoding="utf-8")
+    return f"{name}.json"
+
+
+async def _initialize(hass, folder, grid_name, monkeypatch):
+    entry = SimpleNamespace(
+        data={CONF.KENNFELD_FILE: grid_name, CONF.DEVICE_POSTFIX: ""}
+    )
+    monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: folder)
+    hass.config.config_dir = str(folder)
+    power_map = PowerMap(entry, hass)
+    await power_map.initialize()
+    return folder / "www" / "local" / "weishaupt_modbus_powermap.svg"
+
+
+@pytest.mark.parametrize("second_preview", [None, "<svg><script>x</script></svg>"])
+async def test_a_preview_that_cannot_be_accepted_removes_the_previous_one(
+    hass, tmp_path, monkeypatch, second_preview
+):
+    """Switching to a grid without a preview, or with one that is refused,
+    left the old entry's picture under www: the dashboard showed the curve
+    of a map the integration no longer computed from."""
+    first = _grid_file(tmp_path, "first")
+    (tmp_path / "first.svg").write_text("<svg><path d='M0 0'/></svg>", encoding="utf-8")
+    destination = await _initialize(hass, tmp_path, first, monkeypatch)
+    assert destination.exists()
+
+    second = _grid_file(tmp_path, "second")
+    if second_preview is not None:
+        (tmp_path / "second.svg").write_text(second_preview, encoding="utf-8")
+    await _initialize(hass, tmp_path, second, monkeypatch)
+
+    assert not destination.exists(), "the previous map's preview survived"
+
+
+async def test_the_bytes_copied_are_the_bytes_that_passed(hass, tmp_path, monkeypatch):
+    """The source was read, validated, and then read a second time by the
+    copy: a file replaced in between reached www unvalidated."""
+    grid = _grid_file(tmp_path, "own")
+    source = tmp_path / "own.svg"
+    validated = "<svg><path d='M0 0'/></svg>"
+    source.write_text(validated, encoding="utf-8")
+    real_check = kennfeld.is_static_picture
+
+    def swap_after_checking(svg):
+        verdict = real_check(svg)
+        source.write_text("<svg onload='alert(1)'/>", encoding="utf-8")
+        return verdict
+
+    monkeypatch.setattr(kennfeld, "is_static_picture", swap_after_checking)
+
+    destination = await _initialize(hass, tmp_path, grid, monkeypatch)
+
+    assert destination.read_text(encoding="utf-8") == validated
