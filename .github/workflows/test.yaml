@@ -117,6 +117,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install "$PHCC_SPEC" -r requirements.txt
+          pip install $(python .github/scripts/core_modbus_requirements.py)
+          python .github/scripts/core_modbus_requirements.py --verify
           pip install "mypy==2.3.1"
       - name: Type check
         run: mypy

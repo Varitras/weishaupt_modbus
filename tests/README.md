@@ -10,8 +10,9 @@ usually somebody with no memory of why any of it is here.
 .github/scripts/check.sh
 ```
 
-Ruff, formatting, mypy, the test suite and the mutation run, in that order,
-stopping at the first failure. CI runs the same set; a guard in
+Ruff, formatting, mypy, pip-audit over the runtime requirements, gitleaks
+over the commits this fork added, the test suite in both environments and
+the mutation run, in that order, stopping at the first failure. CI runs the same set; a guard in
 `tests/test_guards.py` fails if the two ever drift apart. Anything
 machine-local arrives through the environment:
 
