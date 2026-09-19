@@ -11,8 +11,11 @@
 modbus-connection[tmodbus]>=4.10.0
 
 # Not ours: Home Assistant's modbus integration installs these, and this
-# integration depends on it. Pinned here to what core 2026.9 ships so the
-# tests run against the versions an installation actually has - never in the
-# manifest, where the pin would collide with core's own.
+# integration depends on it. Pinned here to what core 2026.9 ships - never in
+# the manifest, where the pin would collide with core's own. The CI test job
+# then installs the exact pins of the Home Assistant under test, including
+# modbus-connection, from that release's own manifest
+# (.github/scripts/core_modbus_requirements.py): the lower bound above is for
+# packaging, not what the tests should run against.
 tmodbus==0.6.2
 pymodbus==3.13.1
