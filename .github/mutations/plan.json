@@ -691,5 +691,12 @@
     "old": "            self._copy_powermap_plot, filepath if loaded else None, www_dir\n",
     "new": "            self._copy_powermap_plot, filepath, www_dir\n",
     "tests": "cannot_be_loaded_removes"
+  },
+  {
+    "label": "switch: the restored value is held to the bounds in force",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        return max(low, min(remembered, high))\n",
+    "new": "        return remembered\n",
+    "tests": "bounds_in_force"
   }
 ]
