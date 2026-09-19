@@ -52,7 +52,12 @@ if [ -z "$GITLEAKS_FOUND" ] || [ "$(printf '%s\n' "$GITLEAKS_MIN" "$GITLEAKS_FOU
     exit 1
 fi
 echo "gitleaks $GITLEAKS_FOUND"
-gitleaks detect --no-banner --redact --source . --log-opts="$FORK_BASE..HEAD"
+# The pre-push hook names the heads git is about to send; a push of a branch
+# other than the checked-out one would otherwise be scanned as HEAD. Run by
+# hand, HEAD is what there is.
+for head in ${GITLEAKS_HEADS:-HEAD}; do
+    gitleaks detect --no-banner --redact --source . --log-opts="$FORK_BASE..$head"
+done
 
 echo "== pytest =="
 # -m "" cancels the `-m "not e2e"` default from pyproject.toml, so the slow
