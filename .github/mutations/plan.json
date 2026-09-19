@@ -677,5 +677,12 @@
     "old": "            destination.write_text(picture, encoding=\"utf-8\")\n",
     "new": "            destination.write_text(json_filepath.with_suffix(\".svg\").read_text(encoding=\"utf-8\"), encoding=\"utf-8\")\n",
     "tests": "bytes_copied_are_the_bytes_that_passed"
+  },
+  {
+    "label": "write budget: a restore must not erase a write already counted",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/write_budget.py",
+    "old": "            self._today_count += count\n",
+    "new": "            self._today_count = count\n",
+    "tests": "not_erased_by_it"
   }
 ]
