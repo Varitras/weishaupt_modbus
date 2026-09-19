@@ -730,3 +730,35 @@ async def test_the_bytes_copied_are_the_bytes_that_passed(hass, tmp_path, monkey
     destination = await _initialize(hass, tmp_path, grid, monkeypatch)
 
     assert destination.read_text(encoding="utf-8") == validated
+
+
+@pytest.mark.parametrize(
+    ("second_json", "why"),
+    [
+        (None, "the selected file is gone"),
+        ("{not json", "the file is corrupt"),
+        ('{"known_t": [], "known_x": []}', "the file has the wrong shape"),
+        ('{"known_t": [35, 55], "known_x": [-10, 10]}', "the grid was never compiled"),
+    ],
+)
+async def test_a_grid_that_cannot_be_loaded_removes_the_previous_preview(
+    hass, tmp_path, monkeypatch, second_json, why
+):
+    """The cleanup for a map without an acceptable preview sat after the
+    grid load, so a map that failed to load at all never reached it: the
+    heat power went unknown while the dashboard kept the old curve."""
+    first = _grid_file(tmp_path, "first")
+    (tmp_path / "first.svg").write_text("<svg><path d='M0 0'/></svg>", encoding="utf-8")
+    destination = await _initialize(hass, tmp_path, first, monkeypatch)
+    assert destination.exists()
+    if second_json is not None:
+        (tmp_path / "second.json").write_text(second_json, encoding="utf-8")
+    # A perfectly good picture beside the unusable grid: without a map
+    # there is nothing it would be a preview of.
+    (tmp_path / "second.svg").write_text(
+        "<svg><path d='M1 1'/></svg>", encoding="utf-8"
+    )
+
+    await _initialize(hass, tmp_path, "second.json", monkeypatch)
+
+    assert not destination.exists(), why

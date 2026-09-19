@@ -684,5 +684,12 @@
     "old": "            self._today_count += count\n",
     "new": "            self._today_count = count\n",
     "tests": "not_erased_by_it"
+  },
+  {
+    "label": "power map: a grid that fails to load takes the old preview down",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "            self._copy_powermap_plot, filepath if loaded else None, www_dir\n",
+    "new": "            self._copy_powermap_plot, filepath, www_dir\n",
+    "tests": "cannot_be_loaded_removes"
   }
 ]
