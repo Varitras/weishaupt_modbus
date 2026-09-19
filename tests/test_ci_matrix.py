@@ -316,3 +316,21 @@ def test_each_test_lane_installs_the_modbus_stack_its_home_assistant_pins():
     assert "core_modbus_requirements.py --verify" in joined, (
         "installing is not enough: the versions have to be checked afterwards"
     )
+
+
+def test_every_workflow_runs_on_pull_requests_and_pushes_to_main_only():
+    """An unfiltered push ran every job twice per branch (push and pull
+    request) and once more per tag, on a commit that was already green.
+    And `branches` next to `branches-ignore` on one event makes GitHub reject
+    the whole file silently: no red cross, nothing runs at all."""
+    for path in sorted(WORKFLOW.parent.glob("*.y*ml")):
+        triggers = yaml.safe_load(path.read_text(encoding="utf-8"))[True]
+        push = triggers.get("push") or {}
+
+        assert "pull_request" in triggers, f"{path.name}: no pull_request trigger"
+        assert push.get("branches") == ["main"], (
+            f"{path.name}: push must be filtered to main, got {push}"
+        )
+        assert "branches-ignore" not in push, (
+            f"{path.name}: branches and branches-ignore together invalidate the file"
+        )

@@ -4,10 +4,7 @@ name: "CodeQL"
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
-      - dev
-      - test-suite
+    branches: [main]
   pull_request:
   # A quiet branch is rescanned with the current queries once a week.
   schedule:

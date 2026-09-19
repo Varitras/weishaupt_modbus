@@ -1,8 +1,12 @@
 name: Validate
 
 on:
-  push:
+  # The pull request is the CI trigger for a branch; main is checked on
+  # the merge commit and the release SHA. An unfiltered push ran every
+  # job twice per branch and once more per tag on a commit already green.
   pull_request:
+  push:
+    branches: [main]
   schedule:
     - cron: "0 0 * * *"
   workflow_dispatch:
