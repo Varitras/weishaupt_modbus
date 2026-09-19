@@ -89,3 +89,19 @@ def test_a_restored_count_from_yesterday_is_stale():
 
     budget.restore_today(7, TUESDAY)
     assert budget.writes_today == 7
+
+
+def test_a_write_counted_before_the_restore_is_not_erased_by_it():
+    """The counter sensors restore their last value after the platforms have
+    started adding entities, and a number is writable before that. A restore
+    that replaced the count discarded that write: at a daily limit of one the
+    register had been written and a second write was still allowed."""
+    budget = WriteBudget(warn_at=0, limit=1, today=Clock(MONDAY))
+    budget.record_write()
+
+    budget.restore_today(0, MONDAY)
+    budget.restore_total(41)
+
+    assert budget.writes_today == 1
+    assert budget.total == 42, "41 before this start, one since"
+    assert not budget.allows_write()

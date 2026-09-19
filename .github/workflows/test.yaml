@@ -117,6 +117,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install "$PHCC_SPEC" -r requirements.txt
+          pip install $(python .github/scripts/core_modbus_requirements.py)
+          python .github/scripts/core_modbus_requirements.py --verify
           pip install "mypy==2.3.1"
       - name: Type check
         run: mypy
@@ -177,6 +179,13 @@ jobs:
           # the timeout that stops a hung run is exactly what must not depend
           # on some other package still happening to pull it in.
           pip install "$PHCC_SPEC" pytest-timeout -r requirements.txt
+      # requirements.txt gives modbus-connection a lower bound on purpose, so
+      # this resolved a newer release than the tested Home Assistant pins and
+      # the lane vouched for a combination no installation has.
+      - name: Install the Modbus libraries this Home Assistant pins
+        run: |
+          pip install $(python .github/scripts/core_modbus_requirements.py)
+          python .github/scripts/core_modbus_requirements.py --verify
       - name: Show the Home Assistant version under test
         run: python -c "from homeassistant.const import __version__; print(__version__)"
       - name: The minimum job must run the version hacs.json declares

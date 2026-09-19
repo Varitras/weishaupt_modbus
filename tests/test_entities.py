@@ -680,3 +680,47 @@ async def test_turning_on_while_a_number_write_runs_keeps_the_newer_value():
 
     assert setpoint.state == 700, "the switch restored the superseded setpoint"
     assert [event.values for event in writes] == [[700]], "one write, not two"
+
+
+async def test_turning_on_holds_the_remembered_value_to_the_bounds_in_force():
+    """No shipped row that gets a switch has a dynamic bound today, so this
+    is the contract for the day one does: the value a setpoint last held may
+    lie outside the range its neighbour has since narrowed."""
+    neighbour = ModbusItem(
+        42104,
+        "Lowering",
+        FORMATS.TEMPERATURE,
+        TYPES.NUMBER,
+        DEVICES.WW,
+        "lowering",
+        params={"min": 10, "max": 80, "divider": 10, "precision": 1},
+    )
+    setpoint = ModbusItem(
+        42103,
+        "Normal",
+        FORMATS.TEMPERATURE,
+        TYPES.NUMBER,
+        DEVICES.WW,
+        "normal",
+        params={
+            "min": 20,
+            "max": 80,
+            "divider": 10,
+            "precision": 1,
+            "dynamic_min": "lowering",
+            "off_is_a_setting": True,
+        },
+    )
+    coordinator = RealDeviceCoordinator([setpoint, neighbour])
+    neighbour.state = 500  # the floor moved up to 50 degC
+    setpoint.state, setpoint.is_off, setpoint.last_setting = None, True, 400
+    switch = entities.MySetpointSwitchEntity(_entry(), setpoint, coordinator, 0)
+    switch.async_write_ha_state = lambda: None
+    writes = []
+    coordinator.unit.on_write(writes.append)
+
+    await switch.async_turn_on()
+
+    assert [event.values for event in writes] == [[500]], (
+        "40 degC lies below the floor now"
+    )

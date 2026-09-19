@@ -9,7 +9,6 @@ import json
 import logging
 from pathlib import Path
 import re
-import shutil
 import sys
 from typing import Any
 import xml.etree.ElementTree as ET
@@ -114,6 +113,14 @@ LOADS_OR_RUNS = re.compile(
 # means a CSS parser; refusing the escapes costs nothing here, because no
 # generated preview contains a backslash at all.
 CSS_ESCAPE = re.compile(r"\\")
+# CSS reaches a resource through a function - url(), image-set(), src(),
+# image() - and through an at-rule. The functions a drawing calls are few
+# (the generated previews use two); everything else is refused rather than
+# searched for by spelling, and no at-rule is needed at all.
+CSS_FUNCTIONS = frozenset(
+    {"not", "rgb", "rgba", "hsl", "hsla", "translate", "rotate", "scale", "matrix"}
+)
+CSS_FUNCTION_CALL = re.compile(r"([A-Za-z-]+)\s*\(")
 # A processing instruction can pull in a stylesheet, and ElementTree drops it
 # from the tree, so the filter would never see it. Only the declaration stays.
 FOREIGN_INSTRUCTION = re.compile(r"<\?(?!xml[\s?])")
@@ -176,7 +183,41 @@ def _attribute_is_static(name: str, value: str) -> bool:
 def _css_is_static(css: str) -> bool:
     """Whether a stylesheet or style attribute neither loads nor escapes."""
     canonical = _canonical(css)
-    return not CSS_ESCAPE.search(canonical) and not LOADS_OR_RUNS.search(canonical)
+    if CSS_ESCAPE.search(canonical) or "@" in canonical:
+        return False
+    calls = CSS_FUNCTION_CALL.findall(canonical)
+    if any(name.lower() not in CSS_FUNCTIONS for name in calls):
+        return False
+    return not LOADS_OR_RUNS.search(canonical)
+
+
+def _accepted_preview(source: Path) -> str | None:
+    """The preview's text when it exists, reads as text and is static; else None."""
+    if not source.exists():
+        _LOGGER.info(
+            "No preview %s beside the power map; draw one with "
+            ".github/scripts/compile_kennfeld.py",
+            source.name,
+        )
+        return None
+    try:
+        picture = source.read_text(encoding="utf-8")
+    except (OSError, ValueError) as err:
+        # As for the grid file: the preview is an optional decoration, and
+        # a file that is not UTF-8 must not take the entry down with it.
+        _LOGGER.error(
+            "Preview %s cannot be read and is not copied: %s", source.name, err
+        )
+        return None
+    if not is_static_picture(picture):
+        _LOGGER.error(
+            "Preview %s carries script or links to the web and is not copied "
+            "under www/, where it would run in Home Assistant's origin. Redraw "
+            "it with compile_kennfeld.py",
+            source.name,
+        )
+        return None
+    return picture
 
 
 def powermap_file_name(entry_data: Mapping[str, Any]) -> str:
@@ -200,17 +241,31 @@ class PowerMap:
         self._out_range_raw: list[int] = [-300, 400]
 
     async def initialize(self) -> None:
-        """Load the compiled grid and put its preview under www/local."""
+        """Load the compiled grid, then put its preview under www/local.
+
+        The preview step runs whatever the load's outcome: a map that could
+        not be loaded has no preview either, and the cleanup that sat after a
+        successful load left the previous map's curve on the dashboard while
+        the heat power had already gone unknown.
+        """
         filepath = Path(
             get_filepath(self.hass) / self._config_entry.data[CONF.KENNFELD_FILE]
         )
+        loaded = await self._load_grid(filepath)
+        www_dir = Path(f"{self.hass.config.config_dir}/www/local")
+        await self.hass.async_add_executor_job(
+            self._copy_powermap_plot, filepath if loaded else None, www_dir
+        )
+
+    async def _load_grid(self, filepath: Path) -> bool:
+        """Take the compiled grid over; False, with the reason logged, if not."""
         try:
             data = await self.hass.async_add_executor_job(_load_json, filepath)
         except (OSError, ValueError) as err:
             # ValueError covers a corrupt JSON file: the heat power is one
             # sensor, not a reason to fail the whole entry's setup.
             _LOGGER.error("Failed to load power map file %s: %s", filepath, err)
-            return
+            return False
         if not _looks_like_a_grid(data):
             _LOGGER.error(
                 "Power map %s is not a compiled grid (known_t with at least two "
@@ -218,14 +273,14 @@ class PowerMap:
                 "The heat power stays unknown",
                 filepath.name,
             )
-            return
+            return False
         if "compiled_grid" not in data:
             _LOGGER.error(
                 "Power map %s has no compiled grid; compile it with "
                 ".github/scripts/compile_kennfeld.py. The heat power stays unknown",
                 filepath.name,
             )
-            return
+            return False
 
         self._known_t = list(data["known_t"])
         known_x = data["known_x"]
@@ -236,57 +291,32 @@ class PowerMap:
         assert raw_bounds is not None
         self._out_range_raw = raw_bounds
         self._compiled_grid = data["compiled_grid"]
+        return True
 
-        www_dir = Path(f"{self.hass.config.config_dir}/www/local")
-        await self.hass.async_add_executor_job(
-            self._copy_powermap_plot, filepath, www_dir
-        )
+    def _copy_powermap_plot(self, json_filepath: Path | None, www_dir: Path) -> None:
+        """Put this entry's preview under www/local, or take a stale one down.
 
-    def _copy_powermap_plot(self, json_filepath: Path, www_dir: Path) -> None:
-        """Copy the compiled SVG from the kennfeld folder to Home Assistant's local www directory.
-
-        Runs inside the executor thread pool.
+        Runs inside the executor thread pool. What reaches www is the text
+        that passed the check, not a second read of the file: the source
+        could be replaced between the two. And a map without an acceptable
+        preview - or no map at all, json_filepath None - leaves none behind,
+        so the dashboard cannot keep showing the curve of a map the
+        integration no longer computes from.
         """
-        png_src = json_filepath.with_suffix(".svg")
-        if not png_src.exists():
-            _LOGGER.info(
-                "No preview %s beside the power map; draw one with "
-                ".github/scripts/compile_kennfeld.py",
-                png_src.name,
-            )
-            return
+        destination = www_dir / powermap_file_name(self._config_entry.data)
+        picture = None
+        if json_filepath is not None:
+            picture = _accepted_preview(json_filepath.with_suffix(".svg"))
         try:
-            picture = png_src.read_text(encoding="utf-8")
-        except (OSError, ValueError) as err:
-            # As for the grid file: the preview is an optional decoration, and
-            # a file that is not UTF-8 must not take the entry down with it.
-            _LOGGER.error(
-                "Preview %s cannot be read and is not copied: %s", png_src.name, err
-            )
-            return
-        try:
-            if not is_static_picture(picture):
-                _LOGGER.error(
-                    "Preview %s carries script or links to the web and is not "
-                    "copied under www/, where it would run in Home Assistant's "
-                    "origin. Redraw it with compile_kennfeld.py",
-                    png_src.name,
-                )
+            if picture is None:
+                destination.unlink(missing_ok=True)
                 return
-            # Ensure the /config/www/local directory exists
             www_dir.mkdir(parents=True, exist_ok=True)
-
-            # Destination file path
-            png_dest = www_dir / powermap_file_name(self._config_entry.data)
-
-            # Perform metadata-preserving copy
-            shutil.copy2(png_src, png_dest)
-            _LOGGER.info(
-                "Successfully updated dashboard power map image: %s", png_dest.name
-            )
+            destination.write_text(picture, encoding="utf-8")
+            _LOGGER.info("Updated dashboard power map image: %s", destination.name)
         except OSError as err:
             _LOGGER.error(
-                "Failed to copy power map image to local www directory: %s", err
+                "Failed to publish the power map image under www/local: %s", err
             )
 
     def map(self, outside_temp_raw: float, flow_temp_raw: float) -> float | None:

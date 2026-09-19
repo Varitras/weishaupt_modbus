@@ -298,3 +298,21 @@ def test_no_step_hides_a_failure_behind_a_pipe():
                 piped.append(f"{name}: {step.get('name', 'unnamed step')}")
 
     assert not piped, f"these steps pipe without pipefail: {piped}"
+
+
+def test_each_test_lane_installs_the_modbus_stack_its_home_assistant_pins():
+    """requirements.txt bounds modbus-connection from below on purpose, so a
+    plain install resolved a newer release than the tested Home Assistant
+    pins and the lane tested a combination no installation has."""
+    steps = _steps_of("pytest")
+    joined = "\n".join(steps)
+    install = joined.index('pip install "$PHCC_SPEC"')
+    pinned = joined.index("core_modbus_requirements.py")
+    tests_run = joined.index("Run test suite")
+
+    assert install < pinned < tests_run, (
+        "core's Modbus pins must go on after the plugin install and before the tests"
+    )
+    assert "core_modbus_requirements.py --verify" in joined, (
+        "installing is not enough: the versions have to be checked afterwards"
+    )

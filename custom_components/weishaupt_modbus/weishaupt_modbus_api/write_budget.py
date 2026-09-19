@@ -62,11 +62,16 @@ class WriteBudget:
         return self.warn_at > 0 and self._today_count == self.warn_at
 
     def restore_total(self, total: int) -> None:
-        """The lifetime count as the sensor last recorded it."""
-        self.total = total
+        """The lifetime count as the sensor last recorded it, on top of this start's.
+
+        Added, not assigned: the sensor restores after the platforms have
+        begun adding entities, and a write made before that was counted here
+        already. Replacing the count threw that write away.
+        """
+        self.total += total
 
     def restore_today(self, count: int, day: date) -> None:
         """A count from a past day is stale and stays at zero."""
         if day == self._today():
             self.day = day
-            self._today_count = count
+            self._today_count += count
