@@ -1,7 +1,5 @@
 """Build entity List and Update Coordinator."""
 
-import logging
-
 from .configentry import MyConfigEntry
 from .const import TYPES
 from .coordinator import WeishauptModbusCoordinator
@@ -14,8 +12,6 @@ from .entities import (
 )
 from .items import ModbusItem
 
-_LOGGER = logging.getLogger(__name__)
-
 # Type alias for entity types
 EntityType = (
     MySensorEntity
@@ -27,7 +23,6 @@ EntityType = (
 
 
 async def build_entity_list(
-    entries: list[EntityType],
     config_entry: MyConfigEntry,
     api_items: list[ModbusItem],
     item_types: str | tuple[str, ...],
@@ -40,7 +35,6 @@ async def build_entity_list(
     It now performs a single pass over the item list while handling multiple entity types.
 
     Args:
-        entries: list of entities to append to
         config_entry: HASS config entry
         api_items: list of modbus items
         item_types: type or types of modbus item to build
@@ -52,6 +46,7 @@ async def build_entity_list(
         Updated list of entities
 
     """
+    entries: list[EntityType] = []
     if isinstance(item_types, str):
         item_types = (item_types,)
 
