@@ -20,6 +20,12 @@ TEMPERATURE_RAW_MAX = 5000
 # controller's own menu offers it as a value. Written signed, as the field
 # encodes temperatures.
 SETPOINT_OFF_SIGNED = -32768
+# A setpoint the controller only reports (room, flow, DHW) says "no setpoint
+# demand active" with the no-sensor word OR with a plain 1 - the data-point
+# list names both. Read as a temperature, the 1 was a flow setpoint of
+# 0.1 degC for a whole summer day. Its domain starts at 5.0 degC, not -50.
+SETPOINT_NO_DEMAND_WORDS = (TEMPERATURE_NO_SENSOR, 1)
+SETPOINT_RAW_MIN = 50
 PERCENTAGE_NO_VALUE = 0xFFFF
 
 

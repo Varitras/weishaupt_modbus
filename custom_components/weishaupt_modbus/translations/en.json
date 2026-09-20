@@ -772,16 +772,16 @@
         "name": "{prefix}Request(feed regenerative)"
       },
       "ausg_h12": {
-        "name": "{prefix}Output H1.2"
+        "name": "{prefix}Input H1.2"
       },
       "ausg_h13": {
-        "name": "{prefix}Output H1.3"
+        "name": "{prefix}Input H1.3"
       },
       "ausg_h14": {
-        "name": "{prefix}Output H1.4"
+        "name": "{prefix}Input H1.4"
       },
       "ausg_h15": {
-        "name": "{prefix}Output H1.5"
+        "name": "{prefix}Input H1.5"
       },
       "aussentemp": {
         "name": "{prefix}Outside temperature"
@@ -1371,10 +1371,18 @@
         "name": "{prefix}Operation hours E1"
       },
       "sgr1": {
-        "name": "{prefix}SG-Ready 1"
+        "name": "{prefix}SG-Ready 1",
+        "state": {
+          "w2_status_aus": "off",
+          "w2_status_ein": "on"
+        }
       },
       "sgr2": {
-        "name": "{prefix}SG-Ready 2"
+        "name": "{prefix}SG-Ready 2",
+        "state": {
+          "w2_status_aus": "off",
+          "w2_status_ein": "on"
+        }
       },
       "soll_volumenstrom_heizen": {
         "name": "{prefix}Setpoint volume flow Heating"

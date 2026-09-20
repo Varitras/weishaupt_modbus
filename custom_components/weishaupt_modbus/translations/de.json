@@ -772,16 +772,16 @@
                 "name": "{prefix}Anforderung(Vorlauf regenerativ)"
             },
             "ausg_h12": {
-                "name": "{prefix}Ausgang H1.2"
+                "name": "{prefix}Eingang H1.2"
             },
             "ausg_h13": {
-                "name": "{prefix}Ausgang H1.3"
+                "name": "{prefix}Eingang H1.3"
             },
             "ausg_h14": {
-                "name": "{prefix}Ausgang H1.4"
+                "name": "{prefix}Eingang H1.4"
             },
             "ausg_h15": {
-                "name": "{prefix}Ausgang H1.5"
+                "name": "{prefix}Eingang H1.5"
             },
             "aussentemp": {
                 "name": "{prefix}Aussentemperatur"
@@ -1380,10 +1380,18 @@
                 "name": "{prefix}Betriebsstunden E1"
             },
             "sgr1": {
-                "name": "{prefix}SG-Ready 1"
+                "name": "{prefix}SG-Ready 1",
+                "state": {
+                    "w2_status_aus": "aus",
+                    "w2_status_ein": "ein"
+                }
             },
             "sgr2": {
-                "name": "{prefix}SG-Ready 2"
+                "name": "{prefix}SG-Ready 2",
+                "state": {
+                    "w2_status_aus": "aus",
+                    "w2_status_ein": "ein"
+                }
             },
             "soll_volumenstrom_heizen": {
                 "name": "{prefix}Sollwert Volumenstrom Heizen"

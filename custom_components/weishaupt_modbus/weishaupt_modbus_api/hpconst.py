@@ -1299,10 +1299,10 @@ MODBUS_WP_ITEMS: list[ModbusItem] = [
 
 # --- PRIMARY HEATING CIRCUIT (HZ) ---
 MODBUS_HZ_ITEMS = [
-    ModbusItem(address=31101, name="Raumsolltemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.HZ, params=PARAMS_ROOMTEMP, translation_key="raum_soll_temp"),
+    ModbusItem(address=31101, name="Raumsolltemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.HZ, params={**PARAMS_ROOMTEMP, "setpoint": True}, translation_key="raum_soll_temp"),
     ModbusItem(address=31102, name="Raumtemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.HZ, params=PARAMS_ROOMTEMP, translation_key="raum_temp"),
     ModbusItem(address=31103, name="Raumfeuchte", format=FORMATS.PERCENTAGE, type=TYPES.SENSOR, device=DEVICES.HZ, params=PARAMS_PERCENTAGE, translation_key="raum_feuchte"),
-    ModbusItem(address=31104, name="Vorlaufsolltemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.HZ, params=PARAMS_STDTEMP, translation_key="hz_vl_solltemp"),
+    ModbusItem(address=31104, name="Vorlaufsolltemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.HZ, params={**PARAMS_STDTEMP, "setpoint": True}, translation_key="hz_vl_solltemp"),
     ModbusItem(address=31105, name="HZ_Vorlauftemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.HZ, params=PARAMS_STDTEMP, translation_key="hz_vl_temp"),
     ModbusItem(address=31106, name="Adr. 31106", format=FORMATS.UNKNOWN, type=TYPES.SENSOR, device=DEVICES.HZ, translation_key="adr31106"),
 
@@ -1383,7 +1383,7 @@ for item in MODBUS_HZ_ITEMS:
 
 # --- HOT WATER ITEMS (WW) ---
 MODBUS_WW_ITEMS: list[ModbusItem] = [
-    ModbusItem(address=32101, name="Warmwassersolltemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.WW, params=PARAMS_WATERTEMP, translation_key="ww_soll_temp"),
+    ModbusItem(address=32101, name="Warmwassersolltemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.WW, params={**PARAMS_WATERTEMP, "setpoint": True}, translation_key="ww_soll_temp"),
     ModbusItem(address=32102, name="Warmwassertemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.WW, params=PARAMS_WATERTEMP, translation_key="ww_temp"),
     ModbusItem(address=42101, name="WW_Konfiguration", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.WW, resultlist=WW_KONFIGURATION, translation_key="ww_konf"),
     ModbusItem(address=42102, name="Warmwasser Push", format=FORMATS.STATUS, type=TYPES.SELECT, device=DEVICES.WW, resultlist=WW_PUSH, translation_key="ww_push"),
@@ -1467,8 +1467,8 @@ MODBUS_ST_ITEMS: list[ModbusItem] = [
 # input, or the digital status words 0x800A/0x800B when used as a switch
 # input (then no reading).
 MODBUS_IO_ITEMS: list[ModbusItem] = [
-    ModbusItem(address=35101, name="SG-Ready 1", format=FORMATS.UNKNOWN, type=TYPES.SENSOR, device=DEVICES.IO, translation_key="sgr1"),
-    ModbusItem(address=35102, name="SG-Ready 2", format=FORMATS.UNKNOWN, type=TYPES.SENSOR, device=DEVICES.IO, translation_key="sgr2"),
+    ModbusItem(address=35101, name="SG-Ready 1", format=FORMATS.STATUS, type=TYPES.SENSOR, device=DEVICES.IO, resultlist=W2_STATUS, translation_key="sgr1"),
+    ModbusItem(address=35102, name="SG-Ready 2", format=FORMATS.STATUS, type=TYPES.SENSOR, device=DEVICES.IO, resultlist=W2_STATUS, translation_key="sgr2"),
     ModbusItem(address=35103, name="Ausgang H1.2", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.IO, params=PARAMS_STDTEMP, translation_key="ausg_h12"),
     ModbusItem(address=35104, name="Ausgang H1.3", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.IO, params=PARAMS_STDTEMP, translation_key="ausg_h13"),
     ModbusItem(address=35105, name="Ausgang H1.4", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.IO, params=PARAMS_STDTEMP, translation_key="ausg_h14"),

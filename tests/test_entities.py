@@ -724,3 +724,31 @@ async def test_turning_on_holds_the_remembered_value_to_the_bounds_in_force():
     assert [event.values for event in writes] == [[500]], (
         "40 degC lies below the floor now"
     )
+
+
+def _flow_setpoint(state=None, is_off=False):
+    item = ModbusItem(
+        31104,
+        "Vorlaufsolltemperatur",
+        FORMATS.TEMPERATURE,
+        TYPES.SENSOR,
+        DEVICES.HZ,
+        "vorlaufsoll",
+        params={"unit": "°C", "divider": 10, "precision": 1, "setpoint": True},
+    )
+    item.state, item.is_off = state, is_off
+    return entities.MySensorEntity(_entry(), item, FakeCoordinator(), 0)
+
+
+def test_a_setpoint_sensor_says_whether_a_demand_is_active():
+    """Unknown alone does not tell "nothing demanded" from "no reading"; the
+    controller does, and the sensor passes it on as an attribute."""
+    assert _flow_setpoint(is_off=True).extra_state_attributes == {"demand": "none"}
+    assert _flow_setpoint(state=425).extra_state_attributes == {"demand": "active"}
+    assert _flow_setpoint().extra_state_attributes is None, "no reading, no claim"
+
+
+def test_a_plain_temperature_sensor_carries_no_demand_attribute():
+    sensor = entities.MySensorEntity(_entry(), _temperature(), FakeCoordinator(), 0)
+
+    assert sensor.extra_state_attributes is None

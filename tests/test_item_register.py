@@ -346,3 +346,16 @@ def test_yesterdays_energy_has_no_long_term_statistics():
         yesterday = item.address % 100 == 2
         expected = None if yesterday else SensorStateClass.TOTAL_INCREASING
         assert item.params["stateclass"] == expected, item.name
+
+
+def test_the_digital_inputs_all_read_as_on_or_off():
+    """The data-point list gives SG-Ready 1/2 and DE1/DE2 the same format,
+    FormatDigital. Only DE1/DE2 got the on/off list; SG-Ready 1/2 stayed
+    "unknown" and showed a bare 0 or 1 as a measurement."""
+    rows = {item.address: item for item in _items(hpconst)}
+    digital = [rows[address] for address in (35101, 35102, 35107, 35108)]
+
+    assert {item.format for item in digital} == {FORMATS.STATUS}
+    assert all(item.resultlist is hpconst.W2_STATUS for item in digital), (
+        "one on/off list for every digital input, not a copy each"
+    )
