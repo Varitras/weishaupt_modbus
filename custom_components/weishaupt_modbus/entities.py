@@ -26,6 +26,9 @@ from .weishaupt_modbus_api.hpconst import reverse_device_list
 
 _LOGGER = logging.getLogger(__name__)
 
+# On a reported setpoint: "none" while the controller demands nothing.
+DEMAND_ATTRIBUTE = "demand"
+
 
 def to_register_value(value: float, divider: int) -> int:
     """The register word for a user value: 1.15 at divider 100 is 115, not 114.
@@ -242,6 +245,21 @@ class MySensorEntity(MyEntity, SensorEntity):
         """Handle updated data from the coordinator."""
         self._attr_native_value = self.translate_val(self._api_item.state)
         self.async_write_ha_state()
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str] | None:
+        """For a reported setpoint: whether the controller demands anything.
+
+        Unknown alone does not tell "nothing demanded" from "no reading";
+        the controller does, with its no-demand word.
+        """
+        if not self._api_item.params.get("setpoint"):
+            return None
+        if self._api_item.is_off:
+            return {DEMAND_ATTRIBUTE: "none"}
+        if self._api_item.state is not None:
+            return {DEMAND_ATTRIBUTE: "active"}
+        return None
 
 
 class MyCalcSensorEntity(MySensorEntity):

@@ -39,6 +39,7 @@ OUTSIDE_TEMPERATURE = 30001
 CONSTANT_LOWERING = 41111  # TEMPERATURE setpoint whose 0x8000 means off
 POWER_REQUEST = 33103  # PERCENTAGE
 PV_SETPOINT = 40002  # NUMBER, holding
+FLOW_SETPOINT = 31104  # read-only setpoint: 1 and 0x8000 mean no demand
 BIVALENCE_TEMPERATURE = 44105  # TEMPERATURE, holding, writable
 SECOND_HEAT_SOURCE_STATUS = 34101
 
@@ -524,3 +525,34 @@ async def test_a_queued_turn_on_does_not_restore_a_superseded_setpoint(pump, uni
 
     assert row.state == 80, "the older remembered value came back"
     assert [event.values for event in writes] == [[80]], "one write, not two"
+
+
+@pytest.mark.parametrize("word", [1, 0x8000])
+async def test_a_setpoint_with_no_demand_is_off_not_a_tenth_of_a_degree(
+    pump, unit, word
+):
+    """The data-point list reads 1 and -32768 on a setpoint register as "no
+    setpoint demand active". Decoded as a temperature, the heating circuit
+    showed a flow setpoint of 0.1 degC for a whole summer day."""
+    unit.load_raw({"input": {FLOW_SETPOINT: word}})
+
+    await pump.async_update()
+
+    row = _row(pump, FLOW_SETPOINT)
+    assert row.state is None
+    assert row.is_off is True, "no demand is a state of the setpoint, not a fault"
+    assert row.is_invalid is False
+
+
+@pytest.mark.parametrize(("word", "state"), [(49, None), (50, 50), (5000, 5000)])
+async def test_a_setpoint_is_a_reading_only_from_five_degrees_up(
+    pump, unit, word, state
+):
+    """The list gives 50...5000 as the setpoint domain, not the sensor's."""
+    unit.load_raw({"input": {FLOW_SETPOINT: word}})
+
+    await pump.async_update()
+
+    row = _row(pump, FLOW_SETPOINT)
+    assert row.state == state
+    assert row.is_off is False

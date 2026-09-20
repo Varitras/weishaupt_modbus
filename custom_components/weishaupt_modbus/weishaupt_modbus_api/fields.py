@@ -12,6 +12,8 @@ from modbus_connection.model.fields import NumberField
 
 from .const import (
     PERCENTAGE_NO_VALUE,
+    SETPOINT_NO_DEMAND_WORDS,
+    SETPOINT_RAW_MIN,
     TEMPERATURE_NO_SENSOR,
     TEMPERATURE_RAW_MAX,
     TEMPERATURE_RAW_MIN,
@@ -64,19 +66,19 @@ class RegisterWord(NumberField[int]):
         absent: int | None = None,
         no_reading: tuple[int, int] | None = None,
         plausible: tuple[int, int] | None = None,
-        off: int | None = None,
+        off: int | tuple[int, ...] | None = None,
     ) -> None:
         """A word at ``address``; ``absent`` and ``no_reading`` are its sentinels."""
         super().__init__(address, signed=signed, writable=writable)
         self.absent = absent
         self.no_reading = no_reading
         self.plausible = plausible
-        self.off = off
+        self.off = off if isinstance(off, tuple) or off is None else (off,)
 
     def decode(self, words: list[int], scale_exponent: int | None = None) -> Any:
         """NO_SENSOR, None or the signed/unsigned word."""
         raw = words[0]
-        if raw == self.off:
+        if self.off is not None and raw in self.off:
             return OFF
         if raw == self.absent:
             return NO_SENSOR
@@ -96,6 +98,17 @@ class RegisterWord(NumberField[int]):
 def field_for(item: ModbusItem) -> RegisterWord:
     """The field that reads (and, for a setting, writes) this table row."""
     writable = item.type in (TYPES.NUMBER, TYPES.SELECT)
+    if item.format == FORMATS.TEMPERATURE and item.params.get("setpoint"):
+        # A reported setpoint: "no demand" is a state of its own, not a
+        # missing sensor, and the list's domain for it starts at 5.0 degC.
+        return RegisterWord(
+            item.address,
+            signed=True,
+            writable=writable,
+            off=SETPOINT_NO_DEMAND_WORDS,
+            no_reading=(TEMPERATURE_SENSOR_OPEN, TEMPERATURE_RESERVED_BAND_END),
+            plausible=(SETPOINT_RAW_MIN, TEMPERATURE_RAW_MAX),
+        )
     if item.format == FORMATS.TEMPERATURE:
         # For a setpoint with an off state the no-sensor word IS that state.
         off_is_a_setting = bool(item.params.get("off_is_a_setting"))

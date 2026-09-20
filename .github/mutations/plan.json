@@ -415,8 +415,8 @@
   {
     "label": "fields: a setpoint's off word must decode as OFF, not as absent",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/fields.py",
-    "old": "        if raw == self.off:\n            return OFF\n",
-    "new": "        if raw == self.off:\n            return NO_SENSOR\n",
+    "old": "        if self.off is not None and raw in self.off:\n            return OFF\n",
+    "new": "",
     "tests": "off_word_is_off_not_absent"
   },
   {
@@ -698,5 +698,26 @@
     "old": "        return max(low, min(remembered, high))\n",
     "new": "        return remembered\n",
     "tests": "bounds_in_force"
+  },
+  {
+    "label": "fields: a setpoint's no-demand words must read as off",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/fields.py",
+    "old": "            off=SETPOINT_NO_DEMAND_WORDS,\n",
+    "new": "            off=None,\n",
+    "tests": "no_demand_is_off"
+  },
+  {
+    "label": "fields: a setpoint's domain starts at five degrees",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/fields.py",
+    "old": "            plausible=(SETPOINT_RAW_MIN, TEMPERATURE_RAW_MAX),\n",
+    "new": "            plausible=(TEMPERATURE_RAW_MIN, TEMPERATURE_RAW_MAX),\n",
+    "tests": "reading_only_from_five_degrees"
+  },
+  {
+    "label": "sensor: a reported setpoint says whether a demand is active",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        if self._api_item.is_off:\n            return {DEMAND_ATTRIBUTE: \"none\"}\n",
+    "new": "",
+    "tests": "whether_a_demand_is_active"
   }
 ]
