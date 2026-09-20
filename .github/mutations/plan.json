@@ -719,5 +719,12 @@
     "old": "        if self._api_item.is_off:\n            return {DEMAND_ATTRIBUTE: \"none\"}\n",
     "new": "",
     "tests": "whether_a_demand_is_active"
+  },
+  {
+    "label": "table: SG-Ready 1 and 2 read as on or off like DE1 and DE2",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "    ModbusItem(address=35101, name=\"SG-Ready 1\", format=FORMATS.STATUS, type=TYPES.SENSOR, device=DEVICES.IO, resultlist=W2_STATUS, translation_key=\"sgr1\"),\n",
+    "new": "    ModbusItem(address=35101, name=\"SG-Ready 1\", format=FORMATS.UNKNOWN, type=TYPES.SENSOR, device=DEVICES.IO, translation_key=\"sgr1\"),\n",
+    "tests": "digital_inputs_all_read"
   }
 ]

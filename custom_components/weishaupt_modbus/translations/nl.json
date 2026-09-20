@@ -772,16 +772,16 @@
         "name" : "{prefix}Vraag (regeneratieve stroom)"
       },
       "ausg_h12" : {
-        "name" : "{prefix}Uitgang H1.2"
+        "name" : "{prefix}Ingang H1.2"
       },
       "ausg_h13" : {
-        "name" : "{prefix}Uitgang H1.3"
+        "name" : "{prefix}Ingang H1.3"
       },
       "ausg_h14" : {
-        "name" : "{prefix}Uitgang H1.4"
+        "name" : "{prefix}Ingang H1.4"
       },
       "ausg_h15" : {
-        "name" : "{prefix}Uitgang H1.5"
+        "name" : "{prefix}Ingang H1.5"
       },
       "aussentemp" : {
         "name" : "{prefix}Buitentemperatuur"
@@ -1359,10 +1359,18 @@
         "name" : "{prefix}Bedrijfsuren E1"
       },
       "sgr1" : {
-        "name" : "{prefix}SG-Klaar 1"
+        "name" : "{prefix}SG-Klaar 1",
+        "state" : {
+          "w2_status_aus" : "Uit",
+          "w2_status_ein" : "Aan"
+        }
       },
       "sgr2" : {
-        "name" : "{prefix}SG-Klaar 2"
+        "name" : "{prefix}SG-Klaar 2",
+        "state" : {
+          "w2_status_aus" : "Uit",
+          "w2_status_ein" : "Aan"
+        }
       },
       "soll_volumenstrom_heizen" : {
         "name" : "{prefix}Streefwaarde volumestroom Verwarming"
