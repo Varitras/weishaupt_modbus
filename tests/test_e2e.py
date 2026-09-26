@@ -35,6 +35,8 @@ SYSTEM_OPERATION_MODE_UNIQUE_ID = "weishaupt_wbbSystembetriebsart"
 COMFORT_ROOM_TEMPERATURE = 41105
 COMFORT_ROOM_TEMPERATURE_UNIQUE_ID = "weishaupt_wbbRaumsolltemperatur Komfort"
 SUMMER = 3
+ELECTRICAL_POWER = 33126
+ELECTRICAL_POWER_UNIQUE_ID = "weishaupt_wbbElektrische Leistungsaufnahme"
 
 BASE_DATA = {
     CONF.HOST: "192.0.2.10",
@@ -320,6 +322,40 @@ async def test_a_refused_band_leaves_its_entities_unavailable(hass, pump):
 
     assert hass.states.get(entity_id).state == "unavailable"
     outside = er.async_get(hass).async_get_entity_id(
+        "sensor", CONST.DOMAIN, OUTSIDE_TEMPERATURE_UNIQUE_ID
+    )
+    assert hass.states.get(outside).state == "12.3"
+
+
+async def test_an_answered_electrical_power_register_becomes_an_entity(hass, pump):
+    """33126 is in no Weishaupt list; on a WBB 12 it tracked an external
+    meter (r = 0.97, 2026-09) as the pump's own draw in watts."""
+    pump.load_raw({"input": {ELECTRICAL_POWER: 656}})
+    await _setup(hass, _entry(hass))
+
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "sensor", CONST.DOMAIN, ELECTRICAL_POWER_UNIQUE_ID
+    )
+    assert entity_id, "the electrical power got no entity"
+    state = hass.states.get(entity_id)
+    assert float(state.state) == 656
+    assert state.attributes["unit_of_measurement"] == "W"
+
+
+async def test_firmware_without_the_electrical_power_register_gets_no_entity(
+    hass, pump
+):
+    """Older firmware does not serve 33126. An entity that can never show a
+    value is clutter, unlike a module band that may come back."""
+    pump.fail_read_band(ELECTRICAL_POWER)
+    await _setup(hass, _entry(hass))
+
+    registry = er.async_get(hass)
+    assert (
+        registry.async_get_entity_id("sensor", CONST.DOMAIN, ELECTRICAL_POWER_UNIQUE_ID)
+        is None
+    )
+    outside = registry.async_get_entity_id(
         "sensor", CONST.DOMAIN, OUTSIDE_TEMPERATURE_UNIQUE_ID
     )
     assert hass.states.get(outside).state == "12.3"
