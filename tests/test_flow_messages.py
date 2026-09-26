@@ -66,6 +66,27 @@ def test_every_message_the_flow_shows_has_a_text(name):
     )
 
 
+def _fields_without_help(name: str) -> list[str]:
+    """Dialog fields whose label has no help text beside it, or the reverse."""
+    translation = json.loads((FLOW.parent / name).read_text(encoding="utf-8"))
+    mismatched = []
+    for flow in ("config", "options"):
+        for step_id, step in translation.get(flow, {}).get("step", {}).items():
+            labels = set(step.get("data", {}))
+            helps = set(step.get("data_description", {}))
+            mismatched += [
+                f"{flow}.{step_id}.{field}" for field in sorted(labels ^ helps)
+            ]
+    return mismatched
+
+
+@pytest.mark.parametrize("name", TRANSLATION_FILES)
+def test_every_dialog_field_explains_itself(name):
+    """A field with only a label left the user guessing: what the prefix is
+    for, and that it can never be changed, was only in the README."""
+    assert not _fields_without_help(name)
+
+
 def test_the_reader_finds_the_messages_it_is_pointed_at():
     """Proof-of-red for the reader above."""
     messages = _flow_messages()
