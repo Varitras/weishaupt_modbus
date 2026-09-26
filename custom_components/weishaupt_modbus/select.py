@@ -9,6 +9,9 @@ from .configentry import MyConfigEntry
 from .const import TYPES
 from .entity_helpers import build_entity_list
 
+# One write at a time: the controller serves a single client.
+PARALLEL_UPDATES = 1
+
 
 async def async_setup_entry(
     hass: HomeAssistant,

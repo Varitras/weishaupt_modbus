@@ -24,12 +24,24 @@
                     "Name-Topic-Prefix": "Name Topic-Prefix",
                     "Port": "Port",
                     "Prefix": "Prefix"
+                },
+                "data_description": {
+                    "Device-Postfix": "Für die erste Wärmepumpe leer lassen, jede weitere braucht ein eigenes Postfix. Später nicht mehr änderbar.",
+                    "Heizkreis 2": "Legt die Entitäten dieses Heizkreises an.",
+                    "Heizkreis 3": "Legt die Entitäten dieses Heizkreises an.",
+                    "Heizkreis 4": "Legt die Entitäten dieses Heizkreises an.",
+                    "Heizkreis 5": "Legt die Entitäten dieses Heizkreises an.",
+                    "Host": "Name oder IP-Adresse der Wärmepumpe.",
+                    "Kennfeld-File": "Kennfeld Ihres Modells, daraus wird die Wärmeleistung geschätzt.",
+                    "Name-Device-Prefix": "Stellt jedem Entitätsnamen das Prefix voran.",
+                    "Name-Topic-Prefix": "Stellt jedem Entitätsnamen das Gerätekürzel (WP, WW, ...) voran.",
+                    "Port": "Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502.",
+                    "Prefix": "Teil der Unique-ID jeder Entität. Nur ändern, um die Historie einer anderen Integration zu übernehmen. Später nicht mehr änderbar."
                 }
             },
             "reconfigure": {
                 "description": "Bitte aktualisieren Sie Ihre Modbus-Konfigurationsparameter.",
                 "data": {
-                    "Device-Postfix": "Geräte-Postfix",
                     "Heizkreis 2": "2. Heizkreis",
                     "Heizkreis 3": "3. Heizkreis",
                     "Heizkreis 4": "4. Heizkreis",
@@ -38,8 +50,18 @@
                     "Kennfeld-File": "Kennfeld Dateiname",
                     "Name-Device-Prefix": "Name Geräte-Prefix",
                     "Name-Topic-Prefix": "Name Topic-Prefix",
-                    "Port": "Port",
-                    "Prefix": "Prefix"
+                    "Port": "Port"
+                },
+                "data_description": {
+                    "Heizkreis 2": "Legt die Entitäten dieses Heizkreises an.",
+                    "Heizkreis 3": "Legt die Entitäten dieses Heizkreises an.",
+                    "Heizkreis 4": "Legt die Entitäten dieses Heizkreises an.",
+                    "Heizkreis 5": "Legt die Entitäten dieses Heizkreises an.",
+                    "Host": "Name oder IP-Adresse der Wärmepumpe.",
+                    "Kennfeld-File": "Kennfeld Ihres Modells, daraus wird die Wärmeleistung geschätzt.",
+                    "Name-Device-Prefix": "Stellt jedem Entitätsnamen das Prefix voran.",
+                    "Name-Topic-Prefix": "Stellt jedem Entitätsnamen das Gerätekürzel (WP, WW, ...) voran.",
+                    "Port": "Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502."
                 }
             }
         }
@@ -1729,6 +1751,11 @@
                     "scan_interval": "Abfrageintervall (Sekunden)",
                     "write_warning_per_day": "Warnung ab so vielen Schreibzugriffen pro Tag (0 = nie)",
                     "write_limit_per_day": "Schreibzugriffe pro Tag ablehnen ab (0 = kein Deckel)"
+                },
+                "data_description": {
+                    "scan_interval": "Wie oft alle Register gelesen werden, 5 bis 600 Sekunden. Eine Änderung lädt die Integration neu.",
+                    "write_warning_per_day": "Protokolliert einmal am Tag eine Warnung, sobald so viele Schreibzugriffe erfolgt sind. Das EEPROM ist für 100 000 Schreibzugriffe ausgelegt.",
+                    "write_limit_per_day": "Weitere Schreibzugriffe werden bis zum nächsten Tag abgelehnt. Darf nicht unter der Warnschwelle liegen."
                 }
             }
         }

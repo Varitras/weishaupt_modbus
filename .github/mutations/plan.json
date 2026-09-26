@@ -740,5 +740,19 @@
     "old": "PARAMS_ELECTRICAL_POWER: dict[str, Any] = {\n    \"only_if_served\": True,\n",
     "new": "PARAMS_ELECTRICAL_POWER: dict[str, Any] = {\n",
     "tests": "firmware_without_the_electrical_power_register"
+  },
+  {
+    "label": "translations: every dialog field has a help text",
+    "path": "custom_components/weishaupt_modbus/translations/de.json",
+    "old": "                    \"Port\": \"Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502.\",\n                    \"Prefix\"",
+    "new": "                    \"Prefix\"",
+    "tests": "every_dialog_field_explains_itself"
+  },
+  {
+    "label": "platforms: a write platform says how many updates may run at once",
+    "path": "custom_components/weishaupt_modbus/number.py",
+    "old": "PARALLEL_UPDATES = 1\n",
+    "new": "",
+    "tests": "how_many_updates_may_run_at_once"
   }
 ]
