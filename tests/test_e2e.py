@@ -9,6 +9,8 @@ Marked `e2e` because each test boots a full Home Assistant instance; the
 everyday run deselects them, CI runs them with `-m ""`.
 """
 
+import logging
+
 from modbus_connection import ModbusConnectionError
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -220,6 +222,41 @@ async def test_a_tolerated_failed_poll_keeps_the_published_values(hass, pump):
 
     assert coordinator.last_update_success is True
     assert hass.states.get(outside).state == "12.3", "a half-read poll must not show"
+
+
+def _integration_warnings(caplog) -> list[str]:
+    return [
+        record.getMessage()
+        for record in caplog.records
+        if record.name.startswith("custom_components.weishaupt_modbus")
+        and record.levelno >= logging.WARNING
+    ]
+
+
+async def test_an_outage_is_logged_once_when_it_starts_and_once_when_it_ends(
+    hass, pump, caplog
+):
+    """Every tolerated failure logged a warning: a blip that healed itself
+    left three warnings, an outage three plus the error."""
+    caplog.set_level(logging.INFO)
+    entry = await _setup(hass, _entry(hass))
+    coordinator = entry.runtime_data.coordinator
+    pump.fail_requests(ModbusConnectionError("link down"))
+
+    for _ in range(3):
+        await coordinator.async_refresh()
+    assert coordinator.last_update_success is True
+    assert not _integration_warnings(caplog), "a tolerated failure is not news"
+
+    await coordinator.async_refresh()
+    await coordinator.async_refresh()
+    assert coordinator.last_update_success is False
+    assert len(_integration_warnings(caplog)) == 1
+
+    pump.fail_requests(None)
+    await coordinator.async_refresh()
+    assert coordinator.last_update_success is True
+    assert "recovered" in caplog.text
 
 
 async def test_the_number_and_its_switch_agree_right_after_a_write(hass, pump):
