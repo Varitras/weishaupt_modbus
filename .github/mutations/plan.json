@@ -754,5 +754,12 @@
     "old": "PARALLEL_UPDATES = 1\n",
     "new": "",
     "tests": "how_many_updates_may_run_at_once"
+  },
+  {
+    "label": "coordinator: a tolerated failed poll is not a warning",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "                _LOGGER.debug(\n",
+    "new": "                _LOGGER.warning(\n",
+    "tests": "outage_is_logged_once"
   }
 ]

@@ -241,7 +241,9 @@ the heat pump's single connection.
 
 **All entities are unavailable.** Four polls in a row failed. The heat pump
 is off the network, or another client took the connection; the entities come
-back with the next good poll.
+back with the next good poll. The log says so once when they go and once when
+they come back; shorter drop-outs, which keep the last values, show only in
+the debug log.
 
 **A write is refused.** The value is outside the range the controller
 currently allows, or the daily write limit from the [Options](#options) is

@@ -109,7 +109,9 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except (TimeoutError, ModbusError) as err:
             self._failed_polls += 1
             if self.data is not None and self._failed_polls <= FAILED_POLLS_TOLERATED:
-                _LOGGER.warning(
+                # Debug only: the outage itself is logged once, by the base
+                # class, when UpdateFailed takes the entities unavailable.
+                _LOGGER.debug(
                     "Poll failed (%d of %d tolerated), keeping the last values: %s",
                     self._failed_polls,
                     FAILED_POLLS_TOLERATED,
