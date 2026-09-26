@@ -11,13 +11,14 @@ from homeassistant.components.number import NumberEntity
 from homeassistant.components.select import SelectEntity
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
+from homeassistant.const import EntityCategory
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .configentry import MyConfigEntry
-from .const import CONF, CONST, FORMATS
+from .const import CONF, CONST, FORMATS, TYPES
 from .coordinator import WeishauptModbusCoordinator
 from .items import ModbusItem
 from .migrate_helpers import create_unique_id, device_postfix
@@ -28,6 +29,18 @@ _LOGGER = logging.getLogger(__name__)
 
 # On a reported setpoint: "none" while the controller demands nothing.
 DEMAND_ATTRIBUTE = "demand"
+
+
+def entity_category(item: ModbusItem) -> EntityCategory | None:
+    """Diagnostic for the pump's own setup and for registers nobody has named.
+
+    What people read and set every day stays in the device's main list.
+    """
+    reports_a_setting = item.type == TYPES.NUMBER_RO
+    undocumented = item.format == FORMATS.UNKNOWN
+    if reports_a_setting or undocumented:
+        return EntityCategory.DIAGNOSTIC
+    return None
 
 
 def to_register_value(value: float, divider: int) -> int:
@@ -90,6 +103,7 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
         self._attr_translation_placeholders = {"prefix": name_prefix}
 
         self._attr_unique_id = create_unique_id(self._config_entry, self._api_item)
+        self._attr_entity_category = entity_category(self._api_item)
 
         if self._api_item.format == FORMATS.STATUS:
             self._divider = 1

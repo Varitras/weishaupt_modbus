@@ -761,5 +761,12 @@
     "old": "                _LOGGER.debug(\n",
     "new": "                _LOGGER.warning(\n",
     "tests": "outage_is_logged_once"
+  },
+  {
+    "label": "entity: a reported setting or an unnamed register is diagnostic",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        return EntityCategory.DIAGNOSTIC\n",
+    "new": "        return None\n",
+    "tests": "settings_the_pump_only_reports_are_diagnostic"
   }
 ]
