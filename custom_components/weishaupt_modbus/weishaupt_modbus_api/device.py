@@ -234,6 +234,10 @@ class WeishauptHeatPump:
                 EEPROM_WRITE_RATING,
             )
 
+    def serves(self, item: ModbusItem) -> bool:
+        """Whether the pump answered this row's band on the last poll."""
+        return self.present[band_of(item.address)]
+
     def value_of(self, address: int) -> Any:
         """The last value read for a register, None when absent or unread."""
         return next((row.state for row in self.items if row.address == address), None)

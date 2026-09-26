@@ -1153,6 +1153,19 @@ PARAMS_CALCPOWER: dict = {
     "calculation": heat_output,
 }
 
+# 33126 is in no Weishaupt list. On a WBB 12 it tracked an external meter
+# (r = 0.97, 2026-09) about 80 W below it: the circulation pump and the
+# controller are not in it. Older firmware may not serve it at all.
+PARAMS_ELECTRICAL_POWER: dict[str, Any] = {
+    "only_if_served": True,
+    "min": 0,
+    "max": 50000,
+    "deviceclass": SensorDeviceClass.POWER,
+    "precision": 0,
+    "unit": UnitOfPower.WATT,
+    "stateclass": SensorStateClass.MEASUREMENT,
+}
+
 PARAMS_CALCSPREIZUNG: dict = {
     "min": 0,
     "max": 50,
@@ -1284,6 +1297,7 @@ MODBUS_WP_ITEMS: list[ModbusItem] = [
     ModbusItem(address=33111, name="Vorlauftemperatur präzise(Summenvorlauf(B7))", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.WP, params=PARAMS_STDTEMP, translation_key="vl_praeziese_summenvorlauf_b7"),
     # Calculated Sensor (Calculated downstream, no Modbus block read)
     ModbusItem(address=33111, name="Spreizung", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR_CALC, device=DEVICES.WP, params=PARAMS_CALCSPREIZUNG, translation_key="spreizung"),
+    ModbusItem(address=33126, name="Elektrische Leistungsaufnahme", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.WP, params=PARAMS_ELECTRICAL_POWER, translation_key="el_leistungsaufnahme"),
 
     ModbusItem(address=43101, name="Konfiguration", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.WP, resultlist=HP_KONFIGURATION, params=PARAMS_OPMODE, translation_key="wp_konf"),
     ModbusItem(address=43102, name="Ruhemodus", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.WP, resultlist=HP_RUHEMODUS, translation_key="ruhemodus"),

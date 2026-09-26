@@ -726,5 +726,19 @@
     "old": "    ModbusItem(address=35101, name=\"SG-Ready 1\", format=FORMATS.STATUS, type=TYPES.SENSOR, device=DEVICES.IO, resultlist=W2_STATUS, translation_key=\"sgr1\"),\n",
     "new": "    ModbusItem(address=35101, name=\"SG-Ready 1\", format=FORMATS.UNKNOWN, type=TYPES.SENSOR, device=DEVICES.IO, translation_key=\"sgr1\"),\n",
     "tests": "digital_inputs_all_read"
+  },
+  {
+    "label": "entities: a register the firmware does not serve gets no entity",
+    "path": "custom_components/weishaupt_modbus/entity_helpers.py",
+    "old": "        if item.params.get(\"only_if_served\") and not coordinator.device.serves(item):\n            continue\n",
+    "new": "",
+    "tests": "firmware_without_the_electrical_power_register"
+  },
+  {
+    "label": "table: the electrical power is only an entity where it is served",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "PARAMS_ELECTRICAL_POWER: dict[str, Any] = {\n    \"only_if_served\": True,\n",
+    "new": "PARAMS_ELECTRICAL_POWER: dict[str, Any] = {\n",
+    "tests": "firmware_without_the_electrical_power_register"
   }
 ]

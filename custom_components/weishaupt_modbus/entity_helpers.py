@@ -53,6 +53,11 @@ async def build_entity_list(
     for index, item in enumerate(api_items):
         if item.type not in item_types:
             continue
+        # Decided once, from the first refresh: a register the firmware does
+        # not know gets no entity, while a refused module band keeps its
+        # entities unavailable, because the module may come back.
+        if item.params.get("only_if_served") and not coordinator.device.serves(item):
+            continue
 
         match item.type:
             case TYPES.SENSOR | TYPES.NUMBER_RO:

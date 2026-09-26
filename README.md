@@ -125,7 +125,7 @@ device postfix:
 | Device | Contains |
 |---|---|
 | System | System operating mode, PV setpoint, outside and air intake temperature, error, warning and status codes, write counters |
-| Heat pump | Operating state, error, power request, flow, return, evaporation and buffer temperatures, spread, estimated heat output, pump and volume-flow settings |
+| Heat pump | Operating state, error, power request, flow, return, evaporation and buffer temperatures, spread, electrical power, estimated heat output, pump and volume-flow settings |
 | Hot water | Temperature and setpoint, normal and lowering setpoints, SG-Ready increase, hot water push |
 | Heating circuit (1 - 5) | Room temperature, humidity and setpoints, flow temperature and setpoint, operating mode, request type, pause/party, heating curve, summer/winter changeover, constant temperatures |
 | 2nd heat source | Status, operating hours and switching cycles of the second heat source and the electric heaters, limit and bivalence temperatures |
@@ -148,6 +148,13 @@ flow and DHW setpoint temperature - read unknown while the controller
 demands nothing, and say so: their `demand` attribute is `none` then and
 `active` while a setpoint is in force. (The controller reports "no demand"
 as the value 1, which used to show as 0.1 °C.)
+
+**Electrical power.** Register 33126 is in no Weishaupt data-point list.
+Checked against an external meter on one WBB 12 it is the heat pump's own
+electrical draw in watts; the circulation pump and the controller are not
+in it (about 80 W there). Firmware that does not serve the register gets no
+entity - decided when the integration starts, so after a firmware update
+reload the integration.
 
 **Write counters.** Writes go to the heat pump's EEPROM, which Weishaupt
 rates for 100 000 writes over its lifetime. Two diagnostic sensors on the
@@ -219,7 +226,9 @@ already set.
   stay at 0 on every controller seen so far, even after years of operation -
   the yearly total exists only on the display and in the WEM portal. The
   yearly performance factor therefore has no value.
-- The heat output is calculated from the power map, not measured.
+- The heat output is calculated from the power map, not measured. The
+  electrical power is measured by the heat pump, but undocumented and
+  checked on one model only.
 - Prefix and device postfix cannot be changed after setup.
 - Heat pumps with the separate Weishaupt Modbus module are not supported.
 
