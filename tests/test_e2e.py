@@ -24,6 +24,7 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.exceptions import (
     WriteError,
 )
 from homeassistant.config_entries import ConfigEntryState
+from homeassistant.const import EntityCategory
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_registry as er
@@ -396,6 +397,30 @@ async def test_firmware_without_the_electrical_power_register_gets_no_entity(
         "sensor", CONST.DOMAIN, OUTSIDE_TEMPERATURE_UNIQUE_ID
     )
     assert hass.states.get(outside).state == "12.3"
+
+
+async def test_settings_the_pump_only_reports_are_diagnostic(hass):
+    """Read-only configuration registers and the undocumented ones crowded the
+    device page between the temperatures and the setpoints people use."""
+    await _setup(hass, _entry(hass))
+    registry = er.async_get(hass)
+
+    def category(unique_id):
+        entity_id = registry.async_get_entity_id("sensor", CONST.DOMAIN, unique_id)
+        assert entity_id, unique_id
+        return registry.async_get(entity_id).entity_category
+
+    for unique_id in (
+        "weishaupt_wbbKonfiguration",
+        "weishaupt_wbbW2_Konfiguration",
+        "weishaupt_wbbAdr. 31106",
+    ):
+        assert category(unique_id) is EntityCategory.DIAGNOSTIC, unique_id
+    assert category(OUTSIDE_TEMPERATURE_UNIQUE_ID) is None
+    setpoint = registry.async_get_entity_id(
+        "number", CONST.DOMAIN, COMFORT_ROOM_TEMPERATURE_UNIQUE_ID
+    )
+    assert registry.async_get(setpoint).entity_category is None
 
 
 async def test_setup_creates_all_three_platforms(hass):
