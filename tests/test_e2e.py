@@ -345,7 +345,7 @@ async def test_an_answered_electrical_power_register_becomes_an_entity(hass, pum
 async def test_firmware_without_the_electrical_power_register_gets_no_entity(
     hass, pump
 ):
-    """Older firmware does not serve 33126. An entity that can never show a
+    """Firmware that refuses 33126 (older ones may). An entity that can never show a
     value is clutter, unlike a module band that may come back."""
     pump.fail_read_band(ELECTRICAL_POWER)
     await _setup(hass, _entry(hass))

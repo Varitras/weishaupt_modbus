@@ -1458,6 +1458,9 @@
             "waermeleistung": {
                 "name": "{prefix}Wärmeleistung"
             },
+            "el_leistungsaufnahme": {
+                "name": "{prefix}Elektrische Leistung"
+            },
             "warnung": {
                 "name": "{prefix}Warnung",
                 "state": {

@@ -1437,6 +1437,9 @@
       "waermeleistung" : {
         "name" : "{prefix}Verwarmingsvermogen"
       },
+      "el_leistungsaufnahme" : {
+        "name" : "{prefix}Elektrisch vermogen"
+      },
       "warnung" : {
         "name" : "{prefix}Waarschuwing",
         "state" : {
