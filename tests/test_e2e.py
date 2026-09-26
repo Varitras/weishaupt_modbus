@@ -9,7 +9,9 @@ Marked `e2e` because each test boots a full Home Assistant instance; the
 everyday run deselects them, CI runs them with `-m ""`.
 """
 
+import json
 import logging
+import pathlib
 
 from modbus_connection import ModbusConnectionError
 import pytest
@@ -30,6 +32,10 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 
 pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
+
+INTEGRATION = (
+    pathlib.Path(__file__).resolve().parents[1] / "custom_components" / CONST.DOMAIN
+)
 
 OUTSIDE_TEMPERATURE = 30001
 OUTSIDE_TEMPERATURE_UNIQUE_ID = "weishaupt_wbbAussentemperatur"
@@ -421,6 +427,36 @@ async def test_settings_the_pump_only_reports_are_diagnostic(hass):
         "number", CONST.DOMAIN, COMFORT_ROOM_TEMPERATURE_UNIQUE_ID
     )
     assert registry.async_get(setpoint).entity_category is None
+
+
+async def test_icons_come_from_the_icon_translations(hass):
+    """An icon set in code bypasses icons.json: it cannot follow a state and
+    is not where Home Assistant looks for one."""
+    await _setup(hass, _entry(hass))
+    registry = er.async_get(hass)
+    error = registry.async_get_entity_id("sensor", CONST.DOMAIN, "weishaupt_wbbFehler")
+    curve = registry.async_get_entity_id(
+        "number", CONST.DOMAIN, "weishaupt_wbbHeizkennlinie"
+    )
+
+    for entity_id in (error, curve):
+        assert "icon" not in hass.states.get(entity_id).attributes, entity_id
+    icons = json.loads((INTEGRATION / "icons.json").read_text(encoding="utf-8"))
+    assert icons["entity"]["sensor"]["fehler"]["default"] == "mdi:alert"
+    assert icons["entity"]["number"]["heizkennlinie"]["default"] == "mdi:chart-line"
+
+
+def test_every_icon_belongs_to_an_entity_that_exists():
+    icons = json.loads((INTEGRATION / "icons.json").read_text(encoding="utf-8"))
+    strings = json.loads((INTEGRATION / "strings.json").read_text(encoding="utf-8"))
+
+    stale = [
+        f"{platform}.{key}"
+        for platform, keys in icons["entity"].items()
+        for key in keys
+        if key not in strings["entity"].get(platform, {})
+    ]
+    assert not stale, f"icons for entities that do not exist: {stale}"
 
 
 async def test_setup_creates_all_three_platforms(hass):
