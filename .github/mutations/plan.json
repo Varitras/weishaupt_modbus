@@ -768,5 +768,19 @@
     "old": "        return EntityCategory.DIAGNOSTIC\n",
     "new": "        return None\n",
     "tests": "settings_the_pump_only_reports_are_diagnostic"
+  },
+  {
+    "label": "icons: an entity's icon comes from icons.json",
+    "path": "custom_components/weishaupt_modbus/icons.json",
+    "old": "      \"heizkennlinie\": {\n        \"default\": \"mdi:chart-line\"\n      },\n",
+    "new": "",
+    "tests": "icons_come_from_the_icon_translations"
+  },
+  {
+    "label": "icons: no icon for an entity that does not exist",
+    "path": "custom_components/weishaupt_modbus/icons.json",
+    "old": "      \"fehler\": {\n",
+    "new": "      \"fehler_gone\": {\n",
+    "tests": "every_icon_belongs_to_an_entity_that_exists"
   }
 ]

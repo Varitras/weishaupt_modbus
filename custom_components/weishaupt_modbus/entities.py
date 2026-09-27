@@ -130,11 +130,6 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
                     self._has_dynamic_max = True
             self.set_min_max()
 
-        if self._api_item.params is not None:
-            icon = self._api_item.params.get("icon", None)
-            if icon is not None:
-                self._attr_icon = icon
-
     @property
     def available(self) -> bool:
         """The register answered with a value; an absent sensor or band is unavailable.

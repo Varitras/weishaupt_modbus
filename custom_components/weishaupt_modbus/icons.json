@@ -1,0 +1,127 @@
+{
+  "entity": {
+    "sensor": {
+      "fehler": {
+        "default": "mdi:alert"
+      },
+      "warnung": {
+        "default": "mdi:alert"
+      },
+      "fehlerfrei": {
+        "default": "mdi:alert"
+      },
+      "betriebsanzeige": {
+        "default": "mdi:heat-pump"
+      },
+      "wp_betrieb": {
+        "default": "mdi:heat-pump"
+      },
+      "wp_stoermeldung": {
+        "default": "mdi:alert"
+      },
+      "wp_konf": {
+        "default": "mdi:heat-pump"
+      },
+      "ww_soll_temp": {
+        "default": "mdi:thermometer-water"
+      },
+      "ww_temp": {
+        "default": "mdi:thermometer-water"
+      },
+      "betriebss_2wez": {
+        "default": "mdi:clock-time-eight"
+      },
+      "betriebss_e1": {
+        "default": "mdi:clock-time-eight"
+      },
+      "betriebss_e2": {
+        "default": "mdi:clock-time-eight"
+      },
+      "tagesarbeitszahl_heute": {
+        "default": "mdi:sigma"
+      },
+      "tagesarbeitszahl_gestern": {
+        "default": "mdi:sigma"
+      },
+      "monatsarbeitszahl": {
+        "default": "mdi:sigma"
+      },
+      "jahresarbeitszahl": {
+        "default": "mdi:sigma"
+      }
+    },
+    "number": {
+      "ww_normal": {
+        "default": "mdi:thermometer-water"
+      },
+      "ww_absenk": {
+        "default": "mdi:thermometer-water"
+      },
+      "raum_soll_temp_komf": {
+        "default": "mdi:thermometer-high"
+      },
+      "raum_soll_temp_absenk": {
+        "default": "mdi:thermometer-low"
+      },
+      "heizkennlinie": {
+        "default": "mdi:chart-line"
+      },
+      "raum_soll_temp_komf2": {
+        "default": "mdi:thermometer-high"
+      },
+      "raum_soll_temp_absenk2": {
+        "default": "mdi:thermometer-low"
+      },
+      "heizkennlinie2": {
+        "default": "mdi:chart-line"
+      },
+      "raum_soll_temp_komf3": {
+        "default": "mdi:thermometer-high"
+      },
+      "raum_soll_temp_absenk3": {
+        "default": "mdi:thermometer-low"
+      },
+      "heizkennlinie3": {
+        "default": "mdi:chart-line"
+      },
+      "raum_soll_temp_komf4": {
+        "default": "mdi:thermometer-high"
+      },
+      "raum_soll_temp_absenk4": {
+        "default": "mdi:thermometer-low"
+      },
+      "heizkennlinie4": {
+        "default": "mdi:chart-line"
+      },
+      "raum_soll_temp_komf5": {
+        "default": "mdi:thermometer-high"
+      },
+      "raum_soll_temp_absenk5": {
+        "default": "mdi:thermometer-low"
+      },
+      "heizkennlinie5": {
+        "default": "mdi:chart-line"
+      }
+    },
+    "select": {
+      "sys_operationmode": {
+        "default": "mdi:heat-pump"
+      },
+      "party_pause": {
+        "default": "mdi:glass-cocktail"
+      },
+      "party_pause2": {
+        "default": "mdi:glass-cocktail"
+      },
+      "party_pause3": {
+        "default": "mdi:glass-cocktail"
+      },
+      "party_pause4": {
+        "default": "mdi:glass-cocktail"
+      },
+      "party_pause5": {
+        "default": "mdi:glass-cocktail"
+      }
+    }
+  }
+}
