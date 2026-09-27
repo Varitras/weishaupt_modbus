@@ -460,7 +460,7 @@ async def test_diagnostics_show_what_the_pump_answered_without_its_address(
 
     assert diagnostics["entry"]["data"][CONF.HOST] == "**REDACTED**"
     assert "192.0.2.10" not in str(diagnostics)
-    assert diagnostics["entry"]["data"][CONF.KENNFELD_FILE] == CONST.DEF_KENNFELDFILE
+    assert diagnostics["entry"]["data"][CONF.KENNFELD_FILE] == "**REDACTED**"
     assert diagnostics["coordinator"]["last_update_success"] is True
     assert diagnostics["bands"]["30001-30006"] is True
     outside = next(

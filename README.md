@@ -257,8 +257,8 @@ reached.
 reproduce the problem, then *Disable debug logging*; the log file is
 downloaded. Attach it to an [issue](https://github.com/Varitras/weishaupt_modbus/issues),
 together with *Download diagnostics* from the entry's menu: the register
-values and which address bands the heat pump serves, with its address
-removed. It is offered once the entry has loaded, not while setup retries.
+values and which address bands the heat pump serves, without its address
+or any name you typed (prefix, postfix, map file). It is offered once the entry has loaded, not while setup retries.
 
 ## Upgrading from 1.x
 

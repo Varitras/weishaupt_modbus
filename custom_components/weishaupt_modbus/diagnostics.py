@@ -1,4 +1,4 @@
-"""The diagnostics download: what the pump answered, without its address."""
+"""The diagnostics download: what the pump answered, not what identifies the home."""
 
 from __future__ import annotations
 
@@ -10,7 +10,9 @@ from homeassistant.core import HomeAssistant
 from .configentry import MyConfigEntry
 from .const import CONF
 
-TO_REDACT = {CONF.HOST}
+# Free text the user typed or chose: a prefix or postfix is often a family
+# name or a room, and the download is meant for a public issue.
+TO_REDACT = {CONF.HOST, CONF.PREFIX, CONF.DEVICE_POSTFIX, CONF.KENNFELD_FILE}
 
 
 async def async_get_config_entry_diagnostics(
