@@ -262,7 +262,12 @@ reproduce the problem, then *Disable debug logging*; the log file is
 downloaded. Attach it to an [issue](https://github.com/Varitras/weishaupt_modbus/issues),
 together with *Download diagnostics* from the entry's menu: the register
 values and which address bands the heat pump serves, without its address
-or any name you typed (prefix, postfix, map file). It is offered once the entry has loaded, not while setup retries.
+or any name you typed (prefix, postfix, map file). It is offered once the
+entry has loaded, not while setup retries. The log is not cleaned the same
+way: a connection error names the heat pump's address, and a map that
+fails to load names its path. Replace IP addresses and host names, your
+user name in paths and any names of people or rooms before you attach it
+to a public issue.
 
 ## Upgrading from 1.x
 
