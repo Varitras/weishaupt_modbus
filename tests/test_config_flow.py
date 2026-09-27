@@ -256,6 +256,16 @@ def test_the_power_map_choice_falls_back_to_the_default_map(tmp_path):
     ]
 
 
+def test_the_power_map_choice_offers_only_map_files(tmp_path):
+    """A folder or a backup whose name merely contained kennfeld.json was
+    offered as a map and failed only after it was picked."""
+    (tmp_path / "old_kennfeld.json").mkdir()
+    (tmp_path / "weishaupt_wbb_kennfeld.json.bak").write_text("{}", encoding="utf-8")
+    (tmp_path / "weishaupt_wbb_kennfeld.json").write_text("{}", encoding="utf-8")
+
+    assert config_flow._kennfeld_files(tmp_path) == ["weishaupt_wbb_kennfeld.json"]
+
+
 async def test_a_host_without_a_pump_is_reported(hass, mock_modbus):
     """A typo in the address used to create an entry that then retried
     forever; the flow now reads one register first."""
