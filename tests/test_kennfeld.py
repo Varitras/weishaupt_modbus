@@ -410,6 +410,17 @@ def test_the_compile_script_keeps_each_curve_with_its_flow_temperature():
     assert known_y == [[5000, 6000], [4000, 5000]]
 
 
+def test_the_preview_does_not_carry_the_map_file_name(tmp_path):
+    """The preview is served from www without a login; a custom map named
+    after a family or a room put that name into its title."""
+    marker = "PRIVATE_LOCATION_MARKER"
+    svg = tmp_path / f"{marker}_kennfeld.svg"
+    data = {"known_t": [35, 55], "compiled_grid": {"0": [5000.0, 4000.0]}}
+
+    assert _compile_script().draw_preview(data, svg), "pygal is a test requirement"
+    assert marker not in svg.read_text(encoding="utf-8")
+
+
 def test_the_integration_does_not_draw_pictures_at_runtime():
     """pygal left the manifest: drawing happens in compile_kennfeld.py. A
     module that imported it again would fail on every installation."""
