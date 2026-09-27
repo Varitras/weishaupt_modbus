@@ -845,5 +845,19 @@
     "old": "        if not data.get(\"compiled_grid\"):\n",
     "new": "        if \"compiled_grid\" not in data:\n",
     "tests": "empty_compiled_grid_counts_as_not_compiled"
+  },
+  {
+    "label": "config flow: a folder named like a map is not offered",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "            if p.name.endswith(\"kennfeld.json\") and p.is_file()\n",
+    "new": "            if p.name.endswith(\"kennfeld.json\")\n",
+    "tests": "power_map_choice_offers_only_map_files"
+  },
+  {
+    "label": "config flow: a backup of a map is not offered",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "            if p.name.endswith(\"kennfeld.json\") and p.is_file()\n",
+    "new": "            if \"kennfeld.json\" in p.name and p.is_file()\n",
+    "tests": "power_map_choice_offers_only_map_files"
   }
 ]

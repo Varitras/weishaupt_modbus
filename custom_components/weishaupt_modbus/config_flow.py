@@ -25,7 +25,11 @@ from .weishaupt_modbus_api.const import (
 
 def _kennfeld_files(folder: Path) -> list[str]:
     try:
-        found = sorted(p.name for p in folder.iterdir() if "kennfeld.json" in p.name)
+        found = sorted(
+            p.name
+            for p in folder.iterdir()
+            if p.name.endswith("kennfeld.json") and p.is_file()
+        )
     except OSError:
         found = []
     return found or [CONST.DEF_KENNFELDFILE]
