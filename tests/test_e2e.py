@@ -470,6 +470,29 @@ async def test_diagnostics_show_what_the_pump_answered_without_its_address(
     assert diagnostics["write_counters"] == {"total": 0, "today": 0}
 
 
+async def test_diagnostics_carry_none_of_the_names_a_user_typed(hass, hass_client):
+    """The download is meant for a public issue. Prefix, postfix and the map's
+    file name are free text - a family name, "keller" - and went out as typed."""
+    marker = "PRIVATE_LOCATION_MARKER"
+    entry = await _setup(
+        hass,
+        _entry(
+            hass,
+            data={
+                **BASE_DATA,
+                CONF.PREFIX: marker,
+                CONF.DEVICE_POSTFIX: marker,
+                CONF.KENNFELD_FILE: f"{marker}_kennfeld.json",
+            },
+        ),
+    )
+
+    diagnostics = await get_diagnostics_for_config_entry(hass, hass_client, entry)
+
+    assert marker not in str(diagnostics)
+    assert BASE_DATA[CONF.HOST] not in str(diagnostics)
+
+
 async def test_setup_creates_all_three_platforms(hass):
     await _setup(hass, _entry(hass))
 
