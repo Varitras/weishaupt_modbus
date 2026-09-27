@@ -274,7 +274,7 @@ class PowerMap:
                 filepath.name,
             )
             return False
-        if "compiled_grid" not in data:
+        if not data.get("compiled_grid"):
             _LOGGER.error(
                 "Power map %s has no compiled grid; compile it with "
                 ".github/scripts/compile_kennfeld.py. The heat power stays unknown",

@@ -192,10 +192,16 @@ one, adjust `known_x`, `known_y` and `known_t` from your documentation and
 compile it once with `.github/scripts/compile_kennfeld.py` (needs `numpy`;
 `scipy` gives a smoother curve, `pygal` draws the preview picture). The
 integration only reads compiled grids. Contributions of new grids are welcome.
+A map compiled before 2.0.2 carries its file name in the picture's title;
+compile it again if that name should not be public.
 
 The preview picture of the selected map is published as
-`www/local/weishaupt_modbus_powermap.svg` (with `_<postfix>` for a further
-pump); a picture that carries script or links to the web is refused.
+`www/local/weishaupt_modbus_powermap.svg` in the configuration directory
+(with `_<postfix>` for a further pump), which Home Assistant serves as
+`/local/local/weishaupt_modbus_powermap.svg`. If the integration had to
+create `www/` itself, restart Home Assistant once so it serves the folder.
+Everything under `www/` can be fetched without logging in. A picture that
+carries script or links to the web is refused.
 
 ## Actions
 
@@ -209,7 +215,7 @@ Show the power map of your model on a dashboard:
 
 ```yaml
 type: picture
-image: /local/weishaupt_modbus_powermap.svg
+image: /local/local/weishaupt_modbus_powermap.svg
 ```
 
 When an automation sets a value, trigger it on a change (a PV surplus, a
@@ -258,7 +264,12 @@ reproduce the problem, then *Disable debug logging*; the log file is
 downloaded. Attach it to an [issue](https://github.com/Varitras/weishaupt_modbus/issues),
 together with *Download diagnostics* from the entry's menu: the register
 values and which address bands the heat pump serves, without its address
-or any name you typed (prefix, postfix, map file). It is offered once the entry has loaded, not while setup retries.
+or any name you typed (prefix, postfix, map file). It is offered once the
+entry has loaded, not while setup retries. The log is not cleaned the same
+way: a connection error names the heat pump's address, and a map that
+fails to load names its path. Replace IP addresses and host names, your
+user name in paths and any names of people or rooms before you attach it
+to a public issue.
 
 ## Upgrading from 1.x
 

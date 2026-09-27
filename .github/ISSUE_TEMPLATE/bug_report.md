@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: Something in the integration does not work as described
 title: ''
 labels: ''
 assignees: ''
@@ -8,31 +8,28 @@ assignees: ''
 ---
 
 **Describe the bug**
-A clear and concise description of what the bug is.
+What happened, and what you expected instead.
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+**To reproduce**
+The steps, the entity or register involved, and whether it happens every
+time.
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+**Versions**
+ - Home Assistant: [e.g. 2026.9.3]
+ - Weishaupt Modbus integration: [e.g. 2.0.2b2]
+ - Heat pump model, and the controller firmware if you know it: [e.g. WBB 12]
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Connection**
+How Home Assistant reaches the heat pump (same network, VLAN, VPN), and
+whether anything else talks Modbus to it (a YAML `modbus:` hub, another
+tool).
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
-
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+**Diagnostics and log**
+Attach *Download diagnostics* from the entry's menu; it leaves out the
+heat pump's address and the names you typed. A debug log (see the README,
+*Troubleshooting*) helps too, but it is not cleaned: before attaching it,
+replace IP addresses and host names, your user name in file paths, and
+any names of people or rooms.
 
 **Additional context**
-Add any other context about the problem here.
+Anything else, such as when it started or what changed before.

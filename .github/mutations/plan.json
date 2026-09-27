@@ -831,5 +831,40 @@
     "old": "TO_REDACT = {CONF.HOST, CONF.PREFIX, CONF.DEVICE_POSTFIX, CONF.KENNFELD_FILE}\n",
     "new": "TO_REDACT = {CONF.HOST, CONF.PREFIX, CONF.KENNFELD_FILE}\n",
     "tests": "diagnostics_carry_none_of_the_names_a_user_typed"
+  },
+  {
+    "label": "power map: the preview lands where the README's URL points",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "        www_dir = Path(f\"{self.hass.config.config_dir}/www/local\")\n",
+    "new": "        www_dir = Path(f\"{self.hass.config.config_dir}/www\")\n",
+    "tests": "readme_picture_url_serves_the_published_preview"
+  },
+  {
+    "label": "power map: a null or empty compiled grid is not compiled",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "        if not data.get(\"compiled_grid\"):\n",
+    "new": "        if \"compiled_grid\" not in data:\n",
+    "tests": "empty_compiled_grid_counts_as_not_compiled"
+  },
+  {
+    "label": "config flow: a folder named like a map is not offered",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "            if p.name.endswith(\"kennfeld.json\") and p.is_file()\n",
+    "new": "            if p.name.endswith(\"kennfeld.json\")\n",
+    "tests": "power_map_choice_offers_only_map_files"
+  },
+  {
+    "label": "config flow: a backup of a map is not offered",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "            if p.name.endswith(\"kennfeld.json\") and p.is_file()\n",
+    "new": "            if \"kennfeld.json\" in p.name and p.is_file()\n",
+    "tests": "power_map_choice_offers_only_map_files"
+  },
+  {
+    "label": "compile script: the preview title does not name the map file",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "    chart.title = \"Kennfeld Heizleistung\"\n",
+    "new": "    chart.title = f\"Kennfeld Heizleistung - {svg_path.stem}\"\n",
+    "tests": "preview_does_not_carry_the_map_file_name"
   }
 ]

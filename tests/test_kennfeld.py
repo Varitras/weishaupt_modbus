@@ -6,6 +6,8 @@ import importlib.util
 import json
 import logging
 import pathlib
+import re
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -80,7 +82,7 @@ def test_the_default_grid_ships_compiled_with_its_plot():
     default = KENNFELD / CONST.DEF_KENNFELDFILE
 
     assert default.exists()
-    assert "compiled_grid" in json.loads(default.read_text(encoding="utf-8"))
+    assert json.loads(default.read_text(encoding="utf-8")).get("compiled_grid")
     assert default.with_suffix(".svg").exists()
 
 
@@ -88,12 +90,37 @@ def test_every_shipped_grid_is_compiled_and_plotted():
     incomplete = []
     for grid in sorted(KENNFELD.glob("*.json")):
         data = json.loads(grid.read_text(encoding="utf-8"))
-        if "compiled_grid" not in data or not grid.with_suffix(".svg").exists():
+        if not data.get("compiled_grid") or not grid.with_suffix(".svg").exists():
             incomplete.append(grid.name)
 
     assert not incomplete, (
         f"grid(s) that would be compiled or plotted at runtime: {incomplete}"
     )
+
+
+@pytest.mark.parametrize("compiled", [None, {}], ids=["null", "empty"])
+async def test_an_empty_compiled_grid_counts_as_not_compiled(
+    hass, caplog, tmp_path, monkeypatch, compiled
+):
+    """A null or empty grid passed as loaded: its preview went up on the
+    dashboard while the heat power it stood for stayed unknown."""
+    grid = {"known_x": [-10, 10], "known_t": [35, 55], "compiled_grid": compiled}
+    (tmp_path / "own_kennfeld.json").write_text(json.dumps(grid), encoding="utf-8")
+    (tmp_path / "own_kennfeld.svg").write_text(
+        "<svg><path d='M0 0'/></svg>", encoding="utf-8"
+    )
+    entry = SimpleNamespace(
+        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+    )
+    monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
+    hass.config.config_dir = str(tmp_path)
+    power_map = PowerMap(entry, hass)
+
+    with caplog.at_level(logging.ERROR, logger=kennfeld.__name__):
+        await power_map.initialize()
+
+    assert "no compiled grid" in caplog.text
+    assert not list(tmp_path.glob("www/**/*.svg")), "a preview went up"
 
 
 async def test_a_grid_that_is_not_compiled_is_refused_not_compiled(
@@ -227,6 +254,35 @@ async def test_a_static_preview_is_copied_under_www(hass, tmp_path, monkeypatch)
     assert (tmp_path / "www" / "local" / "weishaupt_modbus_powermap.svg").exists()
 
 
+async def test_the_readme_picture_url_serves_the_published_preview(
+    hass, tmp_path, monkeypatch
+):
+    """Home Assistant serves <config>/www as /local. The README's dashboard
+    example asked for a file one directory above the one written."""
+    grid = {
+        "known_t": [35, 55],
+        "known_x": [-10, 10],
+        "compiled_grid": {"0": [1.0, 2.0]},
+    }
+    (tmp_path / "own_kennfeld.json").write_text(json.dumps(grid), encoding="utf-8")
+    (tmp_path / "own_kennfeld.svg").write_text(
+        "<svg><path d='M0 0'/></svg>", encoding="utf-8"
+    )
+    entry = SimpleNamespace(
+        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+    )
+    monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
+    hass.config.config_dir = str(tmp_path)
+    readme = (PACKAGE.parents[1] / "README.md").read_text(encoding="utf-8")
+    urls = re.findall(r"image: /local/(\S+)", readme)
+
+    await PowerMap(entry, hass).initialize()
+
+    assert urls, "the README no longer shows the picture card"
+    for url in urls:
+        assert (tmp_path / "www" / url).is_file(), f"/local/{url} serves nothing"
+
+
 @pytest.mark.parametrize(
     ("payload", "why"),
     [
@@ -353,6 +409,42 @@ def test_the_compile_script_keeps_each_curve_with_its_flow_temperature():
 
     assert known_t == [35, 55]
     assert known_y == [[5000, 6000], [4000, 5000]]
+
+
+class _RecordingChart:
+    """Stands in for pygal.XY: keeps the title, renders a bare SVG.
+
+    CI installs only the runtime requirements, so pygal is not there; what
+    matters is which title the compile script sets, not how pygal draws it.
+    """
+
+    titles: list[str] = []
+
+    def __init__(self, **_options):
+        self.title = ""
+
+    def add(self, *_series):
+        pass
+
+    def render(self):
+        _RecordingChart.titles.append(self.title)
+        return b"<svg xmlns='http://www.w3.org/2000/svg'/>"
+
+
+def test_the_preview_does_not_carry_the_map_file_name(tmp_path, monkeypatch):
+    """The preview is served from www without a login; a custom map named
+    after a family or a room put that name into its title."""
+    fake = SimpleNamespace(XY=_RecordingChart, style=SimpleNamespace(Style=dict))
+    monkeypatch.setitem(sys.modules, "pygal", fake)
+    monkeypatch.setitem(sys.modules, "pygal.style", fake.style)
+    _RecordingChart.titles = []
+    marker = "PRIVATE_LOCATION_MARKER"
+    svg = tmp_path / f"{marker}_kennfeld.svg"
+    data = {"known_t": [35, 55], "compiled_grid": {"0": [5000.0, 4000.0]}}
+
+    assert _compile_script().draw_preview(data, svg)
+    assert _RecordingChart.titles, "the chart was never rendered"
+    assert not any(marker in title for title in _RecordingChart.titles)
 
 
 def test_the_integration_does_not_draw_pictures_at_runtime():
