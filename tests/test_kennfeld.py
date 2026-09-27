@@ -6,6 +6,7 @@ import importlib.util
 import json
 import logging
 import pathlib
+import re
 from types import SimpleNamespace
 
 import pytest
@@ -225,6 +226,35 @@ async def test_a_static_preview_is_copied_under_www(hass, tmp_path, monkeypatch)
     await PowerMap(entry, hass).initialize()
 
     assert (tmp_path / "www" / "local" / "weishaupt_modbus_powermap.svg").exists()
+
+
+async def test_the_readme_picture_url_serves_the_published_preview(
+    hass, tmp_path, monkeypatch
+):
+    """Home Assistant serves <config>/www as /local. The README's dashboard
+    example asked for a file one directory above the one written."""
+    grid = {
+        "known_t": [35, 55],
+        "known_x": [-10, 10],
+        "compiled_grid": {"0": [1.0, 2.0]},
+    }
+    (tmp_path / "own_kennfeld.json").write_text(json.dumps(grid), encoding="utf-8")
+    (tmp_path / "own_kennfeld.svg").write_text(
+        "<svg><path d='M0 0'/></svg>", encoding="utf-8"
+    )
+    entry = SimpleNamespace(
+        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+    )
+    monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
+    hass.config.config_dir = str(tmp_path)
+    readme = (PACKAGE.parents[1] / "README.md").read_text(encoding="utf-8")
+    urls = re.findall(r"image: /local/(\S+)", readme)
+
+    await PowerMap(entry, hass).initialize()
+
+    assert urls, "the README no longer shows the picture card"
+    for url in urls:
+        assert (tmp_path / "www" / url).is_file(), f"/local/{url} serves nothing"
 
 
 @pytest.mark.parametrize(
