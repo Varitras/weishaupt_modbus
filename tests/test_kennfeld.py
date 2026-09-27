@@ -97,6 +97,31 @@ def test_every_shipped_grid_is_compiled_and_plotted():
     )
 
 
+@pytest.mark.parametrize("compiled", [None, {}], ids=["null", "empty"])
+async def test_an_empty_compiled_grid_counts_as_not_compiled(
+    hass, caplog, tmp_path, monkeypatch, compiled
+):
+    """A null or empty grid passed as loaded: its preview went up on the
+    dashboard while the heat power it stood for stayed unknown."""
+    grid = {"known_x": [-10, 10], "known_t": [35, 55], "compiled_grid": compiled}
+    (tmp_path / "own_kennfeld.json").write_text(json.dumps(grid), encoding="utf-8")
+    (tmp_path / "own_kennfeld.svg").write_text(
+        "<svg><path d='M0 0'/></svg>", encoding="utf-8"
+    )
+    entry = SimpleNamespace(
+        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+    )
+    monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
+    hass.config.config_dir = str(tmp_path)
+    power_map = PowerMap(entry, hass)
+
+    with caplog.at_level(logging.ERROR, logger=kennfeld.__name__):
+        await power_map.initialize()
+
+    assert "no compiled grid" in caplog.text
+    assert not (tmp_path / "www" / "local" / "weishaupt_modbus_powermap.svg").exists()
+
+
 async def test_a_grid_that_is_not_compiled_is_refused_not_compiled(
     hass, caplog, tmp_path, monkeypatch
 ):
