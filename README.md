@@ -192,6 +192,8 @@ one, adjust `known_x`, `known_y` and `known_t` from your documentation and
 compile it once with `.github/scripts/compile_kennfeld.py` (needs `numpy`;
 `scipy` gives a smoother curve, `pygal` draws the preview picture). The
 integration only reads compiled grids. Contributions of new grids are welcome.
+A map compiled before 2.0.2 carries its file name in the picture's title;
+compile it again if that name should not be public.
 
 The preview picture of the selected map is published as
 `www/local/weishaupt_modbus_powermap.svg` in the configuration directory

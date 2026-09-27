@@ -7,6 +7,7 @@ import json
 import logging
 import pathlib
 import re
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -81,7 +82,7 @@ def test_the_default_grid_ships_compiled_with_its_plot():
     default = KENNFELD / CONST.DEF_KENNFELDFILE
 
     assert default.exists()
-    assert "compiled_grid" in json.loads(default.read_text(encoding="utf-8"))
+    assert json.loads(default.read_text(encoding="utf-8")).get("compiled_grid")
     assert default.with_suffix(".svg").exists()
 
 
@@ -89,7 +90,7 @@ def test_every_shipped_grid_is_compiled_and_plotted():
     incomplete = []
     for grid in sorted(KENNFELD.glob("*.json")):
         data = json.loads(grid.read_text(encoding="utf-8"))
-        if "compiled_grid" not in data or not grid.with_suffix(".svg").exists():
+        if not data.get("compiled_grid") or not grid.with_suffix(".svg").exists():
             incomplete.append(grid.name)
 
     assert not incomplete, (
@@ -119,7 +120,7 @@ async def test_an_empty_compiled_grid_counts_as_not_compiled(
         await power_map.initialize()
 
     assert "no compiled grid" in caplog.text
-    assert not (tmp_path / "www" / "local" / "weishaupt_modbus_powermap.svg").exists()
+    assert not list(tmp_path.glob("www/**/*.svg")), "a preview went up"
 
 
 async def test_a_grid_that_is_not_compiled_is_refused_not_compiled(
@@ -410,15 +411,40 @@ def test_the_compile_script_keeps_each_curve_with_its_flow_temperature():
     assert known_y == [[5000, 6000], [4000, 5000]]
 
 
-def test_the_preview_does_not_carry_the_map_file_name(tmp_path):
+class _RecordingChart:
+    """Stands in for pygal.XY: keeps the title, renders a bare SVG.
+
+    CI installs only the runtime requirements, so pygal is not there; what
+    matters is which title the compile script sets, not how pygal draws it.
+    """
+
+    titles: list[str] = []
+
+    def __init__(self, **_options):
+        self.title = ""
+
+    def add(self, *_series):
+        pass
+
+    def render(self):
+        _RecordingChart.titles.append(self.title)
+        return b"<svg xmlns='http://www.w3.org/2000/svg'/>"
+
+
+def test_the_preview_does_not_carry_the_map_file_name(tmp_path, monkeypatch):
     """The preview is served from www without a login; a custom map named
     after a family or a room put that name into its title."""
+    fake = SimpleNamespace(XY=_RecordingChart, style=SimpleNamespace(Style=dict))
+    monkeypatch.setitem(sys.modules, "pygal", fake)
+    monkeypatch.setitem(sys.modules, "pygal.style", fake.style)
+    _RecordingChart.titles = []
     marker = "PRIVATE_LOCATION_MARKER"
     svg = tmp_path / f"{marker}_kennfeld.svg"
     data = {"known_t": [35, 55], "compiled_grid": {"0": [5000.0, 4000.0]}}
 
-    assert _compile_script().draw_preview(data, svg), "pygal is a test requirement"
-    assert marker not in svg.read_text(encoding="utf-8")
+    assert _compile_script().draw_preview(data, svg)
+    assert _RecordingChart.titles, "the chart was never rendered"
+    assert not any(marker in title for title in _RecordingChart.titles)
 
 
 def test_the_integration_does_not_draw_pictures_at_runtime():
