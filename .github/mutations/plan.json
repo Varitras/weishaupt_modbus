@@ -803,5 +803,26 @@
     "old": "TO_REDACT = {CONF.HOST}\n",
     "new": "TO_REDACT: set[str] = set()\n",
     "tests": "diagnostics_show_what_the_pump_answered"
+  },
+  {
+    "label": "reconfigure: an address that cannot be dialled is refused",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                errors[\"base\"] = \"invalid_host\"\n",
+    "new": "                pass\n",
+    "tests": "reconfigure_refuses_an_address_that_cannot_be_dialled"
+  },
+  {
+    "label": "reconfigure: an address without a pump is refused",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                errors[\"base\"] = \"cannot_connect\"\n",
+    "new": "                pass\n",
+    "tests": "reconfigure_to_a_host_without_a_pump_is_reported"
+  },
+  {
+    "label": "config flow: an unreadable map folder falls back to the default map",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    except OSError:\n        found = []\n",
+    "new": "    except KeyError:\n        found = []\n",
+    "tests": "power_map_choice_falls_back"
   }
 ]

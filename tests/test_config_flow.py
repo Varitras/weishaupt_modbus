@@ -209,6 +209,53 @@ async def test_reconfigure_updates_the_entry_in_place(hass):
     assert entry.title == "192.0.2.20"
 
 
+async def test_reconfigure_refuses_an_address_that_cannot_be_dialled(hass):
+    entry = MockConfigEntry(domain=CONST.DOMAIN, data=PAGE_ONE, version=11)
+    entry.add_to_hass(hass)
+
+    result = await _reconfigure(hass, entry, {**RECONFIGURE_PAGE, CONF.HOST: "a b"})
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "invalid_host"}
+    assert entry.data[CONF.HOST] == HOST
+
+
+async def test_reconfigure_to_a_host_without_a_pump_is_reported(hass, mock_modbus):
+    """Moving an entry to an address nobody answers on would leave it
+    retrying forever; the old address stays until the new one answers."""
+    entry = MockConfigEntry(domain=CONST.DOMAIN, data=PAGE_ONE, version=11)
+    entry.add_to_hass(hass)
+    mock_modbus.fail_requests(ModbusConnectionError("refused"))
+
+    result = await _reconfigure(
+        hass, entry, {**RECONFIGURE_PAGE, CONF.HOST: "192.0.2.99"}
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_connect"}
+    assert entry.data[CONF.HOST] == HOST
+
+
+def test_the_power_map_choice_falls_back_to_the_default_map(tmp_path):
+    """An unreadable or empty map folder must still leave something to pick:
+    an empty choice list is a form that cannot be submitted."""
+    (tmp_path / "empty").mkdir()
+    (tmp_path / "maps").mkdir()
+    for name in (
+        "weishaupt_wsb6_kennfeld.json",
+        "weishaupt_wbb_kennfeld.json",
+        "x.svg",
+    ):
+        (tmp_path / "maps" / name).write_text("{}", encoding="utf-8")
+
+    assert config_flow._kennfeld_files(tmp_path / "missing") == [CONST.DEF_KENNFELDFILE]
+    assert config_flow._kennfeld_files(tmp_path / "empty") == [CONST.DEF_KENNFELDFILE]
+    assert config_flow._kennfeld_files(tmp_path / "maps") == [
+        "weishaupt_wbb_kennfeld.json",
+        "weishaupt_wsb6_kennfeld.json",
+    ]
+
+
 async def test_a_host_without_a_pump_is_reported(hass, mock_modbus):
     """A typo in the address used to create an entry that then retried
     forever; the flow now reads one register first."""
