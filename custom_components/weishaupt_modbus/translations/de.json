@@ -1759,5 +1759,22 @@
                 }
             }
         }
+    },
+    "exceptions": {
+        "value_out_of_range": {
+            "message": "{value} liegt außerhalb des aktuellen Bereichs {low} bis {high} von Register {address}"
+        },
+        "write_failed": {
+            "message": "Schreiben von Register {address} fehlgeschlagen: {error}"
+        },
+        "switch_off_failed": {
+            "message": "Ausschalten von Register {address} fehlgeschlagen: {error}"
+        },
+        "switch_on_failed": {
+            "message": "Einschalten von Register {address} fehlgeschlagen: {error}"
+        },
+        "communication_failed": {
+            "message": "Modbus-Kommunikationsfehler: {error}"
+        }
     }
 }

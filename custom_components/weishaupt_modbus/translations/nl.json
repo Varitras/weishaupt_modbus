@@ -1759,5 +1759,22 @@
         }
       }
     }
+  },
+  "exceptions" : {
+    "value_out_of_range" : {
+      "message" : "{value} ligt buiten het huidige bereik {low} tot {high} van register {address}"
+    },
+    "write_failed" : {
+      "message" : "Schrijven naar register {address} mislukt: {error}"
+    },
+    "switch_off_failed" : {
+      "message" : "Uitschakelen van register {address} mislukt: {error}"
+    },
+    "switch_on_failed" : {
+      "message" : "Inschakelen van register {address} mislukt: {error}"
+    },
+    "communication_failed" : {
+      "message" : "Modbus-communicatiefout: {error}"
+    }
   }
 }

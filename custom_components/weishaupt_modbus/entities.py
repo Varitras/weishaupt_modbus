@@ -190,8 +190,14 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
         low, high = self._attr_native_min_value, self._attr_native_max_value
         if not low <= wanted <= high:
             raise ServiceValidationError(
-                f"{wanted} is outside the current range {low} to {high} "
-                f"of register {self._api_item.address}"
+                translation_domain=CONST.DOMAIN,
+                translation_key="value_out_of_range",
+                translation_placeholders={
+                    "value": str(wanted),
+                    "low": str(low),
+                    "high": str(high),
+                    "address": str(self._api_item.address),
+                },
             )
 
     async def set_translate_val(self, value: str | float) -> int | None:
@@ -213,7 +219,12 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
             await self.coordinator.device.write(self._api_item, val, check=check)
         except (WriteError, ModbusError) as err:
             raise HomeAssistantError(
-                f"Writing register {self._api_item.address} failed: {err}"
+                translation_domain=CONST.DOMAIN,
+                translation_key="write_failed",
+                translation_placeholders={
+                    "address": str(self._api_item.address),
+                    "error": str(err),
+                },
             ) from err
         return val
 
@@ -373,7 +384,12 @@ class MySetpointSwitchEntity(MyEntity, SwitchEntity):
             await self.coordinator.device.write_off(self._api_item)
         except (WriteError, ModbusError) as err:
             raise HomeAssistantError(
-                f"Switching register {self._api_item.address} off failed: {err}"
+                translation_domain=CONST.DOMAIN,
+                translation_key="switch_off_failed",
+                translation_placeholders={
+                    "address": str(self._api_item.address),
+                    "error": str(err),
+                },
             ) from err
         # The number beside this switch shows the same register.
         self.coordinator.async_update_listeners()
@@ -401,7 +417,12 @@ class MySetpointSwitchEntity(MyEntity, SwitchEntity):
             await self.coordinator.device.write(self._api_item, self._value_to_restore)
         except (WriteError, ModbusError) as err:
             raise HomeAssistantError(
-                f"Switching register {self._api_item.address} on failed: {err}"
+                translation_domain=CONST.DOMAIN,
+                translation_key="switch_on_failed",
+                translation_placeholders={
+                    "address": str(self._api_item.address),
+                    "error": str(err),
+                },
             ) from err
         self.coordinator.async_update_listeners()
 

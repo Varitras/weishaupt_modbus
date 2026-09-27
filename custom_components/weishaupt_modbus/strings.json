@@ -1759,5 +1759,22 @@
         }
       }
     }
+  },
+  "exceptions": {
+    "value_out_of_range": {
+      "message": "{value} is outside the current range {low} to {high} of register {address}"
+    },
+    "write_failed": {
+      "message": "Writing register {address} failed: {error}"
+    },
+    "switch_off_failed": {
+      "message": "Switching register {address} off failed: {error}"
+    },
+    "switch_on_failed": {
+      "message": "Switching register {address} on failed: {error}"
+    },
+    "communication_failed": {
+      "message": "Modbus communication failure: {error}"
+    }
   }
 }

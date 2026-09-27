@@ -118,7 +118,11 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     err,
                 )
                 return self.data
-            raise UpdateFailed(f"Modbus communication failure: {err}") from err
+            raise UpdateFailed(
+                translation_domain=CONST.DOMAIN,
+                translation_key="communication_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err
         self._failed_polls = 0
         return self._results()
 

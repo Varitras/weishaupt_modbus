@@ -191,7 +191,7 @@
   {
     "label": "entity: a failed write must be raised, not swallowed",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "        except (WriteError, ModbusError) as err:\n            raise HomeAssistantError(\n                f\"Writing register {self._api_item.address} failed: {err}\"\n            ) from err\n",
+    "old": "        except (WriteError, ModbusError) as err:\n            raise HomeAssistantError(\n                translation_domain=CONST.DOMAIN,\n                translation_key=\"write_failed\",\n                translation_placeholders={\n                    \"address\": str(self._api_item.address),\n                    \"error\": str(err),\n                },\n            ) from err\n",
     "new": "        except (WriteError, ModbusError) as err:\n            _LOGGER.error(\"Failed to write to register %s: %s\", self._api_item.address, err)\n            return None\n",
     "tests": "refused_write_reaches_the_user"
   },
@@ -782,5 +782,19 @@
     "old": "      \"fehler\": {\n",
     "new": "      \"fehler_gone\": {\n",
     "tests": "every_icon_belongs_to_an_entity_that_exists"
+  },
+  {
+    "label": "errors: a user-facing error carries a translation key",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "                translation_key=\"switch_on_failed\",\n",
+    "new": "",
+    "tests": "every_error_the_user_sees_is_translated"
+  },
+  {
+    "label": "errors: a translated message names the placeholders the code gives",
+    "path": "custom_components/weishaupt_modbus/translations/de.json",
+    "old": "Modbus-Kommunikationsfehler: {error}",
+    "new": "Modbus-Kommunikationsfehler: {fehler}",
+    "tests": "translated_error_has_its_text_and_placeholders"
   }
 ]
