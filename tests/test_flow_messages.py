@@ -96,6 +96,15 @@ def test_every_dialog_field_explains_itself(name):
 USER_FACING_ERRORS = {"HomeAssistantError", "ServiceValidationError", "UpdateFailed"}
 
 
+def _called_name(func: ast.expr) -> str | None:
+    """`HomeAssistantError(...)` and `exceptions.HomeAssistantError(...)` alike."""
+    if isinstance(func, ast.Name):
+        return func.id
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    return None
+
+
 def _raised_errors() -> tuple[list[str], dict[str, set[str]]]:
     """Raises of a user-facing error without a translation key, and the
     placeholders each translation key is raised with."""
@@ -106,8 +115,7 @@ def _raised_errors() -> tuple[list[str], dict[str, set[str]]]:
             if not (
                 isinstance(node, ast.Raise)
                 and isinstance(node.exc, ast.Call)
-                and isinstance(node.exc.func, ast.Name)
-                and node.exc.func.id in USER_FACING_ERRORS
+                and _called_name(node.exc.func) in USER_FACING_ERRORS
             ):
                 continue
             keywords = {keyword.arg: keyword.value for keyword in node.exc.keywords}
@@ -140,6 +148,19 @@ def test_every_translated_error_has_its_text_and_placeholders(name):
     for key, given in raised.items():
         used = set(re.findall(r"\{(\w+)\}", messages[key]))
         assert used == given, f"{name}: {key} uses {used}, the code gives {given}"
+
+
+def test_every_icon_belongs_to_an_entity_that_exists():
+    icons = json.loads((FLOW.parent / "icons.json").read_text(encoding="utf-8"))
+    strings = json.loads((FLOW.parent / "strings.json").read_text(encoding="utf-8"))
+
+    stale = [
+        f"{platform}.{key}"
+        for platform, keys in icons["entity"].items()
+        for key in keys
+        if key not in strings["entity"].get(platform, {})
+    ]
+    assert not stale, f"icons for entities that do not exist: {stale}"
 
 
 def test_the_reader_finds_the_messages_it_is_pointed_at():

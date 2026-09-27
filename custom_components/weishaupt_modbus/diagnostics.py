@@ -38,7 +38,7 @@ async def async_get_config_entry_diagnostics(
                 "address": item.address,
                 "key": item.translation_key,
                 "state": item.state,
-                "no_sensor": item.is_invalid,
+                "invalid": item.is_invalid,
                 "off": item.is_off,
             }
             for item in device.items

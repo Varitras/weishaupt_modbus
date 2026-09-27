@@ -241,9 +241,10 @@ the heat pump's single connection.
 
 **All entities are unavailable.** Four polls in a row failed. The heat pump
 is off the network, or another client took the connection; the entities come
-back with the next good poll. The log says so once when they go and once when
-they come back; shorter drop-outs, which keep the last values, show only in
-the debug log.
+back with the next good poll. The log shows one error when they go; their
+return is logged at info level, which Home Assistant's default log level
+hides. Shorter drop-outs, which keep the last values, show only in the debug
+log.
 
 **A write is refused.** The value is outside the range the controller
 currently allows, or the daily write limit from the [Options](#options) is
@@ -257,7 +258,7 @@ reproduce the problem, then *Disable debug logging*; the log file is
 downloaded. Attach it to an [issue](https://github.com/Varitras/weishaupt_modbus/issues),
 together with *Download diagnostics* from the entry's menu: the register
 values and which address bands the heat pump serves, with its address
-removed.
+removed. It is offered once the entry has loaded, not while setup retries.
 
 ## Upgrading from 1.x
 

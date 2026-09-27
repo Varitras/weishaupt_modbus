@@ -449,19 +449,6 @@ async def test_icons_come_from_the_icon_translations(hass):
     assert icons["entity"]["number"]["heizkennlinie"]["default"] == "mdi:chart-line"
 
 
-def test_every_icon_belongs_to_an_entity_that_exists():
-    icons = json.loads((INTEGRATION / "icons.json").read_text(encoding="utf-8"))
-    strings = json.loads((INTEGRATION / "strings.json").read_text(encoding="utf-8"))
-
-    stale = [
-        f"{platform}.{key}"
-        for platform, keys in icons["entity"].items()
-        for key in keys
-        if key not in strings["entity"].get(platform, {})
-    ]
-    assert not stale, f"icons for entities that do not exist: {stale}"
-
-
 async def test_diagnostics_show_what_the_pump_answered_without_its_address(
     hass, hass_client
 ):
