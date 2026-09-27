@@ -94,6 +94,11 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.modbus_items = api_items
         self._config_entry = p_config_entry
 
+    @property
+    def failed_polls(self) -> int:
+        """Failed polls in a row since the last good one."""
+        return self._failed_polls
+
     def get_value_from_item(self, translation_key: str) -> Any:
         """Read a value from another modbus item by its translation key."""
         for item in self._modbusitems:

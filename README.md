@@ -254,7 +254,10 @@ reached.
 
 **Debug logging.** On the integration's page choose *Enable debug logging*,
 reproduce the problem, then *Disable debug logging*; the log file is
-downloaded. Attach it to an [issue](https://github.com/Varitras/weishaupt_modbus/issues).
+downloaded. Attach it to an [issue](https://github.com/Varitras/weishaupt_modbus/issues),
+together with *Download diagnostics* from the entry's menu: the register
+values and which address bands the heat pump serves, with its address
+removed.
 
 ## Upgrading from 1.x
 

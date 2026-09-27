@@ -796,5 +796,12 @@
     "old": "Modbus-Kommunikationsfehler: {error}",
     "new": "Modbus-Kommunikationsfehler: {fehler}",
     "tests": "translated_error_has_its_text_and_placeholders"
+  },
+  {
+    "label": "diagnostics: the pump's address is redacted",
+    "path": "custom_components/weishaupt_modbus/diagnostics.py",
+    "old": "TO_REDACT = {CONF.HOST}\n",
+    "new": "TO_REDACT: set[str] = set()\n",
+    "tests": "diagnostics_show_what_the_pump_answered"
   }
 ]
