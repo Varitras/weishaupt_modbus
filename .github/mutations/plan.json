@@ -838,5 +838,12 @@
     "old": "        www_dir = Path(f\"{self.hass.config.config_dir}/www/local\")\n",
     "new": "        www_dir = Path(f\"{self.hass.config.config_dir}/www\")\n",
     "tests": "readme_picture_url_serves_the_published_preview"
+  },
+  {
+    "label": "power map: a null or empty compiled grid is not compiled",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "        if not data.get(\"compiled_grid\"):\n",
+    "new": "        if \"compiled_grid\" not in data:\n",
+    "tests": "empty_compiled_grid_counts_as_not_compiled"
   }
 ]
