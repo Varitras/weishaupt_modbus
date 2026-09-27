@@ -33,8 +33,8 @@
           "Heizkreis 5": "Adds the entities of this heating circuit.",
           "Host": "Name or IP address of the heat pump.",
           "Kennfeld-File": "Power map of your model, used to estimate the heat output.",
-          "Name-Device-Prefix": "Puts the prefix in front of every entity name.",
-          "Name-Topic-Prefix": "Puts the device's short name (WP, WW, ...) in front of every entity name.",
+          "Name-Device-Prefix": "Puts the prefix in front of the name of every register entity.",
+          "Name-Topic-Prefix": "Puts the device's short name (WP, WW, ...) in front of the name of every register entity.",
           "Port": "Modbus TCP port set on the heat pump, usually 502.",
           "Prefix": "Part of every entity's unique id. Keep the default unless you carry over the history of another integration. Cannot be changed later."
         }
@@ -59,8 +59,8 @@
           "Heizkreis 5": "Adds the entities of this heating circuit.",
           "Host": "Name or IP address of the heat pump.",
           "Kennfeld-File": "Power map of your model, used to estimate the heat output.",
-          "Name-Device-Prefix": "Puts the prefix in front of every entity name.",
-          "Name-Topic-Prefix": "Puts the device's short name (WP, WW, ...) in front of every entity name.",
+          "Name-Device-Prefix": "Puts the prefix in front of the name of every register entity.",
+          "Name-Topic-Prefix": "Puts the device's short name (WP, WW, ...) in front of the name of every register entity.",
           "Port": "Modbus TCP port set on the heat pump, usually 502."
         }
       }

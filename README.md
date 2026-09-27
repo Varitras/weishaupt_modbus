@@ -76,8 +76,8 @@ entry. Add one entry per heat pump.
 | Device postfix | empty | Tells several heat pumps apart. Leave it empty for a single pump; every further pump needs a postfix of its own, the dialog refuses an empty or reused one. The postfix is appended to device names and ids. |
 | Operation map file | `weishaupt_wbb_kennfeld.json` | The power map of your model (see [The power map](#the-power-map)). |
 | 2nd - 5th heating circuit | off | Adds the entities of the additional heating circuit. |
-| Name device prefix | off | Puts the prefix in front of every entity name, e.g. `weishaupt_wbb_Outside temperature`. |
-| Name topic prefix | off | Puts the device's short name in front of every entity name, e.g. `WP_` for the heat pump, `WW_` for hot water. |
+| Name device prefix | off | Puts the prefix in front of the name of every register entity, e.g. `weishaupt_wbb_Outside temperature`. The two write counters keep their names. |
+| Name topic prefix | off | Puts the device's short name in front of the name of every register entity, e.g. `WP_` for the heat pump, `WW_` for hot water. |
 
 Prefix and device postfix are part of every entity's unique id and cannot
 be changed afterwards: a change would orphan the recorded history of every
