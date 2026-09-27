@@ -80,7 +80,9 @@ def draw_preview(data: dict, svg_path: Path) -> bool:
         legend_at_bottom=True,
         js=[],
     )
-    chart.title = f"Kennfeld Heizleistung - {svg_path.stem}"
+    # Not the file name: the preview is served from www without a login, and
+    # a custom map may be named after a family or a room.
+    chart.title = "Kennfeld Heizleistung"
     for index, flow in enumerate(known_t):
         # one point per whole degree is plenty for a picture
         points = [

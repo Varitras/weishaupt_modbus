@@ -859,5 +859,12 @@
     "old": "            if p.name.endswith(\"kennfeld.json\") and p.is_file()\n",
     "new": "            if \"kennfeld.json\" in p.name and p.is_file()\n",
     "tests": "power_map_choice_offers_only_map_files"
+  },
+  {
+    "label": "compile script: the preview title does not name the map file",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "    chart.title = \"Kennfeld Heizleistung\"\n",
+    "new": "    chart.title = f\"Kennfeld Heizleistung - {svg_path.stem}\"\n",
+    "tests": "preview_does_not_carry_the_map_file_name"
   }
 ]
