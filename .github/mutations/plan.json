@@ -831,5 +831,12 @@
     "old": "TO_REDACT = {CONF.HOST, CONF.PREFIX, CONF.DEVICE_POSTFIX, CONF.KENNFELD_FILE}\n",
     "new": "TO_REDACT = {CONF.HOST, CONF.PREFIX, CONF.KENNFELD_FILE}\n",
     "tests": "diagnostics_carry_none_of_the_names_a_user_typed"
+  },
+  {
+    "label": "power map: the preview lands where the README's URL points",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "        www_dir = Path(f\"{self.hass.config.config_dir}/www/local\")\n",
+    "new": "        www_dir = Path(f\"{self.hass.config.config_dir}/www\")\n",
+    "tests": "readme_picture_url_serves_the_published_preview"
   }
 ]

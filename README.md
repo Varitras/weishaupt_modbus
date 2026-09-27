@@ -194,8 +194,12 @@ compile it once with `.github/scripts/compile_kennfeld.py` (needs `numpy`;
 integration only reads compiled grids. Contributions of new grids are welcome.
 
 The preview picture of the selected map is published as
-`www/local/weishaupt_modbus_powermap.svg` (with `_<postfix>` for a further
-pump); a picture that carries script or links to the web is refused.
+`www/local/weishaupt_modbus_powermap.svg` in the configuration directory
+(with `_<postfix>` for a further pump), which Home Assistant serves as
+`/local/local/weishaupt_modbus_powermap.svg`. If the integration had to
+create `www/` itself, restart Home Assistant once so it serves the folder.
+Everything under `www/` can be fetched without logging in. A picture that
+carries script or links to the web is refused.
 
 ## Actions
 
@@ -209,7 +213,7 @@ Show the power map of your model on a dashboard:
 
 ```yaml
 type: picture
-image: /local/weishaupt_modbus_powermap.svg
+image: /local/local/weishaupt_modbus_powermap.svg
 ```
 
 When an automation sets a value, trigger it on a change (a PV surplus, a
