@@ -43,10 +43,7 @@ COMPLEXITY_LIMIT = 15
 # What is over the limit today, exactly. None of these was simplified on
 # adoption - the point of the guard is that nothing gets worse and every
 # improvement is written down.
-COMPLEXITY_BUDGETS = {
-    # 23 before the web-interface branch of the unique id left.
-    "entities.py::MyEntity.__init__": 17,
-}
+COMPLEXITY_BUDGETS: dict[str, int] = {}
 
 
 def _relative(source_file: pathlib.Path) -> str:

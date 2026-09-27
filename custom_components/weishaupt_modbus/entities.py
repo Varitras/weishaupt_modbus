@@ -11,13 +11,14 @@ from homeassistant.components.number import NumberEntity
 from homeassistant.components.select import SelectEntity
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
+from homeassistant.const import EntityCategory
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .configentry import MyConfigEntry
-from .const import CONF, CONST, FORMATS
+from .const import CONF, CONST, FORMATS, TYPES
 from .coordinator import WeishauptModbusCoordinator
 from .items import ModbusItem
 from .migrate_helpers import create_unique_id, device_postfix
@@ -28,6 +29,18 @@ _LOGGER = logging.getLogger(__name__)
 
 # On a reported setpoint: "none" while the controller demands nothing.
 DEMAND_ATTRIBUTE = "demand"
+
+
+def entity_category(item: ModbusItem) -> EntityCategory | None:
+    """Diagnostic for the pump's own setup and for registers nobody has named.
+
+    What people read and set every day stays in the device's main list.
+    """
+    reports_a_setting = item.type == TYPES.NUMBER_RO
+    undocumented = item.format == FORMATS.UNKNOWN
+    if reports_a_setting or undocumented:
+        return EntityCategory.DIAGNOSTIC
+    return None
 
 
 def to_register_value(value: float, divider: int) -> int:
@@ -90,6 +103,7 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
         self._attr_translation_placeholders = {"prefix": name_prefix}
 
         self._attr_unique_id = create_unique_id(self._config_entry, self._api_item)
+        self._attr_entity_category = entity_category(self._api_item)
 
         if self._api_item.format == FORMATS.STATUS:
             self._divider = 1
@@ -115,11 +129,6 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
                 if self._api_item.params.get("dynamic_max", None) is not None:
                     self._has_dynamic_max = True
             self.set_min_max()
-
-        if self._api_item.params is not None:
-            icon = self._api_item.params.get("icon", None)
-            if icon is not None:
-                self._attr_icon = icon
 
     @property
     def available(self) -> bool:
@@ -181,8 +190,14 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
         low, high = self._attr_native_min_value, self._attr_native_max_value
         if not low <= wanted <= high:
             raise ServiceValidationError(
-                f"{wanted} is outside the current range {low} to {high} "
-                f"of register {self._api_item.address}"
+                translation_domain=CONST.DOMAIN,
+                translation_key="value_out_of_range",
+                translation_placeholders={
+                    "value": str(wanted),
+                    "low": str(low),
+                    "high": str(high),
+                    "address": str(self._api_item.address),
+                },
             )
 
     async def set_translate_val(self, value: str | float) -> int | None:
@@ -204,7 +219,12 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
             await self.coordinator.device.write(self._api_item, val, check=check)
         except (WriteError, ModbusError) as err:
             raise HomeAssistantError(
-                f"Writing register {self._api_item.address} failed: {err}"
+                translation_domain=CONST.DOMAIN,
+                translation_key="write_failed",
+                translation_placeholders={
+                    "address": str(self._api_item.address),
+                    "error": str(err),
+                },
             ) from err
         return val
 
@@ -364,7 +384,12 @@ class MySetpointSwitchEntity(MyEntity, SwitchEntity):
             await self.coordinator.device.write_off(self._api_item)
         except (WriteError, ModbusError) as err:
             raise HomeAssistantError(
-                f"Switching register {self._api_item.address} off failed: {err}"
+                translation_domain=CONST.DOMAIN,
+                translation_key="switch_off_failed",
+                translation_placeholders={
+                    "address": str(self._api_item.address),
+                    "error": str(err),
+                },
             ) from err
         # The number beside this switch shows the same register.
         self.coordinator.async_update_listeners()
@@ -392,7 +417,12 @@ class MySetpointSwitchEntity(MyEntity, SwitchEntity):
             await self.coordinator.device.write(self._api_item, self._value_to_restore)
         except (WriteError, ModbusError) as err:
             raise HomeAssistantError(
-                f"Switching register {self._api_item.address} on failed: {err}"
+                translation_domain=CONST.DOMAIN,
+                translation_key="switch_on_failed",
+                translation_placeholders={
+                    "address": str(self._api_item.address),
+                    "error": str(err),
+                },
             ) from err
         self.coordinator.async_update_listeners()
 

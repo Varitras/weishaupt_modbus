@@ -94,6 +94,11 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.modbus_items = api_items
         self._config_entry = p_config_entry
 
+    @property
+    def failed_polls(self) -> int:
+        """Failed polls in a row since the last good one."""
+        return self._failed_polls
+
     def get_value_from_item(self, translation_key: str) -> Any:
         """Read a value from another modbus item by its translation key."""
         for item in self._modbusitems:
@@ -109,14 +114,20 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except (TimeoutError, ModbusError) as err:
             self._failed_polls += 1
             if self.data is not None and self._failed_polls <= FAILED_POLLS_TOLERATED:
-                _LOGGER.warning(
+                # Debug only: the outage itself is logged once, by the base
+                # class, when UpdateFailed takes the entities unavailable.
+                _LOGGER.debug(
                     "Poll failed (%d of %d tolerated), keeping the last values: %s",
                     self._failed_polls,
                     FAILED_POLLS_TOLERATED,
                     err,
                 )
                 return self.data
-            raise UpdateFailed(f"Modbus communication failure: {err}") from err
+            raise UpdateFailed(
+                translation_domain=CONST.DOMAIN,
+                translation_key="communication_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err
         self._failed_polls = 0
         return self._results()
 

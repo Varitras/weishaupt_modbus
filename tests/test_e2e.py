@@ -9,9 +9,16 @@ Marked `e2e` because each test boots a full Home Assistant instance; the
 everyday run deselects them, CI runs them with `-m ""`.
 """
 
+import json
+import logging
+import pathlib
+
 from modbus_connection import ModbusConnectionError
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.components.diagnostics import (
+    get_diagnostics_for_config_entry,
+)
 
 from custom_components.weishaupt_modbus.const import CONF, CONST
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.const import DEFAULT_PORT
@@ -22,11 +29,16 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.exceptions import (
     WriteError,
 )
 from homeassistant.config_entries import ConfigEntryState
+from homeassistant.const import EntityCategory
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 
 pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
+
+INTEGRATION = (
+    pathlib.Path(__file__).resolve().parents[1] / "custom_components" / CONST.DOMAIN
+)
 
 OUTSIDE_TEMPERATURE = 30001
 OUTSIDE_TEMPERATURE_UNIQUE_ID = "weishaupt_wbbAussentemperatur"
@@ -222,6 +234,41 @@ async def test_a_tolerated_failed_poll_keeps_the_published_values(hass, pump):
     assert hass.states.get(outside).state == "12.3", "a half-read poll must not show"
 
 
+def _integration_warnings(caplog) -> list[str]:
+    return [
+        record.getMessage()
+        for record in caplog.records
+        if record.name.startswith("custom_components.weishaupt_modbus")
+        and record.levelno >= logging.WARNING
+    ]
+
+
+async def test_an_outage_is_logged_once_when_it_starts_and_once_when_it_ends(
+    hass, pump, caplog
+):
+    """Every tolerated failure logged a warning: a blip that healed itself
+    left three warnings, an outage three plus the error."""
+    caplog.set_level(logging.INFO)
+    entry = await _setup(hass, _entry(hass))
+    coordinator = entry.runtime_data.coordinator
+    pump.fail_requests(ModbusConnectionError("link down"))
+
+    for _ in range(3):
+        await coordinator.async_refresh()
+    assert coordinator.last_update_success is True
+    assert not _integration_warnings(caplog), "a tolerated failure is not news"
+
+    await coordinator.async_refresh()
+    await coordinator.async_refresh()
+    assert coordinator.last_update_success is False
+    assert len(_integration_warnings(caplog)) == 1
+
+    pump.fail_requests(None)
+    await coordinator.async_refresh()
+    assert coordinator.last_update_success is True
+    assert "recovered" in caplog.text
+
+
 async def test_the_number_and_its_switch_agree_right_after_a_write(hass, pump):
     """Each cached its own state: setting the number left the switch off,
     switching off left the number at 5.0, until the next poll."""
@@ -359,6 +406,91 @@ async def test_firmware_without_the_electrical_power_register_gets_no_entity(
         "sensor", CONST.DOMAIN, OUTSIDE_TEMPERATURE_UNIQUE_ID
     )
     assert hass.states.get(outside).state == "12.3"
+
+
+async def test_settings_the_pump_only_reports_are_diagnostic(hass):
+    """Read-only configuration registers and the undocumented ones crowded the
+    device page between the temperatures and the setpoints people use."""
+    await _setup(hass, _entry(hass))
+    registry = er.async_get(hass)
+
+    def category(unique_id):
+        entity_id = registry.async_get_entity_id("sensor", CONST.DOMAIN, unique_id)
+        assert entity_id, unique_id
+        return registry.async_get(entity_id).entity_category
+
+    for unique_id in (
+        "weishaupt_wbbKonfiguration",
+        "weishaupt_wbbW2_Konfiguration",
+        "weishaupt_wbbAdr. 31106",
+    ):
+        assert category(unique_id) is EntityCategory.DIAGNOSTIC, unique_id
+    assert category(OUTSIDE_TEMPERATURE_UNIQUE_ID) is None
+    setpoint = registry.async_get_entity_id(
+        "number", CONST.DOMAIN, COMFORT_ROOM_TEMPERATURE_UNIQUE_ID
+    )
+    assert registry.async_get(setpoint).entity_category is None
+
+
+async def test_icons_come_from_the_icon_translations(hass):
+    """An icon set in code bypasses icons.json: it cannot follow a state and
+    is not where Home Assistant looks for one."""
+    await _setup(hass, _entry(hass))
+    registry = er.async_get(hass)
+    error = registry.async_get_entity_id("sensor", CONST.DOMAIN, "weishaupt_wbbFehler")
+    curve = registry.async_get_entity_id(
+        "number", CONST.DOMAIN, "weishaupt_wbbHeizkennlinie"
+    )
+
+    for entity_id in (error, curve):
+        assert "icon" not in hass.states.get(entity_id).attributes, entity_id
+    icons = json.loads((INTEGRATION / "icons.json").read_text(encoding="utf-8"))
+    assert icons["entity"]["sensor"]["fehler"]["default"] == "mdi:alert"
+    assert icons["entity"]["number"]["heizkennlinie"]["default"] == "mdi:chart-line"
+
+
+async def test_diagnostics_show_what_the_pump_answered_without_its_address(
+    hass, hass_client
+):
+    """A problem report needs the register values and which bands the pump
+    refused; it must not carry the pump's address."""
+    entry = await _setup(hass, _entry(hass))
+
+    diagnostics = await get_diagnostics_for_config_entry(hass, hass_client, entry)
+
+    assert diagnostics["entry"]["data"][CONF.HOST] == "**REDACTED**"
+    assert "192.0.2.10" not in str(diagnostics)
+    assert diagnostics["entry"]["data"][CONF.KENNFELD_FILE] == "**REDACTED**"
+    assert diagnostics["coordinator"]["last_update_success"] is True
+    assert diagnostics["bands"]["30001-30006"] is True
+    outside = next(
+        row for row in diagnostics["registers"] if row["address"] == OUTSIDE_TEMPERATURE
+    )
+    assert outside["state"] == 123
+    assert diagnostics["write_counters"] == {"total": 0, "today": 0}
+
+
+async def test_diagnostics_carry_none_of_the_names_a_user_typed(hass, hass_client):
+    """The download is meant for a public issue. Prefix, postfix and the map's
+    file name are free text - a family name, "keller" - and went out as typed."""
+    marker = "PRIVATE_LOCATION_MARKER"
+    entry = await _setup(
+        hass,
+        _entry(
+            hass,
+            data={
+                **BASE_DATA,
+                CONF.PREFIX: marker,
+                CONF.DEVICE_POSTFIX: marker,
+                CONF.KENNFELD_FILE: f"{marker}_kennfeld.json",
+            },
+        ),
+    )
+
+    diagnostics = await get_diagnostics_for_config_entry(hass, hass_client, entry)
+
+    assert marker not in str(diagnostics)
+    assert BASE_DATA[CONF.HOST] not in str(diagnostics)
 
 
 async def test_setup_creates_all_three_platforms(hass):
@@ -744,13 +876,14 @@ async def test_a_refused_write_reaches_the_user_as_an_error(hass, monkeypatch):
 
     monkeypatch.setattr(WeishauptHeatPump, "write", refuse)
 
-    with pytest.raises(HomeAssistantError, match="limit"):
+    with pytest.raises(HomeAssistantError, match="limit") as raised:
         await hass.services.async_call(
             "number",
             "set_value",
             {"entity_id": entity_id, "value": 5},
             blocking=True,
         )
+    assert raised.value.translation_key == "write_failed"
     assert entry.state is ConfigEntryState.LOADED
 
 

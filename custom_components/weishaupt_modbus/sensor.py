@@ -10,6 +10,9 @@ from .const import TYPES
 from .entity_helpers import build_entity_list
 from .write_counter_sensor import WRITE_COUNTER_DESCRIPTIONS, WriteCounterSensor
 
+# Read only; the coordinator polls for every entity at once.
+PARALLEL_UPDATES = 0
+
 
 async def async_setup_entry(
     hass: HomeAssistant,

@@ -18,28 +18,50 @@
           "Heizkreis 3": "3rd heating circuit",
           "Heizkreis 4": "4th heating circuit",
           "Heizkreis 5": "5th heating circuit",
-          "Host": "Host!",
+          "Host": "Host",
           "Kennfeld-File": "Operation map file",
           "Name-Device-Prefix": "Name Device Prefix",
           "Name-Topic-Prefix": "Name Topic Prefix",
           "Port": "Port",
           "Prefix": "Prefix"
+        },
+        "data_description": {
+          "Device-Postfix": "Leave empty for the first heat pump; every further one needs a postfix of its own. Cannot be changed later.",
+          "Heizkreis 2": "Adds the entities of this heating circuit.",
+          "Heizkreis 3": "Adds the entities of this heating circuit.",
+          "Heizkreis 4": "Adds the entities of this heating circuit.",
+          "Heizkreis 5": "Adds the entities of this heating circuit.",
+          "Host": "Name or IP address of the heat pump.",
+          "Kennfeld-File": "Power map of your model, used to estimate the heat output.",
+          "Name-Device-Prefix": "Puts the prefix in front of the name of every register entity.",
+          "Name-Topic-Prefix": "Puts the device's short name (WP, WW, ...) in front of the name of every register entity.",
+          "Port": "Modbus TCP port set on the heat pump, usually 502.",
+          "Prefix": "Part of every entity's unique id. Keep the default unless you carry over the history of another integration. Cannot be changed later."
         }
       },
       "reconfigure": {
         "description": "Please update your Modbus configuration parameters.",
         "data": {
-          "Device-Postfix": "Device postfix",
           "Heizkreis 2": "2nd heating circuit",
           "Heizkreis 3": "3rd heating circuit",
           "Heizkreis 4": "4th heating circuit",
           "Heizkreis 5": "5th heating circuit",
-          "Host": "Host!",
+          "Host": "Host",
           "Kennfeld-File": "Operation map file",
           "Name-Device-Prefix": "Name Device Prefix",
           "Name-Topic-Prefix": "Name Topic Prefix",
-          "Port": "Port",
-          "Prefix": "Prefix"
+          "Port": "Port"
+        },
+        "data_description": {
+          "Heizkreis 2": "Adds the entities of this heating circuit.",
+          "Heizkreis 3": "Adds the entities of this heating circuit.",
+          "Heizkreis 4": "Adds the entities of this heating circuit.",
+          "Heizkreis 5": "Adds the entities of this heating circuit.",
+          "Host": "Name or IP address of the heat pump.",
+          "Kennfeld-File": "Power map of your model, used to estimate the heat output.",
+          "Name-Device-Prefix": "Puts the prefix in front of the name of every register entity.",
+          "Name-Topic-Prefix": "Puts the device's short name (WP, WW, ...) in front of the name of every register entity.",
+          "Port": "Modbus TCP port set on the heat pump, usually 502."
         }
       }
     }
@@ -1729,8 +1751,30 @@
           "scan_interval": "Poll interval (seconds)",
           "write_warning_per_day": "Warn at this many writes per day (0 = never)",
           "write_limit_per_day": "Refuse writes above this many per day (0 = no limit)"
+        },
+        "data_description": {
+          "scan_interval": "How often all registers are read, 5 to 600 seconds. A change reloads the integration.",
+          "write_warning_per_day": "Logs a warning once a day when this many writes went out. The EEPROM is rated for 100 000 writes.",
+          "write_limit_per_day": "Further writes are refused until the next day. Must not be below the warning threshold."
         }
       }
+    }
+  },
+  "exceptions": {
+    "value_out_of_range": {
+      "message": "{value} is outside the current range {low} to {high} of register {address}"
+    },
+    "write_failed": {
+      "message": "Writing register {address} failed: {error}"
+    },
+    "switch_off_failed": {
+      "message": "Switching register {address} off failed: {error}"
+    },
+    "switch_on_failed": {
+      "message": "Switching register {address} on failed: {error}"
+    },
+    "communication_failed": {
+      "message": "Modbus communication failure: {error}"
     }
   }
 }

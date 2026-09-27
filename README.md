@@ -76,8 +76,8 @@ entry. Add one entry per heat pump.
 | Device postfix | empty | Tells several heat pumps apart. Leave it empty for a single pump; every further pump needs a postfix of its own, the dialog refuses an empty or reused one. The postfix is appended to device names and ids. |
 | Operation map file | `weishaupt_wbb_kennfeld.json` | The power map of your model (see [The power map](#the-power-map)). |
 | 2nd - 5th heating circuit | off | Adds the entities of the additional heating circuit. |
-| Name device prefix | off | Puts the prefix in front of every entity name, e.g. `weishaupt_wbb_Outside temperature`. |
-| Name topic prefix | off | Puts the device's short name in front of every entity name, e.g. `WP_` for the heat pump, `WW_` for hot water. |
+| Name device prefix | off | Puts the prefix in front of the name of every register entity, e.g. `weishaupt_wbb_Outside temperature`. The two write counters keep their names. |
+| Name topic prefix | off | Puts the device's short name in front of the name of every register entity, e.g. `WP_` for the heat pump, `WW_` for hot water. |
 
 Prefix and device postfix are part of every entity's unique id and cannot
 be changed afterwards: a change would orphan the recorded history of every
@@ -241,7 +241,10 @@ the heat pump's single connection.
 
 **All entities are unavailable.** Four polls in a row failed. The heat pump
 is off the network, or another client took the connection; the entities come
-back with the next good poll.
+back with the next good poll. The log shows one error when they go; their
+return is logged at info level, which Home Assistant's default log level
+hides. Shorter drop-outs, which keep the last values, show only in the debug
+log.
 
 **A write is refused.** The value is outside the range the controller
 currently allows, or the daily write limit from the [Options](#options) is
@@ -252,7 +255,10 @@ reached.
 
 **Debug logging.** On the integration's page choose *Enable debug logging*,
 reproduce the problem, then *Disable debug logging*; the log file is
-downloaded. Attach it to an [issue](https://github.com/Varitras/weishaupt_modbus/issues).
+downloaded. Attach it to an [issue](https://github.com/Varitras/weishaupt_modbus/issues),
+together with *Download diagnostics* from the entry's menu: the register
+values and which address bands the heat pump serves, without its address
+or any name you typed (prefix, postfix, map file). It is offered once the entry has loaded, not while setup retries.
 
 ## Upgrading from 1.x
 

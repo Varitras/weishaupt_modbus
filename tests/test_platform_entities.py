@@ -76,6 +76,29 @@ def test_every_platform_builds_its_entities_through_the_shared_helper():
     )
 
 
+def _sets_parallel_updates(source: str) -> bool:
+    return any(
+        isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "PARALLEL_UPDATES"
+            for target in node.targets
+        )
+        for node in ast.parse(source).body
+    )
+
+
+def test_every_platform_says_how_many_updates_may_run_at_once():
+    """Without it Home Assistant guesses per platform; the controller takes
+    one client, so a write platform must not be left to the guess."""
+    missing = [
+        name
+        for name, source in _platform_sources().items()
+        if not _sets_parallel_updates(source)
+    ]
+
+    assert not missing, f"{missing} do(es) not set PARALLEL_UPDATES"
+
+
 def test_every_platform_in_the_list_is_a_module():
     """The scan above reads PLATFORMS; a platform named there without a module
     would fail at Home Assistant's forward-setup, not here, and this says so

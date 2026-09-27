@@ -191,7 +191,7 @@
   {
     "label": "entity: a failed write must be raised, not swallowed",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "        except (WriteError, ModbusError) as err:\n            raise HomeAssistantError(\n                f\"Writing register {self._api_item.address} failed: {err}\"\n            ) from err\n",
+    "old": "        except (WriteError, ModbusError) as err:\n            raise HomeAssistantError(\n                translation_domain=CONST.DOMAIN,\n                translation_key=\"write_failed\",\n                translation_placeholders={\n                    \"address\": str(self._api_item.address),\n                    \"error\": str(err),\n                },\n            ) from err\n",
     "new": "        except (WriteError, ModbusError) as err:\n            _LOGGER.error(\"Failed to write to register %s: %s\", self._api_item.address, err)\n            return None\n",
     "tests": "refused_write_reaches_the_user"
   },
@@ -740,5 +740,96 @@
     "old": "PARAMS_ELECTRICAL_POWER: dict[str, Any] = {\n    \"only_if_served\": True,\n",
     "new": "PARAMS_ELECTRICAL_POWER: dict[str, Any] = {\n",
     "tests": "firmware_without_the_electrical_power_register"
+  },
+  {
+    "label": "translations: every dialog field has a help text",
+    "path": "custom_components/weishaupt_modbus/translations/de.json",
+    "old": "                    \"Port\": \"Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502.\",\n                    \"Prefix\"",
+    "new": "                    \"Prefix\"",
+    "tests": "every_dialog_field_explains_itself"
+  },
+  {
+    "label": "platforms: a write platform says how many updates may run at once",
+    "path": "custom_components/weishaupt_modbus/number.py",
+    "old": "PARALLEL_UPDATES = 1\n",
+    "new": "",
+    "tests": "how_many_updates_may_run_at_once"
+  },
+  {
+    "label": "coordinator: a tolerated failed poll is not a warning",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "                _LOGGER.debug(\n",
+    "new": "                _LOGGER.warning(\n",
+    "tests": "outage_is_logged_once"
+  },
+  {
+    "label": "entity: a reported setting or an unnamed register is diagnostic",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        return EntityCategory.DIAGNOSTIC\n",
+    "new": "        return None\n",
+    "tests": "settings_the_pump_only_reports_are_diagnostic"
+  },
+  {
+    "label": "icons: an entity's icon comes from icons.json",
+    "path": "custom_components/weishaupt_modbus/icons.json",
+    "old": "      \"heizkennlinie\": {\n        \"default\": \"mdi:chart-line\"\n      },\n",
+    "new": "",
+    "tests": "icons_come_from_the_icon_translations"
+  },
+  {
+    "label": "icons: no icon for an entity that does not exist",
+    "path": "custom_components/weishaupt_modbus/icons.json",
+    "old": "      \"fehler\": {\n",
+    "new": "      \"fehler_gone\": {\n",
+    "tests": "every_icon_belongs_to_an_entity_that_exists"
+  },
+  {
+    "label": "errors: a user-facing error carries a translation key",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "                translation_key=\"switch_on_failed\",\n",
+    "new": "",
+    "tests": "every_error_the_user_sees_is_translated"
+  },
+  {
+    "label": "errors: a translated message names the placeholders the code gives",
+    "path": "custom_components/weishaupt_modbus/translations/de.json",
+    "old": "Modbus-Kommunikationsfehler: {error}",
+    "new": "Modbus-Kommunikationsfehler: {fehler}",
+    "tests": "translated_error_has_its_text_and_placeholders"
+  },
+  {
+    "label": "diagnostics: the pump's address is redacted",
+    "path": "custom_components/weishaupt_modbus/diagnostics.py",
+    "old": "TO_REDACT = {CONF.HOST, CONF.PREFIX, CONF.DEVICE_POSTFIX, CONF.KENNFELD_FILE}\n",
+    "new": "TO_REDACT = {CONF.PREFIX, CONF.DEVICE_POSTFIX, CONF.KENNFELD_FILE}\n",
+    "tests": "diagnostics_show_what_the_pump_answered"
+  },
+  {
+    "label": "reconfigure: an address that cannot be dialled is refused",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                errors[\"base\"] = \"invalid_host\"\n",
+    "new": "                pass\n",
+    "tests": "reconfigure_refuses_an_address_that_cannot_be_dialled"
+  },
+  {
+    "label": "reconfigure: an address without a pump is refused",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                errors[\"base\"] = \"cannot_connect\"\n",
+    "new": "                pass\n",
+    "tests": "reconfigure_to_a_host_without_a_pump_is_reported"
+  },
+  {
+    "label": "config flow: an unreadable map folder falls back to the default map",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    except OSError:\n        found = []\n",
+    "new": "    except KeyError:\n        found = []\n",
+    "tests": "power_map_choice_falls_back"
+  },
+  {
+    "label": "diagnostics: a postfix the user typed is redacted",
+    "path": "custom_components/weishaupt_modbus/diagnostics.py",
+    "old": "TO_REDACT = {CONF.HOST, CONF.PREFIX, CONF.DEVICE_POSTFIX, CONF.KENNFELD_FILE}\n",
+    "new": "TO_REDACT = {CONF.HOST, CONF.PREFIX, CONF.KENNFELD_FILE}\n",
+    "tests": "diagnostics_carry_none_of_the_names_a_user_typed"
   }
 ]

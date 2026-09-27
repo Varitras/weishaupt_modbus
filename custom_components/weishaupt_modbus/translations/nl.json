@@ -18,28 +18,50 @@
           "Heizkreis 3" : "3de verwarmingskring",
           "Heizkreis 4" : "4de verwarmingskring",
           "Heizkreis 5" : "5de verwarmingskring",
-          "Host" : "Host!",
+          "Host" : "Host",
           "Kennfeld-File" : "Bestandsnaam werkingsschema",
           "Name-Device-Prefix" : "Naam apparaat-prefix",
           "Name-Topic-Prefix" : "Naam topic-prefix",
           "Port" : "Poort",
           "Prefix" : "Prefix"
+        },
+        "data_description" : {
+          "Device-Postfix" : "Leeg laten voor de eerste warmtepomp; elke volgende heeft een eigen postfix nodig. Later niet meer te wijzigen.",
+          "Heizkreis 2" : "Voegt de entiteiten van deze verwarmingskring toe.",
+          "Heizkreis 3" : "Voegt de entiteiten van deze verwarmingskring toe.",
+          "Heizkreis 4" : "Voegt de entiteiten van deze verwarmingskring toe.",
+          "Heizkreis 5" : "Voegt de entiteiten van deze verwarmingskring toe.",
+          "Host" : "Naam of IP-adres van de warmtepomp.",
+          "Kennfeld-File" : "Werkingsschema van uw model, gebruikt om het verwarmingsvermogen te schatten.",
+          "Name-Device-Prefix" : "Zet de prefix voor de naam van elke registerentiteit.",
+          "Name-Topic-Prefix" : "Zet de korte apparaatnaam (WP, WW, ...) voor de naam van elke registerentiteit.",
+          "Port" : "Modbus-TCP-poort zoals ingesteld op de warmtepomp, meestal 502.",
+          "Prefix" : "Deel van de unieke ID van elke entiteit. Alleen wijzigen om de geschiedenis van een andere integratie over te nemen. Later niet meer te wijzigen."
         }
       },
       "reconfigure" : {
         "description" : "Werk uw Modbus-configuratieparameters bij.",
         "data" : {
-          "Device-Postfix" : "Apparaat-postfix",
           "Heizkreis 2" : "2de verwarmingskring",
           "Heizkreis 3" : "3de verwarmingskring",
           "Heizkreis 4" : "4de verwarmingskring",
           "Heizkreis 5" : "5de verwarmingskring",
-          "Host" : "Host!",
+          "Host" : "Host",
           "Kennfeld-File" : "Bestandsnaam werkingsschema",
           "Name-Device-Prefix" : "Naam apparaat-prefix",
           "Name-Topic-Prefix" : "Naam topic-prefix",
-          "Port" : "Poort",
-          "Prefix" : "Prefix"
+          "Port" : "Poort"
+        },
+        "data_description" : {
+          "Heizkreis 2" : "Voegt de entiteiten van deze verwarmingskring toe.",
+          "Heizkreis 3" : "Voegt de entiteiten van deze verwarmingskring toe.",
+          "Heizkreis 4" : "Voegt de entiteiten van deze verwarmingskring toe.",
+          "Heizkreis 5" : "Voegt de entiteiten van deze verwarmingskring toe.",
+          "Host" : "Naam of IP-adres van de warmtepomp.",
+          "Kennfeld-File" : "Werkingsschema van uw model, gebruikt om het verwarmingsvermogen te schatten.",
+          "Name-Device-Prefix" : "Zet de prefix voor de naam van elke registerentiteit.",
+          "Name-Topic-Prefix" : "Zet de korte apparaatnaam (WP, WW, ...) voor de naam van elke registerentiteit.",
+          "Port" : "Modbus-TCP-poort zoals ingesteld op de warmtepomp, meestal 502."
         }
       }
     }
@@ -1729,8 +1751,30 @@
           "scan_interval" : "Pollinterval (seconden)",
           "write_warning_per_day" : "Waarschuwen vanaf dit aantal schrijfacties per dag (0 = nooit)",
           "write_limit_per_day" : "Schrijfacties weigeren boven dit aantal per dag (0 = geen limiet)"
+        },
+        "data_description" : {
+          "scan_interval" : "Hoe vaak alle registers worden gelezen, 5 tot 600 seconden. Een wijziging laadt de integratie opnieuw.",
+          "write_warning_per_day" : "Logt eenmaal per dag een waarschuwing zodra zoveel schrijfacties zijn uitgevoerd. De EEPROM is ontworpen voor 100 000 schrijfacties.",
+          "write_limit_per_day" : "Verdere schrijfacties worden tot de volgende dag geweigerd. Mag niet onder de waarschuwingsdrempel liggen."
         }
       }
+    }
+  },
+  "exceptions" : {
+    "value_out_of_range" : {
+      "message" : "{value} ligt buiten het huidige bereik {low} tot {high} van register {address}"
+    },
+    "write_failed" : {
+      "message" : "Schrijven naar register {address} mislukt: {error}"
+    },
+    "switch_off_failed" : {
+      "message" : "Uitschakelen van register {address} mislukt: {error}"
+    },
+    "switch_on_failed" : {
+      "message" : "Inschakelen van register {address} mislukt: {error}"
+    },
+    "communication_failed" : {
+      "message" : "Modbus-communicatiefout: {error}"
     }
   }
 }
