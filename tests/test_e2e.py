@@ -842,13 +842,14 @@ async def test_a_refused_write_reaches_the_user_as_an_error(hass, monkeypatch):
 
     monkeypatch.setattr(WeishauptHeatPump, "write", refuse)
 
-    with pytest.raises(HomeAssistantError, match="limit"):
+    with pytest.raises(HomeAssistantError, match="limit") as raised:
         await hass.services.async_call(
             "number",
             "set_value",
             {"entity_id": entity_id, "value": 5},
             blocking=True,
         )
+    assert raised.value.translation_key == "write_failed"
     assert entry.state is ConfigEntryState.LOADED
 
 
