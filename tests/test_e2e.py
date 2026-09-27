@@ -16,6 +16,9 @@ import pathlib
 from modbus_connection import ModbusConnectionError
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.components.diagnostics import (
+    get_diagnostics_for_config_entry,
+)
 
 from custom_components.weishaupt_modbus.const import CONF, CONST
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.const import DEFAULT_PORT
@@ -457,6 +460,27 @@ def test_every_icon_belongs_to_an_entity_that_exists():
         if key not in strings["entity"].get(platform, {})
     ]
     assert not stale, f"icons for entities that do not exist: {stale}"
+
+
+async def test_diagnostics_show_what_the_pump_answered_without_its_address(
+    hass, hass_client
+):
+    """A problem report needs the register values and which bands the pump
+    refused; it must not carry the pump's address."""
+    entry = await _setup(hass, _entry(hass))
+
+    diagnostics = await get_diagnostics_for_config_entry(hass, hass_client, entry)
+
+    assert diagnostics["entry"]["data"][CONF.HOST] == "**REDACTED**"
+    assert "192.0.2.10" not in str(diagnostics)
+    assert diagnostics["entry"]["data"][CONF.KENNFELD_FILE] == CONST.DEF_KENNFELDFILE
+    assert diagnostics["coordinator"]["last_update_success"] is True
+    assert diagnostics["bands"]["30001-30006"] is True
+    outside = next(
+        row for row in diagnostics["registers"] if row["address"] == OUTSIDE_TEMPERATURE
+    )
+    assert outside["state"] == 123
+    assert diagnostics["write_counters"] == {"total": 0, "today": 0}
 
 
 async def test_setup_creates_all_three_platforms(hass):
