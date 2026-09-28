@@ -165,14 +165,16 @@ function Read-Table([string]$table, [int]$function, [int[]]$addresses) {
 }
 
 Connect-Pump
-$rows = @()
+# Each row is kept as it arrives: a scan that stops half way still saves
+# what it read.
+$rows = New-Object System.Collections.Generic.List[object]
 try {
-    try { $rows += @(Read-DeviceIdentification) }
-    catch [System.IO.IOException] { $rows += [pscustomobject]@{ table = 'device_id'; address = ''; value = ''; note = $_.Exception.Message } }
+    try { Read-DeviceIdentification | ForEach-Object { $rows.Add($_) } }
+    catch [System.IO.IOException] { $rows.Add([pscustomobject]@{ table = 'device_id'; address = ''; value = ''; note = $_.Exception.Message }) }
     # A WBB answers the unknown function 0x2B and then drops the connection.
     Connect-Pump
-    $rows += @(Read-Table 'input' $FunctionReadInput $InputRegisters)
-    $rows += @(Read-Table 'holding' $FunctionReadHolding $HoldingRegisters)
+    Read-Table 'input' $FunctionReadInput $InputRegisters | ForEach-Object { $rows.Add($_) }
+    Read-Table 'holding' $FunctionReadHolding $HoldingRegisters | ForEach-Object { $rows.Add($_) }
 }
 finally {
     if ($rows.Count -gt 0) { $rows | Export-Csv -Path $OutFile -NoTypeInformation -Encoding UTF8 }
