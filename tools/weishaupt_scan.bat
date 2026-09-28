@@ -46,6 +46,9 @@ $FunctionReadInput = 0x04
 $FunctionEncapsulated = 0x2B
 $MeiReadDeviceId = 0x0E
 $DeviceIdBasic = 1
+$MoreFollows = 0xFF
+# Bounds a device that keeps announcing more pages.
+$MaxDeviceIdPages = 10
 $ExceptionFlag = 0x80
 $IllegalDataAddress = 2
 # A pump that drops this many requests in a row is gone, not slow.
@@ -104,21 +107,28 @@ function Read-Register([int]$function, [int]$address) {
 }
 
 function Read-DeviceIdentification {
-    $body = Invoke-Pdu ([byte[]]@($FunctionEncapsulated, $MeiReadDeviceId, $DeviceIdBasic, 0))
-    if ($body[0] -band $ExceptionFlag) {
-        return [pscustomobject]@{ table = 'device_id'; address = ''; value = ''; note = "exception $($body[1])" }
-    }
-    # fc, MEI type, id code, conformity, more follows, next id, object count, objects
-    $offset = 7
-    for ($index = 0; $index -lt $body[6]; $index++) {
-        $length = $body[$offset + 1]
-        [pscustomobject]@{
-            table   = 'device_id'
-            address = $body[$offset]
-            value   = ''
-            note    = [System.Text.Encoding]::ASCII.GetString($body, $offset + 2, $length)
+    $objectId = 0
+    for ($page = 0; $page -lt $MaxDeviceIdPages; $page++) {
+        $body = Invoke-Pdu ([byte[]]@($FunctionEncapsulated, $MeiReadDeviceId, $DeviceIdBasic, $objectId))
+        if ($body[0] -band $ExceptionFlag) {
+            return [pscustomobject]@{ table = 'device_id'; address = ''; value = ''; note = "exception $($body[1])" }
         }
-        $offset += 2 + $length
+        # fc, MEI type, id code, conformity, more follows, next id, object count, objects
+        $offset = 7
+        for ($index = 0; $index -lt $body[6]; $index++) {
+            $length = $body[$offset + 1]
+            [pscustomobject]@{
+                table   = 'device_id'
+                address = $body[$offset]
+                value   = ''
+                note    = [System.Text.Encoding]::ASCII.GetString($body, $offset + 2, $length)
+            }
+            $offset += 2 + $length
+        }
+        # A next id that does not move forward would ask for the same page again.
+        $isLastPage = $body[4] -ne $MoreFollows -or $body[5] -le $objectId
+        if ($isLastPage) { return }
+        $objectId = $body[5]
     }
 }
 
