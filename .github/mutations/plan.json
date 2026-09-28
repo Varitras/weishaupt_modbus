@@ -866,5 +866,19 @@
     "old": "    chart.title = \"Kennfeld Heizleistung\"\n",
     "new": "    chart.title = f\"Kennfeld Heizleistung - {svg_path.stem}\"\n",
     "tests": "preview_does_not_carry_the_map_file_name"
+  },
+  {
+    "label": "scan tool: a function code constant that writes",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "$FunctionReadHolding = 0x03\n",
+    "new": "$FunctionReadHolding = 0x06\n",
+    "tests": "scan_tool_never_writes"
+  },
+  {
+    "label": "scan tool: a request opened by a literal function code",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "Invoke-Pdu ([byte[]]@($function, ",
+    "new": "Invoke-Pdu ([byte[]]@(0x10, ",
+    "tests": "scan_tool_never_writes"
   }
 ]

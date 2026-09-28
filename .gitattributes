@@ -2,3 +2,7 @@
 # make every line end in a stray .
 .githooks/* text eol=lf
 *.sh text eol=lf
+
+# cmd misreads a batch file with bare LF line ends. Stored byte for byte,
+# so a download of the raw file from GitHub keeps its CRLF too.
+*.bat -text
