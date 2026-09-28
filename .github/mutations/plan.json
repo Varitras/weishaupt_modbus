@@ -880,5 +880,33 @@
     "old": "Invoke-Pdu ([byte[]]@($function, ",
     "new": "Invoke-Pdu ([byte[]]@(0x10, ",
     "tests": "scan_tool_never_writes"
+  },
+  {
+    "label": "scan tool: a write function code set at transmission",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "function Read-Register([int]$function, [int]$address) {\n",
+    "new": "function Read-Register([int]$function, [int]$address) {\n    $function = 0x06\n",
+    "tests": "only_read_requests_reach_the_pump"
+  },
+  {
+    "label": "scan tool: a stopped table drops the rows it read",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "    Read-Table 'input' $FunctionReadInput $InputRegisters | ForEach-Object { $rows.Add($_) }\n",
+    "new": "    $rows.AddRange([object[]]@(Read-Table 'input' $FunctionReadInput $InputRegisters))\n",
+    "tests": "aborted_scan_keeps_the_registers_it_read"
+  },
+  {
+    "label": "scan tool: only the first identification page is read",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "        if ($isLastPage) { return }\n",
+    "new": "        return\n",
+    "tests": "identification_over_two_pages"
+  },
+  {
+    "label": "scan tool: the launcher expands path and host into the command",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "-LiteralPath $env:SCAN_SELF -Raw))) -HostName $env:SCAN_HOST\"",
+    "new": "-LiteralPath '%~f0' -Raw))) -HostName '%SCAN_HOST%'\"",
+    "tests": "hands_over_path_and_host_as_data"
   }
 ]

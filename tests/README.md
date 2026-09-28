@@ -75,7 +75,7 @@ because the thing it prevents happened, here or in a sibling project.
 | `test_mypy_scope.py` | Every module is in the mypy scope or carries a written reason why not yet |
 | `test_platform_entities.py` | Every platform builds its entities through the one shared helper |
 | `test_requirements.py` | `manifest.json` and `requirements.txt` name the same dependencies |
-| `test_scan_tool.py` | `tools/weishaupt_scan.bat` sends only read requests (function codes 0x03, 0x04, 0x2B) and keeps the CRLF, ASCII bytes cmd and Windows PowerShell 5.1 need |
+| `test_scan_tool.py` | `tools/weishaupt_scan.bat`, run against a stand-in heat pump on the loopback address, sends only read requests (function codes 0x03, 0x04, 0x2B), keeps what it read when the link dies, reads every identification page and takes path and host as data; it keeps the CRLF, ASCII bytes cmd and Windows PowerShell 5.1 need (needs PowerShell 7, `pwsh`; fails without it) |
 | `test_secret_scan.py` | The gitleaks allowlist for translation keys does not hide a token on the same line (needs the gitleaks binary; skips without it) |
 
 ## When a budget turns red
