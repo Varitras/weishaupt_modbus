@@ -28,6 +28,8 @@ Weishaupt heat pumps whose controller offers *Modbus TCP* in its own settings
 menu (see [Prerequisites](#prerequisites)). Power maps ship for models of
 the WAB, WBB, WSB and WWP LS series (see [The power map](#the-power-map));
 a model without one works too, only the estimated heat output needs a map.
+For a model that does not work as expected, a register scan helps add it
+(see [Troubleshooting](#troubleshooting)).
 
 If your heat pump has the separate Weishaupt Modbus module, this integration
 will not work. [Weishaupt_CanApiJson](https://github.com/BorgNumberOne/Weishaupt_CanApiJson/)
@@ -270,6 +272,15 @@ way: a connection error names the heat pump's address, and a map that
 fails to load names its path. Replace IP addresses and host names, your
 user name in paths and any names of people or rooms before you attach it
 to a public issue.
+
+**A heat pump model nobody has tested.** Entities stay unavailable or show
+odd values. [`tools/weishaupt_scan.bat`](tools/weishaupt_scan.bat) reads
+every register the heat pump answers, without Home Assistant, and saves them
+as a CSV file: download it to a Windows PC in the same network, double-click
+it and enter the heat pump's address. It only reads, never writes, and the
+file holds no address, so it can be attached to an issue as it is. The scan
+takes about a minute; if it cannot connect, disable the integration while
+it runs.
 
 ## Upgrading from 1.x
 

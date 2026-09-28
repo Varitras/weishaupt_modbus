@@ -31,5 +31,8 @@ heat pump's address and the names you typed. A debug log (see the README,
 replace IP addresses and host names, your user name in file paths, and
 any names of people or rooms.
 
+For a model nobody has tested, attach the CSV from `tools/weishaupt_scan.bat`
+too (see the README, *Troubleshooting*).
+
 **Additional context**
 Anything else, such as when it started or what changed before.
