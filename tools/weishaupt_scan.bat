@@ -2,8 +2,10 @@
 @echo off
 setlocal
 set "SCAN_HOST=%~1"
-if "%SCAN_HOST%"=="" set /p "SCAN_HOST=IP address of the heat pump: "
-powershell -NoProfile -ExecutionPolicy Bypass -Command "& ([scriptblock]::Create((Get-Content -LiteralPath '%~f0' -Raw))) -HostName '%SCAN_HOST%'"
+if not defined SCAN_HOST set /p "SCAN_HOST=IP address of the heat pump: "
+set "SCAN_SELF=%~f0"
+rem Path and host reach PowerShell as environment, never as source text.
+powershell -NoProfile -ExecutionPolicy Bypass -Command "& ([scriptblock]::Create((Get-Content -LiteralPath $env:SCAN_SELF -Raw))) -HostName $env:SCAN_HOST"
 pause
 exit /b
 
