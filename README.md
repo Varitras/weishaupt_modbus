@@ -279,7 +279,7 @@ every register the heat pump answers, without Home Assistant, and saves them
 as a CSV file: download it to a Windows PC in the same network, double-click
 it and enter the heat pump's address. It only reads, never writes, and the
 file holds no address, so it can be attached to an issue as it is. The scan
-takes about ten minutes; if it cannot connect, disable the integration while
+takes about a minute; if it cannot connect, disable the integration while
 it runs.
 
 ## Upgrading from 1.x

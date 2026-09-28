@@ -17,16 +17,16 @@ The CSV lands in the current folder.
 
 Asks for every input register (30001-39999) and holding register
 (40001-49999) one at a time. The CSV lists each register the pump
-answers, and each address it answers with an error other than
-"illegal data address", which marks a register that exists but
-cannot be read right now. It also asks for the Modbus device
-identification, which not every controller supports.
+answers, and each address it answers with any error other than
+"illegal data address" or not at all; the note column says which.
+It also asks for the Modbus device identification, which not every
+controller supports.
 
 Read-only: the script sends only function codes 0x03, 0x04 and 0x2B,
 never a write. The CSV holds no address of the pump.
 
 The pump serves one request at a time; while the scan runs, Home
-Assistant may miss a poll or two. The scan takes about ten minutes.
+Assistant may miss a poll. The scan takes about a minute.
 #>
 param(
     [Parameter(Mandatory = $true)][string]$HostName,
