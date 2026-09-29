@@ -219,7 +219,7 @@ async def test_a_switched_off_setpoint_has_a_switch_and_an_unknown_number(hass, 
         (SG_READY_BOOST, [0])
     ]
     assert hass.states.get(switch_id).state == "on"
-    assert entry.runtime_data.device.write_budget.total == 1
+    assert entry.runtime_data.coordinator.device.write_budget.total == 1
 
 
 async def test_a_tolerated_failed_poll_keeps_the_published_values(hass, pump):
@@ -857,7 +857,7 @@ async def test_the_write_counters_survive_a_restart(hass):
     )
     assert hass.states.get(total_id).state == "0"
 
-    pump = entry.runtime_data.device
+    pump = entry.runtime_data.coordinator.device
     setpoint = next(row for row in pump.items if row.address == PV_SETPOINT)
     await pump.write(setpoint, 5)
     await hass.async_block_till_done()
@@ -871,7 +871,7 @@ async def test_the_write_counters_survive_a_restart(hass):
 
     assert hass.states.get(total_id).state == "1", "the total was lost on reload"
     assert hass.states.get(today_id).state == "1", "today's count was lost on reload"
-    assert entry.runtime_data.device.write_budget.total == 1, (
+    assert entry.runtime_data.coordinator.device.write_budget.total == 1, (
         "the sensor shows the old number but the client counts from zero again"
     )
 
