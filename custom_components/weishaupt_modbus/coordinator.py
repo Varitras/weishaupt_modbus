@@ -89,10 +89,8 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             always_update=True,
         )
         self.device = device
-        self._modbusitems = api_items
-        self._failed_polls = 0
         self.modbus_items = api_items
-        self._config_entry = p_config_entry
+        self._failed_polls = 0
 
     @property
     def failed_polls(self) -> int:
@@ -101,7 +99,7 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def get_value_from_item(self, translation_key: str) -> Any:
         """Read a value from another modbus item by its translation key."""
-        for item in self._modbusitems:
+        for item in self.modbus_items:
             if item.translation_key == translation_key:
                 return item.state
         return None
@@ -133,4 +131,4 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def _results(self) -> dict[str, Any]:
         """The rows by translation key; a calculated sensor never gets a register value."""
-        return {item.translation_key: item.state for item in self._modbusitems}
+        return {item.translation_key: item.state for item in self.modbus_items}
