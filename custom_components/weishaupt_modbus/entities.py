@@ -234,7 +234,6 @@ class MySensorEntity(MyEntity, SensorEntity):
         config_entry: MyConfigEntry,
         modbus_item: ModbusItem,
         coordinator: WeishauptModbusCoordinator,
-        idx: int,
     ) -> None:
         """Initialize of MySensorEntity."""
         super().__init__(coordinator, config_entry, modbus_item)
@@ -314,7 +313,6 @@ class MyNumberEntity(MyEntity, NumberEntity):
         config_entry: MyConfigEntry,
         modbus_item: ModbusItem,
         coordinator: WeishauptModbusCoordinator,
-        idx: int,
     ) -> None:
         """Initialize MyNumberEntity."""
         super().__init__(coordinator, config_entry, modbus_item)
@@ -353,7 +351,6 @@ class MySetpointSwitchEntity(MyEntity, SwitchEntity):
         config_entry: MyConfigEntry,
         modbus_item: ModbusItem,
         coordinator: WeishauptModbusCoordinator,
-        idx: int,
     ) -> None:
         """Share the number's row; own id and translation key."""
         super().__init__(coordinator, config_entry, modbus_item)
@@ -425,7 +422,6 @@ class MySelectEntity(MyEntity, SelectEntity):
         config_entry: MyConfigEntry,
         modbus_item: ModbusItem,
         coordinator: WeishauptModbusCoordinator,
-        idx: int,
     ) -> None:
         """Initialize MySelectEntity."""
         super().__init__(coordinator, config_entry, modbus_item)

@@ -50,7 +50,7 @@ async def build_entity_list(
     if isinstance(item_types, str):
         item_types = (item_types,)
 
-    for index, item in enumerate(api_items):
+    for item in api_items:
         if item.type not in item_types:
             continue
         # Decided once, from the first refresh: a register the firmware does
@@ -61,19 +61,17 @@ async def build_entity_list(
 
         match item.type:
             case TYPES.SENSOR | TYPES.NUMBER_RO:
-                entries.append(MySensorEntity(config_entry, item, coordinator, index))
+                entries.append(MySensorEntity(config_entry, item, coordinator))
             case TYPES.SENSOR_CALC:
-                entries.append(
-                    MyCalcSensorEntity(config_entry, item, coordinator, index)
-                )
+                entries.append(MyCalcSensorEntity(config_entry, item, coordinator))
             case TYPES.SELECT:
-                entries.append(MySelectEntity(config_entry, item, coordinator, index))
+                entries.append(MySelectEntity(config_entry, item, coordinator))
             case TYPES.NUMBER if as_off_switch:
                 if item.params.get("off_is_a_setting"):
                     entries.append(
-                        MySetpointSwitchEntity(config_entry, item, coordinator, index)
+                        MySetpointSwitchEntity(config_entry, item, coordinator)
                     )
             case TYPES.NUMBER:
-                entries.append(MyNumberEntity(config_entry, item, coordinator, index))
+                entries.append(MyNumberEntity(config_entry, item, coordinator))
 
     return entries

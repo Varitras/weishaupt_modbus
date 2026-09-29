@@ -94,7 +94,7 @@ def test_a_row_without_params_is_a_whole_number_without_a_unit():
     item = ModbusItem(
         34103, "Schaltspiele 2. WEZ", FORMATS.NUMBER, TYPES.SENSOR, DEVICES.W2, "x"
     )
-    sensor = entities.MySensorEntity(_entry(), item, FakeCoordinator(), 0)
+    sensor = entities.MySensorEntity(_entry(), item, FakeCoordinator())
 
     assert sensor._attr_native_unit_of_measurement is None
     assert sensor._attr_suggested_display_precision == 0
@@ -120,7 +120,7 @@ def _dhw_normal(coordinator):
             "dynamic_min": "ww_absenk",
         },
     )
-    return entities.MyNumberEntity(_entry(), item, coordinator, 0)
+    return entities.MyNumberEntity(_entry(), item, coordinator)
 
 
 def test_a_related_setpoint_narrows_the_bounds_but_never_widens_them():
@@ -172,7 +172,7 @@ def _switchable_setpoint():
 
 def test_the_switch_reads_the_setpoints_off_state():
     item = _switchable_setpoint()
-    switch = entities.MySetpointSwitchEntity(_entry(), item, FakeCoordinator(), 0)
+    switch = entities.MySetpointSwitchEntity(_entry(), item, FakeCoordinator())
     assert switch.is_on is True
     assert switch.unique_id == "weishaupt_wbbHeizen Konstanttemp Absenk_active"
 
@@ -187,7 +187,7 @@ async def test_turning_off_writes_the_off_word_and_on_restores_the_value():
     item = _switchable_setpoint()
     item.last_setting = 185
     coordinator = FakeCoordinator()
-    switch = entities.MySetpointSwitchEntity(_entry(), item, coordinator, 0)
+    switch = entities.MySetpointSwitchEntity(_entry(), item, coordinator)
     coordinator.async_update_listeners = lambda: None
 
     await switch.async_turn_off()
@@ -199,7 +199,7 @@ async def test_turning_off_writes_the_off_word_and_on_restores_the_value():
 async def test_turning_on_a_setpoint_never_seen_on_uses_the_minimum():
     item = _switchable_setpoint()
     coordinator = FakeCoordinator()
-    switch = entities.MySetpointSwitchEntity(_entry(), item, coordinator, 0)
+    switch = entities.MySetpointSwitchEntity(_entry(), item, coordinator)
     coordinator.async_update_listeners = lambda: None
 
     await switch.async_turn_on()
@@ -210,7 +210,7 @@ async def test_turning_on_a_setpoint_never_seen_on_uses_the_minimum():
 def test_a_number_stays_available_while_its_setpoint_is_off():
     item = _switchable_setpoint()
     item.is_off = True
-    number = entities.MyNumberEntity(_entry(), item, FakeCoordinator(), 0)
+    number = entities.MyNumberEntity(_entry(), item, FakeCoordinator())
 
     assert number.available is True
     assert number.native_value is None
@@ -224,7 +224,7 @@ def test_an_absent_sensor_makes_the_entity_unavailable():
     band; until now nothing read that flag and the entity showed unknown,
     as if a connected sensor had no reading."""
     item = _temperature()
-    sensor = entities.MySensorEntity(_entry(), item, FakeCoordinator(), 0)
+    sensor = entities.MySensorEntity(_entry(), item, FakeCoordinator())
     assert sensor.available is True
 
     item.is_invalid = True
@@ -234,7 +234,7 @@ def test_an_absent_sensor_makes_the_entity_unavailable():
 
 def test_a_failed_refresh_makes_the_entity_unavailable_too():
     coordinator = FakeCoordinator()
-    sensor = entities.MySensorEntity(_entry(), _temperature(), coordinator, 0)
+    sensor = entities.MySensorEntity(_entry(), _temperature(), coordinator)
     coordinator.last_update_success = False
 
     assert sensor.available is False
@@ -244,14 +244,14 @@ def test_a_failed_refresh_makes_the_entity_unavailable_too():
 
 
 def test_the_name_prefix_is_empty_by_default():
-    sensor = entities.MySensorEntity(_entry(), _temperature(), FakeCoordinator(), 0)
+    sensor = entities.MySensorEntity(_entry(), _temperature(), FakeCoordinator())
 
     assert sensor._attr_translation_placeholders == {"prefix": ""}
 
 
 def test_device_prefix_in_name_when_enabled():
     sensor = entities.MySensorEntity(
-        _entry(device_prefix=True), _temperature(), FakeCoordinator(), 0
+        _entry(device_prefix=True), _temperature(), FakeCoordinator()
     )
 
     assert sensor._attr_translation_placeholders == {"prefix": "weishaupt_wbb_"}
@@ -259,7 +259,7 @@ def test_device_prefix_in_name_when_enabled():
 
 def test_topic_prefix_names_the_device_group():
     sensor = entities.MySensorEntity(
-        _entry(topic_prefix=True), _temperature(), FakeCoordinator(), 0
+        _entry(topic_prefix=True), _temperature(), FakeCoordinator()
     )
 
     assert sensor._attr_translation_placeholders == {"prefix": "SYS_"}
@@ -270,7 +270,6 @@ def test_both_prefixes_stack_topic_first():
         _entry(device_prefix=True, topic_prefix=True),
         _temperature(),
         FakeCoordinator(),
-        0,
     )
 
     assert sensor._attr_translation_placeholders == {"prefix": "SYS_weishaupt_wbb_"}
@@ -278,7 +277,7 @@ def test_both_prefixes_stack_topic_first():
 
 def test_the_unique_id_carries_prefix_name_and_postfix():
     sensor = entities.MySensorEntity(
-        _entry(postfix="keller"), _temperature(), FakeCoordinator(), 0
+        _entry(postfix="keller"), _temperature(), FakeCoordinator()
     )
 
     assert sensor._attr_unique_id == "weishaupt_wbbAussentemperatur_keller"
@@ -286,7 +285,7 @@ def test_the_unique_id_carries_prefix_name_and_postfix():
 
 def test_the_device_identifier_carries_the_postfix():
     sensor = entities.MySensorEntity(
-        _entry(postfix="keller"), _temperature(), FakeCoordinator(), 0
+        _entry(postfix="keller"), _temperature(), FakeCoordinator()
     )
 
     assert sensor.device_info["identifiers"] == {
@@ -298,7 +297,7 @@ def test_the_device_identifier_carries_the_postfix():
 
 
 def test_unit_step_and_divider_come_from_the_params():
-    sensor = entities.MySensorEntity(_entry(), _temperature(), FakeCoordinator(), 0)
+    sensor = entities.MySensorEntity(_entry(), _temperature(), FakeCoordinator())
 
     assert sensor._attr_native_unit_of_measurement == "°C"
     assert sensor._divider == 10
@@ -306,7 +305,7 @@ def test_unit_step_and_divider_come_from_the_params():
 
 
 def test_a_raw_value_is_divided_for_display():
-    sensor = entities.MySensorEntity(_entry(), _temperature(), FakeCoordinator(), 0)
+    sensor = entities.MySensorEntity(_entry(), _temperature(), FakeCoordinator())
 
     assert sensor.translate_val(235) == 23.5
     assert sensor.translate_val(None) is None
@@ -323,7 +322,7 @@ def test_status_state_is_the_translation_key_not_the_text():
         "sys_operationmode",
         resultlist=SYS_BETRIEBSART,
     )
-    select = entities.MySelectEntity(_entry(), item, FakeCoordinator(), 0)
+    select = entities.MySelectEntity(_entry(), item, FakeCoordinator())
 
     assert select.translate_val(SYS_BETRIEBSART[0].number) == (
         SYS_BETRIEBSART[0].translation_key
@@ -340,7 +339,7 @@ def test_an_unknown_status_number_is_reported_not_hidden():
         "k",
         resultlist=SYS_BETRIEBSART,
     )
-    select = entities.MySelectEntity(_entry(), item, FakeCoordinator(), 0)
+    select = entities.MySelectEntity(_entry(), item, FakeCoordinator())
 
     assert select.translate_val(9999) == "unbekannt <9999>"
 
@@ -355,7 +354,7 @@ def test_select_options_are_the_status_translation_keys():
         "k",
         resultlist=SYS_BETRIEBSART,
     )
-    select = entities.MySelectEntity(_entry(), item, FakeCoordinator(), 0)
+    select = entities.MySelectEntity(_entry(), item, FakeCoordinator())
 
     assert select._attr_options == [
         status.translation_key for status in SYS_BETRIEBSART
@@ -373,7 +372,7 @@ def test_dynamic_limits_are_read_from_the_sibling_items():
         41001, "x", FORMATS.TEMPERATURE, TYPES.NUMBER, DEVICES.HZ, "k", params=params
     )
     number = entities.MyNumberEntity(
-        _entry(), item, FakeCoordinator(values={"low": 150, "high": 300}), 0
+        _entry(), item, FakeCoordinator(values={"low": 150, "high": 300})
     )
 
     assert number._attr_native_min_value == 15.0
@@ -394,7 +393,7 @@ async def test_a_number_write_is_scaled_by_the_divider():
         params={"unit": "°C", "divider": 10},
     )
     coordinator = FakeCoordinator()
-    number = entities.MyNumberEntity(_entry(), item, coordinator, 0)
+    number = entities.MyNumberEntity(_entry(), item, coordinator)
     number.async_write_ha_state = lambda: None
 
     await number.async_set_native_value(21.5)
@@ -415,7 +414,7 @@ async def test_a_select_write_sends_the_number_behind_the_key():
         resultlist=SYS_BETRIEBSART,
     )
     coordinator = FakeCoordinator()
-    select = entities.MySelectEntity(_entry(), item, coordinator, 0)
+    select = entities.MySelectEntity(_entry(), item, coordinator)
     select.async_write_ha_state = lambda: None
     chosen = SYS_BETRIEBSART[1]
 
@@ -437,7 +436,7 @@ async def test_an_unknown_option_is_not_written():
         resultlist=SYS_BETRIEBSART,
     )
     coordinator = FakeCoordinator()
-    select = entities.MySelectEntity(_entry(), item, coordinator, 0)
+    select = entities.MySelectEntity(_entry(), item, coordinator)
 
     await select.async_select_option("no_such_option")
 
@@ -460,7 +459,7 @@ def test_a_calculated_sensor_evaluates_its_formula_over_sibling_values():
         params=PARAMS_CALCSPREIZUNG,
     )
     coordinator = FakeCoordinator(values={"rl_temp": 300}, cache={33111: 350})
-    sensor = entities.MyCalcSensorEntity(_entry(), item, coordinator, 0)
+    sensor = entities.MyCalcSensorEntity(_entry(), item, coordinator)
 
     assert sensor.translate_val(None) == pytest.approx(5.0)
 
@@ -475,7 +474,7 @@ def test_a_calculated_sensor_without_a_formula_reads_as_none():
         "k",
         params={"unit": "W"},
     )
-    sensor = entities.MyCalcSensorEntity(_entry(), item, FakeCoordinator(), 0)
+    sensor = entities.MyCalcSensorEntity(_entry(), item, FakeCoordinator())
 
     assert sensor.translate_val(None) is None
 
@@ -495,7 +494,7 @@ def test_a_formula_with_an_absent_operand_reads_as_none():
         params=PARAMS_CALCSPREIZUNG,
     )
     coordinator = FakeCoordinator(values={"rl_temp": None}, cache={33111: 350})
-    sensor = entities.MyCalcSensorEntity(_entry(), item, coordinator, 0)
+    sensor = entities.MyCalcSensorEntity(_entry(), item, coordinator)
 
     assert sensor.translate_val(None) is None
 
@@ -513,7 +512,7 @@ def test_a_formula_without_a_value_reads_as_none_not_zero():
         params={"unit": "W", "precision": 0, "calculation": lambda own: None},
     )
     sensor = entities.MyCalcSensorEntity(
-        _entry(), item, FakeCoordinator(cache={33111: 0}), 0
+        _entry(), item, FakeCoordinator(cache={33111: 0})
     )
 
     assert sensor.translate_val(None) is None
@@ -534,7 +533,7 @@ def test_the_heat_output_is_unknown_without_a_power_map():
     )
     entry = _entry()
     entry.runtime_data.powermap = SimpleNamespace(map=lambda outside, flow: None)
-    sensor = entities.MyCalcSensorEntity(entry, item, coordinator, 0)
+    sensor = entities.MyCalcSensorEntity(entry, item, coordinator)
 
     assert sensor.translate_val(None) is None
 
@@ -553,7 +552,7 @@ def test_a_calculated_sensor_whose_own_register_is_absent_reads_as_none():
         params=PARAMS_CALCSPREIZUNG,
     )
     coordinator = FakeCoordinator(values={"rl_temp": 300}, cache={})
-    sensor = entities.MyCalcSensorEntity(_entry(), item, coordinator, 0)
+    sensor = entities.MyCalcSensorEntity(_entry(), item, coordinator)
 
     assert sensor.translate_val(None) is None
 
@@ -573,7 +572,7 @@ def test_the_heat_output_takes_the_power_map():
     )
     entry = _entry()
     entry.runtime_data.powermap = SimpleNamespace(map=lambda outside, flow: 8000.0)
-    sensor = entities.MyCalcSensorEntity(entry, item, coordinator, 0)
+    sensor = entities.MyCalcSensorEntity(entry, item, coordinator)
 
     assert sensor.translate_val(None) == 4000
 
@@ -629,8 +628,8 @@ async def test_related_setpoints_written_together_cannot_cross_their_bounds():
     )
     coordinator = RealDeviceCoordinator([normal, lowering])
     normal.state, lowering.state = 600, 300
-    entity_normal = entities.MyNumberEntity(_entry(), normal, coordinator, 0)
-    entity_lowering = entities.MyNumberEntity(_entry(), lowering, coordinator, 0)
+    entity_normal = entities.MyNumberEntity(_entry(), normal, coordinator)
+    entity_lowering = entities.MyNumberEntity(_entry(), lowering, coordinator)
     for entity in (entity_normal, entity_lowering):
         entity.async_write_ha_state = lambda: None
 
@@ -656,8 +655,8 @@ async def test_turning_on_while_a_number_write_runs_keeps_the_newer_value():
     )
     coordinator = RealDeviceCoordinator([setpoint])
     setpoint.state = setpoint.last_setting = 500
-    number = entities.MyNumberEntity(_entry(), setpoint, coordinator, 0)
-    switch = entities.MySetpointSwitchEntity(_entry(), setpoint, coordinator, 0)
+    number = entities.MyNumberEntity(_entry(), setpoint, coordinator)
+    switch = entities.MySetpointSwitchEntity(_entry(), setpoint, coordinator)
     for entity in (number, switch):
         entity.async_write_ha_state = lambda: None
     writes = []
@@ -714,7 +713,7 @@ async def test_turning_on_holds_the_remembered_value_to_the_bounds_in_force():
     coordinator = RealDeviceCoordinator([setpoint, neighbour])
     neighbour.state = 500  # the floor moved up to 50 degC
     setpoint.state, setpoint.is_off, setpoint.last_setting = None, True, 400
-    switch = entities.MySetpointSwitchEntity(_entry(), setpoint, coordinator, 0)
+    switch = entities.MySetpointSwitchEntity(_entry(), setpoint, coordinator)
     switch.async_write_ha_state = lambda: None
     writes = []
     coordinator.unit.on_write(writes.append)
@@ -737,7 +736,7 @@ def _flow_setpoint(state=None, is_off=False):
         params={"unit": "°C", "divider": 10, "precision": 1, "setpoint": True},
     )
     item.state, item.is_off = state, is_off
-    return entities.MySensorEntity(_entry(), item, FakeCoordinator(), 0)
+    return entities.MySensorEntity(_entry(), item, FakeCoordinator())
 
 
 def test_a_setpoint_sensor_says_whether_a_demand_is_active():
@@ -749,6 +748,6 @@ def test_a_setpoint_sensor_says_whether_a_demand_is_active():
 
 
 def test_a_plain_temperature_sensor_carries_no_demand_attribute():
-    sensor = entities.MySensorEntity(_entry(), _temperature(), FakeCoordinator(), 0)
+    sensor = entities.MySensorEntity(_entry(), _temperature(), FakeCoordinator())
 
     assert sensor.extra_state_attributes is None
