@@ -2,7 +2,6 @@
 
 from collections.abc import Callable
 from functools import partial
-import logging
 from typing import Any
 
 from modbus_connection import ModbusError
@@ -24,8 +23,6 @@ from .items import ModbusItem
 from .migrate_helpers import create_unique_id, device_postfix
 from .weishaupt_modbus_api.exceptions import WriteError
 from .weishaupt_modbus_api.hpconst import reverse_device_list
-
-_LOGGER = logging.getLogger(__name__)
 
 # On a reported setpoint: "none" while the controller demands nothing.
 DEMAND_ATTRIBUTE = "demand"
