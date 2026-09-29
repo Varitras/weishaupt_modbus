@@ -10,7 +10,6 @@ from .entities import (
     MySensorEntity,
     MySetpointSwitchEntity,
 )
-from .items import ModbusItem
 
 # Type alias for entity types
 EntityType = (
@@ -24,7 +23,6 @@ EntityType = (
 
 def build_entity_list(
     config_entry: MyConfigEntry,
-    api_items: list[ModbusItem],
     item_types: str | tuple[str, ...],
     coordinator: WeishauptModbusCoordinator,
     as_off_switch: bool = False,
@@ -33,7 +31,6 @@ def build_entity_list(
 
     Args:
         config_entry: HASS config entry
-        api_items: list of modbus items
         item_types: type or types of modbus item to build
         coordinator: the update coordinator
         as_off_switch: build the on/off switch of a setpoint with an off
@@ -47,7 +44,7 @@ def build_entity_list(
     if isinstance(item_types, str):
         item_types = (item_types,)
 
-    for item in api_items:
+    for item in coordinator.modbus_items:
         if item.type not in item_types:
             continue
         # Decided once, from the first refresh: a register the firmware does

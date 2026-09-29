@@ -24,7 +24,6 @@ async def async_setup_entry(
 
     entries = build_entity_list(
         config_entry=config_entry,
-        api_items=coordinator.modbus_items,
         item_types=TYPES.NUMBER,
         coordinator=coordinator,
     )

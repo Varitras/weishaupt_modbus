@@ -23,7 +23,6 @@ async def async_setup_entry(
     coordinator = config_entry.runtime_data.coordinator
     entries: list[Any] = build_entity_list(
         config_entry=config_entry,
-        api_items=coordinator.modbus_items,
         item_types=(TYPES.NUMBER_RO, TYPES.SENSOR_CALC, TYPES.SENSOR),
         coordinator=coordinator,
     )
