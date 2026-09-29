@@ -67,6 +67,18 @@ def _modbus_coordinator(hass, entry, device, items):
         config_entries.current_entry.reset(token)
 
 
+def test_the_coordinator_knows_its_entry_outside_the_setup_context(hass):
+    """The entry reached the coordinator only through Home Assistant's setup
+    context variable; built anywhere else, the coordinator had none."""
+    entry = _entry(hass)
+
+    coordinator = WeishauptModbusCoordinator(
+        hass=hass, device=FakeDevice([]), api_items=[], config_entry=entry
+    )
+
+    assert coordinator.config_entry is entry
+
+
 # --- Modbus ---------------------------------------------------------------
 
 
