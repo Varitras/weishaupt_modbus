@@ -142,8 +142,8 @@
   {
     "label": "table: a status key must match its state translation",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
-    "old": "        translation_key=\"heatpump_operationmode_regenerativ\",\n",
-    "new": "        translation_key=\"heatpump_operationmode_regenerative\",\n",
+    "old": "    StatusItem(number=36, translation_key=\"heatpump_operationmode_regenerativ\"),\n",
+    "new": "    StatusItem(number=36, translation_key=\"heatpump_operationmode_regenerative\"),\n",
     "tests": "status_value_has_a_state_translation"
   },
   {

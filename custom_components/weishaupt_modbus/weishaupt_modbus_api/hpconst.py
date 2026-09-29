@@ -29,7 +29,8 @@ reverse_device_list: dict[str, str] = {
 }
 
 ################################################################################
-# Lists with error messages, warning messages, and status texts
+# The values each status register can hold; their texts live in the
+# translations under each translation_key
 ################################################################################
 
 # fmt: off
@@ -174,10 +175,7 @@ SYS_FEHLER: list[StatusItem] = [
 
 SYS_FEHLERFREI: list[StatusItem] = [
     StatusItem(number=0, translation_key="fehler_aktiv"),
-    StatusItem(
-        number=1,
-        translation_key="stoerungsfreier_betrieb",
-    ),
+    StatusItem(number=1, translation_key="stoerungsfreier_betrieb"),
 ]
 
 SYS_BETRIEBSANZEIGE: list[StatusItem] = [
@@ -186,114 +184,45 @@ SYS_BETRIEBSANZEIGE: list[StatusItem] = [
     StatusItem(number=2, translation_key="system_operationmode_emergencystop"),
     StatusItem(number=3, translation_key="system_operationmode_diagnosis"),
     StatusItem(number=4, translation_key="system_operationmode_manual"),
-    StatusItem(
-        number=5,
-        translation_key="system_operationmode_manualheating",
-    ),
-    StatusItem(
-        number=6,
-        translation_key="system_operationmode_manualcooling",
-    ),
-    StatusItem(
-        number=7,
-        translation_key="system_operationmode_manualdefrost",
-    ),
+    StatusItem(number=5, translation_key="system_operationmode_manualheating"),
+    StatusItem(number=6, translation_key="system_operationmode_manualcooling"),
+    StatusItem(number=7, translation_key="system_operationmode_manualdefrost"),
     StatusItem(number=8, translation_key="system_operationmode_defrost"),
-    StatusItem(
-        number=9,
-        translation_key="system_operationmode_manual2ndheatsource",
-    ),
+    StatusItem(number=9, translation_key="system_operationmode_manual2ndheatsource"),
     StatusItem(number=10, translation_key="system_operationmode_evu"),
     StatusItem(number=11, translation_key="system_operationmode_sgtariff"),
     StatusItem(number=12, translation_key="system_operationmode_sgmax"),
     StatusItem(number=13, translation_key="system_operationmode_tariffload"),
-    StatusItem(
-        number=14,
-        translation_key="system_operationmode_elevatedoperation",
-    ),
+    StatusItem(number=14, translation_key="system_operationmode_elevatedoperation"),
     StatusItem(number=15, translation_key="system_operationmode_standbytime"),
     StatusItem(number=16, translation_key="system_operationmode_standby"),
     StatusItem(number=17, translation_key="system_operationmode_rinse"),
-    StatusItem(
-        number=18,
-        translation_key="system_operationmode_frosprotection",
-    ),
+    StatusItem(number=18, translation_key="system_operationmode_frosprotection"),
     StatusItem(number=19, translation_key="system_operationmode_heating"),
-    StatusItem(
-        number=20,
-        translation_key="system_operationmode_hotwater",
-    ),
-    StatusItem(
-        number=21,
-        translation_key="system_operationmode_legionellaprotection",
-    ),
-    StatusItem(
-        number=22,
-        translation_key="system_operationmode_switchheatingcooling",
-    ),
+    StatusItem(number=20, translation_key="system_operationmode_hotwater"),
+    StatusItem(number=21, translation_key="system_operationmode_legionellaprotection"),
+    StatusItem(number=22, translation_key="system_operationmode_switchheatingcooling"),
     StatusItem(number=23, translation_key="system_operationmode_cooling"),
-    StatusItem(
-        number=24,
-        translation_key="system_operationmode_passivecooling",
-    ),
+    StatusItem(number=24, translation_key="system_operationmode_passivecooling"),
     StatusItem(number=25, translation_key="system_operationmode_summer"),
-    StatusItem(
-        number=26,
-        translation_key="system_operationmode_swimmingpool",
-    ),
+    StatusItem(number=26, translation_key="system_operationmode_swimmingpool"),
     StatusItem(number=27, translation_key="system_operationmode_vacation"),
-    StatusItem(
-        number=28,
-        translation_key="system_operationmode_screedprogram",
-    ),
+    StatusItem(number=28, translation_key="system_operationmode_screedprogram"),
     StatusItem(number=29, translation_key="system_operationmode_locked"),
     StatusItem(number=30, translation_key="system_operationmode_lockedat"),
-    StatusItem(
-        number=31,
-        translation_key="system_operationmode_lockedsummer",
-    ),
-    StatusItem(
-        number=32,
-        translation_key="system_operationmode_lockedwinter",
-    ),
-    StatusItem(
-        number=33,
-        translation_key="system_operationmode_applicationlimit",
-    ),
+    StatusItem(number=31, translation_key="system_operationmode_lockedsummer"),
+    StatusItem(number=32, translation_key="system_operationmode_lockedwinter"),
+    StatusItem(number=33, translation_key="system_operationmode_applicationlimit"),
     StatusItem(number=34, translation_key="system_operationmode_lockedcv"),
     StatusItem(number=35, translation_key="system_operationmode_lowering"),
-    StatusItem(
-        number=36,
-        translation_key="system_operationmode_regenerativeflow",
-    ),
-    StatusItem(
-        number=37,
-        translation_key="system_operationmode_heating_sgr3",
-    ),
-    StatusItem(
-        number=38,
-        translation_key="system_operationmode_cooling_sgr3",
-    ),
-    StatusItem(
-        number=39,
-        translation_key="system_operationmode_hotwater_sgr3",
-    ),
-    StatusItem(
-        number=40,
-        translation_key="system_operationmode_heating_sgr4",
-    ),
-    StatusItem(
-        number=41,
-        translation_key="system_operationmode_cooling_sgr4",
-    ),
-    StatusItem(
-        number=42,
-        translation_key="system_operationmode_hotwater_sgr4",
-    ),
-    StatusItem(
-        number=43,
-        translation_key="system_operationmode_oilrecirculation",
-    ),
+    StatusItem(number=36, translation_key="system_operationmode_regenerativeflow"),
+    StatusItem(number=37, translation_key="system_operationmode_heating_sgr3"),
+    StatusItem(number=38, translation_key="system_operationmode_cooling_sgr3"),
+    StatusItem(number=39, translation_key="system_operationmode_hotwater_sgr3"),
+    StatusItem(number=40, translation_key="system_operationmode_heating_sgr4"),
+    StatusItem(number=41, translation_key="system_operationmode_cooling_sgr4"),
+    StatusItem(number=42, translation_key="system_operationmode_hotwater_sgr4"),
+    StatusItem(number=43, translation_key="system_operationmode_oilrecirculation"),
 ]
 
 SYS_BETRIEBSART: list[StatusItem] = [
@@ -311,123 +240,49 @@ HP_BETRIEB: list[StatusItem] = [
     StatusItem(number=2, translation_key="heatpump_operationmode_emergencystop"),
     StatusItem(number=3, translation_key="heatpump_operationmode_diagnosis"),
     StatusItem(number=4, translation_key="heatpump_operationmode_manual"),
-    StatusItem(
-        number=5,
-        translation_key="heatpump_operationmode_manualheating",
-    ),
-    StatusItem(
-        number=6,
-        translation_key="heatpump_operationmode_manualcooling",
-    ),
-    StatusItem(
-        number=7,
-        translation_key="heatpump_operationmode_manualdefrost",
-    ),
+    StatusItem(number=5, translation_key="heatpump_operationmode_manualheating"),
+    StatusItem(number=6, translation_key="heatpump_operationmode_manualcooling"),
+    StatusItem(number=7, translation_key="heatpump_operationmode_manualdefrost"),
     StatusItem(number=8, translation_key="heatpump_operationmode_defrost"),
-    StatusItem(
-        number=9,
-        translation_key="heatpump_operationmode_manual2ndheatsource",
-    ),
+    StatusItem(number=9, translation_key="heatpump_operationmode_manual2ndheatsource"),
     StatusItem(number=10, translation_key="heatpump_operationmode_evu"),
     StatusItem(number=11, translation_key="heatpump_operationmode_sgtariff"),
     StatusItem(number=12, translation_key="heatpump_operationmode_sgmax"),
-    StatusItem(
-        number=13,
-        translation_key="heatpump_operationmode_tariffload",
-    ),
-    StatusItem(
-        number=14,
-        translation_key="heatpump_operationmode_elevatedoperation",
-    ),
-    StatusItem(
-        number=15,
-        translation_key="heatpump_operationmode_standbytime",
-    ),
-    StatusItem(
-        number=16,
-        translation_key="heatpump_operationmode_standby",
-    ),
+    StatusItem(number=13, translation_key="heatpump_operationmode_tariffload"),
+    StatusItem(number=14, translation_key="heatpump_operationmode_elevatedoperation"),
+    StatusItem(number=15, translation_key="heatpump_operationmode_standbytime"),
+    StatusItem(number=16, translation_key="heatpump_operationmode_standby"),
     StatusItem(number=17, translation_key="heatpump_operationmode_rinse"),
-    StatusItem(
-        number=18,
-        translation_key="heatpump_operationmode_frosprotection",
-    ),
+    StatusItem(number=18, translation_key="heatpump_operationmode_frosprotection"),
     StatusItem(number=19, translation_key="heatpump_operationmode_heating"),
+    StatusItem(number=20, translation_key="heatpump_operationmode_hotwater"),
     StatusItem(
-        number=20,
-        translation_key="heatpump_operationmode_hotwater",
+        number=21, translation_key="heatpump_operationmode_legionellaprotection"
     ),
     StatusItem(
-        number=21,
-        translation_key="heatpump_operationmode_legionellaprotection",
-    ),
-    StatusItem(
-        number=22,
-        translation_key="heatpump_operationmode_switchheatingcooling",
+        number=22, translation_key="heatpump_operationmode_switchheatingcooling"
     ),
     StatusItem(number=23, translation_key="heatpump_operationmode_cooling"),
-    StatusItem(
-        number=24,
-        translation_key="heatpump_operationmode_passivecooling",
-    ),
+    StatusItem(number=24, translation_key="heatpump_operationmode_passivecooling"),
     StatusItem(number=25, translation_key="heatpump_operationmode_summer"),
-    StatusItem(
-        number=26,
-        translation_key="heatpump_operationmode_swimmingpool",
-    ),
+    StatusItem(number=26, translation_key="heatpump_operationmode_swimmingpool"),
     StatusItem(number=27, translation_key="heatpump_operationmode_vacation"),
-    StatusItem(
-        number=28,
-        translation_key="heatpump_operationmode_screedprogram",
-    ),
+    StatusItem(number=28, translation_key="heatpump_operationmode_screedprogram"),
     StatusItem(number=29, translation_key="heatpump_operationmode_locked"),
     StatusItem(number=30, translation_key="heatpump_operationmode_lockedat"),
-    StatusItem(
-        number=31,
-        translation_key="heatpump_operationmode_lockedsummer",
-    ),
-    StatusItem(
-        number=32,
-        translation_key="heatpump_operationmode_lockedwinter",
-    ),
-    StatusItem(
-        number=33,
-        translation_key="heatpump_operationmode_applicationlimit",
-    ),
+    StatusItem(number=31, translation_key="heatpump_operationmode_lockedsummer"),
+    StatusItem(number=32, translation_key="heatpump_operationmode_lockedwinter"),
+    StatusItem(number=33, translation_key="heatpump_operationmode_applicationlimit"),
     StatusItem(number=34, translation_key="heatpump_operationmode_lockedcv"),
     StatusItem(number=35, translation_key="heatpump_operationmode_lowering"),
-    StatusItem(
-        number=36,
-        translation_key="heatpump_operationmode_regenerativ",
-    ),
-    StatusItem(
-        number=37,
-        translation_key="heatpump_operationmode_heating_sgr3",
-    ),
-    StatusItem(
-        number=38,
-        translation_key="heatpump_operationmode_cooling_sgr3",
-    ),
-    StatusItem(
-        number=39,
-        translation_key="heatpump_operationmode_hotwater_sgr3",
-    ),
-    StatusItem(
-        number=40,
-        translation_key="heatpump_operationmode_heating_sgr4",
-    ),
-    StatusItem(
-        number=41,
-        translation_key="heatpump_operationmode_cooling_sgr4",
-    ),
-    StatusItem(
-        number=42,
-        translation_key="heatpump_operationmode_hotwater_sgr4",
-    ),
-    StatusItem(
-        number=43,
-        translation_key="heatpump_operationmode_oilrecirculation",
-    ),
+    StatusItem(number=36, translation_key="heatpump_operationmode_regenerativ"),
+    StatusItem(number=37, translation_key="heatpump_operationmode_heating_sgr3"),
+    StatusItem(number=38, translation_key="heatpump_operationmode_cooling_sgr3"),
+    StatusItem(number=39, translation_key="heatpump_operationmode_hotwater_sgr3"),
+    StatusItem(number=40, translation_key="heatpump_operationmode_heating_sgr4"),
+    StatusItem(number=41, translation_key="heatpump_operationmode_cooling_sgr4"),
+    StatusItem(number=42, translation_key="heatpump_operationmode_hotwater_sgr4"),
+    StatusItem(number=43, translation_key="heatpump_operationmode_oilrecirculation"),
 ]
 
 HP_STOERMELDUNG: list[StatusItem] = [
@@ -446,18 +301,12 @@ HZ_KONFIGURATION: list[StatusItem] = [
     StatusItem(number=0, translation_key="hp_konf_aus"),
     StatusItem(number=1, translation_key="hp_konf_pumpenkreis"),
     StatusItem(number=2, translation_key="hp_konf_mischkreis"),
-    StatusItem(
-        number=3,
-        translation_key="hp_konf_sollwert_pumpe_m1",
-    ),
+    StatusItem(number=3, translation_key="hp_konf_sollwert_pumpe_m1"),
 ]
 
 HZ_ANFORDERUNG: list[StatusItem] = [
     StatusItem(number=0, translation_key="hz_anforderung_aus"),
-    StatusItem(
-        number=1,
-        translation_key="hz_anforderung_witterungsgefuehrt",
-    ),
+    StatusItem(number=1, translation_key="hz_anforderung_witterungsgefuehrt"),
     StatusItem(number=2, translation_key="hz_anforderung_raumregelung"),
     StatusItem(number=3, translation_key="hz_anforderung_konstant"),
 ]
@@ -544,10 +393,7 @@ WW_PUSH: list[StatusItem] = [
 # Every five minutes up to the 240 the controller accepts (83807301).
 for i in range(5, 245, 5):
     WW_PUSH.append(
-        StatusItem(
-            number=i,
-            translation_key="ww_push_" + str(object=i),
-        ),
+        StatusItem(number=i, translation_key="ww_push_" + str(object=i)),
     )
 
 
@@ -587,98 +433,29 @@ IO_KONFIG: list[StatusItem] = [
 ]
 
 IO_KONFIG_IN: list[StatusItem] = [
-    StatusItem(
-        number=0,
-        translation_key="io_konf_in_0",
-    ),
-    StatusItem(
-        number=1,
-        translation_key="io_konf_in_1",
-    ),
-    StatusItem(
-        number=2,
-        translation_key="io_konf_in_2",
-    ),
-    StatusItem(
-        number=3,
-        translation_key="io_konf_in_3",
-    ),
-    StatusItem(
-        number=4,
-        translation_key="io_konf_in_4",
-    ),
-    StatusItem(
-        number=5,
-        translation_key="io_konf_in_5",
-    ),
-    StatusItem(
-        number=6,
-        translation_key="io_konf_in_6",
-    ),
-    StatusItem(
-        number=7,
-        translation_key="io_konf_in_7",
-    ),
-    StatusItem(
-        number=8,
-        translation_key="io_konf_in_8",
-    ),
-    StatusItem(
-        number=9,
-        translation_key="io_konf_in_9",
-    ),
-    StatusItem(
-        number=10,
-        translation_key="io_konf_in_10",
-    ),
-    StatusItem(
-        number=11,
-        translation_key="io_konf_in_11",
-    ),
-    StatusItem(
-        number=12,
-        translation_key="io_konf_in_12",
-    ),
-    StatusItem(
-        number=13,
-        translation_key="io_konf_in_13",
-    ),
-    StatusItem(
-        number=14,
-        translation_key="io_konf_in_14",
-    ),
-    StatusItem(
-        number=15,
-        translation_key="io_konf_in_15",
-    ),
-    StatusItem(
-        number=16,
-        translation_key="io_konf_in_16",
-    ),
-    StatusItem(
-        number=17,
-        translation_key="io_konf_in_17",
-    ),
-    StatusItem(
-        number=18,
-        translation_key="io_konf_in_18",
-    ),
-    StatusItem(
-        number=19,
-        translation_key="io_konf_in_19",
-    ),
-    StatusItem(
-        number=20,
-        translation_key="io_konf_in_20",
-    ),
-    StatusItem(
-        number=21,
-        translation_key="io_konf_in_21",
-    ),
-    StatusItem(
-        number=65535,
-        translation_key="io_konf_in_65535",
-    ),
+    StatusItem(number=0, translation_key="io_konf_in_0"),
+    StatusItem(number=1, translation_key="io_konf_in_1"),
+    StatusItem(number=2, translation_key="io_konf_in_2"),
+    StatusItem(number=3, translation_key="io_konf_in_3"),
+    StatusItem(number=4, translation_key="io_konf_in_4"),
+    StatusItem(number=5, translation_key="io_konf_in_5"),
+    StatusItem(number=6, translation_key="io_konf_in_6"),
+    StatusItem(number=7, translation_key="io_konf_in_7"),
+    StatusItem(number=8, translation_key="io_konf_in_8"),
+    StatusItem(number=9, translation_key="io_konf_in_9"),
+    StatusItem(number=10, translation_key="io_konf_in_10"),
+    StatusItem(number=11, translation_key="io_konf_in_11"),
+    StatusItem(number=12, translation_key="io_konf_in_12"),
+    StatusItem(number=13, translation_key="io_konf_in_13"),
+    StatusItem(number=14, translation_key="io_konf_in_14"),
+    StatusItem(number=15, translation_key="io_konf_in_15"),
+    StatusItem(number=16, translation_key="io_konf_in_16"),
+    StatusItem(number=17, translation_key="io_konf_in_17"),
+    StatusItem(number=18, translation_key="io_konf_in_18"),
+    StatusItem(number=19, translation_key="io_konf_in_19"),
+    StatusItem(number=20, translation_key="io_konf_in_20"),
+    StatusItem(number=21, translation_key="io_konf_in_21"),
+    StatusItem(number=65535, translation_key="io_konf_in_65535"),
 ]
 
 #####################################################
