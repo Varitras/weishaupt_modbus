@@ -20,12 +20,10 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Select entry setup."""
-    # start with an empty list of entries
     coordinator = config_entry.runtime_data.coordinator
 
-    entries = await build_entity_list(
+    entries = build_entity_list(
         config_entry=config_entry,
-        api_items=coordinator.modbus_items,
         item_types=TYPES.SELECT,
         coordinator=coordinator,
     )

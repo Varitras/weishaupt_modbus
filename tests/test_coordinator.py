@@ -22,7 +22,6 @@ from custom_components.weishaupt_modbus.items import ModbusItem
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.hpconst import (
     MODBUS_SYS_ITEMS,
 )
-from homeassistant import config_entries
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 OUTSIDE_TEMPERATURE = 30001
@@ -58,13 +57,21 @@ class FakeDevice:
 
 
 def _modbus_coordinator(hass, entry, device, items):
-    token = config_entries.current_entry.set(entry)
-    try:
-        return WeishauptModbusCoordinator(
-            hass=hass, device=device, api_items=items, p_config_entry=entry
-        )
-    finally:
-        config_entries.current_entry.reset(token)
+    return WeishauptModbusCoordinator(
+        hass=hass, device=device, api_items=items, config_entry=entry
+    )
+
+
+def test_the_coordinator_knows_its_entry_outside_the_setup_context(hass):
+    """The entry reached the coordinator only through Home Assistant's setup
+    context variable; built anywhere else, the coordinator had none."""
+    entry = _entry(hass)
+
+    coordinator = WeishauptModbusCoordinator(
+        hass=hass, device=FakeDevice([]), api_items=[], config_entry=entry
+    )
+
+    assert coordinator.config_entry is entry
 
 
 # --- Modbus ---------------------------------------------------------------

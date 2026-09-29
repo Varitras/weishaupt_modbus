@@ -20,7 +20,7 @@ async def async_get_config_entry_diagnostics(
 ) -> dict[str, Any]:
     """The entry, the last poll, the bands the pump serves and every register."""
     coordinator = entry.runtime_data.coordinator
-    device = entry.runtime_data.device
+    device = entry.runtime_data.coordinator.device
     return {
         "entry": {
             "version": entry.version,

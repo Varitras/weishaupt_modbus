@@ -51,8 +51,8 @@
   {
     "label": "entity: a dynamic maximum must be scaled by the divider",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "                self._attr_native_max_value = min(\n                    self._fixed_max, self._dynamic_max / self._divider\n                )\n",
-    "new": "                self._attr_native_max_value = min(\n                    self._fixed_max, self._dynamic_max\n                )\n",
+    "old": "                self._attr_native_max_value = min(\n                    self._fixed_max, dynamic_max / self._divider\n                )\n",
+    "new": "                self._attr_native_max_value = min(\n                    self._fixed_max, dynamic_max\n                )\n",
     "tests": "dynamic_limits"
   },
   {
@@ -142,8 +142,8 @@
   {
     "label": "table: a status key must match its state translation",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
-    "old": "        translation_key=\"heatpump_operationmode_regenerativ\",\n",
-    "new": "        translation_key=\"heatpump_operationmode_regenerative\",\n",
+    "old": "    StatusItem(number=36, translation_key=\"heatpump_operationmode_regenerativ\"),\n",
+    "new": "    StatusItem(number=36, translation_key=\"heatpump_operationmode_regenerative\"),\n",
     "tests": "status_value_has_a_state_translation"
   },
   {
@@ -192,7 +192,7 @@
     "label": "entity: a failed write must be raised, not swallowed",
     "path": "custom_components/weishaupt_modbus/entities.py",
     "old": "        except (WriteError, ModbusError) as err:\n            raise HomeAssistantError(\n                translation_domain=CONST.DOMAIN,\n                translation_key=\"write_failed\",\n                translation_placeholders={\n                    \"address\": str(self._api_item.address),\n                    \"error\": str(err),\n                },\n            ) from err\n",
-    "new": "        except (WriteError, ModbusError) as err:\n            _LOGGER.error(\"Failed to write to register %s: %s\", self._api_item.address, err)\n            return None\n",
+    "new": "        except (WriteError, ModbusError) as err:\n            return None\n",
     "tests": "refused_write_reaches_the_user"
   },
   {
@@ -408,8 +408,8 @@
   {
     "label": "table: the DHW pump variant must be code 8",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
-    "old": "    StatusItem(number=8, text=\"Pumpe\", translation_key=\"ww_konf_pumpe\"),\n",
-    "new": "    StatusItem(number=2, text=\"Pumpe\", translation_key=\"ww_konf_pumpe\"),\n",
+    "old": "    StatusItem(number=8, translation_key=\"ww_konf_pumpe\"),\n",
+    "new": "    StatusItem(number=2, translation_key=\"ww_konf_pumpe\"),\n",
     "tests": "dhw_pump_variant_is_code_8"
   },
   {
@@ -478,8 +478,8 @@
   {
     "label": "entity: a dynamic bound must narrow the fixed one, not replace it",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "                self._attr_native_min_value = max(\n                    self._fixed_min, self._dynamic_min / self._divider\n                )\n",
-    "new": "                self._attr_native_min_value = self._dynamic_min / self._divider\n",
+    "old": "                self._attr_native_min_value = max(\n                    self._fixed_min, dynamic_min / self._divider\n                )\n",
+    "new": "                self._attr_native_min_value = dynamic_min / self._divider\n",
     "tests": "narrows_the_bounds_but_never_widens"
   },
   {
@@ -908,5 +908,19 @@
     "old": "-LiteralPath $env:SCAN_SELF -Raw))) -HostName $env:SCAN_HOST\"",
     "new": "-LiteralPath '%~f0' -Raw))) -HostName '%SCAN_HOST%'\"",
     "tests": "hands_over_path_and_host_as_data"
+  },
+  {
+    "label": "entity: a calculated sensor must start from the first refresh",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        self._attr_native_value = self.translate_val(modbus_item.state)\n",
+    "new": "        self._attr_native_value = None\n",
+    "tests": "calculated_sensor_starts_from_the_first_refresh"
+  },
+  {
+    "label": "coordinator: the entry must be handed to Home Assistant",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "            config_entry=config_entry,\n",
+    "new": "",
+    "tests": "knows_its_entry_outside_the_setup_context"
   }
 ]

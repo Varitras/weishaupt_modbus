@@ -2,7 +2,6 @@
 
 from collections.abc import Callable
 from functools import partial
-import logging
 from typing import Any
 
 from modbus_connection import ModbusError
@@ -24,8 +23,6 @@ from .items import ModbusItem
 from .migrate_helpers import create_unique_id, device_postfix
 from .weishaupt_modbus_api.exceptions import WriteError
 from .weishaupt_modbus_api.hpconst import reverse_device_list
-
-_LOGGER = logging.getLogger(__name__)
 
 # On a reported setpoint: "none" while the controller demands nothing.
 DEMAND_ATTRIBUTE = "demand"
@@ -57,8 +54,6 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
 
     _divider: int = 1
     _attr_has_entity_name = True
-    _dynamic_min: float | None = None
-    _dynamic_max: float | None = None
     # The table's own bounds; a dynamic bound can only narrow them.
     _fixed_min: float = -999999
     _fixed_max: float = 999999
@@ -152,20 +147,20 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
 
         if self._has_dynamic_min:
             min_key = self._api_item.params.get("dynamic_min") or ""
-            self._dynamic_min = self.coordinator.get_value_from_item(min_key)
+            dynamic_min = self.coordinator.get_value_from_item(min_key)
             self._attr_native_min_value = self._fixed_min
-            if self._dynamic_min is not None:
+            if dynamic_min is not None:
                 self._attr_native_min_value = max(
-                    self._fixed_min, self._dynamic_min / self._divider
+                    self._fixed_min, dynamic_min / self._divider
                 )
 
         if self._has_dynamic_max:
             max_key = self._api_item.params.get("dynamic_max") or ""
-            self._dynamic_max = self.coordinator.get_value_from_item(max_key)
+            dynamic_max = self.coordinator.get_value_from_item(max_key)
             self._attr_native_max_value = self._fixed_max
-            if self._dynamic_max is not None:
+            if dynamic_max is not None:
                 self._attr_native_max_value = min(
-                    self._fixed_max, self._dynamic_max / self._divider
+                    self._fixed_max, dynamic_max / self._divider
                 )
 
     def translate_val(self, val: Any) -> float | str | None:
@@ -237,7 +232,6 @@ class MySensorEntity(MyEntity, SensorEntity):
         config_entry: MyConfigEntry,
         modbus_item: ModbusItem,
         coordinator: WeishauptModbusCoordinator,
-        idx: int,
     ) -> None:
         """Initialize of MySensorEntity."""
         super().__init__(coordinator, config_entry, modbus_item)
@@ -285,13 +279,6 @@ class MySensorEntity(MyEntity, SensorEntity):
 class MyCalcSensorEntity(MySensorEntity):
     """A sensor computed from other registers by a function in calculations.py."""
 
-    async def async_added_to_hass(self) -> None:
-        """When entity is added to Hass, perform immediate initial calculation."""
-        await super().async_added_to_hass()
-        # Force a calculation using the standard sensors' freshly loaded boot states
-        self._attr_native_value = self.translate_val(self._api_item.state)
-        self.async_write_ha_state()
-
     def translate_val(self, val: Any) -> float | None:
         """The formula over the own register and its operands; None when any is absent."""
         params = self._api_item.params
@@ -324,7 +311,6 @@ class MyNumberEntity(MyEntity, NumberEntity):
         config_entry: MyConfigEntry,
         modbus_item: ModbusItem,
         coordinator: WeishauptModbusCoordinator,
-        idx: int,
     ) -> None:
         """Initialize MyNumberEntity."""
         super().__init__(coordinator, config_entry, modbus_item)
@@ -363,7 +349,6 @@ class MySetpointSwitchEntity(MyEntity, SwitchEntity):
         config_entry: MyConfigEntry,
         modbus_item: ModbusItem,
         coordinator: WeishauptModbusCoordinator,
-        idx: int,
     ) -> None:
         """Share the number's row; own id and translation key."""
         super().__init__(coordinator, config_entry, modbus_item)
@@ -435,7 +420,6 @@ class MySelectEntity(MyEntity, SelectEntity):
         config_entry: MyConfigEntry,
         modbus_item: ModbusItem,
         coordinator: WeishauptModbusCoordinator,
-        idx: int,
     ) -> None:
         """Initialize MySelectEntity."""
         super().__init__(coordinator, config_entry, modbus_item)

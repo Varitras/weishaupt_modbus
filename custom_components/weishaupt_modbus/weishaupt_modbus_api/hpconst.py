@@ -29,843 +29,433 @@ reverse_device_list: dict[str, str] = {
 }
 
 ################################################################################
-# Lists with error messages, warning messages, and status texts
-# Description text is also possible
-# class StatusItem(): def __init__(self, number, text, description = None):
+# The values each status register can hold; their texts live in the
+# translations under each translation_key
 ################################################################################
 
 # fmt: off
 SYS_FEHLER: list[StatusItem] = [
-    StatusItem(number=65535,text='kein Fehler', translation_key="sys_fehler_65535"),
-    StatusItem(number=1,text='Kältemittelfühler Expansionsventil Eintritt (T1)', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_1"),
-    StatusItem(number=2,text='Luftansaugfühler (T2)', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_2"),
-    StatusItem(number=3,text='Wärmetauscherfühler AG Austritt (T3)', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_3"),
-    StatusItem(number=4,text='Verdichtersauggasfühler (T4)', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_4"),
-    StatusItem(number=5,text='EVI-Sauggasfühler (T5)', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_5"),
-    StatusItem(number=6,text='Kältemittelfühler IG Austritt (T6)', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_6"),
-    StatusItem(number=7,text='Ölsumpffühler (T7)', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_7"),
-    StatusItem(number=8,text='Expansionsventil EVI', description='Leitung prüfen, ggf. austauschen. Ggf. defektes Expansionsventil austauschen.', translation_key="sys_fehler_8"),
-    StatusItem(number=9,text='Niederdrucksensor (P1)', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_9"),
-    StatusItem(number=10,text='Hochdrucksensor (P2)', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_10"),
-    StatusItem(number=11,text='Mitteldrucksensor (P3)', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_11"),
-    StatusItem(number=12,text='Expansionsventil Kühlen defekt', description='Leitung prüfen, ggf. austauschen. Expansionsventil austauschen.', translation_key="sys_fehler_12"),
-    StatusItem(number=13,text='keine Kommunikation zum Inverter', description='Lastspannung am Verdichter und Inverter prüfen. & Verbindungsleitung Steuerplatine Kältesatz zu Inverter prüfen. & Ggf. defekte Steuerplatine Kältesatz austauschen.', translation_key="sys_fehler_13"),
-    StatusItem(number=14,text='keine Kommunikation zum Außengerät', description='Verbindungsleitung zum Außengerät prüfen.', translation_key="sys_fehler_14"),
-    StatusItem(number=15,text='Hochdruckschalter hat ausgelöst', description='Drücke im Kältekreis kontrollieren. Volumenstrom prüfen. & Verdrahtung prüfen. & Sicherstellen, dass die Einsatzgrenzen der Wärmepumpe eingehalten werden. & Kältekreis prüfen.', translation_key="sys_fehler_15"),
-    StatusItem(number=16,text='Inverter gesperrt, da in den letzten 10 Stunden 10 Fehler aufgetreten sind', description='Spannungsversorgung mindestens 10 Minuten unterbrechen. Bei wiederholtem Auftreten Weishaupt-Kundendienst benachrichtigen.', translation_key="sys_fehler_16"),
-    StatusItem(number=17,text='EEPROM Speicher-Fehler', description='Spannungsversorgung mindestens 10 Minuten unterbrechen.', translation_key="sys_fehler_17"),
-    StatusItem(number=18,text='keine Modbus-Kommunikation zwischen Regler EC und Steuerplatine Kältesatz', description='Modbus-Verbindung prüfen.', translation_key="sys_fehler_18"),
-    StatusItem(number=19,text='durch Inverter-Alarm Wärmepumpe abgeschaltet', description='Bei wiederholtem Auftreten Weishaupt-Kundendienst benachrichtigen.', translation_key="sys_fehler_19"),
-    StatusItem(number=20,text='Verdichter passt nicht zur Konfiguration', description='Verdichtertyp prüfen. & Spannungsversorgung mindestens 10 Minuten unterbrechen.', translation_key="sys_fehler_20"),
-    StatusItem(number=21,text='Niederdruck-Störung', description='Verdampfer auf Eisfreiheit prüfen. Funktion Ventilator prüfen. & Niederdrucksensor (P1) prüfen. Kältekreis prüfen.', translation_key="sys_fehler_21"),
-    StatusItem(number=22,text='zu geringe Überhitzung', description='Wenn der Fehler wiederholt auftritt: Überhitzung prüfen. & Verdichtersauggasfühler (T4) prüfen. Niederdrucksensor (P1) prüfen. & Antrieb Expansionsventil prüfen. Kältekreis prüfen.', translation_key="sys_fehler_22"),
-    StatusItem(number=23,text='zu hohe Überhitzung', description='Wenn der Fehler wiederholt auftritt: Überhitzung prüfen. & Verdichtersauggasfühler (T4) prüfen. Niederdrucksensor (P1) prüfen. & Antrieb Expansionsventil prüfen. Kältekreis prüfen.', translation_key="sys_fehler_23"),
-    StatusItem(number=24,text='EVI zu hohe Überhitzung', description='Wenn der Fehler wiederholt auftritt: Kältekreis prüfen. & Lecksuche durchführen.', translation_key="sys_fehler_24"),
-    StatusItem(number=25,text='Kältemittelmenge zu niedrig', description='Wenn der Fehler wiederholt auftritt: Kältekreis prüfen. & Lecksuche durchführen.', translation_key="sys_fehler_25"),
-    StatusItem(number=26,text='Hochdruck-Störung', description='Wärmeabnahme prüfen. & Hohe Warmwasser-Solltemperaturen vermeiden. & Sicherstellen, dass die Wärmepumpe innerhalb der Einsatzgrenzen betrieben wird. & Einstellung Überströmventil prüfen.', translation_key="sys_fehler_26"),
-    StatusItem(number=27,text='Kondensationstemperatur zu niedrig', description='Der erwartete Betriebszustand wird bei hoher Außentemperatur und geringer Vorlauftemperatur nicht erreichen. & Anlage mit 2. Wärmeerzeuger hochheizen.', translation_key="sys_fehler_27"),
-    StatusItem(number=28,text='Kondensationstemperatur zu hoch', description='Wärmeabnahme prüfen. Einstellung Überströmventil prüfen. Heizwasser-Volumenstrom prüfen.', translation_key="sys_fehler_28"),
-    StatusItem(number=29,text='Verdampfungstemperatur zu niedrig', description='Verdampfer auf Eisfreiheit prüfen. Funktion Ventilator prüfen. & Kältekreis prüfen.', translation_key="sys_fehler_29"),
-    StatusItem(number=30,text='Verdampfungstemperatur zu hoch', description='Die Einsatzgrenze der Wärmepumpe wurde überschritten. & Sicherstellen, dass die Wärmepumpe innerhalb der Einsatzgrenzen betrieben wird.', translation_key="sys_fehler_30"),
-    StatusItem(number=32,text='Wärmepumpe nicht kompatibel', description='Spannungsversorgung Verdichter prüfen. Spannungsversorgung von den Klemmen zum Kältesatz prüfen. & Weishaupt-Kundendienst benachrichtigen.', translation_key="sys_fehler_32"),
-    StatusItem(number=33,text='Regler EC hat keine Verbindung zum Erweiterungsmodul EM-HK', description='Verbindungsleitung zwischen Regler und Erweiterungsmodul prüfen.', translation_key="sys_fehler_33"),
-    StatusItem(number=40,text='Volumenstrom zu gering', description='Mindestvolumenstrom beachten [Kap. 3.4.6]. Volumenstrom prüfen, ggf. erhöhen. & Leitung Volumenstromsensor (B10) prüfen. Volumenstromsensor (B10) prüfen, ggf. austauschen.', translation_key="sys_fehler_40"),
-    StatusItem(number=41,text='Spreizung LWT/Rücklauf negativ / Vierwegeventil schaltet nach dem Abtauen nicht zurück; nach 3 Warnungen verriegelt die Anlage)', description='Volumenstrom anpassen. Pumpenleistung reduzieren. Vierwegeventil prüfen. & Ggf. Funktion deaktivieren.', translation_key="sys_fehler_41"),
-    StatusItem(number=43,text='Ventilator blockiert', description='Verdampfer auf Eisfreiheit prüfen. Funktion Ventilator prüfen.', translation_key="sys_fehler_43"),
-    StatusItem(number=44,text='Drehzahl Ventilator zu niedrig', description='Verdampfer auf Eisfreiheit prüfen. Funktion Ventilator prüfen.', translation_key="sys_fehler_44"),
-    StatusItem(number=47,text='Kommunikation Regler EC zu Steuerplatine Kältesatz fehlerhaft', description='Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_47"),
-    StatusItem(number=50,text='Außenfühler (B1) unterbrochen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_50"),
-    StatusItem(number=51,text='Außenfühler (B1) kurzgeschlossen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_51"),
-    StatusItem(number=52,text='Weichenfühler (B2) unterbrochen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_52"),
-    StatusItem(number=53,text='Weichenfühler (B2) kurzgeschlossen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_53"),
-    StatusItem(number=54,text='Warmwasserfühler (B3) unterbrochen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_54"),
-    StatusItem(number=55,text='Warmwasserfühler (B3) kurzgeschlossen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_55"),
-    StatusItem(number=56,text='Vorlauffühler Verflüssiger (B4) unterbrochen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_56"),
-    StatusItem(number=57,text='Vorlauffühler Verflüssiger (B4) kurzgeschlossen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_57"),
-    StatusItem(number=58,text='Vorlauffühler (B7) unterbrochen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_58"),
-    StatusItem(number=59,text='Vorlauffühler (B7) kurzgeschlossen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_59"),
-    StatusItem(number=60,text='Rücklauffühler (B9) unterbrochen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_60"),
-    StatusItem(number=61,text='Rücklauffühler (B9) kurzgeschlossen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_61"),
-    StatusItem(number=64,text='Pufferfühler (B11) unterbrochen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_64"),
-    StatusItem(number=65,text='Pufferfühler (B11) kurzgeschlossen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_65"),
-    StatusItem(number=66,text='Mischerfühler regenerativ (B2.1) unterbrochen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_66"),
-    StatusItem(number=67,text='Mischerfühler regenerativ (B2.1) kurzgeschlossen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_67"),
-    StatusItem(number=70,text='Vorlauffühler Zweiter Heizkreis (B6.2) unterbrochen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_70"),
-    StatusItem(number=71,text='Vorlauffühler Zweiter Heizkreis (B6.2) kurzgeschlossen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_71"),
-    StatusItem(number=72,text='Fühler (T1.2) unterbrochen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_72"),
-    StatusItem(number=73,text='Fühler (T1.2) kurzgeschlossen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_73"),
-    StatusItem(number=74,text='Fühler (T2.2) unterbrochen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_74"),
-    StatusItem(number=75,text='Fühler (T2.2) kurzgeschlossen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_75"),
-    StatusItem(number=90,text='Analogeingang AE1 unterbrochen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_90"),
-    StatusItem(number=91,text='Analogeingang AE1 kurzgeschlossen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_91"),
-    StatusItem(number=92,text='Analogeingang AE2 unterbrochen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_92"),
-    StatusItem(number=93,text='Analogeingang AE2 kurzgeschlossen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_93"),
-    StatusItem(number=94,text='Analogeingang AE3 unterbrochen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_94"),
-    StatusItem(number=95,text='Analogeingang AE3 kurzgeschlossen', description='Fühler und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_95"),
-    StatusItem(number=101,text='Wärmepumpe wird außerhalb der Einsatzgrenzen betrieben', description='Sicherstellen, dass die Wärmepumpe innerhalb der Einsatzgrenzen betrieben wird, siehe W 26 bis W 30.', translation_key="sys_fehler_101"),
-    StatusItem(number=102,text='maximale Abtauzeit überschritten', description='Bei exponiertem Aufstellungsort kann starker Wind zu dieser Warnung führen. Nach der Abtauung Verdampfer auf Eisfreiheit prüfen.', translation_key="sys_fehler_102"),
-    StatusItem(number=103,text='Kommunikation Kältekreis fehlerhaft', description='Spannungsversorgung mindestens 10 Minuten unterbrechen. Bei wiederholtem Auftreten Weishaupt-Kundendienst benachrichtigen.', translation_key="sys_fehler_103"),
-    StatusItem(number=104,text='Druckgastemperatur zu hoch', description='Wärmeabnahme prüfen. Kältekreis prüfen.', translation_key="sys_fehler_104"),
-    StatusItem(number=105,text='Stromaufnahme vom Inverter zu hoch', description='Sicherstellen, dass die Wärmepumpe innerhalb der Einsatzgrenzen betrieben wird. & Verdichteranschluss am Inverter prüfen.', translation_key="sys_fehler_105"),
-    StatusItem(number=106,text='Stromaufnahme zu hoch', description='Sicherstellen, dass die Wärmepumpe innerhalb der Einsatzgrenzen betrieben wird. & Spannungsversorgung prüfen (Netzspannung zu gering). & Drosselspulen in der 400 V Zuleitung zum Inverter prüfen.', translation_key="sys_fehler_106"),
-    StatusItem(number=107,text='Gleichspannung am Inverter zu hoch', description='Sicherstellen, dass die Wärmepumpe innerhalb der Einsatzgrenzen betrieben wird. & Spannungsversorgung prüfen.', translation_key="sys_fehler_107"),
-    StatusItem(number=108,text='Gleichspannung am Inverter zu niedrig', description='Sicherstellen, dass die Wärmepumpe innerhalb der Einsatzgrenzen betrieben wird. & Spannungsversorgung prüfen.', translation_key="sys_fehler_108"),
-    StatusItem(number=109,text='Wärmepumpe wird außerhalb vom zulässigen Spannungsbereich betrieben', description='Spannungsversorgung prüfen.', translation_key="sys_fehler_109"),
-    StatusItem(number=110,text='Wärmepumpe wird außerhalb vom zulässigen Spannungsbereich betrieben', description='Spannungsversorgung prüfen.', translation_key="sys_fehler_110"),
-    StatusItem(number=111,text='Hochdruckschalter hat ausgelöst', description='Wärmeabnahme prüfen. & Einstellung vom Überströmventil prüfen. Stellung der Kugelhähne am Innenund Außengerät prüfen. & Drücke im Kältekreis kontrollieren. Volumenstrom kontrollieren. & Verdrahtung prüfen. & Sicherstellen, dass die Wärmepumpe innerhalb der Einsatzgrenzen betrieben wird. & Kältekreis prüfen.', translation_key="sys_fehler_111"),
-    StatusItem(number=112,text='Inverter ist überhitzt', description='Sicherstellen, dass: die Montagebedingungen für das Innengerät eingehalten werden & die Wärmepumpe innerhalb der Einsatzgrenzen betrieben wird & Weishaupt-Kundendienst benachrichtigen (Version der Steuerplatine Kältesatz RCC Modbus prüfen).', translation_key="sys_fehler_112"),
-    StatusItem(number=113,text='Inverter ist überhitzt', description='Sicherstellen, dass: die Montagebedingungen für das Innengerät eingehalten werden & die Wärmepumpe innerhalb der Einsatzgrenzen betrieben wird & Weishaupt-Kundendienst benachrichtigen (Version der Steuerplatine Kältesatz RCC Modbus prüfen).', translation_key="sys_fehler_113"),
-    StatusItem(number=114,text='Stellung vom Verdichtermotor kann nicht bestimmt werden', description='Sicherstellen, dass die Wärmepumpe innerhalb der Einsatzgrenzen betrieben wird. & Verdichteranschluss am Inverter prüfen.', translation_key="sys_fehler_114"),
-    StatusItem(number=117,text='Gleichspannung am Inverter zu niedrig', description='Sicherstellen, dass die Wärmepumpe innerhalb der Einsatzgrenzen betrieben wird. & Spannungsversorgung prüfen.', translation_key="sys_fehler_117"),
-    StatusItem(number=118,text='Strom zwischen Inverter und Verdichter ist zu hoch', description='Sicherstellen, dass die Wärmepumpe innerhalb der Einsatzgrenzen betrieben wird. & Verdichteranschluss am Inverter prüfen. Verdichter-Wicklungswiderstände messen.', translation_key="sys_fehler_118"),
-    StatusItem(number=119,text='Stromaufnahme vom Verdichter zu hoch Zeitüberschreitung', description='Sicherstellen, dass die Wärmepumpe innerhalb der Einsatzgrenzen betrieben wird. & Verdichteranschluss am Inverter prüfen. Verdichter-Wicklungswiderstände messen.', translation_key="sys_fehler_119"),
-    StatusItem(number=120,text='Invertertemperatur zu hoch', description='Sicherstellen, dass: die Montagebedingungen für das Innengerät eingehalten werden & die Wärmepumpe innerhalb der Einsatzgrenzen betrieben wird', translation_key="sys_fehler_120"),
-    StatusItem(number=121,text='Spannung am Inverter zu gering', description='Spannung nach den Drosselspulen messen.', translation_key="sys_fehler_121"),
-    StatusItem(number=122,text='Modbus-Konfigurationsfehler', description='Spannungsversorgung mindestens 10 Minuten unterbrechen.', translation_key="sys_fehler_122"),
-    StatusItem(number=123,text='keine Modbus-Verbindung', description='Modbus-Verbindung (Leitung und Stecker) zwischen Inverter und Steuerplatine Kältesatz prüfen. & Spannungsversorgung mindestens 10 Minuten unterbrechen.', translation_key="sys_fehler_123"),
-    StatusItem(number=124,text='Druckgastemperatur zu hoch', description='Wärmeabnahme prüfen. Kältekreis prüfen.', translation_key="sys_fehler_124"),
-    StatusItem(number=127,text='Invertertemperatur zu hoch', description='Sicherstellen, dass: die Montagebedingungen für das Innengerät eingehalten werden & die Wärmepumpe innerhalb der Einsatzgrenzen betrieben wird', translation_key="sys_fehler_127"),
-    StatusItem(number=128,text='Inverter ist überhitzt', description='Sicherstellen, dass: die Montagebedingungen für das Innengerät eingehalten werden & die Wärmepumpe innerhalb der Einsatzgrenzen betrieben wird & Weishaupt-Kundendienst benachrichtigen (Version der Steuerplatine Kältesatz RCC Modbus prüfen).', translation_key="sys_fehler_128"),
-    StatusItem(number=129,text='Modbus-Kommunikation fehlerhaft', description='Modbus-Verbindung zwischen Inverter und Steuerplatine Kältesatz prüfen (Leitung und Stecker). & Spannungsversorgung mindestens 10 Minuten unterbrechen.', translation_key="sys_fehler_129"),
-    StatusItem(number=130,text='Modbus-Kommunikation fehlerhaft', description='Modbus-Verbindung zwischen Inverter und Steuerplatine Kältesatz prüfen (Leitung und Stecker). & Spannungsversorgung mindestens 10 Minuten unterbrechen.', translation_key="sys_fehler_130"),
-    StatusItem(number=133,text='Elektronikfehler', description='Spannungsversorgung mindestens 10 Minuten unterbrechen.', translation_key="sys_fehler_133"),
-    StatusItem(number=135,text='Hochdruckschalter defekt', description='Hochdruckschalter-Anschluss prüfen.', translation_key="sys_fehler_135"),
-    StatusItem(number=136,text='Verdichter passt nicht zur Konfiguration', description='Verdichtertyp prüfen. & Spannungsversorgung mindestens 10 Minuten unterbrechen.', translation_key="sys_fehler_136"),
-    StatusItem(number=137,text='Hochdruckschalter passt nicht zur Konfiguration', description='Hochdruckschalter prüfen. Spannungsversorgung mindestens 10 Minuten unterbrechen.', translation_key="sys_fehler_137"),
-    StatusItem(number=140,text='Druckgastemperatur zu niedrig', description='Druckgasfühler (DT) und Leitung prüfen, ggf. austauschen.', translation_key="sys_fehler_140"),
-    StatusItem(number=143,text='Invertertemperatur zu niedrig', description='Kühlung am Inverter prüfen. Gerät neu starten.', translation_key="sys_fehler_143"),
-    StatusItem(number=144,text='Drosselspulentemperatur zu niedrig', description='Sicherstellen, dass die Montagebedingungen für das Innengerät eingehalten werden.', translation_key="sys_fehler_144"),
-    StatusItem(number=150,text="Verdichter Stromsensor Phase U Fehler", translation_key="sys_fehler_150"),
-    StatusItem(number=151,text="Verdichter Stromsensor Phase V Fehler", translation_key="sys_fehler_151"),
-    StatusItem(number=152,text="Verdichter Stromsensor Phase W Fehler Spannungsversorgung von Eingangsklemme", translation_key="sys_fehler_152"),
-    StatusItem(number=153,text="Stromsensor Fehler", translation_key="sys_fehler_153"),
-    StatusItem(number=154,text="Inverter Temperatursensor Fehler", translation_key="sys_fehler_154"),
-    StatusItem(number=155,text="Temperatursensor Fehler", translation_key="sys_fehler_155"),
-    StatusItem(number=156,text="Druckgasfühler (DT)", translation_key="sys_fehler_156"),
-    StatusItem(number=157,text="keine Kommunikation zur Steuerplatine Kältesatz", translation_key="sys_fehler_157"),
-    StatusItem(number=158,text="EEPROM-Speicher-Fehler", translation_key="sys_fehler_158"),
-    StatusItem(number=159,text="Stromaufnahme zu hoch", translation_key="sys_fehler_159"),
-    StatusItem(number=160,text="Wärmepumpe wird außerhalb vom zulässigen Spannungsbereich betrieben", translation_key="sys_fehler_160"),
-    StatusItem(number=161,text="Wärmepumpe wird außerhalb vom zulässigen Spannungsbereich betriebe", translation_key="sys_fehler_161"),
-    StatusItem(number=162,text="Gleichspannung am Inverter zu hoch", translation_key="sys_fehler_162"),
-    StatusItem(number=163,text="Gleichspannung am Inverter zu niedrig", translation_key="sys_fehler_163"),
-    StatusItem(number=164,text="Hochdruckschalter hat ausgelöst", translation_key="sys_fehler_164"),
-    StatusItem(number=165,text="Phase zwischen Eingang und Verdichter unterbrochen", translation_key="sys_fehler_165"),
-    StatusItem(number=166,text="Inverter überhitzt", translation_key="sys_fehler_166"),
-    StatusItem(number=167,text="Inverter überhitzt", translation_key="sys_fehler_167"),
-    StatusItem(number=168,text="Konfigurationsfehler Verdichter", translation_key="sys_fehler_168"),
-    StatusItem(number=169,text="Stromaufnahme vom Verdichter zu hoch", translation_key="sys_fehler_169"),
-    StatusItem(number=170,text="Verdichter Phase U Überspannung", translation_key="sys_fehler_170"),
-    StatusItem(number=171,text="Verdichter Phase V Überspannung", translation_key="sys_fehler_171"),
-    StatusItem(number=172,text="Verdichter Phase W Überspannung", translation_key="sys_fehler_172"),
-    StatusItem(number=173,text="Phasenausfall am Verdichter", translation_key="sys_fehler_173"),
-    StatusItem(number=174,text="Verdichter blockiert", translation_key="sys_fehler_174"),
-    StatusItem(number=175,text="Verdichter startet nicht", translation_key="sys_fehler_175"),
-    StatusItem(number=176,text="Unregelmäßige Spannungsversorgung vom Inverter", translation_key="sys_fehler_176"),
-    StatusItem(number=177,text="Verdichter überlastet", translation_key="sys_fehler_177"),
-    StatusItem(number=178,text="Temperatur am Druckgasfühler (DT) zu hoch", translation_key="sys_fehler_178"),
-    StatusItem(number=179,text="Temperatur am Inverter", translation_key="sys_fehler_179"),
-    StatusItem(number=180,text="Verdichter blockiert", translation_key="sys_fehler_180"),
-    StatusItem(number=181,text="Verdichter blockiert", translation_key="sys_fehler_181"),
-    StatusItem(number=182,text="Stromaufnahme zu hoch", translation_key="sys_fehler_182"),
-    StatusItem(number=183,text="Stromaufnahme zu hoch", translation_key="sys_fehler_183"),
-    StatusItem(number=184,text="Spannung zu hoch", translation_key="sys_fehler_184"),
+    StatusItem(number=65535, translation_key="sys_fehler_65535"),
+    StatusItem(number=1, translation_key="sys_fehler_1"),
+    StatusItem(number=2, translation_key="sys_fehler_2"),
+    StatusItem(number=3, translation_key="sys_fehler_3"),
+    StatusItem(number=4, translation_key="sys_fehler_4"),
+    StatusItem(number=5, translation_key="sys_fehler_5"),
+    StatusItem(number=6, translation_key="sys_fehler_6"),
+    StatusItem(number=7, translation_key="sys_fehler_7"),
+    StatusItem(number=8, translation_key="sys_fehler_8"),
+    StatusItem(number=9, translation_key="sys_fehler_9"),
+    StatusItem(number=10, translation_key="sys_fehler_10"),
+    StatusItem(number=11, translation_key="sys_fehler_11"),
+    StatusItem(number=12, translation_key="sys_fehler_12"),
+    StatusItem(number=13, translation_key="sys_fehler_13"),
+    StatusItem(number=14, translation_key="sys_fehler_14"),
+    StatusItem(number=15, translation_key="sys_fehler_15"),
+    StatusItem(number=16, translation_key="sys_fehler_16"),
+    StatusItem(number=17, translation_key="sys_fehler_17"),
+    StatusItem(number=18, translation_key="sys_fehler_18"),
+    StatusItem(number=19, translation_key="sys_fehler_19"),
+    StatusItem(number=20, translation_key="sys_fehler_20"),
+    StatusItem(number=21, translation_key="sys_fehler_21"),
+    StatusItem(number=22, translation_key="sys_fehler_22"),
+    StatusItem(number=23, translation_key="sys_fehler_23"),
+    StatusItem(number=24, translation_key="sys_fehler_24"),
+    StatusItem(number=25, translation_key="sys_fehler_25"),
+    StatusItem(number=26, translation_key="sys_fehler_26"),
+    StatusItem(number=27, translation_key="sys_fehler_27"),
+    StatusItem(number=28, translation_key="sys_fehler_28"),
+    StatusItem(number=29, translation_key="sys_fehler_29"),
+    StatusItem(number=30, translation_key="sys_fehler_30"),
+    StatusItem(number=32, translation_key="sys_fehler_32"),
+    StatusItem(number=33, translation_key="sys_fehler_33"),
+    StatusItem(number=40, translation_key="sys_fehler_40"),
+    StatusItem(number=41, translation_key="sys_fehler_41"),
+    StatusItem(number=43, translation_key="sys_fehler_43"),
+    StatusItem(number=44, translation_key="sys_fehler_44"),
+    StatusItem(number=47, translation_key="sys_fehler_47"),
+    StatusItem(number=50, translation_key="sys_fehler_50"),
+    StatusItem(number=51, translation_key="sys_fehler_51"),
+    StatusItem(number=52, translation_key="sys_fehler_52"),
+    StatusItem(number=53, translation_key="sys_fehler_53"),
+    StatusItem(number=54, translation_key="sys_fehler_54"),
+    StatusItem(number=55, translation_key="sys_fehler_55"),
+    StatusItem(number=56, translation_key="sys_fehler_56"),
+    StatusItem(number=57, translation_key="sys_fehler_57"),
+    StatusItem(number=58, translation_key="sys_fehler_58"),
+    StatusItem(number=59, translation_key="sys_fehler_59"),
+    StatusItem(number=60, translation_key="sys_fehler_60"),
+    StatusItem(number=61, translation_key="sys_fehler_61"),
+    StatusItem(number=64, translation_key="sys_fehler_64"),
+    StatusItem(number=65, translation_key="sys_fehler_65"),
+    StatusItem(number=66, translation_key="sys_fehler_66"),
+    StatusItem(number=67, translation_key="sys_fehler_67"),
+    StatusItem(number=70, translation_key="sys_fehler_70"),
+    StatusItem(number=71, translation_key="sys_fehler_71"),
+    StatusItem(number=72, translation_key="sys_fehler_72"),
+    StatusItem(number=73, translation_key="sys_fehler_73"),
+    StatusItem(number=74, translation_key="sys_fehler_74"),
+    StatusItem(number=75, translation_key="sys_fehler_75"),
+    StatusItem(number=90, translation_key="sys_fehler_90"),
+    StatusItem(number=91, translation_key="sys_fehler_91"),
+    StatusItem(number=92, translation_key="sys_fehler_92"),
+    StatusItem(number=93, translation_key="sys_fehler_93"),
+    StatusItem(number=94, translation_key="sys_fehler_94"),
+    StatusItem(number=95, translation_key="sys_fehler_95"),
+    StatusItem(number=101, translation_key="sys_fehler_101"),
+    StatusItem(number=102, translation_key="sys_fehler_102"),
+    StatusItem(number=103, translation_key="sys_fehler_103"),
+    StatusItem(number=104, translation_key="sys_fehler_104"),
+    StatusItem(number=105, translation_key="sys_fehler_105"),
+    StatusItem(number=106, translation_key="sys_fehler_106"),
+    StatusItem(number=107, translation_key="sys_fehler_107"),
+    StatusItem(number=108, translation_key="sys_fehler_108"),
+    StatusItem(number=109, translation_key="sys_fehler_109"),
+    StatusItem(number=110, translation_key="sys_fehler_110"),
+    StatusItem(number=111, translation_key="sys_fehler_111"),
+    StatusItem(number=112, translation_key="sys_fehler_112"),
+    StatusItem(number=113, translation_key="sys_fehler_113"),
+    StatusItem(number=114, translation_key="sys_fehler_114"),
+    StatusItem(number=117, translation_key="sys_fehler_117"),
+    StatusItem(number=118, translation_key="sys_fehler_118"),
+    StatusItem(number=119, translation_key="sys_fehler_119"),
+    StatusItem(number=120, translation_key="sys_fehler_120"),
+    StatusItem(number=121, translation_key="sys_fehler_121"),
+    StatusItem(number=122, translation_key="sys_fehler_122"),
+    StatusItem(number=123, translation_key="sys_fehler_123"),
+    StatusItem(number=124, translation_key="sys_fehler_124"),
+    StatusItem(number=127, translation_key="sys_fehler_127"),
+    StatusItem(number=128, translation_key="sys_fehler_128"),
+    StatusItem(number=129, translation_key="sys_fehler_129"),
+    StatusItem(number=130, translation_key="sys_fehler_130"),
+    StatusItem(number=133, translation_key="sys_fehler_133"),
+    StatusItem(number=135, translation_key="sys_fehler_135"),
+    StatusItem(number=136, translation_key="sys_fehler_136"),
+    StatusItem(number=137, translation_key="sys_fehler_137"),
+    StatusItem(number=140, translation_key="sys_fehler_140"),
+    StatusItem(number=143, translation_key="sys_fehler_143"),
+    StatusItem(number=144, translation_key="sys_fehler_144"),
+    StatusItem(number=150, translation_key="sys_fehler_150"),
+    StatusItem(number=151, translation_key="sys_fehler_151"),
+    StatusItem(number=152, translation_key="sys_fehler_152"),
+    StatusItem(number=153, translation_key="sys_fehler_153"),
+    StatusItem(number=154, translation_key="sys_fehler_154"),
+    StatusItem(number=155, translation_key="sys_fehler_155"),
+    StatusItem(number=156, translation_key="sys_fehler_156"),
+    StatusItem(number=157, translation_key="sys_fehler_157"),
+    StatusItem(number=158, translation_key="sys_fehler_158"),
+    StatusItem(number=159, translation_key="sys_fehler_159"),
+    StatusItem(number=160, translation_key="sys_fehler_160"),
+    StatusItem(number=161, translation_key="sys_fehler_161"),
+    StatusItem(number=162, translation_key="sys_fehler_162"),
+    StatusItem(number=163, translation_key="sys_fehler_163"),
+    StatusItem(number=164, translation_key="sys_fehler_164"),
+    StatusItem(number=165, translation_key="sys_fehler_165"),
+    StatusItem(number=166, translation_key="sys_fehler_166"),
+    StatusItem(number=167, translation_key="sys_fehler_167"),
+    StatusItem(number=168, translation_key="sys_fehler_168"),
+    StatusItem(number=169, translation_key="sys_fehler_169"),
+    StatusItem(number=170, translation_key="sys_fehler_170"),
+    StatusItem(number=171, translation_key="sys_fehler_171"),
+    StatusItem(number=172, translation_key="sys_fehler_172"),
+    StatusItem(number=173, translation_key="sys_fehler_173"),
+    StatusItem(number=174, translation_key="sys_fehler_174"),
+    StatusItem(number=175, translation_key="sys_fehler_175"),
+    StatusItem(number=176, translation_key="sys_fehler_176"),
+    StatusItem(number=177, translation_key="sys_fehler_177"),
+    StatusItem(number=178, translation_key="sys_fehler_178"),
+    StatusItem(number=179, translation_key="sys_fehler_179"),
+    StatusItem(number=180, translation_key="sys_fehler_180"),
+    StatusItem(number=181, translation_key="sys_fehler_181"),
+    StatusItem(number=182, translation_key="sys_fehler_182"),
+    StatusItem(number=183, translation_key="sys_fehler_183"),
+    StatusItem(number=184, translation_key="sys_fehler_184"),
 ]
 
 # fmt: on
 
 SYS_FEHLERFREI: list[StatusItem] = [
-    StatusItem(number=0, text="Fehler aktiv", translation_key="fehler_aktiv"),
-    StatusItem(
-        number=1,
-        text="Störungsfreier Betrieb",
-        translation_key="stoerungsfreier_betrieb",
-    ),
+    StatusItem(number=0, translation_key="fehler_aktiv"),
+    StatusItem(number=1, translation_key="stoerungsfreier_betrieb"),
 ]
 
 SYS_BETRIEBSANZEIGE: list[StatusItem] = [
-    StatusItem(
-        number=0, text="undefiniert", translation_key="system_operationmode_undefined"
-    ),
-    StatusItem(
-        number=1, text="Relaistest", translation_key="system_operationmode_relaistest"
-    ),
-    StatusItem(
-        number=2, text="Notaus", translation_key="system_operationmode_emergencystop"
-    ),
-    StatusItem(
-        number=3, text="Diagnose", translation_key="system_operationmode_diagnosis"
-    ),
-    StatusItem(
-        number=4, text="Handbetrieb", translation_key="system_operationmode_manual"
-    ),
-    StatusItem(
-        number=5,
-        text="Handbetrieb Heizen",
-        translation_key="system_operationmode_manualheating",
-    ),
-    StatusItem(
-        number=6,
-        text="Handbetrieb Kühlen",
-        translation_key="system_operationmode_manualcooling",
-    ),
-    StatusItem(
-        number=7,
-        text="Manueller Abtaubetrieb",
-        translation_key="system_operationmode_manualdefrost",
-    ),
-    StatusItem(
-        number=8, text="Abtauen", translation_key="system_operationmode_defrost"
-    ),
-    StatusItem(
-        number=9,
-        text="2. WEZ",
-        translation_key="system_operationmode_manual2ndheatsource",
-    ),
-    StatusItem(
-        number=10, text="EVU_SPERRE", translation_key="system_operationmode_evu"
-    ),
-    StatusItem(
-        number=11, text="SG Tarif", translation_key="system_operationmode_sgtariff"
-    ),
-    StatusItem(
-        number=12, text="SG Maximal", translation_key="system_operationmode_sgmax"
-    ),
-    StatusItem(
-        number=13, text="Tarifladung", translation_key="system_operationmode_tariffload"
-    ),
-    StatusItem(
-        number=14,
-        text="Erhöhter Betrieb",
-        translation_key="system_operationmode_elevatedoperation",
-    ),
-    StatusItem(
-        number=15, text="Standzeit", translation_key="system_operationmode_standbytime"
-    ),
-    StatusItem(
-        number=16, text="Standby", translation_key="system_operationmode_standby"
-    ),
-    StatusItem(number=17, text="Spülen", translation_key="system_operationmode_rinse"),
-    StatusItem(
-        number=18,
-        text="Frostschutz",
-        translation_key="system_operationmode_frosprotection",
-    ),
-    StatusItem(
-        number=19, text="Heizbetrieb", translation_key="system_operationmode_heating"
-    ),
-    StatusItem(
-        number=20,
-        text="Warmwasserbetrieb",
-        translation_key="system_operationmode_hotwater",
-    ),
-    StatusItem(
-        number=21,
-        text="Legionellenschutz",
-        translation_key="system_operationmode_legionellaprotection",
-    ),
-    StatusItem(
-        number=22,
-        text="Umschaltung HZ KU",
-        translation_key="system_operationmode_switchheatingcooling",
-    ),
-    StatusItem(
-        number=23, text="Kühlbetrieb", translation_key="system_operationmode_cooling"
-    ),
-    StatusItem(
-        number=24,
-        text="Passive Kühlung",
-        translation_key="system_operationmode_passivecooling",
-    ),
-    StatusItem(
-        number=25, text="Sommerbetrieb", translation_key="system_operationmode_summer"
-    ),
-    StatusItem(
-        number=26,
-        text="Schwimmbadbetrieb",
-        translation_key="system_operationmode_swimmingpool",
-    ),
-    StatusItem(
-        number=27, text="Urlaub", translation_key="system_operationmode_vacation"
-    ),
-    StatusItem(
-        number=28,
-        text="Estrichprogramm",
-        translation_key="system_operationmode_screedprogram",
-    ),
-    StatusItem(
-        number=29, text="Gesperrt", translation_key="system_operationmode_locked"
-    ),
-    StatusItem(
-        number=30, text="Sperre AT", translation_key="system_operationmode_lockedat"
-    ),
-    StatusItem(
-        number=31,
-        text="Sperre Sommer",
-        translation_key="system_operationmode_lockedsummer",
-    ),
-    StatusItem(
-        number=32,
-        text="Sperre Winter",
-        translation_key="system_operationmode_lockedwinter",
-    ),
-    StatusItem(
-        number=33,
-        text="Einsatzgrenze",
-        translation_key="system_operationmode_applicationlimit",
-    ),
-    StatusItem(
-        number=34, text="HK Sperre", translation_key="system_operationmode_lockedcv"
-    ),
-    StatusItem(
-        number=35, text="Absenkbetrieb", translation_key="system_operationmode_lowering"
-    ),
-    StatusItem(
-        number=36,
-        text="Vorlauf regenerativ",
-        translation_key="system_operationmode_regenerativeflow",
-    ),
-    StatusItem(
-        number=37,
-        text="Heizbetrieb SGR3",
-        translation_key="system_operationmode_heating_sgr3",
-    ),
-    StatusItem(
-        number=38,
-        text="Kühlbetrieb SGR3",
-        translation_key="system_operationmode_cooling_sgr3",
-    ),
-    StatusItem(
-        number=39,
-        text="Warmwasserbetrieb SGR3",
-        translation_key="system_operationmode_hotwater_sgr3",
-    ),
-    StatusItem(
-        number=40,
-        text="Heizbetrieb SGR4",
-        translation_key="system_operationmode_heating_sgr4",
-    ),
-    StatusItem(
-        number=41,
-        text="Kühlbetrieb SGR4",
-        translation_key="system_operationmode_cooling_sgr4",
-    ),
-    StatusItem(
-        number=42,
-        text="Warmwasserbetrieb SGR4",
-        translation_key="system_operationmode_hotwater_sgr4",
-    ),
-    StatusItem(
-        number=43,
-        text="Ölrückführung",
-        translation_key="system_operationmode_oilrecirculation",
-    ),
+    StatusItem(number=0, translation_key="system_operationmode_undefined"),
+    StatusItem(number=1, translation_key="system_operationmode_relaistest"),
+    StatusItem(number=2, translation_key="system_operationmode_emergencystop"),
+    StatusItem(number=3, translation_key="system_operationmode_diagnosis"),
+    StatusItem(number=4, translation_key="system_operationmode_manual"),
+    StatusItem(number=5, translation_key="system_operationmode_manualheating"),
+    StatusItem(number=6, translation_key="system_operationmode_manualcooling"),
+    StatusItem(number=7, translation_key="system_operationmode_manualdefrost"),
+    StatusItem(number=8, translation_key="system_operationmode_defrost"),
+    StatusItem(number=9, translation_key="system_operationmode_manual2ndheatsource"),
+    StatusItem(number=10, translation_key="system_operationmode_evu"),
+    StatusItem(number=11, translation_key="system_operationmode_sgtariff"),
+    StatusItem(number=12, translation_key="system_operationmode_sgmax"),
+    StatusItem(number=13, translation_key="system_operationmode_tariffload"),
+    StatusItem(number=14, translation_key="system_operationmode_elevatedoperation"),
+    StatusItem(number=15, translation_key="system_operationmode_standbytime"),
+    StatusItem(number=16, translation_key="system_operationmode_standby"),
+    StatusItem(number=17, translation_key="system_operationmode_rinse"),
+    StatusItem(number=18, translation_key="system_operationmode_frosprotection"),
+    StatusItem(number=19, translation_key="system_operationmode_heating"),
+    StatusItem(number=20, translation_key="system_operationmode_hotwater"),
+    StatusItem(number=21, translation_key="system_operationmode_legionellaprotection"),
+    StatusItem(number=22, translation_key="system_operationmode_switchheatingcooling"),
+    StatusItem(number=23, translation_key="system_operationmode_cooling"),
+    StatusItem(number=24, translation_key="system_operationmode_passivecooling"),
+    StatusItem(number=25, translation_key="system_operationmode_summer"),
+    StatusItem(number=26, translation_key="system_operationmode_swimmingpool"),
+    StatusItem(number=27, translation_key="system_operationmode_vacation"),
+    StatusItem(number=28, translation_key="system_operationmode_screedprogram"),
+    StatusItem(number=29, translation_key="system_operationmode_locked"),
+    StatusItem(number=30, translation_key="system_operationmode_lockedat"),
+    StatusItem(number=31, translation_key="system_operationmode_lockedsummer"),
+    StatusItem(number=32, translation_key="system_operationmode_lockedwinter"),
+    StatusItem(number=33, translation_key="system_operationmode_applicationlimit"),
+    StatusItem(number=34, translation_key="system_operationmode_lockedcv"),
+    StatusItem(number=35, translation_key="system_operationmode_lowering"),
+    StatusItem(number=36, translation_key="system_operationmode_regenerativeflow"),
+    StatusItem(number=37, translation_key="system_operationmode_heating_sgr3"),
+    StatusItem(number=38, translation_key="system_operationmode_cooling_sgr3"),
+    StatusItem(number=39, translation_key="system_operationmode_hotwater_sgr3"),
+    StatusItem(number=40, translation_key="system_operationmode_heating_sgr4"),
+    StatusItem(number=41, translation_key="system_operationmode_cooling_sgr4"),
+    StatusItem(number=42, translation_key="system_operationmode_hotwater_sgr4"),
+    StatusItem(number=43, translation_key="system_operationmode_oilrecirculation"),
 ]
 
 SYS_BETRIEBSART: list[StatusItem] = [
-    StatusItem(
-        number=0, text="Automatik", translation_key="sys_operationmode_automatic"
-    ),
-    StatusItem(number=1, text="Heizen", translation_key="sys_operationmode_heating"),
-    StatusItem(number=2, text="Kühlen", translation_key="sys_operationmode_cooling"),
-    StatusItem(number=3, text="Sommer", translation_key="sys_operationmode_summer"),
-    StatusItem(number=4, text="Standby", translation_key="sys_operationmode_standby"),
-    StatusItem(
-        number=5, text="2.WEZ", translation_key="sys_operationmode_2ndheatsource"
-    ),
+    StatusItem(number=0, translation_key="sys_operationmode_automatic"),
+    StatusItem(number=1, translation_key="sys_operationmode_heating"),
+    StatusItem(number=2, translation_key="sys_operationmode_cooling"),
+    StatusItem(number=3, translation_key="sys_operationmode_summer"),
+    StatusItem(number=4, translation_key="sys_operationmode_standby"),
+    StatusItem(number=5, translation_key="sys_operationmode_2ndheatsource"),
 ]
 
 HP_BETRIEB: list[StatusItem] = [
+    StatusItem(number=0, translation_key="heatpump_operationmode_undefined"),
+    StatusItem(number=1, translation_key="heatpump_operationmode_relaistest"),
+    StatusItem(number=2, translation_key="heatpump_operationmode_emergencystop"),
+    StatusItem(number=3, translation_key="heatpump_operationmode_diagnosis"),
+    StatusItem(number=4, translation_key="heatpump_operationmode_manual"),
+    StatusItem(number=5, translation_key="heatpump_operationmode_manualheating"),
+    StatusItem(number=6, translation_key="heatpump_operationmode_manualcooling"),
+    StatusItem(number=7, translation_key="heatpump_operationmode_manualdefrost"),
+    StatusItem(number=8, translation_key="heatpump_operationmode_defrost"),
+    StatusItem(number=9, translation_key="heatpump_operationmode_manual2ndheatsource"),
+    StatusItem(number=10, translation_key="heatpump_operationmode_evu"),
+    StatusItem(number=11, translation_key="heatpump_operationmode_sgtariff"),
+    StatusItem(number=12, translation_key="heatpump_operationmode_sgmax"),
+    StatusItem(number=13, translation_key="heatpump_operationmode_tariffload"),
+    StatusItem(number=14, translation_key="heatpump_operationmode_elevatedoperation"),
+    StatusItem(number=15, translation_key="heatpump_operationmode_standbytime"),
+    StatusItem(number=16, translation_key="heatpump_operationmode_standby"),
+    StatusItem(number=17, translation_key="heatpump_operationmode_rinse"),
+    StatusItem(number=18, translation_key="heatpump_operationmode_frosprotection"),
+    StatusItem(number=19, translation_key="heatpump_operationmode_heating"),
+    StatusItem(number=20, translation_key="heatpump_operationmode_hotwater"),
     StatusItem(
-        number=0, text="undefiniert", translation_key="heatpump_operationmode_undefined"
+        number=21, translation_key="heatpump_operationmode_legionellaprotection"
     ),
     StatusItem(
-        number=1, text="Relaistest", translation_key="heatpump_operationmode_relaistest"
+        number=22, translation_key="heatpump_operationmode_switchheatingcooling"
     ),
-    StatusItem(
-        number=2, text="Notaus", translation_key="heatpump_operationmode_emergencystop"
-    ),
-    StatusItem(
-        number=3, text="Diagnose", translation_key="heatpump_operationmode_diagnosis"
-    ),
-    StatusItem(
-        number=4, text="Handbetrieb", translation_key="heatpump_operationmode_manual"
-    ),
-    StatusItem(
-        number=5,
-        text="Handbetrieb Heizen",
-        translation_key="heatpump_operationmode_manualheating",
-    ),
-    StatusItem(
-        number=6,
-        text="Handbetrieb Kühlen",
-        translation_key="heatpump_operationmode_manualcooling",
-    ),
-    StatusItem(
-        number=7,
-        text="Manueller Abtaubetrieb",
-        translation_key="heatpump_operationmode_manualdefrost",
-    ),
-    StatusItem(
-        number=8, text="Abtauen", translation_key="heatpump_operationmode_defrost"
-    ),
-    StatusItem(
-        number=9,
-        text="WEZ2",
-        translation_key="heatpump_operationmode_manual2ndheatsource",
-    ),
-    StatusItem(
-        number=10, text="EVU_SPERRE", translation_key="heatpump_operationmode_evu"
-    ),
-    StatusItem(
-        number=11, text="SG Tarif", translation_key="heatpump_operationmode_sgtariff"
-    ),
-    StatusItem(
-        number=12, text="SG Maximal", translation_key="heatpump_operationmode_sgmax"
-    ),
-    StatusItem(
-        number=13,
-        text="Tarifladung",
-        translation_key="heatpump_operationmode_tariffload",
-    ),
-    StatusItem(
-        number=14,
-        text="Erhöhter Betrieb",
-        translation_key="heatpump_operationmode_elevatedoperation",
-    ),
-    StatusItem(
-        number=15,
-        text="Standzeit",
-        translation_key="heatpump_operationmode_standbytime",
-    ),
-    StatusItem(
-        number=16,
-        text="Standbybetrieb",
-        translation_key="heatpump_operationmode_standby",
-    ),
-    StatusItem(
-        number=17, text="Spülbetrieb", translation_key="heatpump_operationmode_rinse"
-    ),
-    StatusItem(
-        number=18,
-        text="Frostschutz",
-        translation_key="heatpump_operationmode_frosprotection",
-    ),
-    StatusItem(
-        number=19, text="Heizbetrieb", translation_key="heatpump_operationmode_heating"
-    ),
-    StatusItem(
-        number=20,
-        text="Warmwasserbetrieb",
-        translation_key="heatpump_operationmode_hotwater",
-    ),
-    StatusItem(
-        number=21,
-        text="Legionellenschutz",
-        translation_key="heatpump_operationmode_legionellaprotection",
-    ),
-    StatusItem(
-        number=22,
-        text="Umschaltung HZ KU",
-        translation_key="heatpump_operationmode_switchheatingcooling",
-    ),
-    StatusItem(
-        number=23, text="Kühlbetrieb", translation_key="heatpump_operationmode_cooling"
-    ),
-    StatusItem(
-        number=24,
-        text="Passive Kühlung",
-        translation_key="heatpump_operationmode_passivecooling",
-    ),
-    StatusItem(
-        number=25, text="Sommerbetrieb", translation_key="heatpump_operationmode_summer"
-    ),
-    StatusItem(
-        number=26,
-        text="Schwimmbad",
-        translation_key="heatpump_operationmode_swimmingpool",
-    ),
-    StatusItem(
-        number=27, text="Urlaub", translation_key="heatpump_operationmode_vacation"
-    ),
-    StatusItem(
-        number=28,
-        text="Estrich",
-        translation_key="heatpump_operationmode_screedprogram",
-    ),
-    StatusItem(
-        number=29, text="Gesperrt", translation_key="heatpump_operationmode_locked"
-    ),
-    StatusItem(
-        number=30, text="Sperre AT", translation_key="heatpump_operationmode_lockedat"
-    ),
-    StatusItem(
-        number=31,
-        text="Sperre Sommer",
-        translation_key="heatpump_operationmode_lockedsummer",
-    ),
-    StatusItem(
-        number=32,
-        text="Sperre Winter",
-        translation_key="heatpump_operationmode_lockedwinter",
-    ),
-    StatusItem(
-        number=33,
-        text="Einsatzgrenze",
-        translation_key="heatpump_operationmode_applicationlimit",
-    ),
-    StatusItem(
-        number=34, text="HK Sperre", translation_key="heatpump_operationmode_lockedcv"
-    ),
-    StatusItem(
-        number=35, text="Absenk", translation_key="heatpump_operationmode_lowering"
-    ),
-    StatusItem(
-        number=36,
-        text="Regenerativ",
-        translation_key="heatpump_operationmode_regenerativ",
-    ),
-    StatusItem(
-        number=37,
-        text="Heizbetrieb SGR3",
-        translation_key="heatpump_operationmode_heating_sgr3",
-    ),
-    StatusItem(
-        number=38,
-        text="Kühlbetrieb SGR3",
-        translation_key="heatpump_operationmode_cooling_sgr3",
-    ),
-    StatusItem(
-        number=39,
-        text="Warmwasserbetrieb SGR3",
-        translation_key="heatpump_operationmode_hotwater_sgr3",
-    ),
-    StatusItem(
-        number=40,
-        text="Heizbetrieb SGR4",
-        translation_key="heatpump_operationmode_heating_sgr4",
-    ),
-    StatusItem(
-        number=41,
-        text="Kühlbetrieb SGR4",
-        translation_key="heatpump_operationmode_cooling_sgr4",
-    ),
-    StatusItem(
-        number=42,
-        text="Warmwasserbetrieb SGR4",
-        translation_key="heatpump_operationmode_hotwater_sgr4",
-    ),
-    StatusItem(
-        number=43,
-        text="Ölrückführung",
-        translation_key="heatpump_operationmode_oilrecirculation",
-    ),
+    StatusItem(number=23, translation_key="heatpump_operationmode_cooling"),
+    StatusItem(number=24, translation_key="heatpump_operationmode_passivecooling"),
+    StatusItem(number=25, translation_key="heatpump_operationmode_summer"),
+    StatusItem(number=26, translation_key="heatpump_operationmode_swimmingpool"),
+    StatusItem(number=27, translation_key="heatpump_operationmode_vacation"),
+    StatusItem(number=28, translation_key="heatpump_operationmode_screedprogram"),
+    StatusItem(number=29, translation_key="heatpump_operationmode_locked"),
+    StatusItem(number=30, translation_key="heatpump_operationmode_lockedat"),
+    StatusItem(number=31, translation_key="heatpump_operationmode_lockedsummer"),
+    StatusItem(number=32, translation_key="heatpump_operationmode_lockedwinter"),
+    StatusItem(number=33, translation_key="heatpump_operationmode_applicationlimit"),
+    StatusItem(number=34, translation_key="heatpump_operationmode_lockedcv"),
+    StatusItem(number=35, translation_key="heatpump_operationmode_lowering"),
+    StatusItem(number=36, translation_key="heatpump_operationmode_regenerativ"),
+    StatusItem(number=37, translation_key="heatpump_operationmode_heating_sgr3"),
+    StatusItem(number=38, translation_key="heatpump_operationmode_cooling_sgr3"),
+    StatusItem(number=39, translation_key="heatpump_operationmode_hotwater_sgr3"),
+    StatusItem(number=40, translation_key="heatpump_operationmode_heating_sgr4"),
+    StatusItem(number=41, translation_key="heatpump_operationmode_cooling_sgr4"),
+    StatusItem(number=42, translation_key="heatpump_operationmode_hotwater_sgr4"),
+    StatusItem(number=43, translation_key="heatpump_operationmode_oilrecirculation"),
 ]
 
 HP_STOERMELDUNG: list[StatusItem] = [
-    StatusItem(number=0, text="Störung", translation_key="hp_stoerung"),
-    StatusItem(number=1, text="Störungsfrei", translation_key="hp_stoerungsfrei"),
+    StatusItem(number=0, translation_key="hp_stoerung"),
+    StatusItem(number=1, translation_key="hp_stoerungsfrei"),
 ]
 
 HP_RUHEMODUS: list[StatusItem] = [
-    StatusItem(number=0, text="aus", translation_key="hp_ruhemodus_0"),
-    StatusItem(number=1, text="80 %", translation_key="hp_ruhemodus_1"),
-    StatusItem(number=2, text="60 %", translation_key="hp_ruhemodus_2"),
-    StatusItem(number=3, text="40 %", translation_key="hp_ruhemodus_3"),
+    StatusItem(number=0, translation_key="hp_ruhemodus_0"),
+    StatusItem(number=1, translation_key="hp_ruhemodus_1"),
+    StatusItem(number=2, translation_key="hp_ruhemodus_2"),
+    StatusItem(number=3, translation_key="hp_ruhemodus_3"),
 ]
 
 HZ_KONFIGURATION: list[StatusItem] = [
-    StatusItem(number=0, text="aus", translation_key="hp_konf_aus"),
-    StatusItem(number=1, text="Pumpenkreis", translation_key="hp_konf_pumpenkreis"),
-    StatusItem(number=2, text="Mischkreis", translation_key="hp_konf_mischkreis"),
-    StatusItem(
-        number=3,
-        text="Sollwert (Pumpe M1)",
-        translation_key="hp_konf_sollwert_pumpe_m1",
-    ),
+    StatusItem(number=0, translation_key="hp_konf_aus"),
+    StatusItem(number=1, translation_key="hp_konf_pumpenkreis"),
+    StatusItem(number=2, translation_key="hp_konf_mischkreis"),
+    StatusItem(number=3, translation_key="hp_konf_sollwert_pumpe_m1"),
 ]
 
 HZ_ANFORDERUNG: list[StatusItem] = [
-    StatusItem(number=0, text="aus", translation_key="hz_anforderung_aus"),
-    StatusItem(
-        number=1,
-        text="witterungsgeführt",
-        translation_key="hz_anforderung_witterungsgefuehrt",
-    ),
-    StatusItem(
-        number=2, text="Raumregelung", translation_key="hz_anforderung_raumregelung"
-    ),
-    StatusItem(number=3, text="konstant", translation_key="hz_anforderung_konstant"),
+    StatusItem(number=0, translation_key="hz_anforderung_aus"),
+    StatusItem(number=1, translation_key="hz_anforderung_witterungsgefuehrt"),
+    StatusItem(number=2, translation_key="hz_anforderung_raumregelung"),
+    StatusItem(number=3, translation_key="hz_anforderung_konstant"),
 ]
 
 HZ_BETRIEBSART: list[StatusItem] = [
-    StatusItem(
-        number=0, text="Automatik", translation_key="hz_operationmode_automatic"
-    ),
-    StatusItem(number=1, text="Komfort", translation_key="hz_operationmode_comfort"),
-    StatusItem(number=2, text="Normal", translation_key="hz_operationmode_normal"),
-    StatusItem(
-        number=3, text="Absenkbetrieb", translation_key="hz_operationmode_lowering"
-    ),
-    StatusItem(number=4, text="Standby", translation_key="hz_operationmode_standby"),
+    StatusItem(number=0, translation_key="hz_operationmode_automatic"),
+    StatusItem(number=1, translation_key="hz_operationmode_comfort"),
+    StatusItem(number=2, translation_key="hz_operationmode_normal"),
+    StatusItem(number=3, translation_key="hz_operationmode_lowering"),
+    StatusItem(number=4, translation_key="hz_operationmode_standby"),
 ]
 
 HZ_PARTY_PAUSE: list[StatusItem] = [
-    StatusItem(number=1, text="Pause 12.0h", translation_key="hz_pause_12"),
-    StatusItem(number=2, text="Pause 11.5h", translation_key="hz_pause_11_5"),
-    StatusItem(number=3, text="Pause 11.0h", translation_key="hz_pause_11"),
-    StatusItem(number=4, text="Pause 10.5h", translation_key="hz_pause_10_5"),
-    StatusItem(number=5, text="Pause 10.0h", translation_key="hz_pause_10"),
-    StatusItem(number=6, text="Pause 9.5h", translation_key="hz_pause_9_5"),
-    StatusItem(number=7, text="Pause 9.0h", translation_key="hz_pause_9"),
-    StatusItem(number=8, text="Pause 8.5h", translation_key="hz_pause_8_5"),
-    StatusItem(number=9, text="Pause 8.0h", translation_key="hz_pause_8"),
-    StatusItem(number=10, text="Pause 7.5h", translation_key="hz_pause_7_5"),
-    StatusItem(number=11, text="Pause 7.0h", translation_key="hz_pause_7"),
-    StatusItem(number=12, text="Pause 6.5h", translation_key="hz_pause_6_5"),
-    StatusItem(number=13, text="Pause 6.0h", translation_key="hz_pause_6"),
-    StatusItem(number=14, text="Pause 5.5h", translation_key="hz_pause_5_5"),
-    StatusItem(number=15, text="Pause 5.0h", translation_key="hz_pause_5"),
-    StatusItem(number=16, text="Pause 4.5h", translation_key="hz_pause_4_5"),
-    StatusItem(number=17, text="Pause 4.0h", translation_key="hz_pause_4"),
-    StatusItem(number=18, text="Pause 3.5h", translation_key="hz_pause_3_5"),
-    StatusItem(number=19, text="Pause 3.0h", translation_key="hz_pause_3"),
-    StatusItem(number=20, text="Pause 2.5h", translation_key="hz_pause_2_5"),
-    StatusItem(number=21, text="Pause 2.0h", translation_key="hz_pause_2"),
-    StatusItem(number=22, text="Pause 1.5h", translation_key="hz_pause_1_5"),
-    StatusItem(number=23, text="Pause 1.0h", translation_key="hz_pause_1"),
-    StatusItem(number=24, text="Pause 0.5h", translation_key="hz_pause_0_5"),
-    StatusItem(number=25, text="Automatik", translation_key="hz_party_pause_auto"),
-    StatusItem(number=26, text="Party 0.5h", translation_key="hz_party_0_5"),
-    StatusItem(number=27, text="Party 1.0h", translation_key="hz_party_1"),
-    StatusItem(number=28, text="Party 1.5h", translation_key="hz_party_1_5"),
-    StatusItem(number=29, text="Party 2.0h", translation_key="hz_party_2"),
-    StatusItem(number=30, text="Party 2.5h", translation_key="hz_party_2_5"),
-    StatusItem(number=31, text="Party 3.0h", translation_key="hz_party_3"),
-    StatusItem(number=32, text="Party 3.5h", translation_key="hz_party_3_5"),
-    StatusItem(number=33, text="Party 4.0h", translation_key="hz_party_4"),
-    StatusItem(number=34, text="Party 4.5h", translation_key="hz_party_4_5"),
-    StatusItem(number=35, text="Party 5.0h", translation_key="hz_party_5"),
-    StatusItem(number=36, text="Party 5.5h", translation_key="hz_party_5_5"),
-    StatusItem(number=37, text="Party 6.0h", translation_key="hz_party_6"),
-    StatusItem(number=38, text="Party 6.5h", translation_key="hz_party_6_5"),
-    StatusItem(number=39, text="Party 7.0h", translation_key="hz_party_7"),
-    StatusItem(number=40, text="Party 7.5h", translation_key="hz_party_7_5"),
-    StatusItem(number=41, text="Party 8.0h", translation_key="hz_party_8"),
-    StatusItem(number=42, text="Party 8.5h", translation_key="hz_party_8_5"),
-    StatusItem(number=43, text="Party 9.0h", translation_key="hz_party_9"),
-    StatusItem(number=44, text="Party 9.5h", translation_key="hz_party_9_5"),
-    StatusItem(number=45, text="Party 10.0h", translation_key="hz_party_10"),
-    StatusItem(number=46, text="Party 10.5h", translation_key="hz_party_10_5"),
-    StatusItem(number=47, text="Party 11.0h", translation_key="hz_party_11"),
-    StatusItem(number=48, text="Party 11.5h", translation_key="hz_party_11_5"),
-    StatusItem(number=49, text="Party 12.0h", translation_key="hz_party_12"),
+    StatusItem(number=1, translation_key="hz_pause_12"),
+    StatusItem(number=2, translation_key="hz_pause_11_5"),
+    StatusItem(number=3, translation_key="hz_pause_11"),
+    StatusItem(number=4, translation_key="hz_pause_10_5"),
+    StatusItem(number=5, translation_key="hz_pause_10"),
+    StatusItem(number=6, translation_key="hz_pause_9_5"),
+    StatusItem(number=7, translation_key="hz_pause_9"),
+    StatusItem(number=8, translation_key="hz_pause_8_5"),
+    StatusItem(number=9, translation_key="hz_pause_8"),
+    StatusItem(number=10, translation_key="hz_pause_7_5"),
+    StatusItem(number=11, translation_key="hz_pause_7"),
+    StatusItem(number=12, translation_key="hz_pause_6_5"),
+    StatusItem(number=13, translation_key="hz_pause_6"),
+    StatusItem(number=14, translation_key="hz_pause_5_5"),
+    StatusItem(number=15, translation_key="hz_pause_5"),
+    StatusItem(number=16, translation_key="hz_pause_4_5"),
+    StatusItem(number=17, translation_key="hz_pause_4"),
+    StatusItem(number=18, translation_key="hz_pause_3_5"),
+    StatusItem(number=19, translation_key="hz_pause_3"),
+    StatusItem(number=20, translation_key="hz_pause_2_5"),
+    StatusItem(number=21, translation_key="hz_pause_2"),
+    StatusItem(number=22, translation_key="hz_pause_1_5"),
+    StatusItem(number=23, translation_key="hz_pause_1"),
+    StatusItem(number=24, translation_key="hz_pause_0_5"),
+    StatusItem(number=25, translation_key="hz_party_pause_auto"),
+    StatusItem(number=26, translation_key="hz_party_0_5"),
+    StatusItem(number=27, translation_key="hz_party_1"),
+    StatusItem(number=28, translation_key="hz_party_1_5"),
+    StatusItem(number=29, translation_key="hz_party_2"),
+    StatusItem(number=30, translation_key="hz_party_2_5"),
+    StatusItem(number=31, translation_key="hz_party_3"),
+    StatusItem(number=32, translation_key="hz_party_3_5"),
+    StatusItem(number=33, translation_key="hz_party_4"),
+    StatusItem(number=34, translation_key="hz_party_4_5"),
+    StatusItem(number=35, translation_key="hz_party_5"),
+    StatusItem(number=36, translation_key="hz_party_5_5"),
+    StatusItem(number=37, translation_key="hz_party_6"),
+    StatusItem(number=38, translation_key="hz_party_6_5"),
+    StatusItem(number=39, translation_key="hz_party_7"),
+    StatusItem(number=40, translation_key="hz_party_7_5"),
+    StatusItem(number=41, translation_key="hz_party_8"),
+    StatusItem(number=42, translation_key="hz_party_8_5"),
+    StatusItem(number=43, translation_key="hz_party_9"),
+    StatusItem(number=44, translation_key="hz_party_9_5"),
+    StatusItem(number=45, translation_key="hz_party_10"),
+    StatusItem(number=46, translation_key="hz_party_10_5"),
+    StatusItem(number=47, translation_key="hz_party_11"),
+    StatusItem(number=48, translation_key="hz_party_11_5"),
+    StatusItem(number=49, translation_key="hz_party_12"),
 ]
 
 WW_KONFIGURATION: list[StatusItem] = [
-    StatusItem(number=0, text="aus", translation_key="ww_konf_aus"),
-    StatusItem(number=1, text="Umlenkventil", translation_key="ww_konf_umlenkventil"),
+    StatusItem(number=0, translation_key="ww_konf_aus"),
+    StatusItem(number=1, translation_key="ww_konf_umlenkventil"),
     # 8, not 2: the manufacturer's register list (2022 xlsx) numbers the pump
     # variant 8; nothing answers 2.
-    StatusItem(number=8, text="Pumpe", translation_key="ww_konf_pumpe"),
+    StatusItem(number=8, translation_key="ww_konf_pumpe"),
 ]
 
 HP_KONFIGURATION: list[StatusItem] = [
-    StatusItem(number=0, text="Nicht konfiguriert", translation_key="hp_konf_0"),
-    StatusItem(number=1, text="Heizen", translation_key="hp_conf_1"),
-    StatusItem(number=2, text="Heizen, Kühlen", translation_key="hp_conf_2"),
-    StatusItem(number=3, text="Heizen, Kühlen", translation_key="hp_conf_3"),
-    StatusItem(number=4, text="Heizen, Warmwasser", translation_key="hp_conf_4"),
+    StatusItem(number=0, translation_key="hp_konf_0"),
+    StatusItem(number=1, translation_key="hp_conf_1"),
+    StatusItem(number=2, translation_key="hp_conf_2"),
+    StatusItem(number=3, translation_key="hp_conf_3"),
+    StatusItem(number=4, translation_key="hp_conf_4"),
 ]
 
 WW_PUSH: list[StatusItem] = [
-    StatusItem(number=0, text="AUS", translation_key="ww_push_aus"),
+    StatusItem(number=0, translation_key="ww_push_aus"),
 ]
 # Every five minutes up to the 240 the controller accepts (83807301).
 for i in range(5, 245, 5):
     WW_PUSH.append(
-        StatusItem(
-            number=i,
-            text=str(object=i) + " " + UnitOfTime.MINUTES,
-            translation_key="ww_push_" + str(object=i),
-        ),
+        StatusItem(number=i, translation_key="ww_push_" + str(object=i)),
     )
 
 
 W2_STATUS: list[StatusItem] = [
-    StatusItem(number=0, text="aus", translation_key="w2_status_aus"),
-    StatusItem(number=1, text="ein", translation_key="w2_status_ein"),
+    StatusItem(number=0, translation_key="w2_status_aus"),
+    StatusItem(number=1, translation_key="w2_status_ein"),
 ]
 
 W2_KONFIG: list[StatusItem] = [
-    StatusItem(number=0, text="0", translation_key="w2_konf_0"),
-    StatusItem(number=1, text="1", translation_key="w2_konf_1"),
+    StatusItem(number=0, translation_key="w2_konf_0"),
+    StatusItem(number=1, translation_key="w2_konf_1"),
     # A pump without a second heat source answers 255 (live, 2025 firmware).
-    StatusItem(number=255, text="nicht vorhanden", translation_key="w2_konf_255"),
+    StatusItem(number=255, translation_key="w2_konf_255"),
 ]
 
 EP1_KONFIG: list[StatusItem] = [
-    StatusItem(number=5, text="aktiviert", translation_key="w2_konf_0"),
-    StatusItem(number=255, text="AUS", translation_key="w2_konf_1"),
+    StatusItem(number=5, translation_key="w2_konf_0"),
+    StatusItem(number=255, translation_key="w2_konf_1"),
 ]
 
 EP2_KONFIG: list[StatusItem] = [
-    StatusItem(number=6, text="aktiviert", translation_key="w2_konf_0"),
-    StatusItem(number=255, text="AUS", translation_key="w2_konf_1"),
+    StatusItem(number=6, translation_key="w2_konf_0"),
+    StatusItem(number=255, translation_key="w2_konf_1"),
 ]
 
 
 IO_KONFIG: list[StatusItem] = [
-    StatusItem(number=0, text="0", translation_key="io_konf_0"),
-    StatusItem(number=1, text="1", translation_key="io_konf_1"),
-    StatusItem(number=2, text="2", translation_key="io_konf_2"),
-    StatusItem(number=3, text="3", translation_key="io_konf_3"),
-    StatusItem(number=4, text="4", translation_key="io_konf_4"),
-    StatusItem(number=5, text="5", translation_key="io_konf_5"),
-    StatusItem(number=6, text="6", translation_key="io_konf_6"),
-    StatusItem(number=7, text="7", translation_key="io_konf_7"),
-    StatusItem(number=65535, text="65535", translation_key="io_konf_65535"),
+    StatusItem(number=0, translation_key="io_konf_0"),
+    StatusItem(number=1, translation_key="io_konf_1"),
+    StatusItem(number=2, translation_key="io_konf_2"),
+    StatusItem(number=3, translation_key="io_konf_3"),
+    StatusItem(number=4, translation_key="io_konf_4"),
+    StatusItem(number=5, translation_key="io_konf_5"),
+    StatusItem(number=6, translation_key="io_konf_6"),
+    StatusItem(number=7, translation_key="io_konf_7"),
+    StatusItem(number=65535, translation_key="io_konf_65535"),
 ]
 
 IO_KONFIG_IN: list[StatusItem] = [
-    StatusItem(
-        number=0,
-        text="SG Ready",
-        description="Siehe Smart-Grid-Funktion [Kap. 6.7.7.2]. Funktion kann nur in SGR1 gewählt werden und wird automatisch auf SGR2 übertragen, in SGR2 sind dann die anderen Funktionen gesperrt.",
-        translation_key="io_konf_in_0",
-    ),
-    StatusItem(
-        number=1,
-        text="EVU-Sperre",
-        description="Heiz- und Kühlbetrieb und Warmwasserladung gesperrt, Frostschutz ist sichergestellt.",
-        translation_key="io_konf_in_1",
-    ),
-    StatusItem(
-        number=2,
-        text="Erhöhter Betrieb",
-        description="Zu der Vorlaufsolltemperatur im Heizbetrieb und der Warmwasser-Solltemperatur wird die eingestellte ",
-        translation_key="io_konf_in_2",
-    ),
-    StatusItem(
-        number=3,
-        text="HK-Sperre",
-        description="Heiz- und Kühlbetrieb gesperrt, Frostschutz ist sichergestellt, Warmwasserladung weiterhin betriebsbereit. ",
-        translation_key="io_konf_in_3",
-    ),
-    StatusItem(
-        number=4,
-        text="Umschaltung Hz/Kü",
-        description="Wärmeanforderungen werden ignoriert, nur Kühlanforderungen wirken auf die Wärmepumpe. Die Funktion Umschaltung Hz/Kü hat Vorrang vor Erhöhter Betrieb.",
-        translation_key="io_konf_in_4",
-    ),
-    StatusItem(
-        number=5,
-        text="Ruhemodus",
-        description="Manueller Ruhemodus, externer Kontakt [Kap. 6.7.5.2].",
-        translation_key="io_konf_in_5",
-    ),
-    StatusItem(
-        number=6,
-        text="Not-Aus",
-        description="Wärmepumpe, Elektroheizung und Pumpe aus.",
-        translation_key="io_konf_in_6",
-    ),
-    StatusItem(
-        number=7,
-        text="System Standby",
-        description="Standby",
-        translation_key="io_konf_in_7",
-    ),
-    StatusItem(
-        number=8,
-        text="Erzeugersperre HZ",
-        description="Heizkreis durch Wärmepumpe gesperrt.",
-        translation_key="io_konf_in_8",
-    ),
-    StatusItem(
-        number=9,
-        text="Erzeugersperre WW",
-        description="Warmwasserladung durch Wärmepumpe gesperrt.",
-        translation_key="io_konf_in_9",
-    ),
-    StatusItem(
-        number=10,
-        text="Erzeugersperre HZ und WW",
-        description="Heizkreis und Warmwasserladung durch Wärmepumpe gesperrt",
-        translation_key="io_konf_in_10",
-    ),
-    StatusItem(
-        number=11,
-        text="Warmwasser Standby",
-        description="Warmwasserladung Standby.",
-        translation_key="io_konf_in_11",
-    ),
-    StatusItem(
-        number=12,
-        text="Warmwasser Absenk",
-        description="Warmwasserladung im Absenkbetrieb.",
-        translation_key="io_konf_in_12",
-    ),
-    StatusItem(
-        number=13,
-        text="Warmwasser Normal",
-        description="Warmwasserladung im Normalbetrieb.",
-        translation_key="io_konf_in_13",
-    ),
-    StatusItem(
-        number=14,
-        text="Warmwasser PUSH",
-        description="Vom Zeitprogramm abweichender Warmwasserbedarf. Der Trinkwasserspeicher wird auf Normaltemperatur aufgeheizt und gehalten.",
-        translation_key="io_konf_in_14",
-    ),
-    StatusItem(
-        number=15,
-        text="Taupunktwächter",
-        description="Kühlbetrieb für Heizkreise gesperrt.",
-        translation_key="io_konf_in_15",
-    ),
-    StatusItem(
-        number=16,
-        text="Heizkreis … Standby",
-        description="Heizkreis im Standby.",
-        translation_key="io_konf_in_16",
-    ),
-    StatusItem(
-        number=17,
-        text="Heizkreis … Absenk",
-        description="Heizkreis im Absenkbetrieb",
-        translation_key="io_konf_in_17",
-    ),
-    StatusItem(
-        number=18,
-        text="Heizkreis … Normal",
-        description="Heizkreis im Normalbetrieb.",
-        translation_key="io_konf_in_18",
-    ),
-    StatusItem(
-        number=19,
-        text="Heizkreis … Komfort",
-        description="Heizkreis im Komfortbetrieb",
-        translation_key="io_konf_in_19",
-    ),
-    StatusItem(
-        number=20,
-        text="2.WEZ",
-        description="2. Wärmeerzeuger über Eingang aktivieren.",
-        translation_key="io_konf_in_20",
-    ),
-    StatusItem(
-        number=21,
-        text="Sperre Verdichter",
-        description="Externe Vorgabe zur Sperre vom Verdichter.ng für Digitaleingang DE",
-        translation_key="io_konf_in_21",
-    ),
-    StatusItem(
-        number=65535,
-        text="AUS",
-        description="Keine Funktion, wird nicht angesteuert.",
-        translation_key="io_konf_in_65535",
-    ),
+    StatusItem(number=0, translation_key="io_konf_in_0"),
+    StatusItem(number=1, translation_key="io_konf_in_1"),
+    StatusItem(number=2, translation_key="io_konf_in_2"),
+    StatusItem(number=3, translation_key="io_konf_in_3"),
+    StatusItem(number=4, translation_key="io_konf_in_4"),
+    StatusItem(number=5, translation_key="io_konf_in_5"),
+    StatusItem(number=6, translation_key="io_konf_in_6"),
+    StatusItem(number=7, translation_key="io_konf_in_7"),
+    StatusItem(number=8, translation_key="io_konf_in_8"),
+    StatusItem(number=9, translation_key="io_konf_in_9"),
+    StatusItem(number=10, translation_key="io_konf_in_10"),
+    StatusItem(number=11, translation_key="io_konf_in_11"),
+    StatusItem(number=12, translation_key="io_konf_in_12"),
+    StatusItem(number=13, translation_key="io_konf_in_13"),
+    StatusItem(number=14, translation_key="io_konf_in_14"),
+    StatusItem(number=15, translation_key="io_konf_in_15"),
+    StatusItem(number=16, translation_key="io_konf_in_16"),
+    StatusItem(number=17, translation_key="io_konf_in_17"),
+    StatusItem(number=18, translation_key="io_konf_in_18"),
+    StatusItem(number=19, translation_key="io_konf_in_19"),
+    StatusItem(number=20, translation_key="io_konf_in_20"),
+    StatusItem(number=21, translation_key="io_konf_in_21"),
+    StatusItem(number=65535, translation_key="io_konf_in_65535"),
 ]
 
 #####################################################

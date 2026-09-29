@@ -1,4 +1,4 @@
-"""Build entity List and Update Coordinator."""
+"""Build every platform's entities from the register table."""
 
 from .configentry import MyConfigEntry
 from .const import TYPES
@@ -10,7 +10,6 @@ from .entities import (
     MySensorEntity,
     MySetpointSwitchEntity,
 )
-from .items import ModbusItem
 
 # Type alias for entity types
 EntityType = (
@@ -22,35 +21,30 @@ EntityType = (
 )
 
 
-async def build_entity_list(
+def build_entity_list(
     config_entry: MyConfigEntry,
-    api_items: list[ModbusItem],
     item_types: str | tuple[str, ...],
     coordinator: WeishauptModbusCoordinator,
     as_off_switch: bool = False,
 ) -> list[EntityType]:
-    """Build entity list.
-
-    Function builds a list of entities that can be used as parameter by async_setup_entry().
-    It now performs a single pass over the item list while handling multiple entity types.
+    """Build the entities of the given item types.
 
     Args:
         config_entry: HASS config entry
-        api_items: list of modbus items
         item_types: type or types of modbus item to build
         coordinator: the update coordinator
         as_off_switch: build the on/off switch of a setpoint with an off
             word instead of its number (the switch platform)
 
     Returns:
-        Updated list of entities
+        The entities, for async_add_entities
 
     """
     entries: list[EntityType] = []
     if isinstance(item_types, str):
         item_types = (item_types,)
 
-    for index, item in enumerate(api_items):
+    for item in coordinator.modbus_items:
         if item.type not in item_types:
             continue
         # Decided once, from the first refresh: a register the firmware does
@@ -61,19 +55,17 @@ async def build_entity_list(
 
         match item.type:
             case TYPES.SENSOR | TYPES.NUMBER_RO:
-                entries.append(MySensorEntity(config_entry, item, coordinator, index))
+                entries.append(MySensorEntity(config_entry, item, coordinator))
             case TYPES.SENSOR_CALC:
-                entries.append(
-                    MyCalcSensorEntity(config_entry, item, coordinator, index)
-                )
+                entries.append(MyCalcSensorEntity(config_entry, item, coordinator))
             case TYPES.SELECT:
-                entries.append(MySelectEntity(config_entry, item, coordinator, index))
+                entries.append(MySelectEntity(config_entry, item, coordinator))
             case TYPES.NUMBER if as_off_switch:
                 if item.params.get("off_is_a_setting"):
                     entries.append(
-                        MySetpointSwitchEntity(config_entry, item, coordinator, index)
+                        MySetpointSwitchEntity(config_entry, item, coordinator)
                     )
             case TYPES.NUMBER:
-                entries.append(MyNumberEntity(config_entry, item, coordinator, index))
+                entries.append(MyNumberEntity(config_entry, item, coordinator))
 
     return entries

@@ -9,10 +9,7 @@ class StatusItem:
     """One value a status register can hold, and the key its text lives under."""
 
     number: int
-    text: str
-    translation_key: str = ""
-    # Service advice on the error codes: documentation in the table, never read.
-    description: str = ""
+    translation_key: str
 
 
 @dataclass
