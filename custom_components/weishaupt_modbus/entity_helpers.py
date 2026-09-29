@@ -22,7 +22,7 @@ EntityType = (
 )
 
 
-async def build_entity_list(
+def build_entity_list(
     config_entry: MyConfigEntry,
     api_items: list[ModbusItem],
     item_types: str | tuple[str, ...],

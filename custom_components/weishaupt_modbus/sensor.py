@@ -21,7 +21,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the sensor platform."""
     coordinator = config_entry.runtime_data.coordinator
-    entries: list[Any] = await build_entity_list(
+    entries: list[Any] = build_entity_list(
         config_entry=config_entry,
         api_items=coordinator.modbus_items,
         item_types=(TYPES.NUMBER_RO, TYPES.SENSOR_CALC, TYPES.SENSOR),
