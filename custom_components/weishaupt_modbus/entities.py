@@ -285,13 +285,6 @@ class MySensorEntity(MyEntity, SensorEntity):
 class MyCalcSensorEntity(MySensorEntity):
     """A sensor computed from other registers by a function in calculations.py."""
 
-    async def async_added_to_hass(self) -> None:
-        """When entity is added to Hass, perform immediate initial calculation."""
-        await super().async_added_to_hass()
-        # Force a calculation using the standard sensors' freshly loaded boot states
-        self._attr_native_value = self.translate_val(self._api_item.state)
-        self.async_write_ha_state()
-
     def translate_val(self, val: Any) -> float | None:
         """The formula over the own register and its operands; None when any is absent."""
         params = self._api_item.params
