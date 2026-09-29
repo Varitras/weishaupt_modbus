@@ -54,8 +54,6 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
 
     _divider: int = 1
     _attr_has_entity_name = True
-    _dynamic_min: float | None = None
-    _dynamic_max: float | None = None
     # The table's own bounds; a dynamic bound can only narrow them.
     _fixed_min: float = -999999
     _fixed_max: float = 999999
@@ -149,20 +147,20 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
 
         if self._has_dynamic_min:
             min_key = self._api_item.params.get("dynamic_min") or ""
-            self._dynamic_min = self.coordinator.get_value_from_item(min_key)
+            dynamic_min = self.coordinator.get_value_from_item(min_key)
             self._attr_native_min_value = self._fixed_min
-            if self._dynamic_min is not None:
+            if dynamic_min is not None:
                 self._attr_native_min_value = max(
-                    self._fixed_min, self._dynamic_min / self._divider
+                    self._fixed_min, dynamic_min / self._divider
                 )
 
         if self._has_dynamic_max:
             max_key = self._api_item.params.get("dynamic_max") or ""
-            self._dynamic_max = self.coordinator.get_value_from_item(max_key)
+            dynamic_max = self.coordinator.get_value_from_item(max_key)
             self._attr_native_max_value = self._fixed_max
-            if self._dynamic_max is not None:
+            if dynamic_max is not None:
                 self._attr_native_max_value = min(
-                    self._fixed_max, self._dynamic_max / self._divider
+                    self._fixed_max, dynamic_max / self._divider
                 )
 
     def translate_val(self, val: Any) -> float | str | None:

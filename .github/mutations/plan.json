@@ -51,8 +51,8 @@
   {
     "label": "entity: a dynamic maximum must be scaled by the divider",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "                self._attr_native_max_value = min(\n                    self._fixed_max, self._dynamic_max / self._divider\n                )\n",
-    "new": "                self._attr_native_max_value = min(\n                    self._fixed_max, self._dynamic_max\n                )\n",
+    "old": "                self._attr_native_max_value = min(\n                    self._fixed_max, dynamic_max / self._divider\n                )\n",
+    "new": "                self._attr_native_max_value = min(\n                    self._fixed_max, dynamic_max\n                )\n",
     "tests": "dynamic_limits"
   },
   {
@@ -478,8 +478,8 @@
   {
     "label": "entity: a dynamic bound must narrow the fixed one, not replace it",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "                self._attr_native_min_value = max(\n                    self._fixed_min, self._dynamic_min / self._divider\n                )\n",
-    "new": "                self._attr_native_min_value = self._dynamic_min / self._divider\n",
+    "old": "                self._attr_native_min_value = max(\n                    self._fixed_min, dynamic_min / self._divider\n                )\n",
+    "new": "                self._attr_native_min_value = dynamic_min / self._divider\n",
     "tests": "narrows_the_bounds_but_never_widens"
   },
   {
