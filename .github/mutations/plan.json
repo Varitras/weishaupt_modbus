@@ -915,5 +915,12 @@
     "old": "        self._attr_native_value = self.translate_val(modbus_item.state)\n",
     "new": "        self._attr_native_value = None\n",
     "tests": "calculated_sensor_starts_from_the_first_refresh"
+  },
+  {
+    "label": "coordinator: the entry must be handed to Home Assistant",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "            config_entry=config_entry,\n",
+    "new": "",
+    "tests": "knows_its_entry_outside_the_setup_context"
   }
 ]

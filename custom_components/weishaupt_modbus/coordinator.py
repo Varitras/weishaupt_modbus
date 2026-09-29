@@ -84,6 +84,7 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=config_entry,
             name="weishaupt-modbus-coordinator",
             update_interval=scan_interval(config_entry),
             always_update=True,
