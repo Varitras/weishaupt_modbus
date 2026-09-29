@@ -49,6 +49,9 @@ COMFORT_ROOM_TEMPERATURE_UNIQUE_ID = "weishaupt_wbbRaumsolltemperatur Komfort"
 SUMMER = 3
 ELECTRICAL_POWER = 33126
 ELECTRICAL_POWER_UNIQUE_ID = "weishaupt_wbbElektrische Leistungsaufnahme"
+FLOW_TEMPERATURE_PRECISE = 33111
+RETURN_TEMPERATURE = 33105
+SPREAD_UNIQUE_ID = "weishaupt_wbbSpreizung"
 
 BASE_DATA = {
     CONF.HOST: "192.0.2.10",
@@ -102,6 +105,20 @@ async def test_setup_creates_a_sensor_from_the_first_refresh(hass):
     # From the FIRST refresh: the listener only fires on the next poll, and
     # every entity read unknown for a whole scan interval after setup.
     assert hass.states.get(entity_id).state == "12.3"
+
+
+async def test_a_calculated_sensor_starts_from_the_first_refresh(hass, pump):
+    """The constructor computes the start value. A second computation when
+    the entity was added hid, for calculated sensors only, whether the
+    first one worked at all."""
+    pump.load_raw({"input": {FLOW_TEMPERATURE_PRECISE: 350, RETURN_TEMPERATURE: 300}})
+    await _setup(hass, _entry(hass))
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "sensor", CONST.DOMAIN, SPREAD_UNIQUE_ID
+    )
+
+    assert entity_id, "the spread got no entity"
+    assert float(hass.states.get(entity_id).state) == 5.0
 
 
 async def test_the_configured_port_reaches_the_client(hass, mock_modbus):
