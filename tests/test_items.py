@@ -4,8 +4,8 @@ from custom_components.weishaupt_modbus.const import DEVICES, FORMATS, TYPES
 from custom_components.weishaupt_modbus.items import ModbusItem, StatusItem
 
 STATES = [
-    StatusItem(number=0, text="undefiniert", translation_key="mode_undefined"),
-    StatusItem(number=19, text="Heizbetrieb", translation_key="mode_heating"),
+    StatusItem(number=0, translation_key="mode_undefined"),
+    StatusItem(number=19, translation_key="mode_heating"),
 ]
 
 

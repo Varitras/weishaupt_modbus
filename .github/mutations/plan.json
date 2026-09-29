@@ -408,8 +408,8 @@
   {
     "label": "table: the DHW pump variant must be code 8",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
-    "old": "    StatusItem(number=8, text=\"Pumpe\", translation_key=\"ww_konf_pumpe\"),\n",
-    "new": "    StatusItem(number=2, text=\"Pumpe\", translation_key=\"ww_konf_pumpe\"),\n",
+    "old": "    StatusItem(number=8, translation_key=\"ww_konf_pumpe\"),\n",
+    "new": "    StatusItem(number=2, translation_key=\"ww_konf_pumpe\"),\n",
     "tests": "dhw_pump_variant_is_code_8"
   },
   {
