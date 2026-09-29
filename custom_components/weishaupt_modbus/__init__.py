@@ -110,7 +110,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     pump = WeishauptHeatPump(unit, itemlist, write_budget(entry))
 
     modbus_coordinator = WeishauptModbusCoordinator(
-        hass=hass, device=pump, api_items=itemlist, p_config_entry=entry
+        hass=hass, device=pump, api_items=itemlist, config_entry=entry
     )
     await modbus_coordinator.async_config_entry_first_refresh()
     entry.runtime_data = MyData(coordinator=modbus_coordinator, powermap=None)

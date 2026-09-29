@@ -61,7 +61,7 @@ def _modbus_coordinator(hass, entry, device, items):
     token = config_entries.current_entry.set(entry)
     try:
         return WeishauptModbusCoordinator(
-            hass=hass, device=device, api_items=items, p_config_entry=entry
+            hass=hass, device=device, api_items=items, config_entry=entry
         )
     finally:
         config_entries.current_entry.reset(token)

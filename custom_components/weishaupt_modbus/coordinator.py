@@ -78,14 +78,14 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         hass: HomeAssistant,
         device: WeishauptHeatPump,
         api_items: list[ModbusItem],
-        p_config_entry: MyConfigEntry,
+        config_entry: MyConfigEntry,
     ) -> None:
         """Initialize the coordinator without synchronization overhead."""
         super().__init__(
             hass,
             _LOGGER,
             name="weishaupt-modbus-coordinator",
-            update_interval=scan_interval(p_config_entry),
+            update_interval=scan_interval(config_entry),
             always_update=True,
         )
         self.device = device
