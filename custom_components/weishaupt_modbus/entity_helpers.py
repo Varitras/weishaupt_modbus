@@ -1,4 +1,4 @@
-"""Build entity List and Update Coordinator."""
+"""Build every platform's entities from the register table."""
 
 from .configentry import MyConfigEntry
 from .const import TYPES
@@ -29,10 +29,7 @@ def build_entity_list(
     coordinator: WeishauptModbusCoordinator,
     as_off_switch: bool = False,
 ) -> list[EntityType]:
-    """Build entity list.
-
-    Function builds a list of entities that can be used as parameter by async_setup_entry().
-    It now performs a single pass over the item list while handling multiple entity types.
+    """Build the entities of the given item types.
 
     Args:
         config_entry: HASS config entry
@@ -43,7 +40,7 @@ def build_entity_list(
             word instead of its number (the switch platform)
 
     Returns:
-        Updated list of entities
+        The entities, for async_add_entities
 
     """
     entries: list[EntityType] = []
