@@ -59,7 +59,7 @@ def test_the_scan_is_not_satisfied_by_the_import_line():
         "    pass\n"
     )
     assert not _calls_the_shared_helper(imports_only)
-    assert _calls_the_shared_helper(f"entries = await {THE_SHARED_WAY}(entries=[])\n")
+    assert _calls_the_shared_helper(f"entries = {THE_SHARED_WAY}(entries=[])\n")
 
 
 def test_every_platform_builds_its_entities_through_the_shared_helper():
