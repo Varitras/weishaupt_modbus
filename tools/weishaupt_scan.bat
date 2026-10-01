@@ -181,5 +181,6 @@ finally {
     $script:client.Close()
 }
 
-$answered = @($rows | Where-Object { $_.table -ne 'device_id' -and $_.value -ne '' }).Count
+# A bare 0 -ne '' is false in PowerShell: compare the text, or zeros go uncounted.
+$answered = @($rows | Where-Object { $_.table -ne 'device_id' -and "$($_.value)" -ne '' }).Count
 Write-Host "$answered registers answered, written to $OutFile"
