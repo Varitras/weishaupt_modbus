@@ -202,6 +202,21 @@ def test_only_read_requests_reach_the_pump(tmp_path, serve):
     assert _values(rows, "holding") == {41101: 3}
 
 
+def test_a_register_reading_zero_counts_as_answered(tmp_path, serve):
+    """PowerShell's `0 -ne ''` is false: the closing line counted 23 of 41
+    answered registers on a real pump, every one reading 0 left out."""
+    pump = _StandInPump(registers={(READ_INPUT, 30001): 0, (READ_INPUT, 30002): 195})
+    port = serve(pump)
+
+    process, rows = _scan(
+        tmp_path, port, InputRegisters=[30001, 30002], HoldingRegisters=[]
+    )
+
+    assert process.returncode == 0, process.stderr
+    assert _values(rows, "input") == {30001: 0, 30002: 195}
+    assert "2 registers answered" in process.stdout, process.stdout
+
+
 def test_an_aborted_scan_keeps_the_registers_it_read(tmp_path, serve):
     """Five dropped requests in a row end the scan; what came before is
     evidence and was lost with the table it belonged to."""

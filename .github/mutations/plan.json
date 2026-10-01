@@ -922,5 +922,12 @@
     "old": "            config_entry=config_entry,\n",
     "new": "",
     "tests": "knows_its_entry_outside_the_setup_context"
+  },
+  {
+    "label": "scan tool: a register reading zero is not counted as answered",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "-and \"$($_.value)\" -ne '' }).Count\n",
+    "new": "-and $_.value -ne '' }).Count\n",
+    "tests": "register_reading_zero_counts_as_answered"
   }
 ]
