@@ -216,7 +216,7 @@ async def test_the_diagnostics_leave_out_the_login_and_the_page_addresses(hass, 
     )
 
 
-async def test_the_values_become_sensors_on_the_pumps_devices(hass, pump):
+async def test_the_values_become_sensors_on_a_device_of_their_own(hass, pump):
     entry = await _start(hass, _entries(hass, pump))
     registry = er.async_get(hass)
 
@@ -229,4 +229,64 @@ async def test_the_values_become_sensors_on_the_pumps_devices(hass, pump):
     state = hass.states.get(high_pressure)
     assert (state.state, state.attributes["unit_of_measurement"]) == ("12.0", "bar")
     device = dr.async_get(hass).async_get(registry.async_get(high_pressure).device_id)
-    assert (CONST.DOMAIN, DEVICES.WP) in device.identifiers
+    assert (CONST.DOMAIN, DEVICES.WEBIF) in device.identifiers
+
+
+async def test_a_pump_run_once_and_then_disabled_still_shows_its_web_interface(
+    hass, pump, mock_modbus
+):
+    """The order a second Home Assistant takes beside a running one: the pump
+    entry runs once, so its devices exist, and is disabled to stop asking
+    over Modbus; then the web interface is added. Its device is its own, so
+    the pump entry's disabled devices do not take its sensors along."""
+    mock_modbus.load_raw({"input": {30001: 123}})
+    pump_entry = MockConfigEntry(
+        domain=CONST.DOMAIN,
+        data={
+            CONF.HOST: pump.host,
+            CONF.PORT: 502,
+            CONF.PREFIX: CONST.DEF_PREFIX,
+            CONF.DEVICE_POSTFIX: "",
+            CONF.KENNFELD_FILE: CONST.DEF_KENNFELDFILE,
+            CONF.HK2: False,
+            CONF.HK3: False,
+            CONF.HK4: False,
+            CONF.HK5: False,
+            CONF.NAME_DEVICE_PREFIX: False,
+            CONF.NAME_TOPIC_PREFIX: False,
+        },
+        version=11,
+        title="pump",
+    )
+    pump_entry.add_to_hass(hass)
+    await _start(hass, pump_entry)
+    assert pump_entry.state is ConfigEntryState.LOADED
+    await hass.config_entries.async_set_disabled_by(
+        pump_entry.entry_id, ConfigEntryDisabler.USER
+    )
+    await hass.async_block_till_done()
+    web = MockConfigEntry(
+        domain=CONST.DOMAIN,
+        data={
+            CONF.KIND: CONST.WEB_INTERFACE,
+            CONF.PUMP_ENTRY: pump_entry.entry_id,
+            CONF.USERNAME: USER,
+            CONF.PASSWORD: PASSWORD,
+            CONF.PAGES: PAGES,
+        },
+        version=11,
+        title="pump web interface",
+    )
+    web.add_to_hass(hass)
+
+    await _start(hass, web)
+
+    registry = er.async_get(hass)
+    high_pressure = registry.async_get_entity_id(
+        "sensor", CONST.DOMAIN, f"{CONST.DEF_PREFIX}webif_hochdruck"
+    )
+    assert registry.async_get(high_pressure).disabled_by is None
+    assert hass.states.get(high_pressure).state == "12.0"
+    device = dr.async_get(hass).async_get(registry.async_get(high_pressure).device_id)
+    assert device.config_entries == {web.entry_id}
+    assert device.disabled_by is None

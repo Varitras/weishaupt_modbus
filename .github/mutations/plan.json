@@ -1337,18 +1337,18 @@
     "tests": "requires_the_titles_of_its_sensors"
   },
   {
-    "label": "webif sensor: a performance factor lands on the heat pump device",
+    "label": "webif sensor: a sensor sits on its topic's device, not the web interface's",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "        device=DEVICES.ST,\n        state_class=SensorStateClass.MEASUREMENT,\n",
-    "new": "        device=DEVICES.WP,\n        state_class=SensorStateClass.MEASUREMENT,\n",
-    "tests": "sits_on_the_pumps_device"
+    "old": "        self._attr_device_info = device_info(pump_data, DEVICES.WEBIF)\n",
+    "new": "        self._attr_device_info = device_info(pump_data, description.topic)\n",
+    "tests": "sits_on_the_web_interface_device"
   },
   {
     "label": "webif sensor: its unique id is the bare key a register may share",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
     "old": "            pump_data, f\"webif_{description.key}\"\n",
     "new": "            pump_data, description.key\n",
-    "tests": "sits_on_the_pumps_device"
+    "tests": "sits_on_the_web_interface_device"
   },
   {
     "label": "setup: the web interface gets no sensors",
@@ -1356,5 +1356,12 @@
     "old": "    await hass.config_entries.async_forward_entry_setups(entry, WEBIF_PLATFORMS)\n",
     "new": "",
     "tests": "values_become_sensors"
+  },
+  {
+    "label": "webif sensor: the topic option names every sensor after the web interface",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "            \"prefix\": name_prefix(pump_data, description.topic)\n",
+    "new": "            \"prefix\": name_prefix(pump_data, DEVICES.WEBIF)\n",
+    "tests": "topic_option_names_a_sensor"
   }
 ]

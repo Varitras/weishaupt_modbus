@@ -101,6 +101,7 @@ class DeviceConstants:
     ST: str = "dev_statistik"
     UK: str = "dev_unknown"
     IO: str = "dev_ein_aus"
+    WEBIF: str = "dev_webif"
 
 
 DEVICES = DeviceConstants()

@@ -80,16 +80,21 @@ def test_a_sensor_of_a_page_gone_is_unavailable():
     assert not sensor.available
 
 
-@pytest.mark.parametrize(
-    ("key", "device"),
-    [
-        ("hochdruck", DEVICES.WP),
-        ("jaz_jahr", DEVICES.ST),
-        ("leistungsbegrenzung_heizen", DEVICES.WP),
-    ],
-)
-def test_a_sensor_sits_on_the_pumps_device_with_an_id_of_its_own(key, device):
+@pytest.mark.parametrize("key", ["hochdruck", "jaz_jahr", "leistungsbegrenzung_heizen"])
+def test_a_sensor_sits_on_the_web_interface_device_with_an_id_of_its_own(key):
+    """A device belongs to one config entry: the pump entry's devices are
+    not the web interface entry's to add to."""
     sensor = _sensor(key, {})
 
     assert sensor.unique_id == f"{CONST.DEF_PREFIX}webif_{key}"
-    assert sensor.device_info["identifiers"] == {(CONST.DOMAIN, device)}
+    assert sensor.device_info["identifiers"] == {(CONST.DOMAIN, DEVICES.WEBIF)}
+
+
+@pytest.mark.parametrize(("key", "topic"), [("hochdruck", "WP_"), ("jaz_jahr", "ST_")])
+def test_the_topic_option_names_a_sensor_like_its_modbus_siblings(key, topic):
+    coordinator = SimpleNamespace(data={}, last_update_success=True)
+    pump_data = {**PUMP_DATA, CONF.NAME_TOPIC_PREFIX: True}
+
+    sensor = WebifSensor(coordinator, pump_data, _description(key))
+
+    assert sensor.translation_placeholders == {"prefix": topic}

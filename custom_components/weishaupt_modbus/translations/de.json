@@ -137,6 +137,9 @@
         },
         "dev_ein_aus": {
             "name": "WH Eingänge/Ausgänge{postfix}"
+        },
+        "dev_webif": {
+            "name": "WH Weboberfläche{postfix}"
         }
     },
     "entity": {
@@ -1867,46 +1870,46 @@
                 "name": "{prefix}Außengerät Variante"
             },
             "webif_th_energie_heizen_tag": {
-                "name": "{prefix}Heizen Energie heute (WebIF)"
+                "name": "{prefix}Heizen Energie heute"
             },
             "webif_th_energie_ww_tag": {
-                "name": "{prefix}Warmwasser Energie heute (WebIF)"
+                "name": "{prefix}Warmwasser Energie heute"
             },
             "webif_th_energie_gesamt_tag": {
-                "name": "{prefix}Gesamt Energie heute (WebIF)"
+                "name": "{prefix}Gesamt Energie heute"
             },
             "webif_el_energie_tag": {
-                "name": "{prefix}Elektr. Energie heute (WebIF)"
+                "name": "{prefix}Elektr. Energie heute"
             },
             "webif_th_energie_heizen_monat": {
-                "name": "{prefix}Heizen Energie Monat (WebIF)"
+                "name": "{prefix}Heizen Energie Monat"
             },
             "webif_th_energie_ww_monat": {
-                "name": "{prefix}Warmwasser Energie Monat (WebIF)"
+                "name": "{prefix}Warmwasser Energie Monat"
             },
             "webif_th_energie_gesamt_monat": {
-                "name": "{prefix}Gesamt Energie Monat (WebIF)"
+                "name": "{prefix}Gesamt Energie Monat"
             },
             "webif_el_energie_monat": {
-                "name": "{prefix}Elektr. Energie Monat (WebIF)"
+                "name": "{prefix}Elektr. Energie Monat"
             },
             "webif_th_energie_heizen_jahr": {
-                "name": "{prefix}Heizen Energie Jahr (WebIF)"
+                "name": "{prefix}Heizen Energie Jahr"
             },
             "webif_th_energie_ww_jahr": {
-                "name": "{prefix}Warmwasser Energie Jahr (WebIF)"
+                "name": "{prefix}Warmwasser Energie Jahr"
             },
             "webif_th_energie_gesamt_jahr": {
-                "name": "{prefix}Gesamt Energie Jahr (WebIF)"
+                "name": "{prefix}Gesamt Energie Jahr"
             },
             "webif_el_energie_jahr": {
-                "name": "{prefix}Elektr. Energie Jahr (WebIF)"
+                "name": "{prefix}Elektr. Energie Jahr"
             },
             "webif_jaz_jahr": {
-                "name": "{prefix}Jahresarbeitszahl (WebIF)"
+                "name": "{prefix}Jahresarbeitszahl"
             },
             "webif_jaz_gesamt": {
-                "name": "{prefix}Arbeitszahl gesamt (WebIF)"
+                "name": "{prefix}Arbeitszahl gesamt"
             },
             "webif_leistungsbegrenzung_heizen": {
                 "name": "{prefix}Leistungsbegrenzung Heizen"

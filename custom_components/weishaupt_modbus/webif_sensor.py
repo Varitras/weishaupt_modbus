@@ -1,4 +1,4 @@
-"""The web interface's values as sensors on the pump's own devices.
+"""The web interface's values as sensors, on a device of their own.
 
 A value counts only in the unit the catalogue expects: a page of another
 section, or a changed display, would otherwise pass for a reading.
@@ -51,12 +51,14 @@ class WebifSensorDescription(SensorEntityDescription):
     """A value of a web interface page: its page, its title, its unit there.
 
     `shown_unit` is the text after the number; None for a value that is text.
+    `topic` is the pump device whose short name the name prefix option puts
+    in front, as for the Modbus sensors of the same subject.
     """
 
     page: str
     title: str
     shown_unit: str | None
-    device: str = DEVICES.WP
+    topic: str = DEVICES.WP
 
 
 def _sensor(
@@ -165,7 +167,7 @@ def _energy(key: str, title: str) -> WebifSensorDescription:
         title,
         KILOWATT_HOURS,
         STATISTICS_PAGE,
-        device=DEVICES.ST,
+        topic=DEVICES.ST,
         device_class=SensorDeviceClass.ENERGY,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -179,7 +181,7 @@ def _performance(key: str, title: str) -> WebifSensorDescription:
         title,
         NO_UNIT,
         STATISTICS_PAGE,
-        device=DEVICES.ST,
+        topic=DEVICES.ST,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=2,
     )
@@ -310,7 +312,7 @@ def reading(description: WebifSensorDescription, shown: str | None) -> Any:
 
 
 class WebifSensor(CoordinatorEntity[WebifCoordinator], SensorEntity):
-    """A value of a web interface page, on the pump's device it belongs to."""
+    """A value of a web interface page, on the web interface's device."""
 
     entity_description: WebifSensorDescription
     _attr_has_entity_name = True
@@ -321,15 +323,17 @@ class WebifSensor(CoordinatorEntity[WebifCoordinator], SensorEntity):
         pump_data: Mapping[str, Any],
         description: WebifSensorDescription,
     ) -> None:
-        """Name and place the sensor the way the pump's own sensors are."""
+        """Name the sensor the way the pump's own sensors are named."""
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_unique_id = unique_id_from_parts(
             pump_data, f"webif_{description.key}"
         )
-        self._attr_device_info = device_info(pump_data, description.device)
+        # A device belongs to one config entry, so the web interface cannot
+        # add to the pump entry's devices; it gets one of its own.
+        self._attr_device_info = device_info(pump_data, DEVICES.WEBIF)
         self._attr_translation_placeholders = {
-            "prefix": name_prefix(pump_data, description.device)
+            "prefix": name_prefix(pump_data, description.topic)
         }
 
     @property

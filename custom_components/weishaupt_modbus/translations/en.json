@@ -137,6 +137,9 @@
     },
     "dev_warmwasser": {
       "name": "WH Hot water{postfix}"
+    },
+    "dev_webif": {
+      "name": "WH Web interface{postfix}"
     }
   },
   "entity": {
@@ -1867,46 +1870,46 @@
         "name": "{prefix}Outdoor unit variant"
       },
       "webif_th_energie_heizen_tag": {
-        "name": "{prefix}Heating energy today (WebIF)"
+        "name": "{prefix}Heating energy today"
       },
       "webif_th_energie_ww_tag": {
-        "name": "{prefix}Hot water energy today (WebIF)"
+        "name": "{prefix}Hot water energy today"
       },
       "webif_th_energie_gesamt_tag": {
-        "name": "{prefix}Total energy today (WebIF)"
+        "name": "{prefix}Total energy today"
       },
       "webif_el_energie_tag": {
-        "name": "{prefix}Electr. energy today (WebIF)"
+        "name": "{prefix}Electr. energy today"
       },
       "webif_th_energie_heizen_monat": {
-        "name": "{prefix}Heating energy month (WebIF)"
+        "name": "{prefix}Heating energy month"
       },
       "webif_th_energie_ww_monat": {
-        "name": "{prefix}Hot water energy month (WebIF)"
+        "name": "{prefix}Hot water energy month"
       },
       "webif_th_energie_gesamt_monat": {
-        "name": "{prefix}Total energy month (WebIF)"
+        "name": "{prefix}Total energy month"
       },
       "webif_el_energie_monat": {
-        "name": "{prefix}Electr. energy month (WebIF)"
+        "name": "{prefix}Electr. energy month"
       },
       "webif_th_energie_heizen_jahr": {
-        "name": "{prefix}Heating energy year (WebIF)"
+        "name": "{prefix}Heating energy year"
       },
       "webif_th_energie_ww_jahr": {
-        "name": "{prefix}Hot water energy year (WebIF)"
+        "name": "{prefix}Hot water energy year"
       },
       "webif_th_energie_gesamt_jahr": {
-        "name": "{prefix}Total energy year (WebIF)"
+        "name": "{prefix}Total energy year"
       },
       "webif_el_energie_jahr": {
-        "name": "{prefix}Electr. energy year (WebIF)"
+        "name": "{prefix}Electr. energy year"
       },
       "webif_jaz_jahr": {
-        "name": "{prefix}Annual performance factor (WebIF)"
+        "name": "{prefix}Annual performance factor"
       },
       "webif_jaz_gesamt": {
-        "name": "{prefix}Total performance factor (WebIF)"
+        "name": "{prefix}Total performance factor"
       },
       "webif_leistungsbegrenzung_heizen": {
         "name": "{prefix}Heating power limit"

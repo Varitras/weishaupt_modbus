@@ -137,6 +137,9 @@
     },
     "dev_ein_aus" : {
       "name" : "Ingangen/Uitgangen{postfix}"
+    },
+    "dev_webif" : {
+      "name" : "WH Webinterface{postfix}"
     }
   },
   "entity" : {
@@ -1867,46 +1870,46 @@
         "name" : "{prefix}Variant buitenunit"
       },
       "webif_th_energie_heizen_tag" : {
-        "name" : "{prefix}Verwarmingsenergie vandaag (WebIF)"
+        "name" : "{prefix}Verwarmingsenergie vandaag"
       },
       "webif_th_energie_ww_tag" : {
-        "name" : "{prefix}Warm water energie vandaag (WebIF)"
+        "name" : "{prefix}Warm water energie vandaag"
       },
       "webif_th_energie_gesamt_tag" : {
-        "name" : "{prefix}Totale Energie vandaag (WebIF)"
+        "name" : "{prefix}Totale Energie vandaag"
       },
       "webif_el_energie_tag" : {
-        "name" : "{prefix}Elektr. Energie vandaag (WebIF)"
+        "name" : "{prefix}Elektr. Energie vandaag"
       },
       "webif_th_energie_heizen_monat" : {
-        "name" : "{prefix}Verwarmingsenergie maand (WebIF)"
+        "name" : "{prefix}Verwarmingsenergie maand"
       },
       "webif_th_energie_ww_monat" : {
-        "name" : "{prefix}Warm water energie deze maand (WebIF)"
+        "name" : "{prefix}Warm water energie deze maand"
       },
       "webif_th_energie_gesamt_monat" : {
-        "name" : "{prefix}Totale Energie maand (WebIF)"
+        "name" : "{prefix}Totale Energie maand"
       },
       "webif_el_energie_monat" : {
-        "name" : "{prefix}Elektr. Energie maand (WebIF)"
+        "name" : "{prefix}Elektr. Energie maand"
       },
       "webif_th_energie_heizen_jahr" : {
-        "name" : "{prefix}Verwarmingsenergie jaar (WebIF)"
+        "name" : "{prefix}Verwarmingsenergie jaar"
       },
       "webif_th_energie_ww_jahr" : {
-        "name" : "{prefix}Warm water energie dit jaar (WebIF)"
+        "name" : "{prefix}Warm water energie dit jaar"
       },
       "webif_th_energie_gesamt_jahr" : {
-        "name" : "{prefix}Totale Energie jaar (WebIF)"
+        "name" : "{prefix}Totale Energie jaar"
       },
       "webif_el_energie_jahr" : {
-        "name" : "{prefix}Elektr. Energie jaar (WebIF)"
+        "name" : "{prefix}Elektr. Energie jaar"
       },
       "webif_jaz_jahr" : {
-        "name" : "{prefix}Jaarlijkse prestatiefactor (WebIF)"
+        "name" : "{prefix}Jaarlijkse prestatiefactor"
       },
       "webif_jaz_gesamt" : {
-        "name" : "{prefix}Totale prestatiefactor (WebIF)"
+        "name" : "{prefix}Totale prestatiefactor"
       },
       "webif_leistungsbegrenzung_heizen" : {
         "name" : "{prefix}Vermogensbegrenzing verwarmen"

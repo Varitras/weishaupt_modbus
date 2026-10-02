@@ -255,19 +255,23 @@ this entry; a refused login asks for a new one by itself.
 
 ### What it reads
 
-47 sensors on the heat pump's existing devices:
+47 sensors on a device of their own, *WH Web interface* (with the heat
+pump's postfix). Home Assistant gives every device to one entry, so they
+cannot join the heat pump's devices.
 
-- **Heat pump**: setpoint temperature, dynamic switching difference, pump M1
+- **Readings**: setpoint temperature, dynamic switching difference, pump M1
   speed, flow rate, diverter valve position, target and actual output, eight
   refrigerant circuit temperatures, low, intermediate and high pressure,
   three superheat values, three valve openings, compressor speed, operating
   hours, starts and defrost cycles.
-- **Heat pump, Diagnostic**: the heating power limit and switching
-  difference, the two controller software versions and the outdoor unit
-  variant.
 - **Statistics**: the thermal and electrical energy of today, this month and
-  this year, and the performance factors of the year and overall. They carry
-  *(WebIF)* in their names, beside the coarser Modbus values.
+  this year to three decimals, and the performance factors of the year and
+  overall.
+- **Diagnostic**: the heating power limit and switching difference, the two
+  controller software versions and the outdoor unit variant.
+
+The *Name topic prefix* option of the heat pump entry names these sensors
+like their Modbus siblings, with `WP_` or `ST_` in front.
 
 A value counts only in the unit the page shows for it; anything else reads as
 unknown. The heating power limit can be read here, not set.
