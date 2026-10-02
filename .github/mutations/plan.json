@@ -1384,5 +1384,12 @@
     "old": "            if self._closed:\n                raise WebifError(f\"{path}: the client is closed\")\n",
     "new": "",
     "tests": "logs_in_no_more"
+  },
+  {
+    "label": "webif client: a redirected page hides where it was sent",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        raise Broken(f\"{path}: HTTP {answer.status} to {answer.location or '-'}\")\n",
+    "new": "        raise Broken(f\"{path}: HTTP {answer.status}\")\n",
+    "tests": "names_where_it_was_sent"
   }
 ]

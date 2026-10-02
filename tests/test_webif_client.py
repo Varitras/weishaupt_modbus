@@ -2,6 +2,7 @@
 
 import asyncio
 from itertools import pairwise
+import re
 import socket
 
 import aiohttp
@@ -171,6 +172,16 @@ async def test_a_session_lost_again_right_after_the_login_is_broken(pump, sessio
     with pytest.raises(webif.Broken):
         await client.page(PAGE, whole)
     assert pump.asked == LOGIN
+
+
+async def test_a_redirected_page_names_where_it_was_sent(pump, session):
+    """Live, 2026-10-03: the overview after an accepted login failed with
+    "HTTP 303" alone, which left open where the controller sent it."""
+    pump.keeps_sessions = False
+    client = connect(session, pump.host)
+
+    with pytest.raises(webif.Broken, match=re.escape(f"HTTP 303 to {webif.INDEX}")):
+        await client.page(PAGE, whole)
 
 
 async def test_the_session_is_renewed_after_a_day(pump, session):

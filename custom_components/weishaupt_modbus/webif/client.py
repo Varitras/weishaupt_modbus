@@ -74,7 +74,7 @@ def _allowed(method: str, path: str) -> bool:
 
 def _page_text(path: str, answer: _Answer) -> str:
     if answer.status != HTTPStatus.OK:
-        raise Broken(f"{path}: HTTP {answer.status}")
+        raise Broken(f"{path}: HTTP {answer.status} to {answer.location or '-'}")
     return answer.text
 
 
