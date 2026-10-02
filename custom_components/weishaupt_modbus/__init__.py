@@ -177,8 +177,9 @@ async def _async_setup_web_interface(
         await client.close()
 
     # Home Assistant stops without unloading its entries; without a logout
-    # the session stays open on the controller until it expires.
-    entry.async_on_unload(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, log_out))
+    # the session stays open on the controller until it expires. Not a
+    # one-time listener: that one removes itself, and the unload again.
+    entry.async_on_unload(hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, log_out))
     coordinator = WebifCoordinator(
         hass, entry, client, polled_pages(entry, REQUIRED_TITLES)
     )

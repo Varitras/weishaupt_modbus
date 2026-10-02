@@ -175,6 +175,17 @@ async def test_stopping_home_assistant_leaves_no_session_open(hass, pump):
     assert pump.sessions == set()
 
 
+async def test_unloading_after_the_stop_logs_no_error(hass, pump, caplog):
+    """A one-time stop listener removes itself when it fires; removing it
+    again on unload logged an error."""
+    entry = await _start(hass, _entries(hass, pump))
+    hass.bus.async_fire(EVENT_HOMEASSISTANT_STOP)
+    await hass.async_block_till_done()
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    assert "Unable to remove" not in caplog.text
+
+
 async def test_a_refused_login_asks_for_a_new_one(hass, pump):
     entry = await _start(hass, _entries(hass, pump, password="outdated"))
 

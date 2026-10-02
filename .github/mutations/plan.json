@@ -1374,7 +1374,7 @@
   {
     "label": "setup: Home Assistant stops without a logout",
     "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "    entry.async_on_unload(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, log_out))\n",
+    "old": "    entry.async_on_unload(hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, log_out))\n",
     "new": "",
     "tests": "stopping_home_assistant_leaves_no_session_open"
   },
@@ -1419,5 +1419,12 @@
     "old": "        hass, auto_cleanup=False, cookie_jar=aiohttp.DummyCookieJar()\n",
     "new": "        hass, auto_cleanup=False, cookie_jar=aiohttp.CookieJar(unsafe=True)\n",
     "tests": "dialog_finds_the_pages_and_logs_out_again"
+  },
+  {
+    "label": "setup: the stop listener removes itself when it fires",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, log_out)",
+    "new": "hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, log_out)",
+    "tests": "unloading_after_the_stop_logs_no_error"
   }
 ]
