@@ -929,5 +929,33 @@
     "old": "-and \"$($_.value)\" -ne '' }).Count\n",
     "new": "-and $_.value -ne '' }).Count\n",
     "tests": "register_reading_zero_counts_as_answered"
+  },
+  {
+    "label": "webif pages: a child need not carry its own depth",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "    ) == len(segments)\n",
+    "new": "    ) >= 0\n",
+    "tests": "siblings_nested_one_level_too_deep_are_no_children"
+  },
+  {
+    "label": "webif pages: a blank value passes for complete",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "    return bool(found) and required <= titles and all(text for _, text in found)\n",
+    "new": "    return bool(found) and required <= titles\n",
+    "tests": "entry_left_without_its_value_makes_the_page_incomplete"
+  },
+  {
+    "label": "webif pages: another section passes for the one asked for",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "    return bool(found) and required <= titles and all(text for _, text in found)\n",
+    "new": "    return bool(found) and all(text for _, text in found)\n",
+    "tests": "values_of_another_section_do_not_pass"
+  },
+  {
+    "label": "webif pages: \"Aus\" reads as no value instead of 0",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "        return 0.0\n",
+    "new": "        return None\n",
+    "tests": "a_shown_value_becomes_a_number"
   }
 ]
