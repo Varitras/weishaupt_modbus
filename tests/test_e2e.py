@@ -49,7 +49,7 @@ COMFORT_ROOM_TEMPERATURE_UNIQUE_ID = "weishaupt_wbbRaumsolltemperatur Komfort"
 SUMMER = 3
 ELECTRICAL_POWER = 33126
 ELECTRICAL_POWER_UNIQUE_ID = "weishaupt_wbbElektrische Leistungsaufnahme"
-FLOW_TEMPERATURE_PRECISE = 33111
+FLOW_TEMPERATURE = 33104
 RETURN_TEMPERATURE = 33105
 SPREAD_UNIQUE_ID = "weishaupt_wbbSpreizung"
 
@@ -111,7 +111,7 @@ async def test_a_calculated_sensor_starts_from_the_first_refresh(hass, pump):
     """The constructor computes the start value. A second computation when
     the entity was added hid, for calculated sensors only, whether the
     first one worked at all."""
-    pump.load_raw({"input": {FLOW_TEMPERATURE_PRECISE: 350, RETURN_TEMPERATURE: 300}})
+    pump.load_raw({"input": {FLOW_TEMPERATURE: 350, RETURN_TEMPERATURE: 300}})
     await _setup(hass, _entry(hass))
     entity_id = er.async_get(hass).async_get_entity_id(
         "sensor", CONST.DOMAIN, SPREAD_UNIQUE_ID

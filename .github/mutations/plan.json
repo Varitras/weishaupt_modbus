@@ -929,5 +929,12 @@
     "old": "-and \"$($_.value)\" -ne '' }).Count\n",
     "new": "-and $_.value -ne '' }).Count\n",
     "tests": "register_reading_zero_counts_as_answered"
+  },
+  {
+    "label": "table: the spread takes the outlet sensor B7 again, refreshed every 3 min",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "    ModbusItem(address=33104, name=\"Spreizung\", ",
+    "new": "    ModbusItem(address=33111, name=\"Spreizung\", ",
+    "tests": "spread_of_a_pump_at_rest_is_not_the_stale_outlet_sensor"
   }
 ]
