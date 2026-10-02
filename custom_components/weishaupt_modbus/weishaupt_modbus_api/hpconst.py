@@ -867,8 +867,8 @@ MODBUS_WP_ITEMS: list[ModbusItem] = [
     ModbusItem(address=33109, name="Anforderung(Vorlauf regenerativ)", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.WP, params=PARAMS_STDTEMP, translation_key="anforderung_vl_regenerativ"),
     ModbusItem(address=33110, name="Puffertemperatur?", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.WP, params=PARAMS_STDTEMP, translation_key="puffer_temp"),
     ModbusItem(address=33111, name="Vorlauftemperatur präzise(Summenvorlauf(B7))", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.WP, params=PARAMS_STDTEMP, translation_key="vl_praeziese_summenvorlauf_b7"),
-    # Calculated Sensor (Calculated downstream, no Modbus block read)
-    ModbusItem(address=33111, name="Spreizung", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR_CALC, device=DEVICES.WP, params=PARAMS_CALCSPREIZUNG, translation_key="spreizung"),
+    # Spread over the condenser: flow B4 (33104) minus return B9; B7 above lags by up to 3 min
+    ModbusItem(address=33104, name="Spreizung", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR_CALC, device=DEVICES.WP, params=PARAMS_CALCSPREIZUNG, translation_key="spreizung"),
     ModbusItem(address=33126, name="Elektrische Leistungsaufnahme", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.WP, params=PARAMS_ELECTRICAL_POWER, translation_key="el_leistungsaufnahme"),
 
     ModbusItem(address=43101, name="Konfiguration", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.WP, resultlist=HP_KONFIGURATION, translation_key="wp_konf"),

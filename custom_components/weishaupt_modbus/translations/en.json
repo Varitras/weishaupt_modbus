@@ -1455,7 +1455,7 @@
         "name": "{prefix}Compressor suction gas temp"
       },
       "vl_praeziese_summenvorlauf_b7": {
-        "name": "{prefix}Precise flow temperature (total flow B7)"
+        "name": "{prefix}Outlet flow temperature (B7)"
       },
       "vl_temp": {
         "name": "{prefix}Feed temperature"
