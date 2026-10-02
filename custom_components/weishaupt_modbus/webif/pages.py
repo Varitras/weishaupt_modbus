@@ -114,6 +114,21 @@ def values(page: str) -> list[tuple[str, str]]:
     return [(entry.title, entry.text) for entry in entries(page) if entry.href is None]
 
 
+def main_menus(page: str) -> dict[str, str]:
+    """The main menus the page lists, title to link.
+
+    A main menu's link is one stack segment; the broken answers that nest the
+    main menus under another entry give them two.
+    """
+    return {
+        entry.title: entry.href
+        for entry in entries(page)
+        if entry.href is not None
+        and STACK_LINK.fullmatch(entry.href) is not None
+        and "," not in entry.href
+    }
+
+
 def is_child(href: str, parent: str) -> bool:
     """One level below parent, and the link's own segment says so."""
     if STACK_LINK.fullmatch(href) is None or not href.startswith(parent + ","):

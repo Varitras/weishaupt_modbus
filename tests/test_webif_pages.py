@@ -9,12 +9,12 @@ import pytest
 
 from custom_components.weishaupt_modbus.webif import pages
 
-MAIN = "0C000001000000000080000F4C010002000301"
-HEAT_PUMP = "0C000C22000000000000000F4C020003000401"
-PUMP_MENU = "64000001000000000080000F4C010002000301"
-HEATING = "64001800000000000080000F4C020003000401"
-LIMIT = "64001807000000003C40000F4C030011010401"
-SIBLING = "64001900000000000080000F4C020003000401"
+MAIN = "0C000001000000000080000A0B010002000301"
+HEAT_PUMP = "0C000C22000000000000000A0B020003000401"
+PUMP_MENU = "64000001000000000080000A0B010002000301"
+HEATING = "64001800000000000080000A0B020003000401"
+LIMIT = "64001807000000003C40000A0B030011010401"
+SIBLING = "64001900000000000080000A0B020003000401"
 REQUIRED = frozenset({"Hochdruck", "Verdichter"})
 
 
@@ -55,7 +55,7 @@ def test_a_page_with_its_menu_instead_of_its_values_is_not_complete():
     values belonged - no error, no warning in the status."""
     nested = MENU + column(
         link([MAIN, PUMP_MENU], "Wärmepumpe")
-        + link([MAIN, "06000001000000000080000F4C010011000301"], "Systembetriebsart")
+        + link([MAIN, "06000001000000000080000A0B010011000301"], "Systembetriebsart")
     )
 
     assert pages.values(nested) == []
@@ -98,7 +98,7 @@ def test_a_menu_shows_its_children_with_their_values():
         + column(link([PUMP_MENU, HEATING], "Heizen"))
         + column(
             link(
-                [PUMP_MENU, HEATING, "64001806000000002D40000F4C030011010401"],
+                [PUMP_MENU, HEATING, "64001806000000002D40000A0B030011010401"],
                 "Schaltdifferenz",
                 "4.5 K",
             )
@@ -109,6 +109,16 @@ def test_a_menu_shows_its_children_with_their_values():
     shown = {entry.title: entry.text for entry in pages.children(page, parent)}
 
     assert shown == {"Schaltdifferenz": "4.5 K", "Leistungsbegrenzung": "60 %"}
+
+
+def test_the_main_menus_are_the_links_of_one_segment():
+    """The broken answer that nests the main menus gives them two segments."""
+    nested = MENU + column(link([MAIN, PUMP_MENU], "Wärmepumpe"))
+
+    assert pages.main_menus(nested) == {
+        "Info": "/settings_export.html?stack=" + MAIN,
+        "Wärmepumpe": "/settings_export.html?stack=" + PUMP_MENU,
+    }
 
 
 def test_siblings_nested_one_level_too_deep_are_no_children():

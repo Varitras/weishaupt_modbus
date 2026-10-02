@@ -1167,5 +1167,33 @@
     "old": "                raise Unreachable(f\"{method} {path}: {type(error).__name__}\") from error\n",
     "new": "                raise Unreachable(f\"{method} {path}: {error!r}\") from error\n",
     "tests": "takes_no_connection_is_unreachable"
+  },
+  {
+    "label": "webif pages: a main menu nested one level too deep counts",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "        and \",\" not in entry.href\n",
+    "new": "",
+    "tests": "main_menus_are_the_links_of_one_segment"
+  },
+  {
+    "label": "webif client: the overview takes any query",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        path in (INDEX, LOGOUT, OVERVIEW)\n",
+    "new": "        path.startswith((INDEX, LOGOUT, OVERVIEW))\n",
+    "tests": "off_the_positive_list"
+  },
+  {
+    "label": "webif discovery: an overview without the heat pump menu passes",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        OVERVIEW, lambda text: {INFO, HEAT_PUMP} <= pages.main_menus(text).keys()\n",
+    "new": "        OVERVIEW, lambda text: {INFO} <= pages.main_menus(text).keys()\n",
+    "tests": "overview_without_the_heat_pump_menu"
+  },
+  {
+    "label": "webif discovery: a menu without the entry wanted passes",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "    return links(await client.page(path, lambda text: wanted <= links(text).keys()))\n",
+    "new": "    return links(await client.page(path, lambda text: True))\n",
+    "tests": "menu_without_the_entry_wanted"
   }
 ]

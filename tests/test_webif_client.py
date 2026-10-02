@@ -1,32 +1,28 @@
-"""How the client talks to the web interface, against a stand-in on loopback.
-
-The stand-in answers the way the controller did in the recordings: a login
-is a 303 to /home.html with a session cookie, wrong credentials a 303 to
-/index.html#wrongpassword without one, and a page asked for without a valid
-session a 303 to /index.html.
-"""
+"""How the client talks to the web interface, against a stand-in on loopback."""
 
 import asyncio
 from itertools import pairwise
 import socket
-import time
 
 import aiohttp
-from aiohttp import web
-from aiohttp.test_utils import TestServer
 import pytest
 
 from custom_components.weishaupt_modbus.webif import client as webif
 
-PAGE_PATH = "/settings_export.html"
-PAGE = (
-    PAGE_PATH
-    + "?stack=64000001000000000080000F4C010002000301,64001800000000000080000F4C020003000401"
+from .webif_stand_in import (
+    HEATING,
+    PAGE_PATH,
+    PASSWORD,
+    PUMP_MENU,
+    STACK,
+    USER,
+    WHOLE,
+    StandInPump,
+    serving,
 )
-WHOLE = "<p>whole</p>"
+
+PAGE = STACK + f"{PUMP_MENU},{HEATING}"
 BROKEN = "<p>broken</p>"
-USER = "tester"
-PASSWORD = "testing"
 LOGIN = [("GET", webif.INDEX), ("POST", webif.LOGIN)]
 GAP = 0.2
 # The event loop may wake a sleeper a whisker early by its clock resolution.
@@ -39,77 +35,11 @@ def whole(text):
     return text == WHOLE
 
 
-def see_other(location):
-    return web.Response(status=303, headers={"Location": location})
-
-
-class StandInPump:
-    """Answers like the controller, and notes what it was asked."""
-
-    def __init__(self):
-        self.host = ""
-        self.asked = []
-        self.arrivals = []
-        self.forms = []
-        self.pages = [WHOLE]
-        self.status = 200
-        self.delays = {}
-        self.keeps_sessions = True
-        self.sessions = set()
-
-    def application(self):
-        @web.middleware
-        async def note(request, handler):
-            self.asked.append((request.method, request.raw_path))
-            self.arrivals.append(time.monotonic())
-            await asyncio.sleep(self.delays.get(request.path, 0))
-            return await handler(request)
-
-        application = web.Application(middlewares=[note])
-        application.router.add_get(webif.INDEX, self.index)
-        application.router.add_post(webif.LOGIN, self.login)
-        application.router.add_get(webif.LOGOUT, self.logout)
-        application.router.add_get(PAGE_PATH, self.page)
-        return application
-
-    async def index(self, request):
-        return web.Response(text="<form class='form-signin'></form>")
-
-    async def login(self, request):
-        form = dict(await request.post())
-        self.forms.append(form)
-        if form.get("pass") != PASSWORD:
-            return see_other("/index.html#wrongpassword")
-        session = str(len(self.forms))
-        if self.keeps_sessions:
-            self.sessions.add(session)
-        answer = see_other(webif.LOGIN_TARGET)
-        answer.set_cookie(webif.SESSION_COOKIE, session)
-        return answer
-
-    async def logout(self, request):
-        self.sessions.discard(request.cookies.get(webif.SESSION_COOKIE))
-        return see_other("/index.html#loggedout")
-
-    async def page(self, request):
-        if request.cookies.get(webif.SESSION_COOKIE) not in self.sessions:
-            return see_other(webif.INDEX)
-        text = self.pages.pop(0) if len(self.pages) > 1 else self.pages[0]
-        return web.Response(status=self.status, text=text)
-
-
 @pytest.fixture
 async def pump(socket_enabled):
     """A stand-in pump on the loopback address."""
-    stand_in = StandInPump()
-    # A request the client gave up on must not outlive the test.
-    server = TestServer(
-        stand_in.application(), host="127.0.0.1", handler_cancellation=True
-    )
-    await server.start_server()
-    stand_in.host = f"127.0.0.1:{server.port}"
-    yield stand_in
-    await server.close()
+    async with serving(StandInPump()) as stand_in:
+        yield stand_in
 
 
 @pytest.fixture
@@ -292,7 +222,7 @@ async def test_a_logout_without_an_answer_does_not_fail_the_close(pump, session)
     "path",
     [
         PAGE + "&access_code=0000",
-        PAGE_PATH,
+        PAGE_PATH + "?access_code=0000",
         PAGE_PATH + "?stack=" + "0" * 37,
         "/pro_save.html",
     ],
@@ -313,6 +243,7 @@ async def test_an_address_off_the_positive_list_is_never_asked_for(pump, session
         ("POST", "/pro_save.html", False),
         ("POST", PAGE, False),
         ("GET", PAGE, True),
+        ("GET", webif.OVERVIEW, True),
         ("GET", webif.LOGIN, False),
     ],
 )

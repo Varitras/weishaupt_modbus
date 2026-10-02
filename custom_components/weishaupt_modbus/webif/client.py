@@ -22,6 +22,7 @@ from . import pages
 INDEX = "/index.html"
 LOGIN = "/login.html"
 LOGOUT = "/logout.html"
+OVERVIEW = "/settings_export.html"
 LOGIN_TARGET = "/home.html"
 SESSION_COOKIE = "session"
 # The longest whole answer in a 60-minute run took 15.5 s.
@@ -65,7 +66,10 @@ class _Answer:
 def _allowed(method: str, path: str) -> bool:
     if method == "POST":
         return path == LOGIN
-    return path in (INDEX, LOGOUT) or pages.STACK_LINK.fullmatch(path) is not None
+    return (
+        path in (INDEX, LOGOUT, OVERVIEW)
+        or pages.STACK_LINK.fullmatch(path) is not None
+    )
 
 
 def _page_text(path: str, answer: _Answer) -> str:
