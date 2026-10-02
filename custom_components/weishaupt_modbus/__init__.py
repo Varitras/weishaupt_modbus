@@ -3,22 +3,35 @@
 import copy
 import logging
 import re
+from typing import cast
 
+import aiohttp
 from modbus_connection import ModbusTcpParams
 
 from homeassistant.components.modbus import async_get_unit
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryError
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.typing import UNDEFINED
 from homeassistant.util import slugify
 
-from .configentry import MyConfigEntry, MyData, host_lock
+from .configentry import (
+    MyConfigEntry,
+    MyData,
+    WebifConfigEntry,
+    WebifData,
+    host_lock,
+    is_web_interface,
+)
 from .const import CONF, CONST
 from .coordinator import WeishauptModbusCoordinator, check_configured, write_budget
 from .items import ModbusItem
 from .kennfeld import PowerMap
 from .migrate_helpers import entry_unique_id, unique_id_from_parts
+from .webif.client import Client
+from .webif_coordinator import WebifCoordinator, polled_pages
 from .weishaupt_modbus_api.const import DEFAULT_PORT, MODBUS_UNIT_ID
 from .weishaupt_modbus_api.device import WeishauptHeatPump
 from .weishaupt_modbus_api.hpconst import DEVICELISTS
@@ -92,6 +105,8 @@ PLATFORMS: list[str] = [
 
 async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     """Set up entry."""
+    if is_web_interface(entry):
+        return await _async_setup_web_interface(hass, cast(WebifConfigEntry, entry))
     # Independent copies per config entry: the rows carry runtime state. A
     # circuit the entry does not enable is neither polled nor an entity.
     itemlist: list[ModbusItem] = [
@@ -130,6 +145,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
 
     _LOGGER.info("Init done")
 
+    return True
+
+
+async def _async_setup_web_interface(
+    hass: HomeAssistant, entry: WebifConfigEntry
+) -> bool:
+    """Poll a pump's web interface, in a session of its own, under the pump's lock.
+
+    Its options reload it by themselves; it has no update listener.
+    """
+    pump = hass.config_entries.async_get_entry(entry.data[CONF.PUMP_ENTRY])
+    if pump is None:
+        raise ConfigEntryError(f"{entry.title}: its heat pump entry was removed")
+    host = pump.data[CONF.HOST]
+    # Created in the entry's setup, so Home Assistant detaches it on unload.
+    session = async_create_clientsession(
+        hass, cookie_jar=aiohttp.CookieJar(unsafe=True)
+    )
+    client = Client(
+        session,
+        host,
+        entry.data[CONF.USERNAME],
+        entry.data[CONF.PASSWORD],
+        host_lock=host_lock(hass, host),
+    )
+    coordinator = WebifCoordinator(hass, entry, client, polled_pages(entry))
+    await coordinator.async_config_entry_first_refresh()
+    entry.runtime_data = WebifData(coordinator=coordinator, client=client)
     return True
 
 
@@ -258,5 +301,13 @@ def _entity_id_with_new_label(entity_id: str, labels: tuple) -> str | None:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload the platforms; the unit is released with the entry's unload hooks."""
+    """Unload the platforms; the unit is released with the entry's unload hooks.
+
+    A web interface stops polling and logs out first.
+    """
+    if is_web_interface(entry):
+        web: WebifData = entry.runtime_data
+        await web.coordinator.async_shutdown()
+        await web.client.close()
+        return True
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

@@ -44,6 +44,13 @@ def link(segments, title, shown=""):
     )
 
 
+def value(title, text):
+    return (
+        '<div class="nav-link browseobj" role="tab">\n'
+        f"<h5>{title}</h5>\n{text}\n</div>\n"
+    )
+
+
 def column(inner):
     return (
         '<div class="col-3">\n<div class="nav flex-column nav-pills" role="tablist">'

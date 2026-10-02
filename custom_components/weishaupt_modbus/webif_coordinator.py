@@ -20,9 +20,10 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import CONST
+from .const import CONF, CONST
 from .webif import pages
 from .webif.client import Client, LoginRefused, Unreachable, WebifError
+from .webif.discovery import HEAT_PUMP_PAGE, HEATING_PAGE, STATISTICS_PAGE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,6 +35,13 @@ FAILURES_TO_STOP = 3
 # start up to a second before a page's interval is over.
 DUE_SLACK_SECONDS = 5.0
 STOPPED_ISSUE = "webif_stopped"
+HOURLY = timedelta(hours=1)
+# Enough of each page to tell it from a broken answer or another section.
+REQUIRED_TITLES = {
+    HEAT_PUMP_PAGE: frozenset({"Betrieb", "Hochdruck"}),
+    STATISTICS_PAGE: frozenset({"JAZ Jahr", "JAZ gesamt"}),
+    HEATING_PAGE: frozenset({"Leistungsbegrenzung", "Schaltdifferenz"}),
+}
 
 Values = dict[str, str]
 
@@ -62,6 +70,35 @@ class Page:
     def is_whole(self, text: str) -> bool:
         """Every required title is there, and no value is left blank."""
         return pages.is_complete(self.read(text), self.required)
+
+
+def polled_pages(entry: ConfigEntry) -> list[Page]:
+    """The entry's pages: the heat pump page on its interval, the others hourly."""
+    paths = entry.data[CONF.PAGES]
+    minutes = entry.options.get(
+        CONST.OPTION_WEBIF_INTERVAL, CONST.WEBIF_INTERVAL_MINUTES
+    )
+    return [
+        Page(
+            HEAT_PUMP_PAGE,
+            paths[HEAT_PUMP_PAGE],
+            REQUIRED_TITLES[HEAT_PUMP_PAGE],
+            timedelta(minutes=minutes),
+        ),
+        Page(
+            STATISTICS_PAGE,
+            paths[STATISTICS_PAGE],
+            REQUIRED_TITLES[STATISTICS_PAGE],
+            HOURLY,
+        ),
+        Page(
+            HEATING_PAGE,
+            paths[HEATING_PAGE],
+            REQUIRED_TITLES[HEATING_PAGE],
+            HOURLY,
+            menu=True,
+        ),
+    ]
 
 
 @dataclass

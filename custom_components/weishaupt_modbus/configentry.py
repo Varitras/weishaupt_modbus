@@ -14,6 +14,8 @@ from .const import CONF, CONST
 
 if TYPE_CHECKING:
     from .coordinator import WeishauptModbusCoordinator
+    from .webif.client import Client
+    from .webif_coordinator import WebifCoordinator
 
 
 @dataclass
@@ -25,6 +27,17 @@ class MyData:
 
 
 type MyConfigEntry = ConfigEntry[MyData]
+
+
+@dataclass
+class WebifData:
+    """The poller of a web interface entry, and the client it logs out with."""
+
+    coordinator: WebifCoordinator
+    client: Client
+
+
+type WebifConfigEntry = ConfigEntry[WebifData]
 
 # One per pump address, shared by every entry that talks to that controller.
 HOST_LOCKS: HassKey[dict[str, asyncio.Lock]] = HassKey(f"{CONST.DOMAIN}_host_locks")

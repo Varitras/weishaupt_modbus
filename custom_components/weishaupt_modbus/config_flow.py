@@ -111,15 +111,16 @@ async def read_web_interface(
 
     Raises WebifError.
     """
+    # No entry to detach it on unload: the visit detaches it itself.
     session = async_create_clientsession(
-        hass, cookie_jar=aiohttp.CookieJar(unsafe=True)
+        hass, auto_cleanup=False, cookie_jar=aiohttp.CookieJar(unsafe=True)
     )
     client = Client(session, host, user, password, host_lock=host_lock(hass, host))
     try:
         return await find_pages(client)
     finally:
         await client.close()
-        await session.close()
+        session.detach()
 
 
 def web_interface_error(error: WebifError) -> str:
