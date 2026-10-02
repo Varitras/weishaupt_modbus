@@ -86,8 +86,7 @@ SITE = {
         )
     ),
 }
-LOGIN_FORM = [("GET", webif.INDEX), ("POST", webif.LOGIN)]
-LOGIN = [*LOGIN_FORM, ("GET", webif.OVERVIEW)]
+LOGIN = [("GET", webif.INDEX), ("POST", webif.LOGIN)]
 REDACTED = "**REDACTED**"
 
 
@@ -192,7 +191,7 @@ async def test_a_refused_login_asks_for_a_new_one(hass, pump):
     assert entry.state is ConfigEntryState.SETUP_ERROR
     flows = hass.config_entries.flow.async_progress_by_handler(CONST.DOMAIN)
     assert [flow["context"]["source"] for flow in flows] == ["reauth"]
-    assert pump.asked == LOGIN_FORM
+    assert pump.asked == LOGIN
 
 
 async def test_a_web_interface_without_its_pump_does_not_start(hass, pump):

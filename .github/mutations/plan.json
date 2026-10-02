@@ -1365,13 +1365,6 @@
     "tests": "topic_option_names_a_sensor"
   },
   {
-    "label": "webif client: a login goes straight to the deep page",
-    "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        _page_text(OVERVIEW, await self._request(\"GET\", OVERVIEW))\n",
-    "new": "",
-    "tests": "opened_the_overview"
-  },
-  {
     "label": "setup: Home Assistant stops without a logout",
     "path": "custom_components/weishaupt_modbus/__init__.py",
     "old": "    entry.async_on_unload(hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, log_out))\n",

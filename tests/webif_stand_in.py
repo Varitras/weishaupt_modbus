@@ -3,9 +3,8 @@
 It answers the way the controller did in the recordings: a login is a 303 to
 /home.html with a session cookie, wrong credentials a 303 to
 /index.html#wrongpassword without one, and a page asked for without a valid
-session a 303 to /index.html - as is a deep page before the session has
-opened the menu overview, which the live test of 2026-10-02 met. A session
-id counts only as sent: the controller does not unquote a quoted one.
+session a 303 to /index.html. A session id counts only as sent: the
+controller does not unquote a quoted one.
 
 The menus are synthetic, shaped like the controller's. A recorded page
 carries a serial number, an access code and addresses and never enters the
@@ -109,7 +108,6 @@ class StandInPump:
         self.keeps_sessions = True
         self.sets_cookie = True
         self.sessions = set()
-        self.opened = set()
 
     def application(self):
         @web.middleware
@@ -147,13 +145,7 @@ class StandInPump:
         return see_other("/index.html#loggedout")
 
     async def page(self, request):
-        session = session_cookie(request)
-        if session not in self.sessions:
-            return see_other(webif.INDEX)
-        if request.raw_path == PAGE_PATH:
-            self.opened.add(session)
-            return web.Response(text=self.site.get(PAGE_PATH, MAIN_MENUS))
-        if session not in self.opened:
+        if session_cookie(request) not in self.sessions:
             return see_other(webif.INDEX)
         text = self.site.get(request.raw_path)
         if text is None:

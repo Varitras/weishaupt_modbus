@@ -60,13 +60,11 @@ async def test_the_pages_are_found_by_their_titles(client):
 
 
 async def test_only_the_three_menus_are_opened(pump, client):
-    """The heat pump menu also lists Reset. The overview comes twice: the
-    login opens it, the search reads it."""
+    """The heat pump menu also lists Reset."""
     await find_pages(client)
 
     assert pump.asked == [
         *LOGIN,
-        ("GET", PAGE_PATH),
         ("GET", PAGE_PATH),
         ("GET", STACK + INFO),
         ("GET", STACK + PUMP_MENU),
