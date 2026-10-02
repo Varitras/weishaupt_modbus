@@ -624,7 +624,9 @@ class RealDeviceCoordinator:
     def __init__(self, items):
         self.items = items
         self.unit = MockModbusConnection().for_unit(1)
-        self.device = WeishauptHeatPump(self.unit, items, WriteBudget(100, 0))
+        self.device = WeishauptHeatPump(
+            self.unit, items, WriteBudget(100, 0), asyncio.Lock()
+        )
         self.data = None
         self.last_update_success = True
 

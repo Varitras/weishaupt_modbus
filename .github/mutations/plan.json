@@ -968,8 +968,8 @@
   {
     "label": "webif client: a timeout escapes as a bare TimeoutError",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        except (TimeoutError, aiohttp.ClientError) as error:\n",
-    "new": "        except aiohttp.ClientError as error:\n",
+    "old": "            except (TimeoutError, aiohttp.ClientError) as error:\n",
+    "new": "            except aiohttp.ClientError as error:\n",
     "tests": "after_a_timeout_nothing_follows"
   },
   {
@@ -1041,5 +1041,33 @@
     "old": "            await asyncio.sleep(wait)\n",
     "new": "            pass\n",
     "tests": "keep_their_distance"
+  },
+  {
+    "label": "device: a poll reads while the web interface holds the controller",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "                async with self._host_lock:\n                    await component.async_update()\n",
+    "new": "                async with asyncio.Lock():\n                    await component.async_update()\n",
+    "tests": "poll_waits_while_the_web_interface_holds"
+  },
+  {
+    "label": "device: a write goes out while the web interface holds the controller",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        async with self._host_lock:\n            await component.write(_field_name(item), word)\n",
+    "new": "        async with asyncio.Lock():\n            await component.write(_field_name(item), word)\n",
+    "tests": "write_waits_while_the_web_interface_holds"
+  },
+  {
+    "label": "setup: each entry gets a controller lock of its own",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    return hass.data.setdefault(HOST_LOCKS, {}).setdefault(host, asyncio.Lock())\n",
+    "new": "    return asyncio.Lock()\n",
+    "tests": "entries_of_one_pump_share_its_lock"
+  },
+  {
+    "label": "webif client: a request goes out while Modbus holds the controller",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        async with self._host_lock:\n            try:\n",
+    "new": "        async with asyncio.Lock():\n            try:\n",
+    "tests": "request_waits_while_modbus_holds"
   }
 ]

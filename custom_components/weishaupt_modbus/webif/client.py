@@ -88,14 +88,19 @@ class Client:
         user: str,
         password: str,
         *,
+        host_lock: asyncio.Lock,
         gap: float = MIN_GAP_SECONDS,
         timeout: float = TIMEOUT_SECONDS,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
-        """Prepare the client; nothing is sent before the first page."""
+        """Prepare the client; nothing is sent before the first page.
+
+        host_lock is the one Modbus takes for the same controller.
+        """
         self._session = session
         self._base = f"http://{host}"
         self._credentials = {"user": user, "pass": password}
+        self._host_lock = host_lock
         self._gap = gap
         self._timeout = aiohttp.ClientTimeout(total=timeout)
         self._clock = clock
@@ -167,23 +172,26 @@ class Client:
         if not _allowed(method, path):
             raise ValueError(f"{method} {path} is not on the positive list")
         await self._pace()
-        try:
-            async with self._session.request(
-                method,
-                self._base + path,
-                data=form,
-                allow_redirects=False,
-                timeout=self._timeout,
-            ) as response:
-                body = await response.read()
-                location = response.headers.get("Location", "")
-                return _Answer(
-                    response.status, location, body.decode("utf-8", errors="replace")
-                )
-        except (TimeoutError, aiohttp.ClientError) as error:
-            raise Unreachable(f"{method} {path}: {error!r}") from error
-        finally:
-            self._last_request = self._clock()
+        async with self._host_lock:
+            try:
+                async with self._session.request(
+                    method,
+                    self._base + path,
+                    data=form,
+                    allow_redirects=False,
+                    timeout=self._timeout,
+                ) as response:
+                    body = await response.read()
+                    location = response.headers.get("Location", "")
+                    return _Answer(
+                        response.status,
+                        location,
+                        body.decode("utf-8", errors="replace"),
+                    )
+            except (TimeoutError, aiohttp.ClientError) as error:
+                raise Unreachable(f"{method} {path}: {error!r}") from error
+            finally:
+                self._last_request = self._clock()
 
     async def _pace(self) -> None:
         if self._last_request is None:

@@ -121,7 +121,9 @@ async def session():
 
 
 def connect(session, host, password=PASSWORD, gap=0, **options):
-    """A client without the gap between requests, unless a test asks for one."""
+    """A client with a lock of its own and without the gap between requests,
+    unless a test asks otherwise."""
+    options.setdefault("host_lock", asyncio.Lock())
     return webif.Client(session, host, USER, password, gap=gap, **options)
 
 
@@ -324,6 +326,19 @@ async def test_requests_keep_their_distance(pump, session):
     gaps = [later - earlier for earlier, later in pairwise(pump.arrivals)]
     assert len(gaps) == 2
     assert min(gaps) >= GAP - CLOCK_TOLERANCE
+
+
+async def test_a_request_waits_while_modbus_holds_the_controller(pump, session):
+    host_lock = asyncio.Lock()
+    client = connect(session, pump.host, host_lock=host_lock)
+
+    async with host_lock:
+        reading = asyncio.create_task(client.page(PAGE, whole))
+        await asyncio.sleep(SHORT_TIMEOUT)
+        assert pump.asked == []
+
+    assert await reading == WHOLE
+    assert pump.asked == [*LOGIN, ("GET", PAGE)]
 
 
 async def test_pages_asked_for_at_once_are_served_one_after_the_other(pump, session):
