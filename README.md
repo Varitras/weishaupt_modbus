@@ -227,11 +227,11 @@ wrong.
 
 1. Switch the web server on at the heat pump's display. It sits in the OEM
    level, which opens from the same password entry as the installer level
-   (*Fachmann-Ebene*); the PIN decides which level opens. The installer PIN
-   is in the heat pump's manual; ask your installer for the OEM one. In the
-   OEM level, set *Settings → Webserver* to on, and change nothing else
-   there: that level also holds the settings the heat pump runs by. Menu
-   names can differ with the controller and its firmware.
+   (*Fachmann-Ebene*); the PIN decides which level opens. On a WBB, PIN 11
+   opens the installer level and PIN 21 the OEM level. In the OEM level, set
+   *Settings → Webserver* to on, and change nothing else there: that level
+   also holds the settings the heat pump runs by. Menu names can differ with
+   the controller and its firmware.
 2. Open `http://<address of the heat pump>/` in a browser. On the first
    visit the page asks you to set a user name and a password; there are no
    default credentials. These two go into the integration.
