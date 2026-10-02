@@ -1,6 +1,6 @@
 """Entity classes used in this integration."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from functools import partial
 from typing import Any
 
@@ -40,6 +40,28 @@ def entity_category(item: ModbusItem) -> EntityCategory | None:
     return None
 
 
+def name_prefix(entry_data: Mapping[str, Any], device: str) -> str:
+    """What the entity names of a device start with, by the entry's naming options."""
+    topic = ""
+    if entry_data[CONF.NAME_TOPIC_PREFIX]:
+        topic = f"{reverse_device_list.get(device, 'UK')}_"
+    pump = ""
+    if entry_data[CONF.NAME_DEVICE_PREFIX]:
+        pump = entry_data[CONF.PREFIX] + "_"
+    return topic + pump
+
+
+def device_info(entry_data: Mapping[str, Any], device: str) -> DeviceInfo:
+    """One of the pump's devices; a second pump's carry its postfix."""
+    postfix = device_postfix(entry_data)
+    return DeviceInfo(
+        identifiers={(CONST.DOMAIN, device + postfix)},
+        translation_key=device,
+        translation_placeholders={"postfix": postfix},
+        manufacturer="Weishaupt",
+    )
+
+
 def to_register_value(value: float, divider: int) -> int:
     """The register word for a user value: 1.15 at divider 100 is 115, not 114.
 
@@ -71,31 +93,11 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
         self._config_entry = config_entry
         self._api_item: ModbusItem = api_item
 
-        dev_postfix = device_postfix(self._config_entry.data)
-        dev_prefix = self._config_entry.data[CONF.PREFIX]
-
-        if self._config_entry.data[CONF.NAME_DEVICE_PREFIX]:
-            name_device_prefix = dev_prefix + "_"
-        else:
-            name_device_prefix = ""
-
-        if self._config_entry.data[CONF.NAME_TOPIC_PREFIX]:
-            device_key = self._api_item.device
-            name_topic_prefix = f"{reverse_device_list.get(device_key, 'UK')}_"
-        else:
-            name_topic_prefix = ""
-
-        name_prefix = name_topic_prefix + name_device_prefix
-
-        self._attr_device_info = DeviceInfo(
-            identifiers={(CONST.DOMAIN, self._api_item.device + dev_postfix)},
-            translation_key=self._api_item.device,
-            translation_placeholders={"postfix": dev_postfix},
-            manufacturer="Weishaupt",
-        )
-
+        self._attr_device_info = device_info(config_entry.data, api_item.device)
         self._attr_translation_key = self._api_item.translation_key
-        self._attr_translation_placeholders = {"prefix": name_prefix}
+        self._attr_translation_placeholders = {
+            "prefix": name_prefix(config_entry.data, api_item.device)
+        }
 
         self._attr_unique_id = create_unique_id(self._config_entry, self._api_item)
         self._attr_entity_category = entity_category(self._api_item)

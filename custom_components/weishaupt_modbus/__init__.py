@@ -32,6 +32,7 @@ from .kennfeld import PowerMap
 from .migrate_helpers import entry_unique_id, unique_id_from_parts
 from .webif.client import Client
 from .webif_coordinator import WebifCoordinator, polled_pages
+from .webif_sensor import REQUIRED_TITLES
 from .weishaupt_modbus_api.const import DEFAULT_PORT, MODBUS_UNIT_ID
 from .weishaupt_modbus_api.device import WeishauptHeatPump
 from .weishaupt_modbus_api.hpconst import DEVICELISTS
@@ -101,6 +102,8 @@ PLATFORMS: list[str] = [
     "sensor",
     "switch",
 ]
+# The web interface only reads; its values are sensors.
+WEBIF_PLATFORMS: list[str] = ["sensor"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
@@ -170,9 +173,14 @@ async def _async_setup_web_interface(
         entry.data[CONF.PASSWORD],
         host_lock=host_lock(hass, host),
     )
-    coordinator = WebifCoordinator(hass, entry, client, polled_pages(entry))
+    coordinator = WebifCoordinator(
+        hass, entry, client, polled_pages(entry, REQUIRED_TITLES)
+    )
     await coordinator.async_config_entry_first_refresh()
-    entry.runtime_data = WebifData(coordinator=coordinator, client=client)
+    entry.runtime_data = WebifData(
+        coordinator=coordinator, client=client, pump_data=pump.data
+    )
+    await hass.config_entries.async_forward_entry_setups(entry, WEBIF_PLATFORMS)
     return True
 
 
@@ -307,7 +315,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """
     if is_web_interface(entry):
         web: WebifData = entry.runtime_data
+        unloaded = await hass.config_entries.async_unload_platforms(
+            entry, WEBIF_PLATFORMS
+        )
         await web.coordinator.async_shutdown()
         await web.client.close()
-        return True
+        return unloaded
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

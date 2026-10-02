@@ -1772,6 +1772,147 @@
       },
       "eeprom_writes_today": {
         "name": "EEPROM writes (today)"
+      },
+      "webif_solltemperatur": {
+        "name": "{prefix}Heat pump setpoint temperature"
+      },
+      "webif_schaltdifferenz_dynamisch": {
+        "name": "{prefix}Dynamic switching difference"
+      },
+      "webif_drehzahl_pumpe_m1": {
+        "name": "{prefix}Pump M1 speed"
+      },
+      "webif_volumenstrom": {
+        "name": "{prefix}Flow rate"
+      },
+      "webif_stellung_umschaltventil": {
+        "name": "{prefix}Diverter valve position"
+      },
+      "webif_soll_leistung": {
+        "name": "{prefix}Target output"
+      },
+      "webif_ist_leistung": {
+        "name": "{prefix}Actual output"
+      },
+      "webif_expansionsventil_ag_eintritt": {
+        "name": "{prefix}Outdoor unit expansion valve inlet"
+      },
+      "webif_waermetauscher_ag_austritt": {
+        "name": "{prefix}Outdoor unit heat exchanger outlet"
+      },
+      "webif_evi_sauggastemperatur": {
+        "name": "{prefix}EVI suction gas temperature"
+      },
+      "webif_kaeltemittel_ig_austritt": {
+        "name": "{prefix}Indoor unit refrigerant outlet"
+      },
+      "webif_oelsumpftemperatur": {
+        "name": "{prefix}Oil sump temperature"
+      },
+      "webif_druckgastemperatur": {
+        "name": "{prefix}Discharge gas temperature"
+      },
+      "webif_niederdruck": {
+        "name": "{prefix}Low pressure"
+      },
+      "webif_hochdruck": {
+        "name": "{prefix}High pressure"
+      },
+      "webif_mitteldruck": {
+        "name": "{prefix}Intermediate pressure"
+      },
+      "webif_kondensationstemperatur": {
+        "name": "{prefix}Condensing temperature"
+      },
+      "webif_saettigungstemperatur_evi": {
+        "name": "{prefix}EVI saturation temperature"
+      },
+      "webif_ueberhitzung_heizen": {
+        "name": "{prefix}Superheat heating"
+      },
+      "webif_ueberhitzung_verdichter": {
+        "name": "{prefix}Superheat compressor"
+      },
+      "webif_ueberhitzung_evi": {
+        "name": "{prefix}Superheat EVI"
+      },
+      "webif_oeffnungsgrad_exv_heizen": {
+        "name": "{prefix}EXV opening heating"
+      },
+      "webif_oeffnungsgrad_exv_kuehlen": {
+        "name": "{prefix}EXV opening cooling"
+      },
+      "webif_oeffnungsgrad_evi": {
+        "name": "{prefix}EVI valve opening"
+      },
+      "webif_verdichter_drehzahl": {
+        "name": "{prefix}Compressor speed"
+      },
+      "webif_betriebsstunden_verdichter": {
+        "name": "{prefix}Compressor operating hours"
+      },
+      "webif_schaltspiele_verdichter": {
+        "name": "{prefix}Compressor starts"
+      },
+      "webif_schaltspiele_abtauen": {
+        "name": "{prefix}Defrost cycles"
+      },
+      "webif_version_wwp_sg": {
+        "name": "{prefix}WWP-SG version"
+      },
+      "webif_version_wwp_ec_wbb": {
+        "name": "{prefix}WWP-EC WBB version"
+      },
+      "webif_aussengeraet_variante": {
+        "name": "{prefix}Outdoor unit variant"
+      },
+      "webif_th_energie_heizen_tag": {
+        "name": "{prefix}Heating energy today (WebIF)"
+      },
+      "webif_th_energie_ww_tag": {
+        "name": "{prefix}Hot water energy today (WebIF)"
+      },
+      "webif_th_energie_gesamt_tag": {
+        "name": "{prefix}Total energy today (WebIF)"
+      },
+      "webif_el_energie_tag": {
+        "name": "{prefix}Electr. energy today (WebIF)"
+      },
+      "webif_th_energie_heizen_monat": {
+        "name": "{prefix}Heating energy month (WebIF)"
+      },
+      "webif_th_energie_ww_monat": {
+        "name": "{prefix}Hot water energy month (WebIF)"
+      },
+      "webif_th_energie_gesamt_monat": {
+        "name": "{prefix}Total energy month (WebIF)"
+      },
+      "webif_el_energie_monat": {
+        "name": "{prefix}Electr. energy month (WebIF)"
+      },
+      "webif_th_energie_heizen_jahr": {
+        "name": "{prefix}Heating energy year (WebIF)"
+      },
+      "webif_th_energie_ww_jahr": {
+        "name": "{prefix}Hot water energy year (WebIF)"
+      },
+      "webif_th_energie_gesamt_jahr": {
+        "name": "{prefix}Total energy year (WebIF)"
+      },
+      "webif_el_energie_jahr": {
+        "name": "{prefix}Electr. energy year (WebIF)"
+      },
+      "webif_jaz_jahr": {
+        "name": "{prefix}Annual performance factor (WebIF)"
+      },
+      "webif_jaz_gesamt": {
+        "name": "{prefix}Total performance factor (WebIF)"
+      },
+      "webif_leistungsbegrenzung_heizen": {
+        "name": "{prefix}Heating power limit"
+      },
+      "webif_schaltdifferenz_heizen": {
+        "name": "{prefix}Heating switching difference"
       }
     }
   },

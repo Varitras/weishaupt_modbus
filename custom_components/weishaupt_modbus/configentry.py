@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -31,10 +32,15 @@ type MyConfigEntry = ConfigEntry[MyData]
 
 @dataclass
 class WebifData:
-    """The poller of a web interface entry, and the client it logs out with."""
+    """What a web interface entry runs on.
+
+    The poller, the client it logs out with, and the pump entry's data its
+    entities are named and placed by.
+    """
 
     coordinator: WebifCoordinator
     client: Client
+    pump_data: Mapping[str, Any]
 
 
 type WebifConfigEntry = ConfigEntry[WebifData]

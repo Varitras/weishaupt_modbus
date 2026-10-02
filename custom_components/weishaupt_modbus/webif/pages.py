@@ -158,6 +158,12 @@ def is_complete(found: list[tuple[str, str]], required: frozenset[str]) -> bool:
     return bool(found) and required <= titles and all(text for _, text in found)
 
 
+def unit(text: str) -> str:
+    """What follows the leading number of a shown value: "BAR" in "24.4 BAR"."""
+    match = NUMBER.match(text)
+    return text[match.end() :].strip() if match else ""
+
+
 def number(text: str) -> float | None:
     """The leading number of a shown value; 0 for "Aus", None for "--" or text."""
     if text == OFF:

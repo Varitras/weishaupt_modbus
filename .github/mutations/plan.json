@@ -23,15 +23,15 @@
   {
     "label": "entity: the device prefix must reach the name",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "            name_device_prefix = dev_prefix + \"_\"",
-    "new": "            name_device_prefix = \"\"",
+    "old": "        pump = entry_data[CONF.PREFIX] + \"_\"",
+    "new": "        pump = \"\"",
     "tests": "device_prefix_in_name"
   },
   {
     "label": "entity: the topic prefix must reach the name",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "            name_topic_prefix = f\"{reverse_device_list.get(device_key, 'UK')}_\"",
-    "new": "            name_topic_prefix = \"\"",
+    "old": "        topic = f\"{reverse_device_list.get(device, 'UK')}_\"",
+    "new": "        topic = \"\"",
     "tests": "topic_prefix_names"
   },
   {
@@ -1300,5 +1300,61 @@
     "old": "WEB_TO_REDACT = {CONF.USERNAME, CONF.PASSWORD, CONF.PAGES}\n",
     "new": "WEB_TO_REDACT = {CONF.USERNAME}\n",
     "tests": "leave_out_the_login_and_the_page_addresses"
+  },
+  {
+    "label": "webif sensor: a value in another unit passes",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    if pages.unit(shown) != description.shown_unit:\n        return None\n",
+    "new": "",
+    "tests": "reading_only_in_its_unit"
+  },
+  {
+    "label": "webif sensor: Aus is no reading instead of 0",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    if shown == pages.OFF:\n        return 0.0\n",
+    "new": "",
+    "tests": "reading_only_in_its_unit"
+  },
+  {
+    "label": "webif sensor: -- passes for a text value",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    if shown is None or shown == pages.NO_VALUE:\n",
+    "new": "    if shown is None:\n",
+    "tests": "reading_only_in_its_unit"
+  },
+  {
+    "label": "webif sensor: a page gone still shows its sensors",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        return super().available and self._values() is not None\n",
+    "new": "        return super().available\n",
+    "tests": "page_gone_is_unavailable"
+  },
+  {
+    "label": "webif sensor: a page counts as whole without its sensors' titles",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    page: frozenset(sensor.title for sensor in WEBIF_SENSORS if sensor.page == page)\n",
+    "new": "    page: frozenset()\n",
+    "tests": "requires_the_titles_of_its_sensors"
+  },
+  {
+    "label": "webif sensor: a performance factor lands on the heat pump device",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        device=DEVICES.ST,\n        state_class=SensorStateClass.MEASUREMENT,\n",
+    "new": "        device=DEVICES.WP,\n        state_class=SensorStateClass.MEASUREMENT,\n",
+    "tests": "sits_on_the_pumps_device"
+  },
+  {
+    "label": "webif sensor: its unique id is the bare key a register may share",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "            pump_data, f\"webif_{description.key}\"\n",
+    "new": "            pump_data, description.key\n",
+    "tests": "sits_on_the_pumps_device"
+  },
+  {
+    "label": "setup: the web interface gets no sensors",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    await hass.config_entries.async_forward_entry_setups(entry, WEBIF_PLATFORMS)\n",
+    "new": "",
+    "tests": "values_become_sensors"
   }
 ]

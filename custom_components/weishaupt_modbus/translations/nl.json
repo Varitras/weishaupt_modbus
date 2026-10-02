@@ -1772,6 +1772,147 @@
       },
       "eeprom_writes_today" : {
         "name" : "EEPROM-schrijfacties (vandaag)"
+      },
+      "webif_solltemperatur" : {
+        "name" : "{prefix}Insteltemperatuur warmtepomp"
+      },
+      "webif_schaltdifferenz_dynamisch" : {
+        "name" : "{prefix}Dynamisch schakelverschil"
+      },
+      "webif_drehzahl_pumpe_m1" : {
+        "name" : "{prefix}Toerental pomp M1"
+      },
+      "webif_volumenstrom" : {
+        "name" : "{prefix}Debiet"
+      },
+      "webif_stellung_umschaltventil" : {
+        "name" : "{prefix}Stand omschakelklep"
+      },
+      "webif_soll_leistung" : {
+        "name" : "{prefix}Gewenst vermogen"
+      },
+      "webif_ist_leistung" : {
+        "name" : "{prefix}Werkelijk vermogen"
+      },
+      "webif_expansionsventil_ag_eintritt" : {
+        "name" : "{prefix}Expansieventiel buitenunit inlaat"
+      },
+      "webif_waermetauscher_ag_austritt" : {
+        "name" : "{prefix}Warmtewisselaar buitenunit uitlaat"
+      },
+      "webif_evi_sauggastemperatur" : {
+        "name" : "{prefix}EVI-zuiggastemperatuur"
+      },
+      "webif_kaeltemittel_ig_austritt" : {
+        "name" : "{prefix}Koudemiddel binnenunit uitlaat"
+      },
+      "webif_oelsumpftemperatur" : {
+        "name" : "{prefix}Oliecartertemperatuur"
+      },
+      "webif_druckgastemperatur" : {
+        "name" : "{prefix}Persgastemperatuur"
+      },
+      "webif_niederdruck" : {
+        "name" : "{prefix}Lage druk"
+      },
+      "webif_hochdruck" : {
+        "name" : "{prefix}Hoge druk"
+      },
+      "webif_mitteldruck" : {
+        "name" : "{prefix}Middendruk"
+      },
+      "webif_kondensationstemperatur" : {
+        "name" : "{prefix}Condensatietemperatuur"
+      },
+      "webif_saettigungstemperatur_evi" : {
+        "name" : "{prefix}EVI-verzadigingstemperatuur"
+      },
+      "webif_ueberhitzung_heizen" : {
+        "name" : "{prefix}Oververhitting verwarmen"
+      },
+      "webif_ueberhitzung_verdichter" : {
+        "name" : "{prefix}Oververhitting compressor"
+      },
+      "webif_ueberhitzung_evi" : {
+        "name" : "{prefix}Oververhitting EVI"
+      },
+      "webif_oeffnungsgrad_exv_heizen" : {
+        "name" : "{prefix}Opening EXV verwarmen"
+      },
+      "webif_oeffnungsgrad_exv_kuehlen" : {
+        "name" : "{prefix}Opening EXV koelen"
+      },
+      "webif_oeffnungsgrad_evi" : {
+        "name" : "{prefix}Opening EVI"
+      },
+      "webif_verdichter_drehzahl" : {
+        "name" : "{prefix}Toerental compressor"
+      },
+      "webif_betriebsstunden_verdichter" : {
+        "name" : "{prefix}Bedrijfsuren compressor"
+      },
+      "webif_schaltspiele_verdichter" : {
+        "name" : "{prefix}Schakelcycli compressor"
+      },
+      "webif_schaltspiele_abtauen" : {
+        "name" : "{prefix}Ontdooicycli"
+      },
+      "webif_version_wwp_sg" : {
+        "name" : "{prefix}Versie WWP-SG"
+      },
+      "webif_version_wwp_ec_wbb" : {
+        "name" : "{prefix}Versie WWP-EC WBB"
+      },
+      "webif_aussengeraet_variante" : {
+        "name" : "{prefix}Variant buitenunit"
+      },
+      "webif_th_energie_heizen_tag" : {
+        "name" : "{prefix}Verwarmingsenergie vandaag (WebIF)"
+      },
+      "webif_th_energie_ww_tag" : {
+        "name" : "{prefix}Warm water energie vandaag (WebIF)"
+      },
+      "webif_th_energie_gesamt_tag" : {
+        "name" : "{prefix}Totale Energie vandaag (WebIF)"
+      },
+      "webif_el_energie_tag" : {
+        "name" : "{prefix}Elektr. Energie vandaag (WebIF)"
+      },
+      "webif_th_energie_heizen_monat" : {
+        "name" : "{prefix}Verwarmingsenergie maand (WebIF)"
+      },
+      "webif_th_energie_ww_monat" : {
+        "name" : "{prefix}Warm water energie deze maand (WebIF)"
+      },
+      "webif_th_energie_gesamt_monat" : {
+        "name" : "{prefix}Totale Energie maand (WebIF)"
+      },
+      "webif_el_energie_monat" : {
+        "name" : "{prefix}Elektr. Energie maand (WebIF)"
+      },
+      "webif_th_energie_heizen_jahr" : {
+        "name" : "{prefix}Verwarmingsenergie jaar (WebIF)"
+      },
+      "webif_th_energie_ww_jahr" : {
+        "name" : "{prefix}Warm water energie dit jaar (WebIF)"
+      },
+      "webif_th_energie_gesamt_jahr" : {
+        "name" : "{prefix}Totale Energie jaar (WebIF)"
+      },
+      "webif_el_energie_jahr" : {
+        "name" : "{prefix}Elektr. Energie jaar (WebIF)"
+      },
+      "webif_jaz_jahr" : {
+        "name" : "{prefix}Jaarlijkse prestatiefactor (WebIF)"
+      },
+      "webif_jaz_gesamt" : {
+        "name" : "{prefix}Totale prestatiefactor (WebIF)"
+      },
+      "webif_leistungsbegrenzung_heizen" : {
+        "name" : "{prefix}Vermogensbegrenzing verwarmen"
+      },
+      "webif_schaltdifferenz_heizen" : {
+        "name" : "{prefix}Schakelverschil verwarmen"
       }
     }
   },

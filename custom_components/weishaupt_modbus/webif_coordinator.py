@@ -7,7 +7,7 @@ keeps its last values through one failure, the second in a row takes them
 away, and the third stops all polling until the entry is reloaded.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import timedelta
 import logging
@@ -36,12 +36,6 @@ FAILURES_TO_STOP = 3
 DUE_SLACK_SECONDS = 5.0
 STOPPED_ISSUE = "webif_stopped"
 HOURLY = timedelta(hours=1)
-# Enough of each page to tell it from a broken answer or another section.
-REQUIRED_TITLES = {
-    HEAT_PUMP_PAGE: frozenset({"Betrieb", "Hochdruck"}),
-    STATISTICS_PAGE: frozenset({"JAZ Jahr", "JAZ gesamt"}),
-    HEATING_PAGE: frozenset({"Leistungsbegrenzung", "Schaltdifferenz"}),
-}
 
 Values = dict[str, str]
 
@@ -72,8 +66,13 @@ class Page:
         return pages.is_complete(self.read(text), self.required)
 
 
-def polled_pages(entry: ConfigEntry) -> list[Page]:
-    """The entry's pages: the heat pump page on its interval, the others hourly."""
+def polled_pages(
+    entry: ConfigEntry, required: Mapping[str, frozenset[str]]
+) -> list[Page]:
+    """The entry's pages: the heat pump page on its interval, the others hourly.
+
+    `required` are the titles each page must show, those of its sensors.
+    """
     paths = entry.data[CONF.PAGES]
     minutes = entry.options.get(
         CONST.OPTION_WEBIF_INTERVAL, CONST.WEBIF_INTERVAL_MINUTES
@@ -82,19 +81,19 @@ def polled_pages(entry: ConfigEntry) -> list[Page]:
         Page(
             HEAT_PUMP_PAGE,
             paths[HEAT_PUMP_PAGE],
-            REQUIRED_TITLES[HEAT_PUMP_PAGE],
+            required[HEAT_PUMP_PAGE],
             timedelta(minutes=minutes),
         ),
         Page(
             STATISTICS_PAGE,
             paths[STATISTICS_PAGE],
-            REQUIRED_TITLES[STATISTICS_PAGE],
+            required[STATISTICS_PAGE],
             HOURLY,
         ),
         Page(
             HEATING_PAGE,
             paths[HEATING_PAGE],
-            REQUIRED_TITLES[HEATING_PAGE],
+            required[HEATING_PAGE],
             HOURLY,
             menu=True,
         ),

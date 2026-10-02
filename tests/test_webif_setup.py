@@ -11,7 +11,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.weishaupt_modbus.configentry import host_lock
-from custom_components.weishaupt_modbus.const import CONF, CONST
+from custom_components.weishaupt_modbus.const import CONF, CONST, DEVICES
 from custom_components.weishaupt_modbus.diagnostics import (
     async_get_config_entry_diagnostics,
 )
@@ -21,7 +21,9 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     HEATING_PAGE,
     STATISTICS_PAGE,
 )
+from custom_components.weishaupt_modbus.webif_sensor import WEBIF_SENSORS
 from homeassistant.config_entries import ConfigEntryDisabler, ConfigEntryState
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from .webif_stand_in import (
     HEAT_PUMP_INFO,
@@ -48,16 +50,39 @@ PAGES = {
 }
 SWITCHING_DIFFERENCE = "64001805000000002D40000A0B030011010401"
 POWER_LIMIT = "64001807000000003C40000A0B030011010401"
+# What the controller shows, by the unit text after the number.
+SAMPLE = {
+    "°C": "21.5 °C",
+    "K": "4.5 K",
+    "BAR": "12.0 BAR",
+    "%": "40 %",
+    "KW": "4.9 KW",
+    "KWh": "5356.310 KWh",
+    "m3/h": "1.7 m3/h",
+    "rpm": "2568 rpm",
+    "h": "16847 h",
+    "": "127",
+    None: "V3.0",
+}
+SHOWN: dict = {}
+for sensor in WEBIF_SENSORS:
+    SHOWN.setdefault(sensor.page, {})[sensor.title] = SAMPLE[sensor.shown_unit]
+HEATING_LINKS = {
+    "Schaltdifferenz": SWITCHING_DIFFERENCE,
+    "Leistungsbegrenzung": POWER_LIMIT,
+}
 SITE = {
     PAGES[HEAT_PUMP_PAGE]: column(
-        value("Betrieb", "Heizbetrieb") + value("Hochdruck", "24.4 BAR")
+        "".join(value(title, shown) for title, shown in SHOWN[HEAT_PUMP_PAGE].items())
     ),
     PAGES[STATISTICS_PAGE]: column(
-        value("JAZ Jahr", "4.16") + value("JAZ gesamt", "4.20")
+        "".join(value(title, shown) for title, shown in SHOWN[STATISTICS_PAGE].items())
     ),
     PAGES[HEATING_PAGE]: column(
-        link([PUMP_MENU, HEATING, SWITCHING_DIFFERENCE], "Schaltdifferenz", "4.5 K")
-        + link([PUMP_MENU, HEATING, POWER_LIMIT], "Leistungsbegrenzung", "60 %")
+        "".join(
+            link([PUMP_MENU, HEATING, HEATING_LINKS[title]], title, shown)
+            for title, shown in SHOWN[HEATING_PAGE].items()
+        )
     ),
 }
 LOGIN = [("GET", webif.INDEX), ("POST", webif.LOGIN)]
@@ -84,7 +109,13 @@ def _entries(hass, pump, password=PASSWORD, options=None):
     test here, so its entry stays disabled."""
     pump_entry = MockConfigEntry(
         domain=CONST.DOMAIN,
-        data={CONF.HOST: pump.host},
+        data={
+            CONF.HOST: pump.host,
+            CONF.PREFIX: CONST.DEF_PREFIX,
+            CONF.DEVICE_POSTFIX: "",
+            CONF.NAME_DEVICE_PREFIX: False,
+            CONF.NAME_TOPIC_PREFIX: False,
+        },
         version=11,
         disabled_by=ConfigEntryDisabler.USER,
         title="pump",
@@ -117,11 +148,7 @@ async def test_a_web_interface_starts_with_a_round_of_its_pages(hass, pump):
     entry = await _start(hass, _entries(hass, pump))
 
     assert entry.state is ConfigEntryState.LOADED
-    assert entry.runtime_data.coordinator.data == {
-        HEAT_PUMP_PAGE: {"Betrieb": "Heizbetrieb", "Hochdruck": "24.4 BAR"},
-        STATISTICS_PAGE: {"JAZ Jahr": "4.16", "JAZ gesamt": "4.20"},
-        HEATING_PAGE: {"Schaltdifferenz": "4.5 K", "Leistungsbegrenzung": "60 %"},
-    }
+    assert entry.runtime_data.coordinator.data == SHOWN
     assert pump.asked == [*LOGIN, *(("GET", path) for path in PAGES.values())]
 
 
@@ -184,7 +211,22 @@ async def test_the_diagnostics_leave_out_the_login_and_the_page_addresses(hass, 
     data = diagnostics["entry"]["data"]
     assert {data[CONF.USERNAME], data[CONF.PASSWORD], data[CONF.PAGES]} == {REDACTED}
     assert PAGES[HEATING_PAGE] not in str(diagnostics)
-    assert diagnostics["coordinator"]["pages"][STATISTICS_PAGE] == {
-        "JAZ Jahr": "4.16",
-        "JAZ gesamt": "4.20",
-    }
+    assert (
+        diagnostics["coordinator"]["pages"][STATISTICS_PAGE] == SHOWN[STATISTICS_PAGE]
+    )
+
+
+async def test_the_values_become_sensors_on_the_pumps_devices(hass, pump):
+    entry = await _start(hass, _entries(hass, pump))
+    registry = er.async_get(hass)
+
+    assert len(er.async_entries_for_config_entry(registry, entry.entry_id)) == len(
+        WEBIF_SENSORS
+    )
+    high_pressure = registry.async_get_entity_id(
+        "sensor", CONST.DOMAIN, f"{CONST.DEF_PREFIX}webif_hochdruck"
+    )
+    state = hass.states.get(high_pressure)
+    assert (state.state, state.attributes["unit_of_measurement"]) == ("12.0", "bar")
+    device = dr.async_get(hass).async_get(registry.async_get(high_pressure).device_id)
+    assert (CONST.DOMAIN, DEVICES.WP) in device.identifiers

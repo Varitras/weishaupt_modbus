@@ -1772,6 +1772,147 @@
             },
             "eeprom_writes_today": {
                 "name": "EEPROM-Schreibzugriffe (heute)"
+            },
+            "webif_solltemperatur": {
+                "name": "{prefix}Solltemperatur Wärmepumpe"
+            },
+            "webif_schaltdifferenz_dynamisch": {
+                "name": "{prefix}Schaltdifferenz dynamisch"
+            },
+            "webif_drehzahl_pumpe_m1": {
+                "name": "{prefix}Drehzahl Pumpe M1"
+            },
+            "webif_volumenstrom": {
+                "name": "{prefix}Volumenstrom"
+            },
+            "webif_stellung_umschaltventil": {
+                "name": "{prefix}Stellung Umschaltventil"
+            },
+            "webif_soll_leistung": {
+                "name": "{prefix}Soll-Leistung"
+            },
+            "webif_ist_leistung": {
+                "name": "{prefix}Ist-Leistung"
+            },
+            "webif_expansionsventil_ag_eintritt": {
+                "name": "{prefix}Expansionsventil Außengerät Eintritt"
+            },
+            "webif_waermetauscher_ag_austritt": {
+                "name": "{prefix}Wärmetauscher Außengerät Austritt"
+            },
+            "webif_evi_sauggastemperatur": {
+                "name": "{prefix}EVI-Sauggastemperatur"
+            },
+            "webif_kaeltemittel_ig_austritt": {
+                "name": "{prefix}Kältemittel Innengerät Austritt"
+            },
+            "webif_oelsumpftemperatur": {
+                "name": "{prefix}Ölsumpftemperatur"
+            },
+            "webif_druckgastemperatur": {
+                "name": "{prefix}Druckgastemperatur"
+            },
+            "webif_niederdruck": {
+                "name": "{prefix}Niederdruck"
+            },
+            "webif_hochdruck": {
+                "name": "{prefix}Hochdruck"
+            },
+            "webif_mitteldruck": {
+                "name": "{prefix}Mitteldruck"
+            },
+            "webif_kondensationstemperatur": {
+                "name": "{prefix}Kondensationstemperatur"
+            },
+            "webif_saettigungstemperatur_evi": {
+                "name": "{prefix}Sättigungstemperatur EVI"
+            },
+            "webif_ueberhitzung_heizen": {
+                "name": "{prefix}Überhitzung Heizen"
+            },
+            "webif_ueberhitzung_verdichter": {
+                "name": "{prefix}Überhitzung Verdichter"
+            },
+            "webif_ueberhitzung_evi": {
+                "name": "{prefix}Überhitzung EVI"
+            },
+            "webif_oeffnungsgrad_exv_heizen": {
+                "name": "{prefix}Öffnungsgrad EXV Heizen"
+            },
+            "webif_oeffnungsgrad_exv_kuehlen": {
+                "name": "{prefix}Öffnungsgrad EXV Kühlen"
+            },
+            "webif_oeffnungsgrad_evi": {
+                "name": "{prefix}Öffnungsgrad EVI"
+            },
+            "webif_verdichter_drehzahl": {
+                "name": "{prefix}Drehzahl Verdichter"
+            },
+            "webif_betriebsstunden_verdichter": {
+                "name": "{prefix}Betriebsstunden Verdichter"
+            },
+            "webif_schaltspiele_verdichter": {
+                "name": "{prefix}Schaltspiele Verdichter"
+            },
+            "webif_schaltspiele_abtauen": {
+                "name": "{prefix}Schaltspiele Abtauen"
+            },
+            "webif_version_wwp_sg": {
+                "name": "{prefix}Version WWP-SG"
+            },
+            "webif_version_wwp_ec_wbb": {
+                "name": "{prefix}Version WWP-EC WBB"
+            },
+            "webif_aussengeraet_variante": {
+                "name": "{prefix}Außengerät Variante"
+            },
+            "webif_th_energie_heizen_tag": {
+                "name": "{prefix}Heizen Energie heute (WebIF)"
+            },
+            "webif_th_energie_ww_tag": {
+                "name": "{prefix}Warmwasser Energie heute (WebIF)"
+            },
+            "webif_th_energie_gesamt_tag": {
+                "name": "{prefix}Gesamt Energie heute (WebIF)"
+            },
+            "webif_el_energie_tag": {
+                "name": "{prefix}Elektr. Energie heute (WebIF)"
+            },
+            "webif_th_energie_heizen_monat": {
+                "name": "{prefix}Heizen Energie Monat (WebIF)"
+            },
+            "webif_th_energie_ww_monat": {
+                "name": "{prefix}Warmwasser Energie Monat (WebIF)"
+            },
+            "webif_th_energie_gesamt_monat": {
+                "name": "{prefix}Gesamt Energie Monat (WebIF)"
+            },
+            "webif_el_energie_monat": {
+                "name": "{prefix}Elektr. Energie Monat (WebIF)"
+            },
+            "webif_th_energie_heizen_jahr": {
+                "name": "{prefix}Heizen Energie Jahr (WebIF)"
+            },
+            "webif_th_energie_ww_jahr": {
+                "name": "{prefix}Warmwasser Energie Jahr (WebIF)"
+            },
+            "webif_th_energie_gesamt_jahr": {
+                "name": "{prefix}Gesamt Energie Jahr (WebIF)"
+            },
+            "webif_el_energie_jahr": {
+                "name": "{prefix}Elektr. Energie Jahr (WebIF)"
+            },
+            "webif_jaz_jahr": {
+                "name": "{prefix}Jahresarbeitszahl (WebIF)"
+            },
+            "webif_jaz_gesamt": {
+                "name": "{prefix}Arbeitszahl gesamt (WebIF)"
+            },
+            "webif_leistungsbegrenzung_heizen": {
+                "name": "{prefix}Leistungsbegrenzung Heizen"
+            },
+            "webif_schaltdifferenz_heizen": {
+                "name": "{prefix}Schaltdifferenz Heizen"
             }
         }
     },
