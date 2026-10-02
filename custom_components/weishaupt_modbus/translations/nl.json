@@ -2,13 +2,18 @@
   "config" : {
     "abort" : {
       "already_configured" : "Deze warmtepomp is al geconfigureerd",
-      "reconfigure_successful" : "Configuratie bijgewerkt"
+      "reconfigure_successful" : "Configuratie bijgewerkt",
+      "reauth_successful" : "De nieuwe aanmelding is geaccepteerd",
+      "webif_not_reconfigurable" : "Een webinterface-vermelding neemt het adres van de warmtepomp over. Bij een geweigerde aanmelding vraagt zij om een nieuwe; het interval staat in de opties.",
+      "no_pump" : "Stel eerst de warmtepomp in; de webinterface wordt daaraan toegevoegd."
     },
     "error" : {
       "cannot_connect" : "Connectie gefaald",
       "invalid_host" : "Voer het adres van de warmtepomp in (naam of IP, zonder spaties)",
       "postfix_in_use" : "Een andere warmtepomp gebruikt deze apparaat-postfix al",
-      "postfix_required" : "Een tweede warmtepomp heeft een apparaat-postfix nodig"
+      "postfix_required" : "Een tweede warmtepomp heeft een apparaat-postfix nodig",
+      "invalid_auth" : "De webinterface heeft gebruiker en wachtwoord geweigerd",
+      "cannot_read" : "De webinterface heeft de menu's niet volledig getoond; probeer het opnieuw"
     },
     "step" : {
       "user" : {
@@ -37,6 +42,10 @@
           "Name-Topic-Prefix" : "Zet de korte apparaatnaam (WP, WW, ...) voor de naam van elke registerentiteit.",
           "Port" : "Modbus-TCP-poort zoals ingesteld op de warmtepomp, meestal 502.",
           "Prefix" : "Deel van de unieke ID van elke entiteit. Alleen wijzigen om de geschiedenis van een andere integratie over te nemen. Later niet meer te wijzigen."
+        },
+        "menu_options" : {
+          "pump" : "Warmtepomp (Modbus)",
+          "webif" : "Webinterface van een warmtepomp"
         }
       },
       "reconfigure" : {
@@ -62,6 +71,32 @@
           "Name-Device-Prefix" : "Zet de prefix voor de naam van elke registerentiteit.",
           "Name-Topic-Prefix" : "Zet de korte apparaatnaam (WP, WW, ...) voor de naam van elke registerentiteit.",
           "Port" : "Modbus-TCP-poort zoals ingesteld op de warmtepomp, meestal 502."
+        }
+      },
+      "webif" : {
+        "title" : "Webinterface",
+        "description" : "Leest meer waarden uit de lokale webinterface van de warmtepomp (experimenteel). Aanmelden en de pagina's zoeken duurt ongeveer een halve minuut.",
+        "data" : {
+          "pump_entry_id" : "Warmtepomp",
+          "username" : "Gebruiker",
+          "password" : "Wachtwoord"
+        },
+        "data_description" : {
+          "pump_entry_id" : "De warmtepomp waartoe de webinterface hoort; het adres daarvan wordt gebruikt.",
+          "username" : "De gebruiker op de aanmeldpagina van de webinterface.",
+          "password" : "Het wachtwoord op de aanmeldpagina van de webinterface. Het wordt in Home Assistant opgeslagen en alleen naar de warmtepomp gestuurd."
+        }
+      },
+      "reauth_confirm" : {
+        "title" : "Aanmelding bij de webinterface",
+        "description" : "De webinterface heeft de aanmelding geweigerd. Voer de huidige in; de controle duurt ongeveer een halve minuut.",
+        "data" : {
+          "username" : "Gebruiker",
+          "password" : "Wachtwoord"
+        },
+        "data_description" : {
+          "username" : "De gebruiker op de aanmeldpagina van de webinterface.",
+          "password" : "Het wachtwoord op de aanmeldpagina van de webinterface."
         }
       }
     }
@@ -1756,6 +1791,14 @@
           "scan_interval" : "Hoe vaak alle registers worden gelezen, 5 tot 600 seconden. Een wijziging laadt de integratie opnieuw.",
           "write_warning_per_day" : "Logt eenmaal per dag een waarschuwing zodra zoveel schrijfacties zijn uitgevoerd. De EEPROM is ontworpen voor 100 000 schrijfacties.",
           "write_limit_per_day" : "Verdere schrijfacties worden tot de volgende dag geweigerd. Mag niet onder de waarschuwingsdrempel liggen."
+        }
+      },
+      "webif" : {
+        "data" : {
+          "interval_minutes" : "Interval van de warmtepomppagina (minuten)"
+        },
+        "data_description" : {
+          "interval_minutes" : "Hoe vaak de warmtepomppagina wordt gelezen, 1 tot 60 minuten. Statistiek en verwarmen worden elk uur gelezen. Een wijziging laadt de vermelding opnieuw."
         }
       }
     }

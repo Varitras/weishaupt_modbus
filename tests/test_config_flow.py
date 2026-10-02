@@ -5,14 +5,22 @@ integration.
 """
 
 import asyncio
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 from modbus_connection import ModbusConnectionError
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+import custom_components.weishaupt_modbus as integration
 from custom_components.weishaupt_modbus import config_flow
 from custom_components.weishaupt_modbus.const import CONF, CONST
-from homeassistant.data_entry_flow import FlowResultType
+from custom_components.weishaupt_modbus.webif.client import (
+    Broken,
+    LoginRefused,
+    Unreachable,
+)
+from homeassistant.data_entry_flow import FlowResultType, InvalidData
 
 pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
 
@@ -50,9 +58,14 @@ def _pump_that_answers(mock_modbus):
 
 
 async def _start(hass):
+    """The pump's form; with a pump set up already, picked from the menu."""
     result = await hass.config_entries.flow.async_init(
         CONST.DOMAIN, context={"source": "user"}
     )
+    if result["type"] is FlowResultType.MENU:
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"next_step_id": "pump"}
+        )
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "user"
     return result
@@ -348,9 +361,7 @@ async def test_a_reconfigure_taking_the_endpoint_survives_a_probing_user_flow(
     )
     existing.add_to_hass(hass)
 
-    started = await hass.config_entries.flow.async_init(
-        CONST.DOMAIN, context={"source": "user"}
-    )
+    started = await _start(hass)
     pending = hass.async_create_task(
         hass.config_entries.flow.async_configure(
             started["flow_id"],
@@ -369,3 +380,201 @@ async def test_a_reconfigure_taking_the_endpoint_survives_a_probing_user_flow(
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
     assert hass.config_entries.async_get_entry(existing.entry_id) is not None
+
+
+# --- a pump's web interface ---------------------------------------------------
+
+WEB_LOGIN = {CONF.USERNAME: "tester", CONF.PASSWORD: "testing"}
+FOUND_PAGES = {
+    "heat_pump": "/settings_export.html?stack=0C000001000000000080000A0B010002000301",
+    "statistics": "/settings_export.html?stack=0C000C23000000000000000A0B020003000401",
+    "heating": "/settings_export.html?stack=64001800000000000080000A0B020003000401",
+}
+
+
+def _pump_entry(hass, host=HOST):
+    entry = MockConfigEntry(
+        domain=CONST.DOMAIN,
+        data={**PAGE_ONE, CONF.HOST: host},
+        version=11,
+        unique_id=f"{host}:502",
+        title=host,
+    )
+    entry.add_to_hass(hass)
+    return entry
+
+
+def _web_entry(hass, pump):
+    entry = MockConfigEntry(
+        domain=CONST.DOMAIN,
+        data={
+            CONF.KIND: CONST.WEB_INTERFACE,
+            CONF.PUMP_ENTRY: pump.entry_id,
+            **WEB_LOGIN,
+            CONF.PAGES: FOUND_PAGES,
+        },
+        version=11,
+        unique_id=f"{pump.entry_id}-{CONST.WEB_INTERFACE}",
+        title=f"{pump.title} web interface",
+    )
+    entry.add_to_hass(hass)
+    return entry
+
+
+@pytest.fixture
+def web_interface(monkeypatch):
+    """The short visit to the web interface, scripted: what it finds or raises.
+
+    The entry a dialog creates is not started here; starting it has tests of
+    its own.
+    """
+    script = SimpleNamespace(visits=[], outcome=FOUND_PAGES)
+
+    async def visit(_hass, host, user, password):
+        script.visits.append((host, user, password))
+        if isinstance(script.outcome, Exception):
+            raise script.outcome
+        return script.outcome
+
+    monkeypatch.setattr(config_flow, "read_web_interface", visit)
+    monkeypatch.setattr(integration, "async_setup_entry", AsyncMock(return_value=True))
+    return script
+
+
+async def _web_form(hass):
+    menu = await hass.config_entries.flow.async_init(
+        CONST.DOMAIN, context={"source": "user"}
+    )
+    assert menu["type"] is FlowResultType.MENU
+    form = await hass.config_entries.flow.async_configure(
+        menu["flow_id"], {"next_step_id": "webif"}
+    )
+    assert form["step_id"] == "webif"
+    return form
+
+
+async def test_the_first_pump_is_asked_for_without_a_menu(hass):
+    result = await hass.config_entries.flow.async_init(
+        CONST.DOMAIN, context={"source": "user"}
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "user"
+
+
+async def test_with_a_pump_set_up_the_dialog_asks_what_to_add(hass):
+    _pump_entry(hass)
+
+    result = await hass.config_entries.flow.async_init(
+        CONST.DOMAIN, context={"source": "user"}
+    )
+
+    assert result["type"] is FlowResultType.MENU
+    assert result["menu_options"] == ["pump", "webif"]
+
+
+async def test_a_pumps_web_interface_is_added_with_the_pages_found(hass, web_interface):
+    pump = _pump_entry(hass)
+    form = await _web_form(hass)
+
+    result = await hass.config_entries.flow.async_configure(
+        form["flow_id"], {CONF.PUMP_ENTRY: pump.entry_id, **WEB_LOGIN}
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"] == {
+        CONF.KIND: CONST.WEB_INTERFACE,
+        CONF.PUMP_ENTRY: pump.entry_id,
+        **WEB_LOGIN,
+        CONF.PAGES: FOUND_PAGES,
+    }
+    assert result["result"].unique_id == f"{pump.entry_id}-{CONST.WEB_INTERFACE}"
+    assert web_interface.visits == [(HOST, "tester", "testing")]
+
+
+@pytest.mark.parametrize(
+    ("failure", "error"),
+    [
+        (LoginRefused("HTTP 303 to /index.html#wrongpassword"), "invalid_auth"),
+        (Unreachable("GET /index.html: TimeoutError"), "cannot_connect"),
+        (Broken("/settings_export.html"), "cannot_read"),
+    ],
+)
+async def test_a_visit_that_fails_says_why(hass, web_interface, failure, error):
+    pump = _pump_entry(hass)
+    web_interface.outcome = failure
+    form = await _web_form(hass)
+
+    result = await hass.config_entries.flow.async_configure(
+        form["flow_id"], {CONF.PUMP_ENTRY: pump.entry_id, **WEB_LOGIN}
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": error}
+
+
+async def test_a_pumps_web_interface_is_added_once(hass, web_interface):
+    pump = _pump_entry(hass)
+    _web_entry(hass, pump)
+    form = await _web_form(hass)
+
+    result = await hass.config_entries.flow.async_configure(
+        form["flow_id"], {CONF.PUMP_ENTRY: pump.entry_id, **WEB_LOGIN}
+    )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert web_interface.visits == [], "no visit for an entry that exists"
+
+
+async def test_a_refused_login_is_replaced_by_a_new_one(hass, web_interface):
+    pump = _pump_entry(hass)
+    entry = _web_entry(hass, pump)
+    renewed = {CONF.USERNAME: "tester", CONF.PASSWORD: "renewed"}
+
+    form = await entry.start_reauth_flow(hass)
+    assert form["step_id"] == "reauth_confirm"
+    result = await hass.config_entries.flow.async_configure(form["flow_id"], renewed)
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reauth_successful"
+    assert {key: entry.data[key] for key in renewed} == renewed
+    assert web_interface.visits == [(HOST, "tester", "renewed")]
+
+
+async def test_a_web_interface_entry_is_not_reconfigured(hass):
+    entry = _web_entry(hass, _pump_entry(hass))
+
+    result = await hass.config_entries.flow.async_init(
+        CONST.DOMAIN, context={"source": "reconfigure", "entry_id": entry.entry_id}
+    )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "webif_not_reconfigurable"
+
+
+async def test_the_web_interface_interval_is_its_own_option(hass):
+    entry = _web_entry(hass, _pump_entry(hass))
+
+    form = await hass.config_entries.options.async_init(entry.entry_id)
+    assert form["step_id"] == "webif"
+    with pytest.raises(InvalidData):
+        await hass.config_entries.options.async_configure(
+            form["flow_id"], {CONST.OPTION_WEBIF_INTERVAL: 0}
+        )
+    result = await hass.config_entries.options.async_configure(
+        form["flow_id"], {CONST.OPTION_WEBIF_INTERVAL: 5}
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options == {CONST.OPTION_WEBIF_INTERVAL: 5}
+
+
+async def test_a_web_interface_holds_no_postfix_of_its_own(hass):
+    """Only a pump owns a postfix; a web interface left behind by a removed
+    pump must not make the next pump need one."""
+    pump = _pump_entry(hass, host="192.0.2.99")
+    _web_entry(hass, pump)
+    await hass.config_entries.async_remove(pump.entry_id)
+
+    assert (await _create(hass, PAGE_ONE))["type"] is FlowResultType.CREATE_ENTRY

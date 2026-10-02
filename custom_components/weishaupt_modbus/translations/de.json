@@ -2,13 +2,18 @@
     "config": {
         "abort": {
             "already_configured": "Diese Wärmepumpe ist bereits eingerichtet",
-            "reconfigure_successful": "Konfiguration aktualisiert"
+            "reconfigure_successful": "Konfiguration aktualisiert",
+            "reauth_successful": "Die neue Anmeldung wurde angenommen",
+            "webif_not_reconfigurable": "Ein Eintrag der Weboberfläche übernimmt die Adresse seiner Wärmepumpe. Wird die Anmeldung abgelehnt, fragt er nach einer neuen; das Intervall steht in den Optionen.",
+            "no_pump": "Richten Sie zuerst die Wärmepumpe ein; die Weboberfläche wird ihr hinzugefügt."
         },
         "error": {
             "cannot_connect": "Verbindung fehlgeschlagen",
             "invalid_host": "Adresse der Wärmepumpe eingeben (Name oder IP, ohne Leerzeichen)",
             "postfix_in_use": "Dieses Geräte-Postfix wird schon von einer anderen Wärmepumpe verwendet",
-            "postfix_required": "Eine zweite Wärmepumpe braucht ein Geräte-Postfix"
+            "postfix_required": "Eine zweite Wärmepumpe braucht ein Geräte-Postfix",
+            "invalid_auth": "Die Weboberfläche hat Benutzer und Passwort abgelehnt",
+            "cannot_read": "Die Weboberfläche hat ihre Menüs nicht vollständig angezeigt; bitte erneut versuchen"
         },
         "step": {
             "user": {
@@ -37,6 +42,10 @@
                     "Name-Topic-Prefix": "Stellt dem Namen jeder Register-Entität das Gerätekürzel (WP, WW, ...) voran.",
                     "Port": "Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502.",
                     "Prefix": "Teil der Unique-ID jeder Entität. Nur ändern, um die Historie einer anderen Integration zu übernehmen. Später nicht mehr änderbar."
+                },
+                "menu_options": {
+                    "pump": "Wärmepumpe (Modbus)",
+                    "webif": "Weboberfläche einer Wärmepumpe"
                 }
             },
             "reconfigure": {
@@ -62,6 +71,32 @@
                     "Name-Device-Prefix": "Stellt dem Namen jeder Register-Entität das Prefix voran.",
                     "Name-Topic-Prefix": "Stellt dem Namen jeder Register-Entität das Gerätekürzel (WP, WW, ...) voran.",
                     "Port": "Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502."
+                }
+            },
+            "webif": {
+                "title": "Weboberfläche",
+                "description": "Liest weitere Werte aus der lokalen Weboberfläche der Wärmepumpe (experimentell). Anmelden und das Suchen der Seiten dauern etwa eine halbe Minute.",
+                "data": {
+                    "pump_entry_id": "Wärmepumpe",
+                    "username": "Benutzer",
+                    "password": "Passwort"
+                },
+                "data_description": {
+                    "pump_entry_id": "Die Wärmepumpe, zu der die Weboberfläche gehört; ihre Adresse wird verwendet.",
+                    "username": "Der Benutzer der Anmeldeseite der Weboberfläche.",
+                    "password": "Das Passwort der Anmeldeseite der Weboberfläche. Es wird in Home Assistant gespeichert und nur an die Wärmepumpe gesendet."
+                }
+            },
+            "reauth_confirm": {
+                "title": "Anmeldung an der Weboberfläche",
+                "description": "Die Weboberfläche hat ihre Anmeldung abgelehnt. Geben Sie die aktuelle ein; die Prüfung dauert etwa eine halbe Minute.",
+                "data": {
+                    "username": "Benutzer",
+                    "password": "Passwort"
+                },
+                "data_description": {
+                    "username": "Der Benutzer der Anmeldeseite der Weboberfläche.",
+                    "password": "Das Passwort der Anmeldeseite der Weboberfläche."
                 }
             }
         }
@@ -1756,6 +1791,14 @@
                     "scan_interval": "Wie oft alle Register gelesen werden, 5 bis 600 Sekunden. Eine Änderung lädt die Integration neu.",
                     "write_warning_per_day": "Protokolliert einmal am Tag eine Warnung, sobald so viele Schreibzugriffe erfolgt sind. Das EEPROM ist für 100 000 Schreibzugriffe ausgelegt.",
                     "write_limit_per_day": "Weitere Schreibzugriffe werden bis zum nächsten Tag abgelehnt. Darf nicht unter der Warnschwelle liegen."
+                }
+            },
+            "webif": {
+                "data": {
+                    "interval_minutes": "Intervall der Wärmepumpen-Seite (Minuten)"
+                },
+                "data_description": {
+                    "interval_minutes": "Wie oft die Wärmepumpen-Seite gelesen wird, 1 bis 60 Minuten. Statistik und Heizen werden stündlich gelesen. Eine Änderung lädt den Eintrag neu."
                 }
             }
         }

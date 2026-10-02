@@ -1058,7 +1058,7 @@
   },
   {
     "label": "setup: each entry gets a controller lock of its own",
-    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "path": "custom_components/weishaupt_modbus/configentry.py",
     "old": "    return hass.data.setdefault(HOST_LOCKS, {}).setdefault(host, asyncio.Lock())\n",
     "new": "    return asyncio.Lock()\n",
     "tests": "entries_of_one_pump_share_its_lock"
@@ -1195,5 +1195,68 @@
     "old": "    return links(await client.page(path, lambda text: wanted <= links(text).keys()))\n",
     "new": "    return links(await client.page(path, lambda text: True))\n",
     "tests": "menu_without_the_entry_wanted"
+  },
+  {
+    "label": "config flow: the first pump gets a menu too",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        if user_input is None and self._pumps():\n",
+    "new": "        if user_input is None:\n",
+    "tests": "first_pump_is_asked_for_without_a_menu"
+  },
+  {
+    "label": "config flow: a web interface holds a postfix like a pump",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        if entry.entry_id != entry_id and not is_web_interface(entry)\n",
+    "new": "        if entry.entry_id != entry_id\n",
+    "tests": "web_interface_holds_no_postfix"
+  },
+  {
+    "label": "config flow: a refused login reads as a broken page",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        return \"invalid_auth\"\n",
+    "new": "        return \"cannot_read\"\n",
+    "tests": "visit_that_fails_says_why"
+  },
+  {
+    "label": "config flow: no connection reads as a broken page",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        return \"cannot_connect\"\n",
+    "new": "        return \"cannot_read\"\n",
+    "tests": "visit_that_fails_says_why"
+  },
+  {
+    "label": "config flow: a web interface entry opens the pump's reconfigure",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        if is_web_interface(self._reconfigure_entry):\n            return self.async_abort(reason=\"webif_not_reconfigurable\")\n",
+    "new": "",
+    "tests": "web_interface_entry_is_not_reconfigured"
+  },
+  {
+    "label": "config flow: a web interface entry gets the pump's options",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        if is_web_interface(config_entry):\n            return WebifOptionsFlow()\n",
+    "new": "",
+    "tests": "interval_is_its_own_option"
+  },
+  {
+    "label": "config flow: the web interface may be read without pause",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                        min=CONST.WEBIF_INTERVAL_MIN_MINUTES,\n",
+    "new": "                        min=0,\n",
+    "tests": "interval_is_its_own_option"
+  },
+  {
+    "label": "config flow: a second web interface for the same pump is visited",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "            await self.async_set_unique_id(f\"{pump.entry_id}-{CONST.WEB_INTERFACE}\")\n            self._abort_if_unique_id_configured()\n",
+    "new": "",
+    "tests": "pumps_web_interface_is_added_once"
+  },
+  {
+    "label": "config flow: the dialog's visit stays logged in",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        await client.close()\n",
+    "new": "",
+    "tests": "dialog_finds_the_pages_and_logs_out"
   }
 ]

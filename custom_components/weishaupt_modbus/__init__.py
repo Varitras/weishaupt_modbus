@@ -1,6 +1,5 @@
 """Home Assistant integration initialization."""
 
-import asyncio
 import copy
 import logging
 import re
@@ -13,9 +12,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.typing import UNDEFINED
 from homeassistant.util import slugify
-from homeassistant.util.hass_dict import HassKey
 
-from .configentry import MyConfigEntry, MyData
+from .configentry import MyConfigEntry, MyData, host_lock
 from .const import CONF, CONST
 from .coordinator import WeishauptModbusCoordinator, check_configured, write_budget
 from .items import ModbusItem
@@ -91,14 +89,6 @@ PLATFORMS: list[str] = [
     "switch",
 ]
 
-# One per pump address, shared by every entry that talks to that controller.
-HOST_LOCKS: HassKey[dict[str, asyncio.Lock]] = HassKey(f"{CONST.DOMAIN}_host_locks")
-
-
-def _host_lock(hass: HomeAssistant, host: str) -> asyncio.Lock:
-    """The lock each request to the controller at host takes, Modbus or web."""
-    return hass.data.setdefault(HOST_LOCKS, {}).setdefault(host, asyncio.Lock())
-
 
 async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     """Set up entry."""
@@ -118,7 +108,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     )
     unit = async_get_unit(hass, entry, params, MODBUS_UNIT_ID)
     pump = WeishauptHeatPump(
-        unit, itemlist, write_budget(entry), _host_lock(hass, entry.data[CONF.HOST])
+        unit, itemlist, write_budget(entry), host_lock(hass, entry.data[CONF.HOST])
     )
 
     modbus_coordinator = WeishauptModbusCoordinator(

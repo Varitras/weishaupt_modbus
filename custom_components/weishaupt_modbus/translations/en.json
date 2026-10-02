@@ -2,13 +2,18 @@
   "config": {
     "abort": {
       "already_configured": "This heat pump is already configured",
-      "reconfigure_successful": "Configuration updated"
+      "reconfigure_successful": "Configuration updated",
+      "reauth_successful": "The new login was accepted",
+      "webif_not_reconfigurable": "A web interface entry takes its address from its heat pump. A refused login asks for a new one, and the interval is in the options.",
+      "no_pump": "Set up the heat pump first; its web interface is added to it."
     },
     "error": {
       "cannot_connect": "Failed to connect",
       "invalid_host": "Enter the address of the heat pump (name or IP, no spaces)",
       "postfix_in_use": "Another heat pump already uses this device postfix",
-      "postfix_required": "A second heat pump needs a device postfix"
+      "postfix_required": "A second heat pump needs a device postfix",
+      "invalid_auth": "The web interface refused the user and password",
+      "cannot_read": "The web interface did not show its menus completely; try again"
     },
     "step": {
       "user": {
@@ -37,6 +42,10 @@
           "Name-Topic-Prefix": "Puts the device's short name (WP, WW, ...) in front of the name of every register entity.",
           "Port": "Modbus TCP port set on the heat pump, usually 502.",
           "Prefix": "Part of every entity's unique id. Keep the default unless you carry over the history of another integration. Cannot be changed later."
+        },
+        "menu_options": {
+          "pump": "Heat pump (Modbus)",
+          "webif": "Web interface of a heat pump"
         }
       },
       "reconfigure": {
@@ -62,6 +71,32 @@
           "Name-Device-Prefix": "Puts the prefix in front of the name of every register entity.",
           "Name-Topic-Prefix": "Puts the device's short name (WP, WW, ...) in front of the name of every register entity.",
           "Port": "Modbus TCP port set on the heat pump, usually 502."
+        }
+      },
+      "webif": {
+        "title": "Web interface",
+        "description": "Reads more values from the heat pump's local web interface (experimental). Logging in and finding the pages takes about half a minute.",
+        "data": {
+          "pump_entry_id": "Heat pump",
+          "username": "User",
+          "password": "Password"
+        },
+        "data_description": {
+          "pump_entry_id": "The heat pump the web interface belongs to; its address is used.",
+          "username": "The user on the web interface's login page.",
+          "password": "The password on the web interface's login page. It is stored in Home Assistant and sent to the heat pump only."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Web interface login",
+        "description": "The web interface refused its login. Enter the current one; checking it takes about half a minute.",
+        "data": {
+          "username": "User",
+          "password": "Password"
+        },
+        "data_description": {
+          "username": "The user on the web interface's login page.",
+          "password": "The password on the web interface's login page."
         }
       }
     }
@@ -1756,6 +1791,14 @@
           "scan_interval": "How often all registers are read, 5 to 600 seconds. A change reloads the integration.",
           "write_warning_per_day": "Logs a warning once a day when this many writes went out. The EEPROM is rated for 100 000 writes.",
           "write_limit_per_day": "Further writes are refused until the next day. Must not be below the warning threshold."
+        }
+      },
+      "webif": {
+        "data": {
+          "interval_minutes": "Interval of the heat pump page (minutes)"
+        },
+        "data_description": {
+          "interval_minutes": "How often the heat pump page is read, 1 to 60 minutes. Statistics and heating are read hourly. A change reloads the entry."
         }
       }
     }

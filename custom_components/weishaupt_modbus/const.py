@@ -4,7 +4,13 @@ from dataclasses import dataclass
 from datetime import timedelta
 from enum import StrEnum
 
-from homeassistant.const import CONF_HOST, CONF_PORT, CONF_PREFIX
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_PASSWORD,
+    CONF_PORT,
+    CONF_PREFIX,
+    CONF_USERNAME,
+)
 
 
 @dataclass(frozen=True)
@@ -22,6 +28,11 @@ class ConfConstants:
     HK5: str = "Heizkreis 5"
     NAME_DEVICE_PREFIX: str = "Name-Device-Prefix"
     NAME_TOPIC_PREFIX: str = "Name-Topic-Prefix"
+    KIND: str = "kind"
+    PUMP_ENTRY: str = "pump_entry_id"
+    USERNAME: str = CONF_USERNAME
+    PASSWORD: str = CONF_PASSWORD
+    PAGES: str = "pages"
 
 
 CONF = ConfConstants()
@@ -43,6 +54,12 @@ class MainConstants:
     OPTION_WRITE_LIMIT_PER_DAY: str = "write_limit_per_day"
     DEF_KENNFELDFILE: str = "weishaupt_wbb_kennfeld.json"
     DEF_PREFIX: str = "weishaupt_wbb"
+    WEB_INTERFACE: str = "web_interface"
+    # The heat pump page's interval; a minute is the floor the user set.
+    OPTION_WEBIF_INTERVAL: str = "interval_minutes"
+    WEBIF_INTERVAL_MINUTES: int = 15
+    WEBIF_INTERVAL_MIN_MINUTES: int = 1
+    WEBIF_INTERVAL_MAX_MINUTES: int = 60
 
 
 CONST = MainConstants()

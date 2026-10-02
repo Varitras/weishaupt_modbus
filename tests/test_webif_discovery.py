@@ -5,6 +5,7 @@ import asyncio
 import aiohttp
 import pytest
 
+from custom_components.weishaupt_modbus.config_flow import read_web_interface
 from custom_components.weishaupt_modbus.webif import client as webif
 from custom_components.weishaupt_modbus.webif.discovery import (
     HEAT_PUMP_PAGE,
@@ -86,3 +87,13 @@ async def test_an_overview_without_the_heat_pump_menu_is_broken(pump, client):
 
     with pytest.raises(webif.Broken):
         await find_pages(client)
+
+
+async def test_the_dialog_finds_the_pages_and_logs_out_again(hass, pump, monkeypatch):
+    """The dialog's own short visit, with a session of its own."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+
+    found = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert found[HEATING_PAGE] == STACK + f"{PUMP_MENU},{HEATING}"
+    assert pump.asked[-1] == ("GET", webif.LOGOUT)

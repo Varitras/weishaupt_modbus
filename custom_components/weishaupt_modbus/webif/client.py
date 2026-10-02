@@ -93,7 +93,7 @@ class Client:
         password: str,
         *,
         host_lock: asyncio.Lock,
-        gap: float = MIN_GAP_SECONDS,
+        gap: float | None = None,
         timeout: float = TIMEOUT_SECONDS,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
@@ -105,7 +105,9 @@ class Client:
         self._base = f"http://{host}"
         self._credentials = {"user": user, "pass": password}
         self._host_lock = host_lock
-        self._gap = gap
+        # Read here, not as the default, so a test can shorten the gap for
+        # the clients that the dialogs and the setup create.
+        self._gap = MIN_GAP_SECONDS if gap is None else gap
         self._timeout = aiohttp.ClientTimeout(total=timeout)
         self._clock = clock
         self._lock = asyncio.Lock()

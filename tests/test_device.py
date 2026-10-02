@@ -18,7 +18,7 @@ from modbus_connection import (
 from modbus_connection.mock import MockModbusConnection
 import pytest
 
-from custom_components.weishaupt_modbus import _host_lock
+from custom_components.weishaupt_modbus.configentry import host_lock
 from custom_components.weishaupt_modbus.const import DEVICES, FORMATS, TYPES
 from custom_components.weishaupt_modbus.items import ModbusItem
 from custom_components.weishaupt_modbus.weishaupt_modbus_api import hpconst
@@ -411,8 +411,8 @@ async def test_a_write_waits_while_the_web_interface_holds_the_controller(
 
 async def test_the_entries_of_one_pump_share_its_lock(hass):
     """The web interface entry is a second entry for the same controller."""
-    assert _host_lock(hass, "pump") is _host_lock(hass, "pump")
-    assert _host_lock(hass, "pump") is not _host_lock(hass, "another pump")
+    assert host_lock(hass, "pump") is host_lock(hass, "pump")
+    assert host_lock(hass, "pump") is not host_lock(hass, "another pump")
 
 
 # --- writes -------------------------------------------------------------------
