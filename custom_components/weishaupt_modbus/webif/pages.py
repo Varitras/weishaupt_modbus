@@ -15,7 +15,6 @@ from dataclasses import dataclass
 from html.parser import HTMLParser
 import re
 
-LOGIN_MARKERS = ("form-signin", "bitte anmelden")
 STACK_LINK = re.compile(r"/settings_export\.html\?stack=[0-9A-F]{38}(?:,[0-9A-F]{38})*")
 # A stack segment names its own menu depth in these two hex digits (01 for a
 # main menu, 02 below it, ...). The broken answers nest entries one level too
@@ -113,12 +112,6 @@ def values(page: str) -> list[tuple[str, str]]:
     A list, not a mapping: the fault memory repeats its titles.
     """
     return [(entry.title, entry.text) for entry in entries(page) if entry.href is None]
-
-
-def is_login_page(page: str) -> bool:
-    """The answer of an expired session: the login form instead of the page asked for."""
-    lowered = page.lower()
-    return any(marker in lowered for marker in LOGIN_MARKERS)
 
 
 def is_child(href: str, parent: str) -> bool:

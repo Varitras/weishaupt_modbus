@@ -241,7 +241,7 @@
     "label": "table: an item's name must not silently change",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
     "old": "    ModbusItem(address=30001, name=\"Aussentemperatur\",",
-    "new": "    ModbusItem(address=30001, name=\"Au\u00dfentemperatur\",",
+    "new": "    ModbusItem(address=30001, name=\"Außentemperatur\",",
     "tests": "keeps_the_name_its_unique_id"
   },
   {
@@ -957,5 +957,82 @@
     "old": "        return 0.0\n",
     "new": "        return None\n",
     "tests": "a_shown_value_becomes_a_number"
+  },
+  {
+    "label": "webif client: a timeout escapes as a bare TimeoutError",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        except (TimeoutError, aiohttp.ClientError) as error:\n",
+    "new": "        except aiohttp.ClientError as error:\n",
+    "tests": "after_a_timeout_nothing_follows"
+  },
+  {
+    "label": "webif client: a page wrong twice passes",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "            if not complete(text):\n                raise Broken(path)\n",
+    "new": "            if not text:\n                raise Broken(path)\n",
+    "tests": "page_wrong_twice_is_broken"
+  },
+  {
+    "label": "webif client: an error status reads as a page",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "    if answer.status != HTTPStatus.OK:\n",
+    "new": "    if answer.status == HTTPStatus.SEE_OTHER:\n",
+    "tests": "error_status_is_no_page"
+  },
+  {
+    "label": "webif client: the positive list takes any query after a page",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "pages.STACK_LINK.fullmatch(path) is not None",
+    "new": "pages.STACK_LINK.match(path) is not None",
+    "tests": "off_the_positive_list"
+  },
+  {
+    "label": "webif client: any POST passes the positive list",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        return path == LOGIN\n",
+    "new": "        return True\n",
+    "tests": "no_post_but_the_login"
+  },
+  {
+    "label": "webif client: a lost session is not renewed",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "            if answer.session_lost:\n",
+    "new": "            if False:\n",
+    "tests": "lost_session_is_renewed_once"
+  },
+  {
+    "label": "webif client: a login without its session cookie passes",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "            and answer.location == LOGIN_TARGET\n            and SESSION_COOKIE in cookies\n",
+    "new": "            and answer.location == LOGIN_TARGET\n",
+    "tests": "cookie_the_jar_drops"
+  },
+  {
+    "label": "webif client: the session is never renewed",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "            and self._clock() - self._logged_in_at < SESSION_LIFETIME_SECONDS\n",
+    "new": "            and self._clock() >= 0\n",
+    "tests": "session_is_renewed_after_a_day"
+  },
+  {
+    "label": "webif client: the renewal logs in after a timed-out logout",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        await self._logout()\n        await self._login()\n",
+    "new": "        with suppress(WebifError):\n            await self._logout()\n        await self._login()\n",
+    "tests": "logout_that_times_out_ends_the_round"
+  },
+  {
+    "label": "webif client: pages asked for at once overlap",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        async with self._lock:\n            await self._ensure_session()\n",
+    "new": "        async with asyncio.Lock():\n            await self._ensure_session()\n",
+    "tests": "served_one_after_the_other"
+  },
+  {
+    "label": "webif client: requests follow without a gap",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "            await asyncio.sleep(wait)\n",
+    "new": "            pass\n",
+    "tests": "keep_their_distance"
   }
 ]

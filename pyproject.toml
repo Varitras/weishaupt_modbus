@@ -283,6 +283,7 @@ files = [
   "custom_components/weishaupt_modbus/items.py",
   "custom_components/weishaupt_modbus/const.py",
   "custom_components/weishaupt_modbus/webif/__init__.py",
+  "custom_components/weishaupt_modbus/webif/client.py",
   "custom_components/weishaupt_modbus/webif/pages.py",
   "custom_components/weishaupt_modbus/entity_helpers.py",
   # Named so mypy resolves the MODULE: kennfeld.py sits next to a kennfeld/

@@ -120,11 +120,6 @@ def test_siblings_nested_one_level_too_deep_are_no_children():
     assert pages.children(page, parent) == []
 
 
-def test_the_login_page_is_recognised():
-    assert pages.is_login_page("<form class='form-signin'>Bitte einloggen</form>")
-    assert not pages.is_login_page(HEAT_PUMP_PAGE)
-
-
 @pytest.mark.parametrize(
     ("shown", "expected"),
     [
