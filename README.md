@@ -8,9 +8,10 @@ setpoints and operating modes the controller lets you write.
 This is a fork of [OStrama/weishaupt_modbus](https://github.com/OStrama/weishaupt_modbus).
 It differs from upstream on purpose:
 
-- **Modbus only.** The experimental web-interface scraping is removed, together
-  with its settings and entities. An entry that still carries web-interface
-  settings is cleaned up on first start.
+- **Modbus first.** Upstream's web-interface scraping is removed, together
+  with its settings and entities; an entry that still carries them is cleaned
+  up on first start. A new, separate and deliberately gentle reader of the
+  web interface is experimental (see [Web interface (experimental)](#web-interface-experimental)).
 - **One connection to the controller, shared.** Since 2.0 the integration
   borrows its Modbus unit from Home Assistant's own `modbus` integration
   instead of opening a socket of its own (see [Upgrading from 1.x](#upgrading-from-1x)).
@@ -205,6 +206,90 @@ create `www/` itself, restart Home Assistant once so it serves the folder.
 Everything under `www/` can be fetched without logging in. A picture that
 carries script or links to the web is refused.
 
+## Web interface (experimental)
+
+The heat pump's controller also serves a local web interface, *WEM Lokal*.
+It shows values Modbus does not carry: the refrigerant circuit (pressures,
+temperatures, superheat, valve openings), compressor speed and counters,
+target and actual output, the flow rate, energy statistics to three decimals
+including the yearly totals, and the heating power limit. The integration
+reads them in a second entry beside the heat pump. It only reads; nothing is
+written.
+
+This part is experimental. The controller's web server is slow and now and
+then answers with an incomplete page, and heavy polling has disturbed
+controllers before (upstream issue
+[#159](https://github.com/OStrama/weishaupt_modbus/issues/159)). The
+integration therefore asks little and stops on its own when the answers go
+wrong.
+
+### Switching it on
+
+1. Switch the web server on at the heat pump's display. It sits in the OEM
+   level, which opens from the same password entry as the installer level
+   (*Fachmann-Ebene*); the PIN decides which level opens. The installer PIN
+   is in the heat pump's manual; ask your installer for the OEM one. In the
+   OEM level, set *Settings → Webserver* to on, and change nothing else
+   there: that level also holds the settings the heat pump runs by. Menu
+   names can differ with the controller and its firmware.
+2. Open `http://<address of the heat pump>/` in a browser. On the first
+   visit the page asks you to set a user name and a password; there are no
+   default credentials. These two go into the integration.
+3. Keep the controller's language on **German** (*Settings → Language* on
+   the display, see the heat pump's manual). The web interface shows its
+   texts in the language set there, and the integration finds its pages and
+   values by their German titles. With another language the setup stops with
+   *did not show its menus completely*.
+
+### Adding it
+
+With the heat pump set up: *Settings → Devices & services → Add integration
+→ Weishaupt WBB → Web interface of a heat pump*. Pick the heat pump and enter
+the web interface's user and password. Logging in and finding the pages takes
+about half a minute; the dialog logs out again afterwards.
+
+The entry takes the heat pump's address. Its only option is how often the
+heat pump page is read: 1 to 60 minutes, 15 by default. The statistics and
+the heating settings are read once an hour. *Reconfigure* is not offered for
+this entry; a refused login asks for a new one by itself.
+
+### What it reads
+
+47 sensors on the heat pump's existing devices:
+
+- **Heat pump**: setpoint temperature, dynamic switching difference, pump M1
+  speed, flow rate, diverter valve position, target and actual output, eight
+  refrigerant circuit temperatures, low, intermediate and high pressure,
+  three superheat values, three valve openings, compressor speed, operating
+  hours, starts and defrost cycles.
+- **Heat pump, Diagnostic**: the heating power limit and switching
+  difference, the two controller software versions and the outdoor unit
+  variant.
+- **Statistics**: the thermal and electrical energy of today, this month and
+  this year, and the performance factors of the year and overall. They carry
+  *(WebIF)* in their names, beside the coarser Modbus values.
+
+A value counts only in the unit the page shows for it; anything else reads as
+unknown. The heating power limit can be read here, not set.
+
+### How gently it asks
+
+- One request at a time, at least 5 seconds apart, each limited to 20 seconds.
+- Never at the same moment as a Modbus request to the same heat pump.
+- It stays logged in. It logs in again when the controller has dropped the
+  session, renews the session once a day, and logs out when the entry is
+  unloaded.
+- A page that arrived whole but wrong is asked for once more. After a
+  timeout or a broken connection nothing more is asked in that round.
+- A page that fails keeps its values once; the second failure in a row makes
+  them unavailable; the third stops polling and raises a repair notice.
+  Check the web interface in a browser, then reload the entry to resume.
+- A refused login stops polling at once and asks for the login again.
+
+The user and password are stored in Home Assistant's configuration and sent
+to the heat pump only. The diagnostics download leaves them out, and the page
+addresses too.
+
 ## Actions
 
 The integration registers no actions of its own. Values are written with
@@ -232,13 +317,16 @@ already set.
   takes that connection away.
 - The yearly energy registers (36104 and the other `… Jahr` rows) answer but
   stay at 0 on every controller seen so far, even after years of operation -
-  the yearly total exists only on the display and in the WEM portal. The
-  yearly performance factor therefore has no value.
+  the yearly total exists only on the display, in the WEM portal and in the
+  web interface (see [Web interface (experimental)](#web-interface-experimental)).
+  The yearly performance factor over Modbus therefore has no value.
 - The heat output is calculated from the power map, not measured. The
   electrical power is measured by the heat pump, but undocumented and
   checked on one model only.
 - Prefix and device postfix cannot be changed after setup.
 - Heat pumps with the separate Weishaupt Modbus module are not supported.
+- The web interface is read only with the controller's language set to
+  German.
 
 ## Troubleshooting
 

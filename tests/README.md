@@ -138,3 +138,11 @@ the parts that only exist once Home Assistant is driving the integration (both
 marked `e2e`). The `mock_modbus` fixture in `conftest.py` stands in for the
 connection Home Assistant's `modbus` integration shares - a fresh in-memory
 connection per (re)load, the way the hub rebuilds the real one.
+
+The web interface has its tests by layer too: `test_webif_pages.py` reads
+synthetic pages, `test_webif_client.py` and `test_webif_discovery.py` talk
+to the stand-in in `webif_stand_in.py` on the loopback address,
+`test_webif_coordinator.py` drives the polling with a fake client, and
+`test_webif_sensor.py` and `test_webif_setup.py` cover the sensors and the
+entry (the latter marked `e2e`). No recorded page is used: those carry a
+serial number, an access code and addresses.
