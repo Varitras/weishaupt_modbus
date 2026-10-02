@@ -170,6 +170,9 @@ class Client:
         )
         if not accepted:
             raise LoginRefused(f"HTTP {answer.status} to {answer.location or '-'}")
+        # A deep page answers with a redirect to the login until the session
+        # has opened the menu overview (live test, 2026-10-02).
+        _page_text(OVERVIEW, await self._request("GET", OVERVIEW))
         self._logged_in_at = self._clock()
 
     async def _request(

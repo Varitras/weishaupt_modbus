@@ -3,7 +3,8 @@
 It answers the way the controller did in the recordings: a login is a 303 to
 /home.html with a session cookie, wrong credentials a 303 to
 /index.html#wrongpassword without one, and a page asked for without a valid
-session a 303 to /index.html.
+session a 303 to /index.html - as is a deep page before the session has
+opened the menu overview, which the live test of 2026-10-02 met.
 
 The menus are synthetic, shaped like the controller's. A recorded page
 carries a serial number, an access code and addresses and never enters the
@@ -95,13 +96,14 @@ class StandInPump:
         self.delays = {}
         self.keeps_sessions = True
         self.sessions = set()
+        self.opened = set()
 
     def application(self):
         @web.middleware
         async def note(request, handler):
             self.asked.append((request.method, request.raw_path))
             self.arrivals.append(time.monotonic())
-            await asyncio.sleep(self.delays.get(request.path, 0))
+            await asyncio.sleep(self.delays.get(request.raw_path, 0))
             return await handler(request)
 
         application = web.Application(middlewares=[note])
@@ -131,7 +133,13 @@ class StandInPump:
         return see_other("/index.html#loggedout")
 
     async def page(self, request):
-        if request.cookies.get(webif.SESSION_COOKIE) not in self.sessions:
+        session = request.cookies.get(webif.SESSION_COOKIE)
+        if session not in self.sessions:
+            return see_other(webif.INDEX)
+        if request.raw_path == PAGE_PATH:
+            self.opened.add(session)
+            return web.Response(text=self.site.get(PAGE_PATH, MAIN_MENUS))
+        if session not in self.opened:
             return see_other(webif.INDEX)
         text = self.site.get(request.raw_path)
         if text is None:

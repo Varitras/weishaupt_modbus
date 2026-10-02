@@ -1363,5 +1363,12 @@
     "old": "            \"prefix\": name_prefix(pump_data, description.topic)\n",
     "new": "            \"prefix\": name_prefix(pump_data, DEVICES.WEBIF)\n",
     "tests": "topic_option_names_a_sensor"
+  },
+  {
+    "label": "webif client: a login goes straight to the deep page",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        _page_text(OVERVIEW, await self._request(\"GET\", OVERVIEW))\n",
+    "new": "",
+    "tests": "opened_the_overview"
   }
 ]

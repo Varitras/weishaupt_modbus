@@ -23,7 +23,8 @@ from .webif_stand_in import (
 
 PAGE = STACK + f"{PUMP_MENU},{HEATING}"
 BROKEN = "<p>broken</p>"
-LOGIN = [("GET", webif.INDEX), ("POST", webif.LOGIN)]
+LOGIN_FORM = [("GET", webif.INDEX), ("POST", webif.LOGIN)]
+LOGIN = [*LOGIN_FORM, ("GET", PAGE_PATH)]
 GAP = 0.2
 # The event loop may wake a sleeper a whisker early by its clock resolution.
 CLOCK_TOLERANCE = 0.001
@@ -65,6 +66,17 @@ class FakeClock:
         return self.now
 
 
+async def test_a_deep_page_comes_once_the_login_has_opened_the_overview(pump, session):
+    """Live, 2026-10-02: every page asked for straight after a login came back
+    as a redirect to the login page, and so did the retry after a new login.
+    The controller serves a deep page once the session has opened its menu
+    overview; every recorded run had opened it first."""
+    client = connect(session, pump.host)
+
+    assert await client.page(PAGE, whole) == WHOLE
+    assert pump.asked == [*LOGIN_FORM, ("GET", PAGE_PATH), ("GET", PAGE)]
+
+
 async def test_a_page_is_read_after_a_login(pump, session):
     client = connect(session, pump.host)
 
@@ -78,7 +90,7 @@ async def test_wrong_credentials_end_the_round_at_the_login(pump, session):
 
     with pytest.raises(webif.LoginRefused):
         await client.page(PAGE, whole)
-    assert pump.asked == LOGIN
+    assert pump.asked == LOGIN_FORM
 
 
 async def test_a_session_cookie_the_jar_drops_is_no_login(pump):
@@ -89,7 +101,7 @@ async def test_a_session_cookie_the_jar_drops_is_no_login(pump):
 
         with pytest.raises(webif.LoginRefused):
             await client.page(PAGE, whole)
-    assert pump.asked == LOGIN
+    assert pump.asked == LOGIN_FORM
 
 
 async def test_a_page_that_came_whole_but_wrong_is_asked_for_once_more(pump, session):
@@ -119,7 +131,7 @@ async def test_an_error_status_is_no_page_and_gets_no_second_try(pump, session):
 
 
 async def test_after_a_timeout_nothing_follows(pump, session):
-    pump.delays[PAGE_PATH] = SLOW
+    pump.delays[PAGE] = SLOW
     client = connect(session, pump.host, timeout=SHORT_TIMEOUT)
 
     with pytest.raises(webif.Unreachable):
@@ -151,13 +163,14 @@ async def test_a_lost_session_is_renewed_once(pump, session):
 
 
 async def test_a_session_lost_again_right_after_the_login_is_broken(pump, session):
-    """No login loop: one new login per round, whatever the server does."""
+    """No login loop: a login whose session does not even open the overview
+    ends the round, whatever the server does."""
     pump.keeps_sessions = False
     client = connect(session, pump.host)
 
     with pytest.raises(webif.Broken):
         await client.page(PAGE, whole)
-    assert pump.asked == [*LOGIN, ("GET", PAGE), *LOGIN, ("GET", PAGE)]
+    assert pump.asked == LOGIN
 
 
 async def test_the_session_is_renewed_after_a_day(pump, session):
@@ -258,7 +271,7 @@ async def test_requests_keep_their_distance(pump, session):
     await client.page(PAGE, whole)
 
     gaps = [later - earlier for earlier, later in pairwise(pump.arrivals)]
-    assert len(gaps) == 2
+    assert len(gaps) == len(LOGIN)
     assert min(gaps) >= GAP - CLOCK_TOLERANCE
 
 
