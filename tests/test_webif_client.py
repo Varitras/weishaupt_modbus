@@ -46,9 +46,7 @@ async def pump(socket_enabled):
 
 @pytest.fixture
 async def session():
-    async with aiohttp.ClientSession(
-        cookie_jar=aiohttp.CookieJar(unsafe=True)
-    ) as session:
+    async with aiohttp.ClientSession(cookie_jar=aiohttp.DummyCookieJar()) as session:
         yield session
 
 
@@ -94,14 +92,30 @@ async def test_wrong_credentials_end_the_round_at_the_login(pump, session):
     assert pump.asked == LOGIN_FORM
 
 
-async def test_a_session_cookie_the_jar_drops_is_no_login(pump):
-    """aiohttp's default jar drops a cookie from an IP address; every page
-    would come back as a redirect to the login."""
-    async with aiohttp.ClientSession() as default_jar:
-        client = connect(default_jar, pump.host)
+async def test_a_session_id_with_a_slash_keeps_its_session(pump, session):
+    """Live, 2026-10-02 and 03: the controller's session ids carry + and /,
+    aiohttp's cookie jar sent one with a slash back in quotes, and the
+    controller sent the next page to the login. Most logins failed so."""
+    client = connect(session, pump.host)
 
-        with pytest.raises(webif.LoginRefused):
-            await client.page(PAGE, whole)
+    assert await client.page(PAGE, whole) == WHOLE
+    assert "/" in pump.sessions.pop()
+
+
+async def test_a_session_that_keeps_cookies_is_refused():
+    """Its jar would send the session id back changed."""
+    async with aiohttp.ClientSession() as keeping:
+        with pytest.raises(TypeError):
+            connect(keeping, "127.0.0.1")
+
+
+async def test_a_login_answer_without_a_session_cookie_is_no_login(pump, session):
+    """Every page would come back as a redirect to the login."""
+    pump.sets_cookie = False
+    client = connect(session, pump.host)
+
+    with pytest.raises(webif.LoginRefused):
+        await client.page(PAGE, whole)
     assert pump.asked == LOGIN_FORM
 
 

@@ -9,7 +9,7 @@ saves by GET, so an address with any other query could change the pump.
 """
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from contextlib import suppress
 from dataclasses import dataclass
 from http import HTTPStatus
@@ -53,6 +53,7 @@ class _Answer:
     status: int
     location: str
     text: str
+    cookie: str | None
 
     @property
     def session_lost(self) -> bool:
@@ -72,6 +73,15 @@ def _allowed(method: str, path: str) -> bool:
     )
 
 
+def _session_cookie(headers: Iterable[str]) -> str | None:
+    """The session id a Set-Cookie header carries, exactly as sent."""
+    for header in headers:
+        name, _, value = header.split(";", 1)[0].partition("=")
+        if name.strip() == SESSION_COOKIE:
+            return value.strip()
+    return None
+
+
 def _page_text(path: str, answer: _Answer) -> str:
     if answer.status != HTTPStatus.OK:
         raise Broken(f"{path}: HTTP {answer.status} to {answer.location or '-'}")
@@ -81,8 +91,9 @@ def _page_text(path: str, answer: _Answer) -> str:
 class Client:
     """One login, one page at a time, for one pump.
 
-    The session must keep cookies of an IP address (aiohttp's default jar
-    drops them): aiohttp.CookieJar(unsafe=True).
+    The session must leave cookies alone (aiohttp.DummyCookieJar): the
+    controller's session ids carry slashes, aiohttp's jar sends such an id
+    back in quotes, and the controller then knows the session no more.
     """
 
     def __init__(
@@ -101,6 +112,8 @@ class Client:
 
         host_lock is the one Modbus takes for the same controller.
         """
+        if not isinstance(session.cookie_jar, aiohttp.DummyCookieJar):
+            raise TypeError("the session must leave cookies to the client")
         self._session = session
         self._base = f"http://{host}"
         self._credentials = {"user": user, "pass": password}
@@ -113,6 +126,7 @@ class Client:
         self._lock = asyncio.Lock()
         self._last_request: float | None = None
         self._logged_in_at: float | None = None
+        self._cookie: str | None = None
         self._closed = False
 
     async def page(self, path: str, complete: Callable[[str], bool]) -> str:
@@ -170,14 +184,14 @@ class Client:
     async def _login(self) -> None:
         await self._request("GET", INDEX)
         answer = await self._request("POST", LOGIN, self._credentials)
-        cookies = {cookie.key for cookie in self._session.cookie_jar}
         accepted = (
             answer.status == HTTPStatus.SEE_OTHER
             and answer.location == LOGIN_TARGET
-            and SESSION_COOKIE in cookies
+            and answer.cookie is not None
         )
         if not accepted:
             raise LoginRefused(f"HTTP {answer.status} to {answer.location or '-'}")
+        self._cookie = answer.cookie
         # A deep page answers with a redirect to the login until the session
         # has opened the menu overview (live test, 2026-10-02).
         _page_text(OVERVIEW, await self._request("GET", OVERVIEW))
@@ -189,12 +203,14 @@ class Client:
         if not _allowed(method, path):
             raise ValueError(f"{method} {path} is not on the positive list")
         await self._pace()
+        cookie = {"Cookie": f"{SESSION_COOKIE}={self._cookie}"} if self._cookie else {}
         async with self._host_lock:
             try:
                 async with self._session.request(
                     method,
                     self._base + path,
                     data=form,
+                    headers=cookie,
                     allow_redirects=False,
                     timeout=self._timeout,
                 ) as response:
@@ -204,6 +220,7 @@ class Client:
                         response.status,
                         location,
                         body.decode("utf-8", errors="replace"),
+                        _session_cookie(response.headers.getall("Set-Cookie", [])),
                     )
             except (TimeoutError, aiohttp.ClientError) as error:
                 # The kind only: aiohttp's own text names the pump's address.

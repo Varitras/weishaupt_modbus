@@ -4,7 +4,8 @@ It answers the way the controller did in the recordings: a login is a 303 to
 /home.html with a session cookie, wrong credentials a 303 to
 /index.html#wrongpassword without one, and a page asked for without a valid
 session a 303 to /index.html - as is a deep page before the session has
-opened the menu overview, which the live test of 2026-10-02 met.
+opened the menu overview, which the live test of 2026-10-02 met. A session
+id counts only as sent: the controller does not unquote a quoted one.
 
 The menus are synthetic, shaped like the controller's. A recorded page
 carries a serial number, an access code and addresses and never enters the
@@ -31,10 +32,21 @@ HEAT_PUMP_INFO = "0C000C22000000000000000A0B020003000401"
 STATISTICS_INFO = "0C000C23000000000000000A0B020003000401"
 HEATING = "64001800000000000080000A0B020003000401"
 RESET = "64001900000000000080000A0B020003000401"
+# The controller's ids are base64-like, 131 characters with + and /.
+SESSION_ID = "Kq3/Zt+w" * 16
 
 
 def see_other(location):
     return web.Response(status=303, headers={"Location": location})
+
+
+def session_cookie(request):
+    """The session id as the client sent it, quotes and all."""
+    for pair in request.headers.get("Cookie", "").split(";"):
+        name, _, value = pair.strip().partition("=")
+        if name == webif.SESSION_COOKIE:
+            return value
+    return None
 
 
 def link(segments, title, shown=""):
@@ -95,6 +107,7 @@ class StandInPump:
         self.status = 200
         self.delays = {}
         self.keeps_sessions = True
+        self.sets_cookie = True
         self.sessions = set()
         self.opened = set()
 
@@ -121,19 +134,20 @@ class StandInPump:
         self.forms.append(form)
         if form.get("pass") != PASSWORD:
             return see_other("/index.html#wrongpassword")
-        session = str(len(self.forms))
+        session = f"{len(self.forms)}+{SESSION_ID}"
         if self.keeps_sessions:
             self.sessions.add(session)
         answer = see_other(webif.LOGIN_TARGET)
-        answer.set_cookie(webif.SESSION_COOKIE, session)
+        if self.sets_cookie:
+            answer.headers["Set-Cookie"] = f"{webif.SESSION_COOKIE}={session}; path=/"
         return answer
 
     async def logout(self, request):
-        self.sessions.discard(request.cookies.get(webif.SESSION_COOKIE))
+        self.sessions.discard(session_cookie(request))
         return see_other("/index.html#loggedout")
 
     async def page(self, request):
-        session = request.cookies.get(webif.SESSION_COOKIE)
+        session = session_cookie(request)
         if session not in self.sessions:
             return see_other(webif.INDEX)
         if request.raw_path == PAGE_PATH:

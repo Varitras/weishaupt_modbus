@@ -45,9 +45,7 @@ async def pump(socket_enabled):
 
 @pytest.fixture
 async def client(pump):
-    async with aiohttp.ClientSession(
-        cookie_jar=aiohttp.CookieJar(unsafe=True)
-    ) as session:
+    async with aiohttp.ClientSession(cookie_jar=aiohttp.DummyCookieJar()) as session:
         yield webif.Client(
             session, pump.host, USER, PASSWORD, host_lock=asyncio.Lock(), gap=0
         )

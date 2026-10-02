@@ -113,7 +113,7 @@ async def read_web_interface(
     """
     # No entry to detach it on unload: the visit detaches it itself.
     session = async_create_clientsession(
-        hass, auto_cleanup=False, cookie_jar=aiohttp.CookieJar(unsafe=True)
+        hass, auto_cleanup=False, cookie_jar=aiohttp.DummyCookieJar()
     )
     client = Client(session, host, user, password, host_lock=host_lock(hass, host))
     try:

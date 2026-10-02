@@ -1010,9 +1010,9 @@
   {
     "label": "webif client: a login without its session cookie passes",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "            and answer.location == LOGIN_TARGET\n            and SESSION_COOKIE in cookies\n",
+    "old": "            and answer.location == LOGIN_TARGET\n            and answer.cookie is not None\n",
     "new": "            and answer.location == LOGIN_TARGET\n",
-    "tests": "cookie_the_jar_drops"
+    "tests": "without_a_session_cookie_is_no_login"
   },
   {
     "label": "webif client: the session is never renewed",
@@ -1391,5 +1391,33 @@
     "old": "        raise Broken(f\"{path}: HTTP {answer.status} to {answer.location or '-'}\")\n",
     "new": "        raise Broken(f\"{path}: HTTP {answer.status}\")\n",
     "tests": "names_where_it_was_sent"
+  },
+  {
+    "label": "webif client: the session id goes through aiohttp's cookie handling",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "                    headers=cookie,\n",
+    "new": "                    cookies={SESSION_COOKIE: self._cookie} if self._cookie else None,\n",
+    "tests": "id_with_a_slash_keeps_its_session"
+  },
+  {
+    "label": "webif client: a session that keeps cookies is taken",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        if not isinstance(session.cookie_jar, aiohttp.DummyCookieJar):\n            raise TypeError(\"the session must leave cookies to the client\")\n",
+    "new": "",
+    "tests": "keeps_cookies_is_refused"
+  },
+  {
+    "label": "setup: the web interface's session keeps cookies",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    session = async_create_clientsession(hass, cookie_jar=aiohttp.DummyCookieJar())\n",
+    "new": "    session = async_create_clientsession(hass, cookie_jar=aiohttp.CookieJar(unsafe=True))\n",
+    "tests": "starts_with_a_round_of_its_pages"
+  },
+  {
+    "label": "config flow: the dialog's session keeps cookies",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        hass, auto_cleanup=False, cookie_jar=aiohttp.DummyCookieJar()\n",
+    "new": "        hass, auto_cleanup=False, cookie_jar=aiohttp.CookieJar(unsafe=True)\n",
+    "tests": "dialog_finds_the_pages_and_logs_out_again"
   }
 ]

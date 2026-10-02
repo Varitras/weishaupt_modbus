@@ -164,9 +164,7 @@ async def _async_setup_web_interface(
         raise ConfigEntryError(f"{entry.title}: its heat pump entry was removed")
     host = pump.data[CONF.HOST]
     # Created in the entry's setup, so Home Assistant detaches it on unload.
-    session = async_create_clientsession(
-        hass, cookie_jar=aiohttp.CookieJar(unsafe=True)
-    )
+    session = async_create_clientsession(hass, cookie_jar=aiohttp.DummyCookieJar())
     client = Client(
         session,
         host,
