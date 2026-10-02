@@ -1443,7 +1443,7 @@
         "name" : "{prefix}Compressor aanzuiggastemperatuur"
       },
       "vl_praeziese_summenvorlauf_b7" : {
-        "name" : "{prefix}Voorlooptemperatuur precies (Summenvorlauf(B7))"
+        "name" : "{prefix}Aanvoertemperatuur uitgang (B7)"
       },
       "vl_temp" : {
         "name" : "{prefix}aanvoertemperatuur"

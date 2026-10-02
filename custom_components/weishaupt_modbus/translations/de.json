@@ -1464,7 +1464,7 @@
                 "name": "{prefix}Verdichtersauggastemp"
             },
             "vl_praeziese_summenvorlauf_b7": {
-                "name": "{prefix}Vorlauftemperatur präzise(Summenvorlauf(B7))"
+                "name": "{prefix}Vorlauftemperatur Austritt (B7)"
             },
             "vl_temp": {
                 "name": "{prefix}Vorlauftemperatur"
