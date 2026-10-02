@@ -464,6 +464,26 @@ def test_a_calculated_sensor_evaluates_its_formula_over_sibling_values():
     assert sensor.translate_val(None) == pytest.approx(5.0)
 
 
+def test_the_spread_of_a_pump_at_rest_is_not_the_stale_outlet_sensor():
+    """The spread was the outlet sensor B7 (33111) minus the return. The
+    controller refreshes B7 only every three minutes: two minutes after the
+    compressor stopped it still read 39.4 °C against 28.5 °C flow and return,
+    and the spread showed 10.9 K for a pump at rest (negative while starting).
+    Flow at the condenser (B4, 33104) and return (B9, 33105) move together."""
+    item = next(
+        item
+        for group in DEVICELISTS
+        for item in group
+        if item.translation_key == "spreizung"
+    )
+    coordinator = FakeCoordinator(
+        values={"rl_temp": 285}, cache={33104: 285, 33111: 394}
+    )
+    sensor = entities.MyCalcSensorEntity(_entry(), item, coordinator)
+
+    assert sensor.translate_val(None) == pytest.approx(0.0)
+
+
 def test_a_calculated_sensor_without_a_formula_reads_as_none():
     item = ModbusItem(
         33111,
