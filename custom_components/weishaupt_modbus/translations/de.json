@@ -1775,6 +1775,15 @@
         },
         "communication_failed": {
             "message": "Modbus-Kommunikationsfehler: {error}"
+        },
+        "webif_stopped": {
+            "message": "Abruf der Weboberfläche nach wiederholten Fehlschlägen von {page} gestoppt: {error}"
+        }
+    },
+    "issues": {
+        "webif_stopped": {
+            "title": "Abruf der Weboberfläche gestoppt",
+            "description": "Die Seite {page} schlug mehrmals in Folge fehl ({error}). Um den Regler zu schonen, wurde der Abruf der Weboberfläche gestoppt. Modbus ist davon nicht betroffen. Prüfen Sie die Weboberfläche im Browser und beobachten Sie die Wärmepumpe; laden Sie danach den Eintrag der Weboberfläche neu, um den Abruf fortzusetzen."
         }
     }
 }

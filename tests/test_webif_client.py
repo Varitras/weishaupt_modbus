@@ -203,8 +203,11 @@ async def test_a_pump_that_takes_no_connection_is_unreachable(socket_enabled, se
         port = closed.getsockname()[1]
     client = connect(session, f"127.0.0.1:{port}")
 
-    with pytest.raises(webif.Unreachable):
+    with pytest.raises(webif.Unreachable) as excinfo:
         await client.page(PAGE, whole)
+    # The message reaches the log and the repair notice; the pump's address
+    # stays out of both.
+    assert "127.0.0.1" not in str(excinfo.value)
 
 
 async def test_a_lost_session_is_renewed_once(pump, session):

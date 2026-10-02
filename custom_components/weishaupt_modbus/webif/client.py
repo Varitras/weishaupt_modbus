@@ -189,7 +189,8 @@ class Client:
                         body.decode("utf-8", errors="replace"),
                     )
             except (TimeoutError, aiohttp.ClientError) as error:
-                raise Unreachable(f"{method} {path}: {error!r}") from error
+                # The kind only: aiohttp's own text names the pump's address.
+                raise Unreachable(f"{method} {path}: {type(error).__name__}") from error
             finally:
                 self._last_request = self._clock()
 

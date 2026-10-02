@@ -1775,6 +1775,15 @@
     },
     "communication_failed" : {
       "message" : "Modbus-communicatiefout: {error}"
+    },
+    "webif_stopped" : {
+      "message" : "Opvragen van de webinterface gestopt na herhaalde fouten van {page}: {error}"
+    }
+  },
+  "issues" : {
+    "webif_stopped" : {
+      "title" : "Opvragen van de webinterface gestopt",
+      "description" : "De pagina {page} mislukte meerdere keren achter elkaar ({error}). Om de regelaar te sparen is het opvragen van de webinterface van de warmtepomp gestopt. Modbus blijft gewoon werken. Controleer de webinterface in een browser en houd de warmtepomp in de gaten; laad daarna de webinterface-vermelding opnieuw om het opvragen te hervatten."
     }
   }
 }

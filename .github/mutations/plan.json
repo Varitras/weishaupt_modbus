@@ -1069,5 +1069,103 @@
     "old": "        async with self._host_lock:\n            try:\n",
     "new": "        async with asyncio.Lock():\n            try:\n",
     "tests": "request_waits_while_modbus_holds"
+  },
+  {
+    "label": "webif coordinator: rounds follow the least frequent page",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            update_interval=min(page.interval for page in polled),\n",
+    "new": "            update_interval=max(page.interval for page in polled),\n",
+    "tests": "as_often_as_the_most_frequent_page"
+  },
+  {
+    "label": "webif coordinator: a round a second early skips a due page",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "DUE_SLACK_SECONDS = 5.0\n",
+    "new": "DUE_SLACK_SECONDS = 0.0\n",
+    "tests": "second_early_still_reads"
+  },
+  {
+    "label": "webif coordinator: due pages go in a fixed order",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        return sorted(due, key=lambda page: _oldest_first(self._readings[page.key]))\n",
+    "new": "        return due\n",
+    "tests": "oldest_reading_goes_first"
+  },
+  {
+    "label": "webif coordinator: a timeout does not end the round",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            return not isinstance(error, Unreachable)\n",
+    "new": "            return True\n",
+    "tests": "after_a_timeout_the_round_asks_nothing_more"
+  },
+  {
+    "label": "webif coordinator: a broken page ends the round",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            return not isinstance(error, Unreachable)\n",
+    "new": "            return False\n",
+    "tests": "broken_page_does_not_end_the_round"
+  },
+  {
+    "label": "webif coordinator: the first failure already takes the values",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            key: reading.values if reading.failures <= FAILURES_KEPT else None\n",
+    "new": "            key: reading.values if reading.failures < FAILURES_KEPT else None\n",
+    "tests": "one_failure_keeps_the_values"
+  },
+  {
+    "label": "webif coordinator: the second failure still shows the values",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "FAILURES_KEPT = 1\n",
+    "new": "FAILURES_KEPT = 2\n",
+    "tests": "one_failure_keeps_the_values"
+  },
+  {
+    "label": "webif coordinator: the third failure in a row does not stop polling",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "FAILURES_TO_STOP = 3\n",
+    "new": "FAILURES_TO_STOP = 4\n",
+    "tests": "third_failure_in_a_row_stops or broken_for_good_stops"
+  },
+  {
+    "label": "webif coordinator: a stop leaves the round schedule running",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self.update_interval = None\n",
+    "new": "",
+    "tests": "third_failure_in_a_row_stops"
+  },
+  {
+    "label": "webif coordinator: a stopped coordinator still asks by hand",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if self._stopped_by is None:\n            for page in self._due():\n",
+    "new": "        if True:\n            for page in self._due():\n",
+    "tests": "third_failure_in_a_row_stops"
+  },
+  {
+    "label": "webif coordinator: a good reading does not reset the count",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        reading.failures = 0\n",
+    "new": "        pass\n",
+    "tests": "good_reading_in_between"
+  },
+  {
+    "label": "webif coordinator: a refused login is counted like any failure",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        except LoginRefused as error:\n            # Stops polling at once: no wrong login is repeated.\n            raise ConfigEntryAuthFailed(str(error)) from error\n",
+    "new": "",
+    "tests": "refused_login_stops_at_once"
+  },
+  {
+    "label": "webif coordinator: a reload leaves the stop notice standing",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        ir.async_delete_issue(hass, CONST.DOMAIN, self._issue)\n",
+    "new": "",
+    "tests": "reload_takes_the_stop_back"
+  },
+  {
+    "label": "webif client: an unreachable pump's address is in the message",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "                raise Unreachable(f\"{method} {path}: {type(error).__name__}\") from error\n",
+    "new": "                raise Unreachable(f\"{method} {path}: {error!r}\") from error\n",
+    "tests": "takes_no_connection_is_unreachable"
   }
 ]

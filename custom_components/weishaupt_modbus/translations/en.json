@@ -1775,6 +1775,15 @@
     },
     "communication_failed": {
       "message": "Modbus communication failure: {error}"
+    },
+    "webif_stopped": {
+      "message": "Web interface polling stopped after repeated failures of {page}: {error}"
+    }
+  },
+  "issues": {
+    "webif_stopped": {
+      "title": "Web interface polling stopped",
+      "description": "The page {page} failed several times in a row ({error}), so polling of the heat pump's web interface stopped to spare the controller. Modbus is not affected. Check the web interface in a browser and watch the heat pump, then reload the web interface entry to resume polling."
     }
   }
 }
