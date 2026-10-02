@@ -23,6 +23,7 @@ from custom_components.weishaupt_modbus.webif.discovery import (
 )
 from custom_components.weishaupt_modbus.webif_sensor import WEBIF_SENSORS
 from homeassistant.config_entries import ConfigEntryDisabler, ConfigEntryState
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from .webif_stand_in import (
@@ -160,6 +161,18 @@ async def test_unloading_stops_and_logs_out(hass, pump):
 
     assert entry.state is ConfigEntryState.NOT_LOADED
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
+
+
+async def test_stopping_home_assistant_leaves_no_session_open(hass, pump):
+    """Live, 2026-10-03: Home Assistant stops without unloading its entries,
+    so every restart left a session open on the controller."""
+    await _start(hass, _entries(hass, pump))
+
+    hass.bus.async_fire(EVENT_HOMEASSISTANT_STOP)
+    await hass.async_block_till_done()
+
+    assert pump.asked[-1] == ("GET", webif.LOGOUT)
+    assert pump.sessions == set()
 
 
 async def test_a_refused_login_asks_for_a_new_one(hass, pump):

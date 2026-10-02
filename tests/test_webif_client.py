@@ -211,15 +211,34 @@ async def test_a_logout_that_times_out_ends_the_round_before_the_new_login(
 
 
 async def test_closing_logs_out_once_and_only_when_logged_in(pump, session):
-    client = connect(session, pump.host)
-    await client.close()
+    await connect(session, pump.host).close()
     assert pump.asked == []
 
+    client = connect(session, pump.host)
     await client.page(PAGE, whole)
     pump.asked.clear()
     await client.close()
     await client.close()
     assert pump.asked == [("GET", webif.LOGOUT)]
+
+
+async def test_a_round_running_at_close_logs_in_no_more(pump, session):
+    """The entry unloads or Home Assistant stops while a round still runs: a
+    page after the logout would log in again, and that session would stay
+    open on the controller."""
+    client = connect(session, pump.host)
+    await client.page(PAGE, whole)
+    pump.delays[PAGE] = SLOW
+    pump.asked.clear()
+    reading = asyncio.create_task(client.page(PAGE, whole))
+    while not pump.asked:
+        await asyncio.sleep(0.01)
+
+    await client.close()
+    assert await reading == WHOLE
+    with pytest.raises(webif.WebifError):
+        await client.page(PAGE, whole)
+    assert pump.asked == [("GET", PAGE), ("GET", webif.LOGOUT)]
 
 
 async def test_a_logout_without_an_answer_does_not_fail_the_close(pump, session):

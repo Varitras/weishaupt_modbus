@@ -1031,8 +1031,8 @@
   {
     "label": "webif client: pages asked for at once overlap",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        async with self._lock:\n            await self._ensure_session()\n",
-    "new": "        async with asyncio.Lock():\n            await self._ensure_session()\n",
+    "old": "        async with self._lock:\n            if self._closed:\n",
+    "new": "        async with asyncio.Lock():\n            if self._closed:\n",
     "tests": "served_one_after_the_other"
   },
   {
@@ -1370,5 +1370,19 @@
     "old": "        _page_text(OVERVIEW, await self._request(\"GET\", OVERVIEW))\n",
     "new": "",
     "tests": "opened_the_overview"
+  },
+  {
+    "label": "setup: Home Assistant stops without a logout",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    entry.async_on_unload(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, log_out))\n",
+    "new": "",
+    "tests": "stopping_home_assistant_leaves_no_session_open"
+  },
+  {
+    "label": "webif client: a closed client logs in again",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "            if self._closed:\n                raise WebifError(f\"{path}: the client is closed\")\n",
+    "new": "",
+    "tests": "logs_in_no_more"
   }
 ]

@@ -282,7 +282,7 @@ unknown. The heating power limit can be read here, not set.
 - Never at the same moment as a Modbus request to the same heat pump.
 - It stays logged in. It logs in again when the controller has dropped the
   session, renews the session once a day, and logs out when the entry is
-  unloaded.
+  unloaded or Home Assistant stops.
 - A page that arrived whole but wrong is asked for once more. After a
   timeout or a broken connection nothing more is asked in that round.
 - A page that fails keeps its values once; the second failure in a row makes

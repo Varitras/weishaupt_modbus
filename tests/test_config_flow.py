@@ -553,7 +553,7 @@ async def test_a_web_interface_entry_is_not_reconfigured(hass):
     assert result["reason"] == "webif_not_reconfigurable"
 
 
-async def test_the_web_interface_interval_is_its_own_option(hass):
+async def test_the_web_interface_interval_is_its_own_option(hass, web_interface):
     entry = _web_entry(hass, _pump_entry(hass))
 
     form = await hass.config_entries.options.async_init(entry.entry_id)
@@ -565,6 +565,9 @@ async def test_the_web_interface_interval_is_its_own_option(hass):
     result = await hass.config_entries.options.async_configure(
         form["flow_id"], {CONST.OPTION_WEBIF_INTERVAL: 5}
     )
+    # The options reload the entry; left running, that reload would end
+    # inside Home Assistant's stop at teardown.
+    await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert entry.options == {CONST.OPTION_WEBIF_INTERVAL: 5}

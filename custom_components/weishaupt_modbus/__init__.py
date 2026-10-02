@@ -10,7 +10,8 @@ from modbus_connection import ModbusTcpParams
 
 from homeassistant.components.modbus import async_get_unit
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP
+from homeassistant.core import Event, HomeAssistant
 from homeassistant.exceptions import ConfigEntryError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
@@ -173,6 +174,13 @@ async def _async_setup_web_interface(
         entry.data[CONF.PASSWORD],
         host_lock=host_lock(hass, host),
     )
+
+    async def log_out(_: Event) -> None:
+        await client.close()
+
+    # Home Assistant stops without unloading its entries; without a logout
+    # the session stays open on the controller until it expires.
+    entry.async_on_unload(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, log_out))
     coordinator = WebifCoordinator(
         hass, entry, client, polled_pages(entry, REQUIRED_TITLES)
     )

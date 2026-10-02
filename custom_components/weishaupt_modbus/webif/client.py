@@ -113,6 +113,7 @@ class Client:
         self._lock = asyncio.Lock()
         self._last_request: float | None = None
         self._logged_in_at: float | None = None
+        self._closed = False
 
     async def page(self, path: str, complete: Callable[[str], bool]) -> str:
         """The page at path, whole by `complete`.
@@ -121,6 +122,8 @@ class Client:
         asked for once more. Raises WebifError otherwise.
         """
         async with self._lock:
+            if self._closed:
+                raise WebifError(f"{path}: the client is closed")
             await self._ensure_session()
             answer = await self._request("GET", path)
             if answer.session_lost:
@@ -136,7 +139,12 @@ class Client:
             return text
 
     async def close(self) -> None:
-        """Log out, so the server frees the session at once."""
+        """Log out, so the server frees the session at once.
+
+        Nothing is asked after this: a round still running would log in
+        again, and that session would stay open on the controller.
+        """
+        self._closed = True
         async with self._lock:
             # The server drops an abandoned session on its own; a logout that
             # fails must not fail the unload.
