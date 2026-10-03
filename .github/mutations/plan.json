@@ -2273,5 +2273,19 @@
     "old": "                    timeout=self._timeout,\n",
     "new": "",
     "tests": "cut_off_at_the_client_s_own_time_limit"
+  },
+  {
+    "label": "config flow: the add form shown again offers the typed password",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                vol.Required(CONF.USERNAME): str,\n                vol.Required(CONF.PASSWORD): PASSWORD_FIELD,\n",
+    "new": "                vol.Required(CONF.USERNAME): str,\n                vol.Required(\n                    CONF.PASSWORD,\n                    default=self._visit_login.get(CONF.PASSWORD, vol.UNDEFINED),\n                ): PASSWORD_FIELD,\n",
+    "tests": "failed_visit_shows_again_offers_the_password"
+  },
+  {
+    "label": "config flow: the login form shown again offers the typed password",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                vol.Required(CONF.USERNAME, default=user): str,\n                vol.Required(CONF.PASSWORD): PASSWORD_FIELD,\n",
+    "new": "                vol.Required(CONF.USERNAME, default=user): str,\n                vol.Required(\n                    CONF.PASSWORD,\n                    default=self._visit_login.get(CONF.PASSWORD, vol.UNDEFINED),\n                ): PASSWORD_FIELD,\n",
+    "tests": "failed_visit_shows_again_offers_the_password"
   }
 ]

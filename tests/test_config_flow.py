@@ -861,6 +861,36 @@ async def test_no_login_form_offers_a_password(hass, web_interface):
         assert "suggested_value" not in (password.description or {}), form["step_id"]
 
 
+async def test_no_form_a_failed_visit_shows_again_offers_the_password(
+    hass, web_interface
+):
+    """Only the first form of each dialog was checked: the password just
+    typed, as the default of the form shown again, would go back into the
+    page the browser shows."""
+    entry = _web_entry(hass, _pump_entry(hass))
+    other = _pump_entry(hass, host="192.0.2.11")
+    web_interface.outcome = LoginRefused("HTTP 303 to /index.html#wrongpassword")
+    typed = {CONF.USERNAME: "tester", CONF.PASSWORD: "typed"}
+    add = await _web_form(hass)
+    reauth = await entry.start_reauth_flow(hass)
+    reconfigure = await entry.start_reconfigure_flow(hass)
+
+    forms = [
+        await hass.config_entries.flow.async_configure(
+            add["flow_id"], {CONF.PUMP_ENTRY: other.entry_id, **typed}
+        ),
+        await hass.config_entries.flow.async_configure(reauth["flow_id"], typed),
+        await hass.config_entries.flow.async_configure(reconfigure["flow_id"], typed),
+    ]
+
+    for form in forms:
+        assert form["errors"] == {"base": "invalid_auth"}, form["step_id"]
+        schema = form["data_schema"].schema
+        password = next(key for key in schema if str(key) == CONF.PASSWORD)
+        assert password.default is vol.UNDEFINED, form["step_id"]
+        assert "suggested_value" not in (password.description or {}), form["step_id"]
+
+
 async def _loaded(hass, monkeypatch, entry):
     """The entry set up by the scripted setup, and an unload to match: a
     reload would otherwise stop at runtime data the script never made."""
