@@ -213,6 +213,18 @@ async def test_the_heat_pump_page_follows_the_interval_option(hass, pump):
     assert entry.runtime_data.coordinator.update_interval == timedelta(minutes=5)
 
 
+async def test_a_statistics_interval_below_the_heat_pump_page_sets_the_rounds(
+    hass, pump
+):
+    options = {
+        CONST.OPTION_WEBIF_INTERVAL: 15,
+        CONST.OPTION_WEBIF_STATISTICS_INTERVAL: 3,
+    }
+    entry = await _start(hass, _entries(hass, pump, options=options))
+
+    assert entry.runtime_data.coordinator.update_interval == timedelta(minutes=3)
+
+
 async def test_the_web_interface_waits_while_its_pump_is_asked(hass, pump):
     """Modbus and the web interface of one pump never ask it at once."""
     entry = _entries(hass, pump)

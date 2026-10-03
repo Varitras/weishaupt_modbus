@@ -13,16 +13,22 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.weishaupt_modbus import webif_coordinator
-from custom_components.weishaupt_modbus.const import CONST
+from custom_components.weishaupt_modbus.const import CONF, CONST
 from custom_components.weishaupt_modbus.webif.client import (
     Broken,
     LoginRefused,
     Unreachable,
 )
+from custom_components.weishaupt_modbus.webif.discovery import (
+    HEAT_PUMP_PAGE,
+    HEATING_PAGE,
+    STATISTICS_PAGE,
+)
 from custom_components.weishaupt_modbus.webif_coordinator import (
     STOPPED_ISSUE,
     Page,
     WebifCoordinator,
+    polled_pages,
 )
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import issue_registry as ir
@@ -131,6 +137,40 @@ def coordinator(hass, entry, client, clock):
 async def round_at(coordinator, clock, seconds):
     clock.now = seconds
     await coordinator.async_refresh()
+
+
+def intervals(options):
+    """Each page's interval, as the entry's options set it."""
+    paths = {key: f"/{key}" for key in (HEAT_PUMP_PAGE, STATISTICS_PAGE, HEATING_PAGE)}
+    entry = MockConfigEntry(
+        domain=CONST.DOMAIN, data={CONF.PAGES: paths}, options=options
+    )
+    required = dict.fromkeys(paths, frozenset())
+    return {page.key: page.interval for page in polled_pages(entry, required)}
+
+
+def test_without_options_the_statistics_and_heating_are_read_hourly():
+    assert intervals({}) == {
+        HEAT_PUMP_PAGE: QUARTER_HOUR,
+        STATISTICS_PAGE: HOUR,
+        HEATING_PAGE: HOUR,
+    }
+
+
+def test_each_page_follows_its_own_interval_option():
+    """User wish, 2026-10-03: the statistics and the heating settings on an
+    interval of their own, like the heat pump page."""
+    options = {
+        CONST.OPTION_WEBIF_INTERVAL: 2,
+        CONST.OPTION_WEBIF_STATISTICS_INTERVAL: 10,
+        CONST.OPTION_WEBIF_HEATING_INTERVAL: 30,
+    }
+
+    assert intervals(options) == {
+        HEAT_PUMP_PAGE: timedelta(minutes=2),
+        STATISTICS_PAGE: timedelta(minutes=10),
+        HEATING_PAGE: timedelta(minutes=30),
+    }
 
 
 async def test_the_first_round_reads_every_page(coordinator, client, clock):

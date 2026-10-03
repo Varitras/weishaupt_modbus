@@ -248,10 +248,10 @@ With the heat pump set up: *Settings → Devices & services → Add integration
 the web interface's user and password. Logging in and finding the pages takes
 about half a minute; the dialog logs out again afterwards.
 
-The entry takes the heat pump's address. Its only option is how often the
-heat pump page is read: 1 to 60 minutes, 15 by default. The statistics and
-the heating settings are read once an hour. *Reconfigure* is not offered for
-this entry; a refused login asks for a new one by itself.
+The entry takes the heat pump's address. Its options set how often each page
+is read, 1 to 60 minutes: the heat pump page every 15 minutes by default,
+the statistics and the heating settings every 60. *Reconfigure* is not
+offered for this entry; a refused login asks for a new one by itself.
 
 ### What it reads
 

@@ -1241,8 +1241,8 @@
   {
     "label": "config flow: the web interface may be read without pause",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "                        min=CONST.WEBIF_INTERVAL_MIN_MINUTES,\n",
-    "new": "                        min=0,\n",
+    "old": "                min=CONST.WEBIF_INTERVAL_MIN_MINUTES,\n",
+    "new": "                min=0,\n",
     "tests": "interval_is_its_own_option"
   },
   {
@@ -1290,7 +1290,7 @@
   {
     "label": "webif coordinator: the heat pump page ignores its interval option",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            timedelta(minutes=minutes),\n",
+    "old": "            every(HEAT_PUMP_PAGE),\n",
     "new": "            timedelta(minutes=CONST.WEBIF_INTERVAL_MINUTES),\n",
     "tests": "follows_the_interval_option"
   },
@@ -1433,5 +1433,33 @@
     "old": "            path,\n            answer.status,\n",
     "new": "            f\"{path} {cookie}\",\n            answer.status,\n",
     "tests": "every_request_is_logged_but_never_the_login"
+  },
+  {
+    "label": "webif coordinator: the statistics ignore their interval option",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            every(STATISTICS_PAGE),\n",
+    "new": "            timedelta(minutes=CONST.WEBIF_SLOW_INTERVAL_MINUTES),\n",
+    "tests": "each_page_follows_its_own_interval_option"
+  },
+  {
+    "label": "webif coordinator: the heating settings ignore their interval option",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            every(HEATING_PAGE),\n",
+    "new": "            timedelta(minutes=CONST.WEBIF_SLOW_INTERVAL_MINUTES),\n",
+    "tests": "each_page_follows_its_own_interval_option"
+  },
+  {
+    "label": "webif coordinator: every page keeps its default interval",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        return timedelta(minutes=entry.options.get(option, default))\n",
+    "new": "        return timedelta(minutes=default)\n",
+    "tests": "each_page_follows_its_own_interval_option or statistics_interval_below"
+  },
+  {
+    "label": "config flow: the options offer only the heat pump interval",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                for option, default in INTERVAL_OPTIONS.values()\n",
+    "new": "                for option, default in list(INTERVAL_OPTIONS.values())[:1]\n",
+    "tests": "interval_is_its_own_option"
   }
 ]

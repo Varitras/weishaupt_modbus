@@ -559,21 +559,27 @@ async def test_a_web_interface_entry_is_not_reconfigured(hass):
 async def test_the_web_interface_interval_is_its_own_option(hass, web_interface):
     entry = _web_entry(hass, _pump_entry(hass))
 
+    chosen = {
+        CONST.OPTION_WEBIF_INTERVAL: 5,
+        CONST.OPTION_WEBIF_STATISTICS_INTERVAL: 10,
+        CONST.OPTION_WEBIF_HEATING_INTERVAL: 30,
+    }
+
     form = await hass.config_entries.options.async_init(entry.entry_id)
     assert form["step_id"] == "webif"
-    with pytest.raises(InvalidData):
-        await hass.config_entries.options.async_configure(
-            form["flow_id"], {CONST.OPTION_WEBIF_INTERVAL: 0}
-        )
-    result = await hass.config_entries.options.async_configure(
-        form["flow_id"], {CONST.OPTION_WEBIF_INTERVAL: 5}
-    )
+    assert [str(field) for field in form["data_schema"].schema] == list(chosen)
+    for option in chosen:
+        with pytest.raises(InvalidData):
+            await hass.config_entries.options.async_configure(
+                form["flow_id"], {option: 0}
+            )
+    result = await hass.config_entries.options.async_configure(form["flow_id"], chosen)
     # The options reload the entry; left running, that reload would end
     # inside Home Assistant's stop at teardown.
     await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {CONST.OPTION_WEBIF_INTERVAL: 5}
+    assert entry.options == chosen
 
 
 async def test_a_web_interface_holds_no_postfix_of_its_own(hass):

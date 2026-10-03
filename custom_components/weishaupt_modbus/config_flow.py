@@ -25,6 +25,7 @@ from .kennfeld import get_filepath
 from .migrate_helpers import entry_unique_id
 from .webif.client import Client, LoginRefused, Unreachable, WebifError
 from .webif.discovery import find_pages
+from .webif_coordinator import INTERVAL_OPTIONS
 from .weishaupt_modbus_api.const import (
     DEFAULT_PORT,
     DEFAULT_WRITE_LIMIT_PER_DAY,
@@ -545,7 +546,7 @@ class OptionsFlow(config_entries.OptionsFlow):
 
 
 class WebifOptionsFlow(config_entries.OptionsFlowWithReload):
-    """How often the web interface's heat pump page is read.
+    """How often each of the web interface's pages is read.
 
     A change reloads the entry; there is no update listener for it.
     """
@@ -559,21 +560,21 @@ class WebifOptionsFlow(config_entries.OptionsFlowWithReload):
     async def async_step_webif(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """The interval, in minutes."""
+        """The intervals, in minutes."""
         if user_input is not None:
             return self.async_create_entry(data=user_input)
-        current = self.config_entry.options.get(
-            CONST.OPTION_WEBIF_INTERVAL, CONST.WEBIF_INTERVAL_MINUTES
+        options = self.config_entry.options
+        minutes = vol.All(
+            vol.Coerce(int),
+            vol.Range(
+                min=CONST.WEBIF_INTERVAL_MIN_MINUTES,
+                max=CONST.WEBIF_INTERVAL_MAX_MINUTES,
+            ),
         )
         schema = vol.Schema(
             {
-                vol.Required(CONST.OPTION_WEBIF_INTERVAL, default=current): vol.All(
-                    vol.Coerce(int),
-                    vol.Range(
-                        min=CONST.WEBIF_INTERVAL_MIN_MINUTES,
-                        max=CONST.WEBIF_INTERVAL_MAX_MINUTES,
-                    ),
-                ),
+                vol.Required(option, default=options.get(option, default)): minutes
+                for option, default in INTERVAL_OPTIONS.values()
             }
         )
         return self.async_show_form(step_id="webif", data_schema=schema)

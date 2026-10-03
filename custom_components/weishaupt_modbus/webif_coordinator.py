@@ -35,7 +35,18 @@ FAILURES_TO_STOP = 3
 # start up to a second before a page's interval is over.
 DUE_SLACK_SECONDS = 5.0
 STOPPED_ISSUE = "webif_stopped"
-HOURLY = timedelta(hours=1)
+# Page key: the option holding its interval, and the default in minutes.
+INTERVAL_OPTIONS = {
+    HEAT_PUMP_PAGE: (CONST.OPTION_WEBIF_INTERVAL, CONST.WEBIF_INTERVAL_MINUTES),
+    STATISTICS_PAGE: (
+        CONST.OPTION_WEBIF_STATISTICS_INTERVAL,
+        CONST.WEBIF_SLOW_INTERVAL_MINUTES,
+    ),
+    HEATING_PAGE: (
+        CONST.OPTION_WEBIF_HEATING_INTERVAL,
+        CONST.WEBIF_SLOW_INTERVAL_MINUTES,
+    ),
+}
 
 Values = dict[str, str]
 
@@ -69,32 +80,34 @@ class Page:
 def polled_pages(
     entry: ConfigEntry, required: Mapping[str, frozenset[str]]
 ) -> list[Page]:
-    """The entry's pages: the heat pump page on its interval, the others hourly.
+    """The entry's pages, each on the interval its option sets.
 
     `required` are the titles each page must show, those of its sensors.
     """
     paths = entry.data[CONF.PAGES]
-    minutes = entry.options.get(
-        CONST.OPTION_WEBIF_INTERVAL, CONST.WEBIF_INTERVAL_MINUTES
-    )
+
+    def every(key: str) -> timedelta:
+        option, default = INTERVAL_OPTIONS[key]
+        return timedelta(minutes=entry.options.get(option, default))
+
     return [
         Page(
             HEAT_PUMP_PAGE,
             paths[HEAT_PUMP_PAGE],
             required[HEAT_PUMP_PAGE],
-            timedelta(minutes=minutes),
+            every(HEAT_PUMP_PAGE),
         ),
         Page(
             STATISTICS_PAGE,
             paths[STATISTICS_PAGE],
             required[STATISTICS_PAGE],
-            HOURLY,
+            every(STATISTICS_PAGE),
         ),
         Page(
             HEATING_PAGE,
             paths[HEATING_PAGE],
             required[HEATING_PAGE],
-            HOURLY,
+            every(HEATING_PAGE),
             menu=True,
         ),
     ]
