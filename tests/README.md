@@ -70,7 +70,7 @@ because the thing it prevents happened, here or in a sibling project.
 | `test_controller_access.py` | Every request to the controller - each Modbus read and write, each web request - takes the host lock in the function that sends it (the pump dialog's probe once did not), and the function that sends a web request asks the positive list first, so only GET and the login POST go out |
 | `test_durations.py` | No single test quietly starts taking minutes (budget in `durations.py`, enforced from `conftest.py`), and a run that stops making progress is cut off rather than only measured |
 | `test_guards.py` | No guard binds itself to one source file; every guard is listed; `check.sh` matches CI |
-| `test_imports.py` | Every module imports outside the author's own tree - the `from config.custom_components...` line that shipped on main cannot ship again |
+| `test_imports.py` | Every module imports outside the author's own tree - the `from config.custom_components...` line that shipped on main cannot ship again; nothing in `webif/` imports Home Assistant, by name or through the integration around it |
 | `test_item_register.py` | Every register definition is complete (a name in every translation file, result list, address range, unique key), no translation outlives its item, and every item keeps the name its unique id is built from (`legacy_unique_ids.json`) |
 | `test_kennfeld.py` | The power map: interpolation, the per-entry preview, static SVGs, a broken custom grid disables only the heat power; and no module in the package imports numpy, scipy or pygal at import time |
 | `test_mutation_harness.py` | The mutation run fails loudly rather than printing "all caught" without having checked |

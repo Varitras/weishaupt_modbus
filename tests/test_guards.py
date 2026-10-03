@@ -33,7 +33,7 @@ GUARD_FILES = {
     "test_comment_narration.py": "no comment merely restates the code it sits on",
     "test_controller_access.py": "every request holds the host lock; web ones pass the positive list",
     "test_durations.py": "no test quietly starts taking minutes",
-    "test_imports.py": "every module imports outside the author's own tree",
+    "test_imports.py": "every module imports outside the author's own tree; webif/ without Home Assistant",
     "test_item_register.py": "every register definition is complete and keeps its unique-id name",
     "test_kennfeld.py": "the power map, and no module needs an optional library to import",
     "test_mutation_harness.py": "the mutation run fails loudly instead of reporting success",
