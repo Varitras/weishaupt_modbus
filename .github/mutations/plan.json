@@ -2287,5 +2287,19 @@
     "old": "                vol.Required(CONF.USERNAME, default=user): str,\n                vol.Required(CONF.PASSWORD): PASSWORD_FIELD,\n",
     "new": "                vol.Required(CONF.USERNAME, default=user): str,\n                vol.Required(\n                    CONF.PASSWORD,\n                    default=self._visit_login.get(CONF.PASSWORD, vol.UNDEFINED),\n                ): PASSWORD_FIELD,\n",
     "tests": "failed_visit_shows_again_offers_the_password"
+  },
+  {
+    "label": "webif coordinator: the download leaves the stop cause out",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            \"stopped_by\": self._stopped_by,\n",
+    "new": "            \"stopped_by\": None,\n",
+    "tests": "diagnostics_name_the_page_the_brake_stopped_on"
+  },
+  {
+    "label": "webif coordinator: the download hides a refused login",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            \"login_refused\": self._refused is not None,\n",
+    "new": "            \"login_refused\": False,\n",
+    "tests": "diagnostics_tell_a_refused_login"
   }
 ]

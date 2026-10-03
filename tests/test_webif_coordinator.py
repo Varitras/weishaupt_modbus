@@ -480,6 +480,32 @@ async def test_a_refused_login_is_not_sent_again_by_a_later_refresh(
     assert client.asked == []
 
 
+async def test_the_diagnostics_name_the_page_the_brake_stopped_on(
+    coordinator, client, clock
+):
+    """Support could not tell the brake, a refused login and an outage apart;
+    the download says what stopped the polling, and where."""
+    client.answer(HEAT_PUMP, Unreachable("timeout"))
+    for quarter in range(3):
+        await round_at(coordinator, clock, quarter * 15 * 60)
+
+    diagnostics = coordinator.diagnostics()
+
+    assert diagnostics["stopped_by"] == ("Info › Wärmepumpe", "timeout")
+    assert diagnostics["login_refused"] is False
+
+
+async def test_the_diagnostics_tell_a_refused_login(coordinator, client):
+    client.answer(HEAT_PUMP, LoginRefused("HTTP 303 to /index.html#wrongpassword"))
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator._async_update_data()
+
+    diagnostics = coordinator.diagnostics()
+
+    assert diagnostics["login_refused"] is True
+    assert diagnostics["stopped_by"] is None
+
+
 async def test_the_answer_time_is_the_slowest_of_the_last_round_that_asked(
     coordinator, client, clock
 ):
