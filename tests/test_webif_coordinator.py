@@ -170,7 +170,7 @@ def test_each_page_follows_its_own_interval_option():
     """User wish, 2026-10-03: the statistics and the heating settings on an
     interval of their own, like the heat pump page."""
     options = {
-        CONST.OPTION_WEBIF_INTERVAL: 2,
+        CONST.OPTION_WEBIF_HEAT_PUMP_INTERVAL: 2,
         CONST.OPTION_WEBIF_STATISTICS_INTERVAL: 10,
         CONST.OPTION_WEBIF_HEATING_INTERVAL: 30,
     }

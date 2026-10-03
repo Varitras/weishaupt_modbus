@@ -57,7 +57,7 @@ class MainConstants:
     WEB_INTERFACE: str = "web_interface"
     # Each web interface page's interval in minutes; a minute is the floor the
     # user set. The statistics and the heating settings change slowly.
-    OPTION_WEBIF_INTERVAL: str = "interval_minutes"
+    OPTION_WEBIF_HEAT_PUMP_INTERVAL: str = "heat_pump_interval_minutes"
     OPTION_WEBIF_STATISTICS_INTERVAL: str = "statistics_interval_minutes"
     OPTION_WEBIF_HEATING_INTERVAL: str = "heating_interval_minutes"
     WEBIF_INTERVAL_MINUTES: int = 5

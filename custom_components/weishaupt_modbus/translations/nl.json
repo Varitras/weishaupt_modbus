@@ -1970,12 +1970,12 @@
       },
       "webif" : {
         "data" : {
-          "interval_minutes" : "Interval van de warmtepomppagina (minuten)",
+          "heat_pump_interval_minutes" : "Interval van de warmtepomppagina (minuten)",
           "statistics_interval_minutes" : "Interval van de statistiek (minuten)",
           "heating_interval_minutes" : "Interval van de verwarmingsinstellingen (minuten)"
         },
         "data_description" : {
-          "interval_minutes" : "Hoe vaak de warmtepomppagina wordt gelezen, 1 tot 60 minuten. Een wijziging laadt de vermelding opnieuw.",
+          "heat_pump_interval_minutes" : "Hoe vaak de warmtepomppagina wordt gelezen, 1 tot 60 minuten. Een wijziging laadt de vermelding opnieuw.",
           "statistics_interval_minutes" : "Hoe vaak de energiestatistiek wordt gelezen, 1 tot 60 minuten.",
           "heating_interval_minutes" : "Hoe vaak de vermogensbegrenzing en het schakelverschil voor verwarmen worden gelezen, 1 tot 60 minuten."
         }

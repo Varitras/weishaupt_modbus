@@ -742,7 +742,7 @@ async def test_the_web_interface_interval_is_its_own_option(hass, web_interface)
     entry = _web_entry(hass, _pump_entry(hass))
 
     chosen = {
-        CONST.OPTION_WEBIF_INTERVAL: 5,
+        CONST.OPTION_WEBIF_HEAT_PUMP_INTERVAL: 5,
         CONST.OPTION_WEBIF_STATISTICS_INTERVAL: 10,
         CONST.OPTION_WEBIF_HEATING_INTERVAL: 30,
     }

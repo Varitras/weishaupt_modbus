@@ -1970,12 +1970,12 @@
       },
       "webif": {
         "data": {
-          "interval_minutes": "Interval of the heat pump page (minutes)",
+          "heat_pump_interval_minutes": "Interval of the heat pump page (minutes)",
           "statistics_interval_minutes": "Interval of the statistics (minutes)",
           "heating_interval_minutes": "Interval of the heating settings (minutes)"
         },
         "data_description": {
-          "interval_minutes": "How often the heat pump page is read, 1 to 60 minutes. A change reloads the entry.",
+          "heat_pump_interval_minutes": "How often the heat pump page is read, 1 to 60 minutes. A change reloads the entry.",
           "statistics_interval_minutes": "How often the energy statistics are read, 1 to 60 minutes.",
           "heating_interval_minutes": "How often the heating power limit and switching difference are read, 1 to 60 minutes."
         }

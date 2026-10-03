@@ -1970,12 +1970,12 @@
             },
             "webif": {
                 "data": {
-                    "interval_minutes": "Intervall der Wärmepumpen-Seite (Minuten)",
+                    "heat_pump_interval_minutes": "Intervall der Wärmepumpen-Seite (Minuten)",
                     "statistics_interval_minutes": "Intervall der Statistik (Minuten)",
                     "heating_interval_minutes": "Intervall der Heiz-Einstellungen (Minuten)"
                 },
                 "data_description": {
-                    "interval_minutes": "Wie oft die Wärmepumpen-Seite gelesen wird, 1 bis 60 Minuten. Eine Änderung lädt den Eintrag neu.",
+                    "heat_pump_interval_minutes": "Wie oft die Wärmepumpen-Seite gelesen wird, 1 bis 60 Minuten. Eine Änderung lädt den Eintrag neu.",
                     "statistics_interval_minutes": "Wie oft die Energiestatistik gelesen wird, 1 bis 60 Minuten.",
                     "heating_interval_minutes": "Wie oft Leistungsbegrenzung und Schaltdifferenz Heizen gelesen werden, 1 bis 60 Minuten."
                 }
