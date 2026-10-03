@@ -2000,5 +2000,33 @@
     "old": "SESSION_LIFETIME_SECONDS = 24 * 3600.0\n",
     "new": "SESSION_LIFETIME_SECONDS = 3600.0\n",
     "tests": "session_is_renewed_after_a_day"
+  },
+  {
+    "label": "config flow: the login form offers the stored password",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                vol.Required(CONF.USERNAME, default=user): str,\n                vol.Required(CONF.PASSWORD): PASSWORD_FIELD,\n",
+    "new": "                vol.Required(CONF.USERNAME, default=user): str,\n                vol.Required(\n                    CONF.PASSWORD, default=entry.data[CONF.PASSWORD]\n                ): PASSWORD_FIELD,\n",
+    "tests": "no_login_form_offers_a_password"
+  },
+  {
+    "label": "config flow: the add form offers the typed password",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                vol.Required(CONF.USERNAME): str,\n                vol.Required(CONF.PASSWORD): PASSWORD_FIELD,\n",
+    "new": "                vol.Required(CONF.USERNAME): str,\n                vol.Required(\n                    CONF.PASSWORD,\n                    default=self._visit_login.get(CONF.PASSWORD, \"\"),\n                ): PASSWORD_FIELD,\n",
+    "tests": "no_login_form_offers_a_password"
+  },
+  {
+    "label": "config flow: new options do not reload the web interface",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "class WebifOptionsFlow(config_entries.OptionsFlowWithReload):\n",
+    "new": "class WebifOptionsFlow(config_entries.OptionsFlow):\n",
+    "tests": "new_options_reload_the_web_interface"
+  },
+  {
+    "label": "config flow: a new login does not reload the web interface",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "            return self.async_update_reload_and_abort(\n                entry,\n                data_updates={**self._visit_login, CONF.PAGES: pages},\n                reason=reason,\n            )\n",
+    "new": "            self.hass.config_entries.async_update_entry(\n                entry, data={**entry.data, **self._visit_login, CONF.PAGES: pages}\n            )\n            return self.async_abort(reason=reason)\n",
+    "tests": "new_login_reloads_the_web_interface"
   }
 ]

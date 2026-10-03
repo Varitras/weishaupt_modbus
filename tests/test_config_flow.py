@@ -13,6 +13,7 @@ from modbus_connection import ModbusConnectionError
 from probatio import to_field_list
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+import voluptuous as vol
 
 import custom_components.weishaupt_modbus as integration
 from custom_components.weishaupt_modbus import config_flow
@@ -807,6 +808,70 @@ async def test_a_reconfigure_visit_that_fails_keeps_the_old_login(hass, web_inte
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "invalid_auth"}
     assert {key: entry.data[key] for key in WEB_LOGIN} == WEB_LOGIN
+
+
+async def test_no_login_form_offers_a_password(hass, web_interface):
+    """The tests looked at the user name only: a stored or typed password as
+    the field's default would go back into the page the browser shows."""
+    entry = _web_entry(hass, _pump_entry(hass))
+    _pump_entry(hass, host="192.0.2.11")
+    forms = [
+        await _web_form(hass),
+        await entry.start_reauth_flow(hass),
+        await entry.start_reconfigure_flow(hass),
+    ]
+
+    for form in forms:
+        schema = form["data_schema"].schema
+        password = next(key for key in schema if str(key) == CONF.PASSWORD)
+        assert password.default is vol.UNDEFINED, form["step_id"]
+        assert "suggested_value" not in (password.description or {}), form["step_id"]
+
+
+async def _loaded(hass, monkeypatch, entry):
+    """The entry set up by the scripted setup, and an unload to match: a
+    reload would otherwise stop at runtime data the script never made."""
+    monkeypatch.setattr(integration, "async_unload_entry", AsyncMock(return_value=True))
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    return integration.async_setup_entry.await_count
+
+
+async def test_new_options_reload_the_web_interface(hass, web_interface, monkeypatch):
+    """The options take effect by a reload; the dialog's test stopped at its
+    own answer."""
+    entry = _web_entry(hass, _pump_entry(hass))
+    started = await _loaded(hass, monkeypatch, entry)
+
+    form = await hass.config_entries.options.async_init(entry.entry_id)
+    await hass.config_entries.options.async_configure(
+        form["flow_id"],
+        {
+            CONST.OPTION_WEBIF_HEAT_PUMP_INTERVAL: 10,
+            CONST.OPTION_WEBIF_STATISTICS_INTERVAL: 20,
+            CONST.OPTION_WEBIF_HEATING_INTERVAL: 30,
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert integration.async_setup_entry.await_count == started + 1
+
+
+@pytest.mark.parametrize("start", ["start_reauth_flow", "start_reconfigure_flow"])
+async def test_a_new_login_reloads_the_web_interface(
+    hass, web_interface, monkeypatch, start
+):
+    entry = _web_entry(hass, _pump_entry(hass))
+    started = await _loaded(hass, monkeypatch, entry)
+
+    form = await getattr(entry, start)(hass)
+    result = await hass.config_entries.flow.async_configure(
+        form["flow_id"], {CONF.USERNAME: "tester", CONF.PASSWORD: "renewed"}
+    )
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.ABORT
+    assert integration.async_setup_entry.await_count == started + 1
 
 
 async def test_the_web_interface_interval_is_its_own_option(hass, web_interface):
