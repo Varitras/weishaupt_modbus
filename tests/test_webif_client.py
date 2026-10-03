@@ -115,8 +115,29 @@ async def test_a_request_without_an_answer_is_logged_too(pump, session, caplog):
         if record.name == webif.__name__
     ]
     assert len(lines) == 1
-    assert re.fullmatch(
-        rf"GET {re.escape(PAGE)}: TimeoutError after \d+\.\d s", lines[0]
+    assert re.fullmatch(rf"GET {re.escape(PAGE)}: TimeoutError, \d+\.\d s", lines[0])
+
+
+async def test_an_answer_far_larger_than_any_page_is_logged_too(pump, session, caplog):
+    """It ended the round without a line: the log showed the login and then
+    nothing, as if the page had never been asked for."""
+    caplog.set_level(logging.DEBUG, logger=webif.__name__)
+    client = connect(session, pump.host)
+    await client.page(PAGE, whole)
+    pump.site[PAGE] = "x" * (webif.MAX_PAGE_BYTES + 1)
+    caplog.clear()
+
+    with pytest.raises(webif.Unreachable):
+        await client.page(PAGE, whole)
+
+    lines = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == webif.__name__
+    ]
+    assert len(lines) == 1
+    assert lines[0].startswith(
+        f"GET {PAGE}: HTTP 200, more than {webif.MAX_PAGE_BYTES} bytes, "
     )
 
 

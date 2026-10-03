@@ -241,7 +241,7 @@
     "label": "table: an item's name must not silently change",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
     "old": "    ModbusItem(address=30001, name=\"Aussentemperatur\",",
-    "new": "    ModbusItem(address=30001, name=\"Au\u00dfentemperatur\",",
+    "new": "    ModbusItem(address=30001, name=\"Außentemperatur\",",
     "tests": "keeps_the_name_its_unique_id"
   },
   {
@@ -1283,7 +1283,7 @@
   {
     "label": "webif client: an unreachable pump's address is in the message",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "                raise Unreachable(f\"{method} {path}: {kind}\") from error\n",
+    "old": "                raise Unreachable(f\"{method} {path}: {outcome}\") from error\n",
     "new": "                raise Unreachable(f\"{method} {path}: {error!r}\") from error\n",
     "tests": "takes_no_connection_is_unreachable"
   },
@@ -1633,15 +1633,15 @@
   {
     "label": "webif client: a request leaves no line in the log",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        _LOGGER.debug(\n            \"%s %s: HTTP %s%s, %.1f s\",\n",
-    "new": "        (\n            \"%s %s: HTTP %s%s, %.1f s\",\n",
+    "old": "                _LOGGER.debug(\n                    \"%s %s: %s, %.1f s\", method, path, outcome, finished - started\n                )\n",
+    "new": "",
     "tests": "every_request_is_logged_but_never_the_login"
   },
   {
     "label": "webif client: the log names the session id",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "            \"%s %s: HTTP %s%s, %.1f s\",\n",
-    "new": "            \"%s %s: HTTP %s%s, %.1f s, session \" + str(self._cookie),\n",
+    "old": "                    \"%s %s: %s, %.1f s\", method, path, outcome, finished - started\n",
+    "new": "                    \"%s %s: %s, %.1f s, session \" + str(self._cookie), method, path, outcome, finished - started\n",
     "tests": "every_request_is_logged_but_never_the_login"
   },
   {
@@ -1864,9 +1864,9 @@
   {
     "label": "webif client: a request without an answer leaves no line",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "                _LOGGER.debug(\n                    \"%s %s: %s after %.1f s\",\n",
-    "new": "                (\n                    \"%s %s: %s after %.1f s\",\n",
-    "tests": "without_an_answer_is_logged"
+    "old": "                _LOGGER.debug(\n                    \"%s %s: %s, %.1f s\", method, path, outcome, finished - started\n                )\n        return answer\n",
+    "new": "        _LOGGER.debug(\n            \"%s %s: %s, %.1f s\", method, path, outcome, finished - started\n        )\n        return answer\n",
+    "tests": "without_an_answer_is_logged or larger_than_any_page_is_logged"
   },
   {
     "label": "config flow: a failed visit leaves no line in the log",
@@ -2196,5 +2196,12 @@
     "old": "        if not complete(text):\n            self.traffic.incomplete_pages += 1\n            raise Broken(path)\n",
     "new": "        if not complete(text):\n            raise Broken(path)\n",
     "tests": "second_ask_is_counted_too"
+  },
+  {
+    "label": "webif client: an answer far too large is logged as an ordinary one",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "                        outcome += f\", more than {MAX_PAGE_BYTES} bytes\"\n",
+    "new": "",
+    "tests": "larger_than_any_page_is_logged_too"
   }
 ]

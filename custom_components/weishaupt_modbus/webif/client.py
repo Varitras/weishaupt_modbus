@@ -339,28 +339,19 @@ class Client:
     ) -> _Answer:
         async with self._pacing.lock:
             await self._pace()
-            answer, seconds = await self._exchange(method, path, form)
-        redirect = f" to {answer.location}" if answer.location else ""
-        _LOGGER.debug(
-            "%s %s: HTTP %s%s, %.1f s",
-            method,
-            path,
-            answer.status,
-            redirect,
-            seconds,
-        )
-        return answer
+            return await self._exchange(method, path, form)
 
     async def _exchange(
         self, method: str, path: str, form: dict[str, str] | None
-    ) -> tuple[_Answer, float]:
-        """One request under the lock Modbus shares, and how long it took."""
+    ) -> _Answer:
+        """One request under the lock Modbus shares, logged however it ends."""
         # Asked where the request goes out, so no other way out can skip it.
         if not _allowed(method, path):
             raise ValueError(f"{method} {path} is not on the positive list")
         cookie = {"Cookie": f"{SESSION_COOKIE}={self._cookie}"} if self._cookie else {}
         async with self._host_lock:
             started = self._clock()
+            outcome = "no answer"
             try:
                 async with self._session.request(
                     method,
@@ -370,8 +361,10 @@ class Client:
                     allow_redirects=False,
                     timeout=self._timeout,
                 ) as response:
+                    outcome = f"HTTP {response.status}"
                     body = await _capped_body(response)
                     if body is None:
+                        outcome += f", more than {MAX_PAGE_BYTES} bytes"
                         raise Unreachable(
                             f"{method} {path}: more than {MAX_PAGE_BYTES} bytes"
                         )
@@ -381,23 +374,24 @@ class Client:
                         body.decode("utf-8", errors="replace"),
                         _session_cookie(response.headers.getall("Set-Cookie", [])),
                     )
+                    if answer.location:
+                        outcome += f" to {answer.location}"
             except (TimeoutError, aiohttp.ClientError) as error:
                 # The kind only: aiohttp's own text names the pump's address.
-                kind = type(error).__name__
-                _LOGGER.debug(
-                    "%s %s: %s after %.1f s",
-                    method,
-                    path,
-                    kind,
-                    self._clock() - started,
-                )
-                raise Unreachable(f"{method} {path}: {kind}") from error
+                outcome = type(error).__name__
+                raise Unreachable(f"{method} {path}: {outcome}") from error
             finally:
                 finished = self._clock()
                 self._pacing.last_request = finished
                 self.traffic.requests += 1
                 self._slowest = max(finished - started, self._slowest or 0.0)
-        return answer, finished - started
+                # One line for every request, however it ends: without the
+                # failed ones the log cannot tell a slow controller from a
+                # silent one.
+                _LOGGER.debug(
+                    "%s %s: %s, %.1f s", method, path, outcome, finished - started
+                )
+        return answer
 
     async def _pace(self) -> None:
         last = self._pacing.last_request
