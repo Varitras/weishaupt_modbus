@@ -294,7 +294,9 @@ unknown. The heating power limit can be read here, not set.
 - One request at a time, at least 5 seconds apart, each limited to 20 seconds.
   The gap holds between everything that asks one heat pump's web interface,
   a dialog's visit and the running entry included.
-- Never at the same moment as a Modbus request to the same heat pump.
+- Never at the same moment as a Modbus request from this Home Assistant to
+  the same heat pump. A second Home Assistant polling it over Modbus, as
+  above, is not coordinated with it.
 - It stays logged in. It logs in again when the controller has dropped the
   session, renews the session once a day, and logs out when the entry is
   unloaded or Home Assistant stops.

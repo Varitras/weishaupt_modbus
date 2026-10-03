@@ -280,6 +280,13 @@
     "tests": "host_without_a_pump_is_reported"
   },
   {
+    "label": "config flow: the pump probe skips the lock the web interface shares",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "            host_lock(hass, data[CONF.HOST]),\n",
+    "new": "",
+    "tests": "probe_waits_while_the_controller_is_busy"
+  },
+  {
     "label": "entity: an invalid row must make the entity unavailable",
     "path": "custom_components/weishaupt_modbus/entities.py",
     "old": "        return super().available and not self._api_item.is_invalid\n",

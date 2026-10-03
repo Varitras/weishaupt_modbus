@@ -70,7 +70,11 @@ async def pump_answers(hass: HomeAssistant, data: dict[str, Any]) -> bool:
         host=data[CONF.HOST], port=int(data.get(CONF.PORT, DEFAULT_PORT))
     )
     try:
-        async with async_get_temporary_unit(hass, params, MODBUS_UNIT_ID) as unit:
+        # The web interface may be asking the same controller right now.
+        async with (
+            host_lock(hass, data[CONF.HOST]),
+            async_get_temporary_unit(hass, params, MODBUS_UNIT_ID) as unit,
+        ):
             await unit.read_input_registers(PROBE_REGISTER, 1)
     except ModbusError, OSError, TimeoutError:
         return False
