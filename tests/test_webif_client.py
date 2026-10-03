@@ -2,6 +2,7 @@
 
 import asyncio
 from itertools import pairwise
+import logging
 import re
 import socket
 
@@ -15,6 +16,7 @@ from .webif_stand_in import (
     PAGE_PATH,
     PASSWORD,
     PUMP_MENU,
+    SESSION_ID,
     STACK,
     USER,
     WHOLE,
@@ -70,6 +72,32 @@ async def test_a_page_is_read_after_a_login(pump, session):
     assert await client.page(PAGE, whole) == WHOLE
     assert pump.asked == [*LOGIN, ("GET", PAGE)]
     assert pump.forms == [{"user": USER, "pass": PASSWORD}]
+
+
+async def test_every_request_is_logged_but_never_the_login(pump, session, caplog):
+    """Live, 2026-10-03: a round took 15 s, and the log could not tell a slow
+    answer from a page asked for twice. The login and the session id stay out
+    of it."""
+    caplog.set_level(logging.DEBUG, logger=webif.__name__)
+    client = connect(session, pump.host)
+
+    await client.page(PAGE, whole)
+
+    lines = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == webif.__name__
+    ]
+    assert [line.split(": ", 1)[0] for line in lines] == [
+        f"GET {webif.INDEX}",
+        f"POST {webif.LOGIN}",
+        f"GET {PAGE}",
+    ]
+    assert lines[1].startswith(f"POST {webif.LOGIN}: HTTP 303 to {webif.LOGIN_TARGET}")
+    assert lines[2].startswith(f"GET {PAGE}: HTTP 200,")
+    assert USER not in caplog.text
+    assert PASSWORD not in caplog.text
+    assert SESSION_ID not in caplog.text
 
 
 async def test_wrong_credentials_end_the_round_at_the_login(pump, session):

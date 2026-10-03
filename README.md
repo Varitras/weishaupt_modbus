@@ -363,7 +363,9 @@ entry has loaded, not while setup retries. The log is not cleaned the same
 way: a connection error names the heat pump's address, and a map that
 fails to load names its path. Replace IP addresses and host names, your
 user name in paths and any names of people or rooms before you attach it
-to a public issue.
+to a public issue. For the web interface the log lists every request with
+its answer and how long it took, page addresses included; the user name,
+the password and the session id never appear in it.
 
 **A heat pump model nobody has tested.** Entities stay unavailable or show
 odd values. [`tools/weishaupt_scan.bat`](tools/weishaupt_scan.bat) reads

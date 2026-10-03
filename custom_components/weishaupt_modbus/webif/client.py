@@ -13,11 +13,14 @@ from collections.abc import Callable, Iterable
 from contextlib import suppress
 from dataclasses import dataclass
 from http import HTTPStatus
+import logging
 import time
 
 import aiohttp
 
 from . import pages
+
+_LOGGER = logging.getLogger(__name__)
 
 INDEX = "/index.html"
 LOGIN = "/login.html"
@@ -202,6 +205,7 @@ class Client:
         await self._pace()
         cookie = {"Cookie": f"{SESSION_COOKIE}={self._cookie}"} if self._cookie else {}
         async with self._host_lock:
+            started = self._clock()
             try:
                 async with self._session.request(
                     method,
@@ -212,10 +216,9 @@ class Client:
                     timeout=self._timeout,
                 ) as response:
                     body = await response.read()
-                    location = response.headers.get("Location", "")
-                    return _Answer(
+                    answer = _Answer(
                         response.status,
-                        location,
+                        response.headers.get("Location", ""),
                         body.decode("utf-8", errors="replace"),
                         _session_cookie(response.headers.getall("Set-Cookie", [])),
                     )
@@ -224,6 +227,16 @@ class Client:
                 raise Unreachable(f"{method} {path}: {type(error).__name__}") from error
             finally:
                 self._last_request = self._clock()
+        redirect = f" to {answer.location}" if answer.location else ""
+        _LOGGER.debug(
+            "%s %s: HTTP %s%s, %.1f s",
+            method,
+            path,
+            answer.status,
+            redirect,
+            self._last_request - started,
+        )
+        return answer
 
     async def _pace(self) -> None:
         if self._last_request is None:

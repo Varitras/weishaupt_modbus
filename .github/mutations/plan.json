@@ -1066,8 +1066,8 @@
   {
     "label": "webif client: a request goes out while Modbus holds the controller",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        async with self._host_lock:\n            try:\n",
-    "new": "        async with asyncio.Lock():\n            try:\n",
+    "old": "        async with self._host_lock:\n            started = self._clock()\n",
+    "new": "        async with asyncio.Lock():\n            started = self._clock()\n",
     "tests": "request_waits_while_modbus_holds"
   },
   {
@@ -1419,5 +1419,19 @@
     "old": "hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, log_out)",
     "new": "hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, log_out)",
     "tests": "unloading_after_the_stop_logs_no_error"
+  },
+  {
+    "label": "webif client: a request leaves no line in the log",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        _LOGGER.debug(\n",
+    "new": "        (\n",
+    "tests": "every_request_is_logged_but_never_the_login"
+  },
+  {
+    "label": "webif client: the log names the session id",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "            path,\n            answer.status,\n",
+    "new": "            f\"{path} {cookie}\",\n            answer.status,\n",
+    "tests": "every_request_is_logged_but_never_the_login"
   }
 ]
