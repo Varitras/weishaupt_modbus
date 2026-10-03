@@ -15,6 +15,7 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     HEAT_PUMP_PAGE,
     HEATING_PAGE,
     STATISTICS_PAGE,
+    MissingMenuEntries,
     find_pages,
 )
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
@@ -99,6 +100,19 @@ async def test_an_overview_without_the_heat_pump_menu_is_broken(pump, client):
 
     with pytest.raises(webif.Broken):
         await find_pages(client)
+
+
+async def test_the_menu_entries_not_found_are_named(pump, client):
+    """A controller set to another language shows its menus whole, under
+    other names; the dialog said "try again", which could never help."""
+    pump.site[STACK + INFO] = MAIN_MENUS + column(
+        link([INFO, HEAT_PUMP_INFO], "Wärmepumpe")
+    )
+
+    with pytest.raises(MissingMenuEntries) as raised:
+        await find_pages(client)
+
+    assert raised.value.titles == {"Statistik"}
 
 
 async def test_the_dialog_finds_the_pages_and_logs_out_again(hass, pump, monkeypatch):

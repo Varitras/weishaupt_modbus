@@ -31,7 +31,7 @@ from .const import CONF, CONST
 from .kennfeld import get_filepath
 from .migrate_helpers import entry_unique_id
 from .webif.client import Broken, Client, LoginRefused, Unreachable, WebifError
-from .webif.discovery import PAGE_MENUS, find_pages
+from .webif.discovery import PAGE_MENUS, MissingMenuEntries, find_pages
 from .webif_coordinator import INTERVAL_OPTIONS, Page, polled_pages
 from .webif_sensor import REQUIRED_TITLES
 from .weishaupt_modbus_api.const import (
@@ -205,14 +205,18 @@ def web_interface_error(error: WebifError) -> str:
         return "cannot_connect"
     if isinstance(error, MissingTitles):
         return "missing_titles"
+    if isinstance(error, MissingMenuEntries):
+        return "missing_menu_entries"
     return "cannot_read"
 
 
 def web_interface_error_placeholders(error: WebifError) -> dict[str, str]:
     """The placeholders of the form's error for a visit that failed."""
-    if not isinstance(error, MissingTitles):
-        return {}
-    return {"page": error.page, "titles": ", ".join(sorted(error.titles))}
+    if isinstance(error, MissingTitles):
+        return {"page": error.page, "titles": ", ".join(sorted(error.titles))}
+    if isinstance(error, MissingMenuEntries):
+        return {"titles": ", ".join(sorted(error.titles))}
+    return {}
 
 
 PASSWORD_FIELD = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))

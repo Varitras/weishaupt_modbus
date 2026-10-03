@@ -17,7 +17,8 @@
       "postfix_required": "A second heat pump needs a device postfix",
       "invalid_auth": "The web interface refused the user and password",
       "cannot_read": "The web interface did not show its menus completely; try again",
-      "missing_titles": "The web interface's page {page} does not show {titles}. This controller is not supported yet."
+      "missing_titles": "The web interface's page {page} does not show {titles}. This controller is not supported yet.",
+      "missing_menu_entries": "The web interface's menus do not show {titles}. The integration finds its pages by these German names: is the controller's language set to German?"
     },
     "progress": {
       "webif_visit": "Logging in to the web interface, searching its pages and reading each once. This takes about a minute, a little longer when a page has to be asked for again."

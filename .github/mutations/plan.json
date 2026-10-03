@@ -1311,15 +1311,15 @@
   {
     "label": "webif discovery: an overview without the heat pump menu passes",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        OVERVIEW, lambda text: {INFO, HEAT_PUMP} <= pages.main_menus(text).keys()\n",
-    "new": "        OVERVIEW, lambda text: {INFO} <= pages.main_menus(text).keys()\n",
+    "old": "    menus = await _entries(client, OVERVIEW, {INFO, HEAT_PUMP}, pages.main_menus)\n",
+    "new": "    menus = await _entries(client, OVERVIEW, {INFO}, pages.main_menus)\n",
     "tests": "overview_without_the_heat_pump_menu"
   },
   {
     "label": "webif discovery: a menu without the entry wanted passes",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "    return links(await client.page(path, lambda text: wanted <= links(text).keys()))\n",
-    "new": "    return links(await client.page(path, lambda text: True))\n",
+    "old": "        return wanted <= shown.keys()\n",
+    "new": "        return True\n",
     "tests": "menu_without_the_entry_wanted"
   },
   {
@@ -1881,5 +1881,19 @@
     "old": "            _LOGGER.debug(\"Web interface visit failed: %s\", error)\n",
     "new": "",
     "tests": "failed_visit_leaves_a_debug_line"
+  },
+  {
+    "label": "webif discovery: the missing menu entries go unnamed",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        raise MissingMenuEntries(wanted - shown.keys()) from error\n",
+    "new": "        raise\n",
+    "tests": "entries_not_found_are_named"
+  },
+  {
+    "label": "config flow: a controller in another language is told to try again",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    if isinstance(error, MissingMenuEntries):\n        return \"missing_menu_entries\"\n",
+    "new": "",
+    "tests": "another_language_is_told_so"
   }
 ]

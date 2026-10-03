@@ -238,8 +238,8 @@ wrong.
 3. Keep the controller's language on **German** (*Settings → Language* on
    the display, see the heat pump's manual). The web interface shows its
    texts in the language set there, and the integration finds its pages and
-   values by their German titles. With another language the setup stops with
-   *did not show its menus completely*.
+   values by their German titles. With another language the dialog names
+   the menu entries it could not find and asks about the language.
 
 ### Adding it
 

@@ -24,6 +24,7 @@ from custom_components.weishaupt_modbus.webif.client import (
     LoginRefused,
     Unreachable,
 )
+from custom_components.weishaupt_modbus.webif.discovery import MissingMenuEntries
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.helpers import config_validation as cv
 
@@ -614,6 +615,21 @@ async def test_a_visit_that_fails_says_why(hass, web_interface, failure, error):
 
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": error}
+
+
+async def test_a_controller_in_another_language_is_told_so(hass, web_interface):
+    """It said "did not show its menus completely; try again", and trying
+    again could never help."""
+    pump = _pump_entry(hass)
+    web_interface.outcome = MissingMenuEntries({"Statistik", "Heizen"})
+    form = await _web_form(hass)
+
+    result = await hass.config_entries.flow.async_configure(
+        form["flow_id"], {CONF.PUMP_ENTRY: pump.entry_id, **WEB_LOGIN}
+    )
+
+    assert result["errors"] == {"base": "missing_menu_entries"}
+    assert result["description_placeholders"] == {"titles": "Heizen, Statistik"}
 
 
 async def test_a_failed_visit_leaves_a_debug_line(hass, web_interface, caplog):
