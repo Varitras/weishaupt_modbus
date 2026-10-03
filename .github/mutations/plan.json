@@ -2406,5 +2406,54 @@
     "old": "    except TimeoutError:\n        raise AssertionError(\n            f\"what the test waited for never came in {seconds} s\"\n        ) from None\n",
     "new": "    except TimeoutError:\n        raise\n",
     "tests": "never_comes_ends_with_its_reason"
+  },
+  {
+    "label": "webif coordinator: an unexpected error passes the count",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        except Exception as error:\n            # A fault of this code or of a library, not of the pump. Counted\n            # all the same: uncounted, it passed the brake, and Home Assistant\n            # logged its traceback every round. The stop names its kind only,\n            # as its text may hold the pump's address.\n            if not self._traceback_logged:\n                self._traceback_logged = True\n                _LOGGER.exception(\"%s failed on an unexpected error\", page.key)\n            return self._failed(page, type(error).__name__)\n",
+    "new": "",
+    "tests": "unexpected_error_counts_toward_the_brake"
+  },
+  {
+    "label": "webif coordinator: an unexpected error ends the round",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            return self._failed(page, type(error).__name__)\n",
+    "new": "            self._failed(page, type(error).__name__)\n            return False\n",
+    "tests": "unexpected_error_does_not_end_the_round"
+  },
+  {
+    "label": "webif coordinator: every unexpected error logs its traceback",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                self._traceback_logged = True\n",
+    "new": "                pass\n",
+    "tests": "unexpected_error_logs_its_traceback_once"
+  },
+  {
+    "label": "webif coordinator: an unexpected error logs no traceback",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self._traceback_logged = False\n",
+    "new": "        self._traceback_logged = True\n",
+    "tests": "unexpected_error_logs_its_traceback_once"
+  },
+  {
+    "label": "webif coordinator: the stop names an unexpected error by its text",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            return self._failed(page, type(error).__name__)\n",
+    "new": "            return self._failed(page, str(error))\n",
+    "tests": "unexpected_error_by_its_kind_only"
+  },
+  {
+    "label": "webif coordinator: a broken page's stop lets the round go on",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            if not self._failed(page, str(error)):\n                return False\n",
+    "new": "            self._failed(page, str(error))\n",
+    "tests": "round_that_stops_polling_asks_nothing_more"
+  },
+  {
+    "label": "webif coordinator: an unexpected error's stop lets the round go on",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            return self._failed(page, type(error).__name__)\n",
+    "new": "            self._failed(page, type(error).__name__)\n            return True\n",
+    "tests": "round_that_stops_polling_asks_nothing_more"
   }
 ]

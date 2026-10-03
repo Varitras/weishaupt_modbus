@@ -326,7 +326,9 @@ here, not set.
 - A page that fails keeps its values once; the second failure in a row makes
   them unavailable; the third stops polling and raises a repair notice.
   A failed page is asked for again only after its own interval. Check the
-  web interface in a browser, then reload the entry to resume.
+  web interface in a browser, then reload the entry to resume. An error in
+  the integration itself counts as a failure too: the notice names only its
+  kind, and its traceback is logged the first time after each load.
 - A refused login stops polling at once, an update requested by hand
   included, and asks for the login again. Any other failed login, such as
   the controller reporting its database out of reach, counts like a failed

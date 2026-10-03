@@ -179,6 +179,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         self._clock = clock
         self._stopped_by: tuple[str, str] | None = None
         self._refused: LoginRefused | None = None
+        self._traceback_logged = False
         self._issue = f"{STOPPED_ISSUE}_{config_entry.entry_id}"
         # The slowest answer of the last round that asked anything.
         self.answer_seconds: float | None = None
@@ -291,15 +292,19 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             # and nothing to ask any more.
             return False
         except WebifError as error:
-            reading.failures += 1
-            _LOGGER.debug(
-                "%s failed, %d in a row: %s", page.key, reading.failures, error
-            )
-            if reading.failures >= FAILURES_TO_STOP:
-                self._stop(page, error)
+            if not self._failed(page, str(error)):
                 return False
             # A struggling server gets no further request in this round.
             return not isinstance(error, Unreachable)
+        except Exception as error:
+            # A fault of this code or of a library, not of the pump. Counted
+            # all the same: uncounted, it passed the brake, and Home Assistant
+            # logged its traceback every round. The stop names its kind only,
+            # as its text may hold the pump's address.
+            if not self._traceback_logged:
+                self._traceback_logged = True
+                _LOGGER.exception("%s failed on an unexpected error", page.key)
+            return self._failed(page, type(error).__name__)
         # Only what a sensor reads: the rest of a page would go into the
         # diagnostics download, an identifying entry among it maybe.
         reading.values = {
@@ -309,8 +314,18 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         reading.failures = 0
         return True
 
-    def _stop(self, page: Page, error: WebifError) -> None:
-        self._stopped_by = (PAGE_MENUS[page.key], str(error))
+    def _failed(self, page: Page, reason: str) -> bool:
+        """Count a failure of the page; False when it stopped the polling."""
+        reading = self._readings[page.key]
+        reading.failures += 1
+        _LOGGER.debug("%s failed, %d in a row: %s", page.key, reading.failures, reason)
+        if reading.failures < FAILURES_TO_STOP:
+            return True
+        self._stop(page, reason)
+        return False
+
+    def _stop(self, page: Page, reason: str) -> None:
+        self._stopped_by = (PAGE_MENUS[page.key], reason)
         self.update_interval = None
         ir.async_create_issue(
             self.hass,
@@ -321,6 +336,6 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             translation_key=STOPPED_ISSUE,
             translation_placeholders={
                 "page": PAGE_MENUS[page.key],
-                "error": str(error),
+                "error": reason,
             },
         )

@@ -7,6 +7,7 @@ page from a script; the client's own rules are tested in test_webif_client.
 from dataclasses import replace
 from datetime import timedelta
 import json
+import logging
 import pathlib
 import re
 
@@ -393,6 +394,25 @@ async def test_a_page_broken_for_good_stops_polling_while_others_still_come(
     assert coordinator.update_interval is None
 
 
+@pytest.mark.parametrize(
+    "failure",
+    [value("JAZ gesamt", "4.16"), RuntimeError("a fault of the parser")],
+    ids=["broken", "unexpected"],
+)
+async def test_the_round_that_stops_polling_asks_nothing_more(
+    coordinator, client, clock, failure
+):
+    """The brake spares the controller at once, not after the round."""
+    client.answer(STATISTICS, failure)
+    for hour in range(2):
+        await round_at(coordinator, clock, hour * 60 * 60)
+    client.asked.clear()
+
+    await round_at(coordinator, clock, 2 * 60 * 60)
+
+    assert client.asked == [STATISTICS.path]
+
+
 @pytest.mark.parametrize("by_hand", [False, True], ids=["scheduled", "by_hand"])
 async def test_a_failed_page_waits_its_own_interval_before_the_next_try(
     coordinator, client, clock, by_hand
@@ -437,6 +457,64 @@ async def test_a_closed_client_ends_the_round_without_a_failure(
         CONST.DOMAIN, f"{STOPPED_ISSUE}_{entry.entry_id}"
     )
     assert issue is None
+
+
+async def test_an_unexpected_error_counts_toward_the_brake(coordinator, client, clock):
+    """An error that is no web interface's, a fault of the parser say, passed
+    the count: no brake, and Home Assistant took every sensor away, round
+    after round, for good."""
+    client.answer(HEAT_PUMP, RuntimeError("a fault of the parser"))
+    for quarter in range(3):
+        await round_at(coordinator, clock, quarter * 15 * 60)
+
+    assert coordinator.update_interval is None
+    assert coordinator.diagnostics()["page_states"]["heat_pump"]["failures"] == 3
+
+
+async def test_an_unexpected_error_does_not_end_the_round(coordinator, client, clock):
+    """The pump is not to blame, and the other pages' values stay of use."""
+    client.answer(HEAT_PUMP, RuntimeError("a fault of the parser"))
+
+    await round_at(coordinator, clock, 0)
+
+    assert client.asked == [HEAT_PUMP.path, STATISTICS.path, HEATING.path]
+    assert coordinator.last_update_success
+    assert coordinator.data["statistics"] == {"JAZ Jahr": "4.16"}
+
+
+async def test_an_unexpected_error_logs_its_traceback_once(
+    coordinator, client, clock, caplog
+):
+    """Home Assistant logged one every round, as an error."""
+    client.answer(HEAT_PUMP, RuntimeError("a fault of the parser"))
+    for quarter in range(3):
+        await round_at(coordinator, clock, quarter * 15 * 60)
+
+    tracebacks = [
+        record
+        for record in caplog.records
+        if record.exc_info and record.levelno >= logging.ERROR
+    ]
+    assert len(tracebacks) == 1
+
+
+async def test_the_stop_names_an_unexpected_error_by_its_kind_only(
+    hass, coordinator, client, clock, entry
+):
+    """Its text may name the pump's address, which the notice and the
+    download, meant for public issues, leave out."""
+    client.answer(HEAT_PUMP, RuntimeError("http://192.0.2.10/index.html"))
+    for quarter in range(3):
+        await round_at(coordinator, clock, quarter * 15 * 60)
+
+    issue = ir.async_get(hass).async_get_issue(
+        CONST.DOMAIN, f"{STOPPED_ISSUE}_{entry.entry_id}"
+    )
+    assert issue.translation_placeholders["error"] == "RuntimeError"
+    assert coordinator.diagnostics()["stopped_by"] == (
+        "Info › Wärmepumpe",
+        "RuntimeError",
+    )
 
 
 async def test_shutting_down_takes_the_stop_notice_along(
