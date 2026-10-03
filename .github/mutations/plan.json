@@ -2301,5 +2301,40 @@
     "old": "            \"login_refused\": self._refused is not None,\n",
     "new": "            \"login_refused\": False,\n",
     "tests": "diagnostics_tell_a_refused_login"
+  },
+  {
+    "label": "webif pages: a link below that is no stack link counts as a child",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "    if STACK_LINK.fullmatch(href) is None or not href.startswith(parent + \",\"):\n",
+    "new": "    if not href.startswith(parent + \",\"):\n",
+    "tests": "below_that_is_no_stack_link_is_no_child"
+  },
+  {
+    "label": "webif pages: a nested tag of the entry's kind ends the entry",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "        if tag == self._tag:\n            self._depth += 1\n        elif tag == \"h5\":\n",
+    "new": "        if tag == \"h5\":\n",
+    "tests": "holding_a_tag_of_its_own_kind_is_read_whole"
+  },
+  {
+    "label": "webif pages: an unread entry left empty passes for complete",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "    return bool(found) and shown_once and all(text for _, text in found)\n",
+    "new": "    return bool(found) and shown_once and all(text for title, text in found if title in required)\n",
+    "tests": "values_shown_empty_or_twice_are_named"
+  },
+  {
+    "label": "webif pages: any tag with the marker class is an entry",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "        if tag not in ENTRY_TAGS or ENTRY_CLASS not in classes:\n",
+    "new": "        if ENTRY_CLASS not in classes:\n",
+    "tests": "only_links_and_divisions_are_entries"
+  },
+  {
+    "label": "webif discovery: what a first answer showed piles onto the second",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        shown[:] = read(text)\n",
+    "new": "        shown.extend(read(text))\n",
+    "tests": "served_half_once_is_read_from_its_second_answer"
   }
 ]

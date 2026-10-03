@@ -131,6 +131,19 @@ async def test_a_menu_entry_shown_twice_is_not_taken_at_random(pump, client):
     assert type(raised.value) is webif.Broken
 
 
+async def test_a_menu_served_half_once_is_read_from_its_second_answer(pump, client):
+    """What the first answer showed must not pile onto the second's."""
+    whole_info = pump.site.pop(STACK + INFO)
+    pump.pages = [
+        MAIN_MENUS + column(link([INFO, HEAT_PUMP_INFO], "Wärmepumpe")),
+        whole_info,
+    ]
+
+    found = await find_pages(client)
+
+    assert found[STATISTICS_PAGE] == STACK + f"{INFO},{STATISTICS_INFO}"
+
+
 async def test_the_menu_entries_not_found_are_named(pump, client):
     """A controller set to another language shows its menus whole, under
     other names; the dialog said "try again", which could never help."""

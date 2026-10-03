@@ -119,6 +119,24 @@ def test_a_class_that_only_contains_the_marker_is_no_entry():
     assert pages.values(page) == [("Verdichter", "2568 rpm")]
 
 
+def test_a_value_holding_a_tag_of_its_own_kind_is_read_whole():
+    """The inner closing tag ended the entry, cutting the unit off its value."""
+    page = column(
+        '<div class="nav-link browseobj"><h5>Hochdruck</h5><div>24.4</div> BAR</div>'
+    )
+
+    assert pages.values(page) == [("Hochdruck", "24.4 BAR")]
+
+
+def test_only_links_and_divisions_are_entries():
+    page = column(
+        '<span class="nav-link browseobj"><h5>Hochdruck</h5>24.4 BAR</span>'
+        + value("Verdichter", "2568 rpm")
+    )
+
+    assert pages.values(page) == [("Verdichter", "2568 rpm")]
+
+
 def test_a_title_is_normalised_like_its_text():
     """A title broken across lines never matched its sensor's."""
     page = column(value("Betriebsstd.\n   Verdichter", "16847 h"))
@@ -192,6 +210,16 @@ def test_the_entries_of_another_menu_are_no_children():
     asked for; its entries have the right depth under the wrong parent."""
     page = MENU + column(
         link([PUMP_MENU, SIBLING, SIBLING_CHILD], "Leistungsbegrenzung", "30 %")
+    )
+
+    assert pages.children(page, HEATING_PATH) == []
+
+
+def test_a_link_below_that_is_no_stack_link_is_no_child():
+    """The controller writes its stack codes in capitals; anything else is
+    not one of its menus."""
+    page = MENU + column(
+        link([PUMP_MENU, HEATING, LIMIT.lower()], "Leistungsbegrenzung", "60 %")
     )
 
     assert pages.children(page, HEATING_PATH) == []
