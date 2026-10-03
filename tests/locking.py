@@ -25,7 +25,24 @@ class WatchedLock(asyncio.Lock):
         return await super().acquire()
 
 
-async def until(condition: Callable[[], object]) -> None:
-    """Let the event loop run until `condition()` holds."""
-    while not condition():
-        await asyncio.sleep(0)
+# Long enough for any task here to reach the lock, short next to the cut-off
+# of a hung test.
+UNTIL_SECONDS = 5.0
+
+
+async def until(
+    condition: Callable[[], object], seconds: float = UNTIL_SECONDS
+) -> None:
+    """Let the event loop run until `condition()` holds, for `seconds` at most.
+
+    Without a limit, a lock wired wrong left the test waiting for a waiter
+    that never came, until pytest cut the run off without saying why.
+    """
+    try:
+        async with asyncio.timeout(seconds):
+            while not condition():
+                await asyncio.sleep(0)
+    except TimeoutError:
+        raise AssertionError(
+            f"what the test waited for never came in {seconds} s"
+        ) from None

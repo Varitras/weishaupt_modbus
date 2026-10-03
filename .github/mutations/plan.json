@@ -2399,5 +2399,12 @@
     "old": "\"tests\": \"takes_no_connection_is_unreachable\"",
     "new": "\"tests\": \"takes_no_connection_is_unreachable or worker_copies_hold_the_tracked_files\"",
     "tests": "no_selector_clause_names_a_test_of_the_harness_itself"
+  },
+  {
+    "label": "test helpers: a wait that never ends gives no reason",
+    "path": "tests/locking.py",
+    "old": "    except TimeoutError:\n        raise AssertionError(\n            f\"what the test waited for never came in {seconds} s\"\n        ) from None\n",
+    "new": "    except TimeoutError:\n        raise\n",
+    "tests": "never_comes_ends_with_its_reason"
   }
 ]
