@@ -290,9 +290,9 @@ pump's devices.
   overall.
 - **Diagnostic**: the heating power limit and switching difference, the two
   controller software versions and the outdoor unit variant.
-- **The polling itself** (diagnostic): the answer time, the slowest answer of
-  the last round, and the counts of requests, logins, pages that came
-  incomplete and failed reads. The counts carry over restarts, so Home
+- **The polling itself** (diagnostic): the answer time, which is the slowest
+  answer of the last round, and the counts of requests, logins, pages that
+  came incomplete and failed reads. The counts carry over restarts, so Home
   Assistant's statistics show over weeks whether the web interface answers
   more slowly or serves more incomplete pages, which preceded its crashes.
   They stay shown when polling has stopped.
@@ -310,9 +310,10 @@ here, not set.
 - One request at a time, at least 5 seconds apart, each limited to 20 seconds.
   The gap holds between everything that asks one heat pump's web interface,
   a dialog's visit and the running entry included.
-- Never at the same moment as a Modbus request from this Home Assistant to
-  the same heat pump. A second Home Assistant polling it over Modbus, as
-  above, is not coordinated with it.
+- Never at the same moment as a Modbus request from this integration to the
+  same heat pump. Another integration on Home Assistant's connection to it,
+  or a second Home Assistant polling it over Modbus as above, is not
+  coordinated with it.
 - It stays logged in. It logs in again when the controller has dropped the
   session, renews the session once a day, and logs out when the entry is
   unloaded or Home Assistant stops.
@@ -334,7 +335,9 @@ here, not set.
 The user and password are stored in Home Assistant's configuration and sent
 to the heat pump only, as plain HTTP: the controller offers nothing else, so
 keep it on a network you trust. The diagnostics download leaves them out, and
-the page addresses too; of each page it holds only the values the sensors show.
+the page addresses the entry stores; after a stop, the reason it gives names
+the address that failed. Of each page it holds only the values the sensors
+show.
 
 ## Actions
 

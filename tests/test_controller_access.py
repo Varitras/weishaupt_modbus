@@ -1,7 +1,7 @@
 """Every request to the controller holds the lock its other requests take.
 
 The README promises that the web interface never asks the heat pump at the
-same moment as a Modbus request from this Home Assistant. Each side keeps
+same moment as a Modbus request from this integration. Each side keeps
 that by taking `host_lock` around every request it sends, and nothing but
 this guard notices a new request that does not: the pump dialog's Modbus
 probe read a register without it, beside a web interface polling the same
