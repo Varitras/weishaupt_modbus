@@ -24,7 +24,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .const import CONST
 from .webif import pages
 from .webif.client import Client, Closed, LoginRefused, Traffic, Unreachable, WebifError
-from .webif.discovery import HEAT_PUMP_PAGE, HEATING_PAGE, STATISTICS_PAGE
+from .webif.discovery import HEAT_PUMP_PAGE, HEATING_PAGE, PAGE_MENUS, STATISTICS_PAGE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -216,11 +216,11 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         if (slowest := self._client.take_slowest_answer()) is not None:
             self.answer_seconds = slowest
         if self._stopped_by is not None:
-            page_key, error = self._stopped_by
+            page_name, error = self._stopped_by
             raise UpdateFailed(
                 translation_domain=CONST.DOMAIN,
                 translation_key="webif_stopped",
-                translation_placeholders={"page": page_key, "error": error},
+                translation_placeholders={"page": page_name, "error": error},
             )
         return {
             key: reading.values if reading.failures <= FAILURES_KEPT else None
@@ -277,7 +277,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         return True
 
     def _stop(self, page: Page, error: WebifError) -> None:
-        self._stopped_by = (page.key, str(error))
+        self._stopped_by = (PAGE_MENUS[page.key], str(error))
         self.update_interval = None
         ir.async_create_issue(
             self.hass,
@@ -286,5 +286,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             is_fixable=False,
             severity=ir.IssueSeverity.ERROR,
             translation_key=STOPPED_ISSUE,
-            translation_placeholders={"page": page.key, "error": str(error)},
+            translation_placeholders={
+                "page": PAGE_MENUS[page.key],
+                "error": str(error),
+            },
         )

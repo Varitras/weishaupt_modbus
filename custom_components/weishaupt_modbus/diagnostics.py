@@ -13,7 +13,8 @@ from .const import CONF
 # Free text the user typed or chose: a prefix or postfix is often a family
 # name or a room, and the download is meant for a public issue.
 TO_REDACT = {CONF.HOST, CONF.PREFIX, CONF.DEVICE_POSTFIX, CONF.KENNFELD_FILE}
-# The page addresses carry the controller's own codes, a device token among them.
+# The page addresses are menu codes of the controller firmware, the same on
+# another owner's controller; not secret, left out as of no use in an issue.
 WEB_TO_REDACT = {CONF.USERNAME, CONF.PASSWORD, CONF.PAGES}
 
 

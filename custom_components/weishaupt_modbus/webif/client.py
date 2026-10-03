@@ -18,6 +18,7 @@ import logging
 import time
 
 import aiohttp
+import yarl
 
 from . import pages
 
@@ -150,6 +151,21 @@ def base_url(host: str) -> str:
     if isinstance(address, ipaddress.IPv6Address):
         return f"http://[{host}]"
     return f"http://{host}"
+
+
+def _relative(location: str) -> str:
+    """A redirect's target without scheme and host, as compared and shown.
+
+    An absolute one would carry the controller's address into errors, the log
+    and the repair notice. One that is no URL at all names no target.
+    """
+    try:
+        url = yarl.URL(location)
+    except ValueError:
+        return ""
+    if url.is_absolute():
+        return str(url.relative())
+    return location
 
 
 async def _capped_body(response: aiohttp.ClientResponse) -> bytes | None:
@@ -347,7 +363,7 @@ class Client:
                         )
                     answer = _Answer(
                         response.status,
-                        response.headers.get("Location", ""),
+                        _relative(response.headers.get("Location", "")),
                         body.decode("utf-8", errors="replace"),
                         _session_cookie(response.headers.getall("Set-Cookie", [])),
                     )

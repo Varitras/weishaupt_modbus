@@ -329,6 +329,8 @@ async def test_a_page_never_read_has_no_values_to_keep(coordinator, client, cloc
 async def test_the_third_failure_in_a_row_stops_polling(
     hass, coordinator, client, clock, entry
 ):
+    """The notice names the page as its user finds it in the menus; it said
+    "heat_pump", the integration's own key."""
     client.answer(HEAT_PUMP, Unreachable("timeout"))
     for quarter in range(3):
         await round_at(coordinator, clock, quarter * 15 * 60)
@@ -339,7 +341,10 @@ async def test_the_third_failure_in_a_row_stops_polling(
         CONST.DOMAIN, f"{STOPPED_ISSUE}_{entry.entry_id}"
     )
     assert issue is not None
-    assert issue.translation_placeholders == {"page": "heat_pump", "error": "timeout"}
+    assert issue.translation_placeholders == {
+        "page": "Info › Wärmepumpe",
+        "error": "timeout",
+    }
 
     client.asked.clear()
     await round_at(coordinator, clock, 24 * 60 * 60)

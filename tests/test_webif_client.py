@@ -236,6 +236,29 @@ async def test_a_login_the_controller_cannot_serve_is_no_refusal(pump, session, 
     assert pump.asked == LOGIN
 
 
+async def test_a_redirect_is_named_by_its_path_not_by_the_host(pump, session):
+    """An absolute Location put the controller's address into the error, and
+    from there into the log and the repair notice."""
+    pump.login_answer = lambda: see_other("http://192.0.2.10/elsewhere.html")
+    client = connect(session, pump.host)
+
+    with pytest.raises(webif.Unreachable) as raised:
+        await client.page(PAGE, whole)
+
+    assert "to /elsewhere.html" in str(raised.value)
+    assert "192.0.2.10" not in str(raised.value)
+
+
+async def test_a_redirect_that_does_not_parse_is_no_crash(pump, session):
+    """The Location comes off the network; one that is no URL at all must end
+    as a failed login, not as an error nobody handles."""
+    pump.login_answer = lambda: see_other("http://[not-an-address/")
+    client = connect(session, pump.host)
+
+    with pytest.raises(webif.Unreachable):
+        await client.page(PAGE, whole)
+
+
 async def test_a_page_that_came_whole_but_wrong_is_asked_for_once_more(pump, session):
     pump.pages = [BROKEN, WHOLE]
     client = connect(session, pump.host)
