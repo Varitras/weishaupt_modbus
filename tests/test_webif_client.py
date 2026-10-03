@@ -336,6 +336,16 @@ async def test_a_round_running_at_close_logs_in_no_more(pump, session):
     assert pump.asked == [("GET", PAGE), ("GET", webif.LOGOUT)]
 
 
+async def test_a_closed_client_says_so_and_asks_nothing(pump, session):
+    """Not a failure of the page: the entry unloads or Home Assistant stops."""
+    client = connect(session, pump.host)
+    await client.close()
+
+    with pytest.raises(webif.Closed):
+        await client.page(PAGE, whole)
+    assert pump.asked == []
+
+
 async def test_a_logout_without_an_answer_does_not_fail_the_close(pump, session):
     client = connect(session, pump.host, timeout=SHORT_TIMEOUT)
     await client.page(PAGE, whole)

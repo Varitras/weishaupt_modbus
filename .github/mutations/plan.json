@@ -1008,6 +1008,27 @@
     "tests": "no_post_but_the_login"
   },
   {
+    "label": "webif client: a closed client raises a plain error",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "                raise Closed(f\"{path}: the client is closed\")\n",
+    "new": "                raise WebifError(f\"{path}: the client is closed\")\n",
+    "tests": "closed_client_says_so"
+  },
+  {
+    "label": "webif coordinator: a closed client counts as a failed page",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        except Closed:\n            # The entry unloads under an update requested by hand: no failure\n            # of the page, and nothing to ask any more.\n            return False\n",
+    "new": "",
+    "tests": "closed_client_ends_the_round"
+  },
+  {
+    "label": "webif coordinator: the stop notice outlives its entry",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        ir.async_delete_issue(self.hass, CONST.DOMAIN, self._issue)\n",
+    "new": "",
+    "tests": "takes_the_stop_notice_along"
+  },
+  {
     "label": "webif client: a request goes uncounted",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
     "old": "                self.traffic.requests += 1\n",
@@ -1521,7 +1542,7 @@
   {
     "label": "webif client: a closed client logs in again",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "            if self._closed:\n                raise WebifError(f\"{path}: the client is closed\")\n",
+    "old": "            if self._closed:\n                raise Closed(f\"{path}: the client is closed\")\n",
     "new": "",
     "tests": "logs_in_no_more"
   },

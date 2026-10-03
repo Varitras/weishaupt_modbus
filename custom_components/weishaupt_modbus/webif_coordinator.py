@@ -23,7 +23,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import CONST
 from .webif import pages
-from .webif.client import Client, LoginRefused, Traffic, Unreachable, WebifError
+from .webif.client import Client, Closed, LoginRefused, Traffic, Unreachable, WebifError
 from .webif.discovery import HEAT_PUMP_PAGE, HEATING_PAGE, STATISTICS_PAGE
 
 _LOGGER = logging.getLogger(__name__)
@@ -169,6 +169,11 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         # Reloading the entry is how polling resumes after a stop.
         ir.async_delete_issue(hass, CONST.DOMAIN, self._issue)
 
+    async def async_shutdown(self) -> None:
+        """Stop, and take a stop notice along: the entry it names is unloading."""
+        await super().async_shutdown()
+        ir.async_delete_issue(self.hass, CONST.DOMAIN, self._issue)
+
     @property
     def traffic(self) -> Traffic:
         """What the client has asked of the controller so far."""
@@ -238,6 +243,10 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             # Stops polling at once: no wrong login is repeated.
             self._refused = error
             raise ConfigEntryAuthFailed(str(error)) from error
+        except Closed:
+            # The entry unloads under an update requested by hand: no failure
+            # of the page, and nothing to ask any more.
+            return False
         except WebifError as error:
             reading.failures += 1
             _LOGGER.debug(

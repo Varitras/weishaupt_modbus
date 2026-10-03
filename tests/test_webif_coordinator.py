@@ -16,6 +16,7 @@ from custom_components.weishaupt_modbus import webif_coordinator
 from custom_components.weishaupt_modbus.const import CONST
 from custom_components.weishaupt_modbus.webif.client import (
     Broken,
+    Closed,
     LoginRefused,
     Traffic,
     Unreachable,
@@ -332,6 +333,40 @@ async def test_a_good_reading_in_between_starts_the_count_anew(
         await round_at(coordinator, clock, quarter * 15 * 60)
 
     assert coordinator.update_interval == QUARTER_HOUR
+
+
+async def test_a_closed_client_ends_the_round_without_a_failure(
+    hass, coordinator, client, clock, entry
+):
+    """An unload during an update requested by hand closed the client; its
+    pages counted as failures, and the third raised the stop notice for an
+    entry that was going."""
+    timeout = Unreachable("timeout")
+    client.answer(STATISTICS, timeout, timeout, Closed("the client is closed"))
+    for hour in range(3):
+        await round_at(coordinator, clock, hour * 60 * 60)
+
+    assert coordinator.update_interval is not None
+    issue = ir.async_get(hass).async_get_issue(
+        CONST.DOMAIN, f"{STOPPED_ISSUE}_{entry.entry_id}"
+    )
+    assert issue is None
+
+
+async def test_shutting_down_takes_the_stop_notice_along(
+    hass, coordinator, client, clock, entry
+):
+    """The notice asks to reload an entry that is unloading or being deleted."""
+    client.answer(HEAT_PUMP, Unreachable("timeout"))
+    for quarter in range(3):
+        await round_at(coordinator, clock, quarter * 15 * 60)
+
+    await coordinator.async_shutdown()
+
+    issue = ir.async_get(hass).async_get_issue(
+        CONST.DOMAIN, f"{STOPPED_ISSUE}_{entry.entry_id}"
+    )
+    assert issue is None
 
 
 async def test_a_refused_login_stops_at_once_and_asks_for_credentials(

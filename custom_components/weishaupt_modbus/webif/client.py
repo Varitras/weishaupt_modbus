@@ -56,6 +56,10 @@ class Broken(WebifError):
     """The page came whole but wrong, also after its one more try."""
 
 
+class Closed(WebifError):
+    """The client was closed: its entry unloads or Home Assistant stops."""
+
+
 @dataclass
 class Pacing:
     """The gap every web interface client of one controller keeps, together.
@@ -196,7 +200,7 @@ class Client:
         """
         async with self._lock:
             if self._closed:
-                raise WebifError(f"{path}: the client is closed")
+                raise Closed(f"{path}: the client is closed")
             try:
                 return await self._read(path, complete)
             except Broken, Unreachable:
