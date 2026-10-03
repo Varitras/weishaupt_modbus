@@ -11,7 +11,7 @@ saves by GET, so an address with any other query could change the pump.
 import asyncio
 from collections.abc import Callable, Iterable
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from http import HTTPStatus
 import logging
 import time
@@ -49,6 +49,19 @@ class LoginRefused(WebifError):
 
 class Broken(WebifError):
     """The page came whole but wrong, also after its one more try."""
+
+
+@dataclass
+class Pacing:
+    """The gap every web interface client of one controller keeps, together.
+
+    A client takes the lock while it waits out the gap and asks; the lock
+    Modbus shares is taken only for the request, so the wait never holds
+    Modbus up.
+    """
+
+    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    last_request: float | None = None
 
 
 @dataclass(frozen=True)
@@ -107,13 +120,15 @@ class Client:
         password: str,
         *,
         host_lock: asyncio.Lock,
+        pacing: Pacing,
         gap: float | None = None,
         timeout: float = TIMEOUT_SECONDS,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         """Prepare the client; nothing is sent before the first page.
 
-        host_lock is the one Modbus takes for the same controller.
+        host_lock is the one Modbus takes for the same controller, pacing
+        the one every web interface client of it shares.
         """
         if not isinstance(session.cookie_jar, aiohttp.DummyCookieJar):
             raise TypeError("the session must leave cookies to the client")
@@ -121,13 +136,13 @@ class Client:
         self._base = f"http://{host}"
         self._credentials = {"user": user, "pass": password}
         self._host_lock = host_lock
+        self._pacing = pacing
         # Read here, not as the default, so a test can shorten the gap for
         # the clients that the dialogs and the setup create.
         self._gap = MIN_GAP_SECONDS if gap is None else gap
         self._timeout = aiohttp.ClientTimeout(total=timeout)
         self._clock = clock
         self._lock = asyncio.Lock()
-        self._last_request: float | None = None
         self._logged_in_at: float | None = None
         self._cookie: str | None = None
         self._closed = False
@@ -202,7 +217,24 @@ class Client:
     ) -> _Answer:
         if not _allowed(method, path):
             raise ValueError(f"{method} {path} is not on the positive list")
-        await self._pace()
+        async with self._pacing.lock:
+            await self._pace()
+            answer, seconds = await self._exchange(method, path, form)
+        redirect = f" to {answer.location}" if answer.location else ""
+        _LOGGER.debug(
+            "%s %s: HTTP %s%s, %.1f s",
+            method,
+            path,
+            answer.status,
+            redirect,
+            seconds,
+        )
+        return answer
+
+    async def _exchange(
+        self, method: str, path: str, form: dict[str, str] | None
+    ) -> tuple[_Answer, float]:
+        """One request under the lock Modbus shares, and how long it took."""
         cookie = {"Cookie": f"{SESSION_COOKIE}={self._cookie}"} if self._cookie else {}
         async with self._host_lock:
             started = self._clock()
@@ -226,21 +258,14 @@ class Client:
                 # The kind only: aiohttp's own text names the pump's address.
                 raise Unreachable(f"{method} {path}: {type(error).__name__}") from error
             finally:
-                self._last_request = self._clock()
-        redirect = f" to {answer.location}" if answer.location else ""
-        _LOGGER.debug(
-            "%s %s: HTTP %s%s, %.1f s",
-            method,
-            path,
-            answer.status,
-            redirect,
-            self._last_request - started,
-        )
-        return answer
+                finished = self._clock()
+                self._pacing.last_request = finished
+        return answer, finished - started
 
     async def _pace(self) -> None:
-        if self._last_request is None:
+        last = self._pacing.last_request
+        if last is None:
             return
-        wait = self._last_request + self._gap - self._clock()
+        wait = last + self._gap - self._clock()
         if wait > 0:
             await asyncio.sleep(wait)

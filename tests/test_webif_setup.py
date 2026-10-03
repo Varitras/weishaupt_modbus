@@ -6,10 +6,12 @@ integration.
 
 import asyncio
 from datetime import timedelta
+from itertools import pairwise
 
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.weishaupt_modbus.config_flow import read_web_interface
 from custom_components.weishaupt_modbus.configentry import host_lock
 from custom_components.weishaupt_modbus.const import CONF, CONST, DEVICES
 from custom_components.weishaupt_modbus.diagnostics import (
@@ -38,6 +40,7 @@ from .webif_stand_in import (
     StandInPump,
     column,
     link,
+    menu_site,
     serving,
     value,
 )
@@ -88,6 +91,9 @@ SITE = {
 }
 LOGIN = [("GET", webif.INDEX), ("POST", webif.LOGIN)]
 REDACTED = "**REDACTED**"
+GAP = 0.2
+# The event loop may wake a sleeper a whisker early by its clock resolution.
+CLOCK_TOLERANCE = 0.001
 
 
 @pytest.fixture(autouse=True)
@@ -172,6 +178,25 @@ async def test_stopping_home_assistant_leaves_no_session_open(hass, pump):
 
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
     assert pump.sessions == set()
+
+
+async def test_the_dialog_and_the_running_entry_keep_the_gap_between_them(
+    hass, pump, monkeypatch
+):
+    """Live, 2026-10-03: a reconfigure's visit and the entry's round asked
+    the pump 0.8 s apart."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", GAP)
+    pump.site.update(menu_site())
+    entry = await _start(hass, _entries(hass, pump))
+    pump.arrivals.clear()
+
+    await asyncio.gather(
+        entry.runtime_data.client.page(PAGES[HEAT_PUMP_PAGE], bool),
+        read_web_interface(hass, pump.host, USER, PASSWORD),
+    )
+
+    gaps = [later - earlier for earlier, later in pairwise(sorted(pump.arrivals))]
+    assert min(gaps) >= GAP - CLOCK_TOLERANCE
 
 
 async def test_unloading_after_the_stop_logs_no_error(hass, pump, caplog):

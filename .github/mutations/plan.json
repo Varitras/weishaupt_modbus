@@ -1496,5 +1496,33 @@
     "old": "        with suppress(Broken):\n",
     "new": "        with suppress(WebifError):\n",
     "tests": "refused_login_is_not_tried_twice"
+  },
+  {
+    "label": "webif client: each client keeps the gap only to itself",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        self._pacing = pacing\n",
+    "new": "        self._pacing = Pacing()\n",
+    "tests": "two_clients_of_one_pump_keep_the_gap"
+  },
+  {
+    "label": "webif client: the gap is waited out before the pacing lock",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        async with self._pacing.lock:\n            await self._pace()\n",
+    "new": "        await self._pace()\n        async with self._pacing.lock:\n",
+    "tests": "two_clients_of_one_pump_keep_the_gap"
+  },
+  {
+    "label": "setup: the web interface keeps a gap of its own",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        pacing=host_pacing(hass, host),\n",
+    "new": "        pacing=type(host_pacing(hass, host))(),\n",
+    "tests": "dialog_and_the_running_entry_keep_the_gap"
+  },
+  {
+    "label": "config flow: the dialog keeps a gap of its own",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        pacing=host_pacing(hass, host),\n",
+    "new": "        pacing=type(host_pacing(hass, host))(),\n",
+    "tests": "dialog_and_the_running_entry_keep_the_gap"
   }
 ]

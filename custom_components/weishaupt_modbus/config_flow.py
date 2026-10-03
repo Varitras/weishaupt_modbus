@@ -24,7 +24,7 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .configentry import host_lock, is_web_interface
+from .configentry import host_lock, host_pacing, is_web_interface
 from .const import CONF, CONST
 from .kennfeld import get_filepath
 from .migrate_helpers import entry_unique_id
@@ -122,7 +122,14 @@ async def read_web_interface(
     session = async_create_clientsession(
         hass, auto_cleanup=False, cookie_jar=aiohttp.DummyCookieJar()
     )
-    client = Client(session, host, user, password, host_lock=host_lock(hass, host))
+    client = Client(
+        session,
+        host,
+        user,
+        password,
+        host_lock=host_lock(hass, host),
+        pacing=host_pacing(hass, host),
+    )
     try:
         # The controller now and then serves a page half, twice in a row.
         with suppress(Broken):

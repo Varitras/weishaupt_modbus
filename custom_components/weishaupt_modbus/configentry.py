@@ -12,6 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util.hass_dict import HassKey
 
 from .const import CONF, CONST
+from .webif.client import Pacing
 
 if TYPE_CHECKING:
     from .coordinator import WeishauptModbusCoordinator
@@ -52,6 +53,15 @@ HOST_LOCKS: HassKey[dict[str, asyncio.Lock]] = HassKey(f"{CONST.DOMAIN}_host_loc
 def host_lock(hass: HomeAssistant, host: str) -> asyncio.Lock:
     """The lock each request to the controller at host takes, Modbus or web."""
     return hass.data.setdefault(HOST_LOCKS, {}).setdefault(host, asyncio.Lock())
+
+
+# One per pump address: the entry's client and a dialog's keep the gap together.
+HOST_PACINGS: HassKey[dict[str, Pacing]] = HassKey(f"{CONST.DOMAIN}_host_pacings")
+
+
+def host_pacing(hass: HomeAssistant, host: str) -> Pacing:
+    """The gap every web interface client of the controller at host keeps."""
+    return hass.data.setdefault(HOST_PACINGS, {}).setdefault(host, Pacing())
 
 
 def is_web_interface(entry: ConfigEntry) -> bool:

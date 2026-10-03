@@ -52,9 +52,10 @@ async def session():
 
 
 def connect(session, host, password=PASSWORD, gap=0, **options):
-    """A client with a lock of its own and without the gap between requests,
-    unless a test asks otherwise."""
+    """A client with a lock and a pacing of its own and without the gap
+    between requests, unless a test asks otherwise."""
     options.setdefault("host_lock", asyncio.Lock())
+    options.setdefault("pacing", webif.Pacing())
     return webif.Client(session, host, USER, password, gap=gap, **options)
 
 
@@ -331,6 +332,21 @@ async def test_requests_keep_their_distance(pump, session):
 
     gaps = [later - earlier for earlier, later in pairwise(pump.arrivals)]
     assert len(gaps) == 2
+    assert min(gaps) >= GAP - CLOCK_TOLERANCE
+
+
+async def test_two_clients_of_one_pump_keep_the_gap_between_them(pump, session):
+    """Live, 2026-10-03: the dialog's visit and the entry's round asked the
+    pump 0.8 s apart, and the two logouts of a reload 11 ms apart; each
+    client kept the gap only to itself."""
+    shared = {"host_lock": asyncio.Lock(), "pacing": webif.Pacing()}
+    first = connect(session, pump.host, gap=GAP, **shared)
+    second = connect(session, pump.host, gap=GAP, **shared)
+
+    await asyncio.gather(first.page(PAGE, whole), second.page(PAGE, whole))
+
+    gaps = [later - earlier for earlier, later in pairwise(sorted(pump.arrivals))]
+    assert len(gaps) == 5
     assert min(gaps) >= GAP - CLOCK_TOLERANCE
 
 

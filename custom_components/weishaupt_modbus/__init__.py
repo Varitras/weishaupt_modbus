@@ -24,6 +24,7 @@ from .configentry import (
     WebifConfigEntry,
     WebifData,
     host_lock,
+    host_pacing,
     is_web_interface,
 )
 from .const import CONF, CONST
@@ -171,6 +172,7 @@ async def _async_setup_web_interface(
         entry.data[CONF.USERNAME],
         entry.data[CONF.PASSWORD],
         host_lock=host_lock(hass, host),
+        pacing=host_pacing(hass, host),
     )
 
     async def log_out(_: Event) -> None:
