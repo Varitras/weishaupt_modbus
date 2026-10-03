@@ -52,7 +52,7 @@ def name_prefix(entry_data: Mapping[str, Any], device: str) -> str:
 
 
 def device_info(entry_data: Mapping[str, Any], device: str) -> DeviceInfo:
-    """One of the pump's devices; a second pump's carry its postfix."""
+    """A device of the pump or of its web interface; a second pump's carry its postfix."""
     postfix = device_postfix(entry_data)
     return DeviceInfo(
         identifiers={(CONST.DOMAIN, device + postfix)},

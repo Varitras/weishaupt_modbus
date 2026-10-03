@@ -195,7 +195,7 @@ def _performance(key: str, title: str) -> WebifSensorDescription:
     )
 
 
-# Info > Wärmepumpe: the 31 values Modbus does not carry (value list, step 1).
+# Info > Wärmepumpe: the 31 values Modbus does not carry.
 HEAT_PUMP_SENSORS = (
     _temperature("solltemperatur", "Solltemperatur"),
     _difference("schaltdifferenz_dynamisch", "Schaltdifferenz dynamisch"),

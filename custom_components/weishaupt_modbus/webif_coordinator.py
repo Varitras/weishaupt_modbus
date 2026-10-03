@@ -33,7 +33,8 @@ _LOGGER = logging.getLogger(__name__)
 FAILURES_KEPT = 1
 FAILURES_TO_STOP = 3
 # Home Assistant plans the next round from the whole second, so a round may
-# start up to a second before a page's interval is over.
+# start up to a second before a page's interval is over. Five cover that with
+# room to spare and read a page at most 5 s early, nothing next to minutes.
 DUE_SLACK_SECONDS = 5.0
 STOPPED_ISSUE = "webif_stopped"
 # Page key: the option holding its interval, and the default in minutes.
@@ -217,6 +218,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             self.answer_seconds = slowest
         if self._stopped_by is not None:
             page_name, error = self._stopped_by
+            # The exception's own text, of the same name as the issue's; a
+            # literal, as the translation check reads it from the source.
             raise UpdateFailed(
                 translation_domain=CONST.DOMAIN,
                 translation_key="webif_stopped",
