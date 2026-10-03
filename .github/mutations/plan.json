@@ -1972,5 +1972,33 @@
     "old": "    if method != \"GET\":\n        return False\n",
     "new": "",
     "tests": "only_get_reads_a_page"
+  },
+  {
+    "label": "webif client: the gap is waited out holding the controller",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        if wait > 0:\n            await asyncio.sleep(wait)\n",
+    "new": "        if wait > 0:\n            async with self._host_lock:\n                await asyncio.sleep(wait)\n",
+    "tests": "waited_out_without_the_controller_lock"
+  },
+  {
+    "label": "webif client: no gap between two requests",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "MIN_GAP_SECONDS = 5.0\n",
+    "new": "MIN_GAP_SECONDS = 0.0\n",
+    "tests": "decided_gap_and_time_limit"
+  },
+  {
+    "label": "webif client: an answer may take half an hour",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "TIMEOUT_SECONDS = 20.0\n",
+    "new": "TIMEOUT_SECONDS = 2000.0\n",
+    "tests": "decided_gap_and_time_limit"
+  },
+  {
+    "label": "webif client: the session is renewed every hour",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "SESSION_LIFETIME_SECONDS = 24 * 3600.0\n",
+    "new": "SESSION_LIFETIME_SECONDS = 3600.0\n",
+    "tests": "session_is_renewed_after_a_day"
   }
 ]

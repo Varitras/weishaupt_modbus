@@ -362,16 +362,19 @@ async def test_a_redirected_page_names_where_it_was_sent(pump, session):
 
 
 async def test_the_session_is_renewed_after_a_day(pump, session):
+    """User decision, 2026-10-02: renewed after 24 h. Counted in hours here,
+    not by the constant, so a changed lifetime shows."""
+    day = 24 * 3600
     clock = FakeClock()
     client = connect(session, pump.host, clock=clock)
     await client.page(PAGE, whole)
 
-    clock.now = webif.SESSION_LIFETIME_SECONDS - 1
+    clock.now = day - 1
     pump.asked.clear()
     await client.page(PAGE, whole)
     assert pump.asked == [("GET", PAGE)]
 
-    clock.now = webif.SESSION_LIFETIME_SECONDS
+    clock.now = day
     pump.asked.clear()
     await client.page(PAGE, whole)
     assert pump.asked == [("GET", webif.LOGOUT), *LOGIN, ("GET", PAGE)]
@@ -488,6 +491,28 @@ def test_only_get_reads_a_page(method):
     """Every method but POST passed the positive list on the read paths."""
     assert not webif._allowed(method, webif.INDEX)
     assert not webif._allowed(method, PAGE)
+
+
+def test_the_decided_gap_and_time_limit():
+    """User decision, 2026-10-02/03: five seconds between two requests, twenty
+    for an answer. Every other test shortens both, so only this one notices
+    them changed."""
+    assert (webif.MIN_GAP_SECONDS, webif.TIMEOUT_SECONDS) == (5.0, 20.0)
+
+
+async def test_the_gap_is_waited_out_without_the_controller_lock(pump, session):
+    """The lock Modbus shares is held for a request only: held through the
+    gap, it would hold every Modbus poll up for the gap as well."""
+    host_lock = asyncio.Lock()
+    pacing = webif.Pacing()
+    client = connect(session, pump.host, gap=GAP, host_lock=host_lock, pacing=pacing)
+
+    reading = asyncio.create_task(client.page(PAGE, whole))
+    # Set as the first request ends; the client's next stop is the gap.
+    await until(lambda: pacing.last_request is not None)
+
+    assert not host_lock.locked()
+    assert await reading == WHOLE
 
 
 async def test_requests_keep_their_distance(pump, session):
