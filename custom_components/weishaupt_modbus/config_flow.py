@@ -156,6 +156,9 @@ async def read_web_interface(
         return await _visit(client)
     finally:
         # The dialog may close while the logout runs; the session goes anyway.
+        # ponytail: closed during the login POST, the visit never sees the new
+        # session's cookie and cannot log it out; the controller drops it on
+        # its own. Finishing the login before the logout would close the gap.
         try:
             await client.close()
         finally:
