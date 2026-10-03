@@ -243,10 +243,20 @@ wrong.
 
 ### Adding it
 
-With the heat pump set up: *Settings → Devices & services → Add integration
-→ Weishaupt WBB → Web interface of a heat pump*. Pick the heat pump and enter
-the web interface's user and password. Logging in and finding the pages takes
-about half a minute; the dialog logs out again afterwards.
+The web interface belongs to a heat pump entry, so set the heat pump up
+first: the dialog offers *Web interface of a heat pump* only once a heat pump
+entry exists, and goes straight to the heat pump before that. Then
+*Settings → Devices & services → Add integration → Weishaupt WBB → Web
+interface of a heat pump*, pick the heat pump and enter the web interface's
+user and password. Logging in and finding the pages takes about half a
+minute; the dialog logs out again afterwards.
+
+To read only the web interface, for example from a second Home Assistant
+beside one that polls the heat pump over Modbus, disable the heat pump entry
+afterwards: *⋮ → Disable* on the entry itself. Disabling only its devices
+leaves the entry connecting over Modbus at every start. The web interface
+keeps working without it, and the heat pump's Modbus connection stays with
+the other Home Assistant.
 
 The entry takes the heat pump's address. Its options set how often each page
 is read, 1 to 60 minutes: the heat pump page every 5 minutes by default,
