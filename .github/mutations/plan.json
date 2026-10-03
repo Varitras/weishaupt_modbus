@@ -38,7 +38,7 @@
     "label": "entity: select options must be the translation keys",
     "path": "custom_components/weishaupt_modbus/entities.py",
     "old": "            self._attr_options.append(item.translation_key)",
-    "new": "            self._attr_options.append(item.text)",
+    "new": "            self._attr_options.append(str(item.number))",
     "tests": "select_options_are_the_status"
   },
   {
@@ -80,7 +80,7 @@
     "label": "items: the key lookup must return the translation key",
     "path": "custom_components/weishaupt_modbus/items.py",
     "old": "        return status.translation_key if status else f\"unbekannt <{val}>\"\n",
-    "new": "        return status.text if status else f\"unbekannt <{val}>\"\n",
+    "new": "        return str(status.number) if status else f\"unbekannt <{val}>\"\n",
     "tests": "translation_key_from_number"
   },
   {
@@ -625,8 +625,8 @@
   {
     "label": "device: the value to write is chosen inside the lock",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "            if callable(value):\n                value = value()\n",
-    "new": "",
+    "old": "        async with self._write_lock:\n            if check is not None:\n                check()\n            if callable(value):\n                value = value()\n",
+    "new": "        if callable(value):\n            value = value()\n        async with self._write_lock:\n            if check is not None:\n                check()\n",
     "tests": "queued_turn_on_does_not_restore"
   },
   {
