@@ -28,7 +28,10 @@ Describe each mutation in a JSON file - a list of objects with:
     path     file to mutate, relative to the repository root
     old      snippet to replace (must appear exactly once; an absent
              snippet is reported as an error, never skipped silently)
-    new      replacement, usually "" or a disabling variant
+    new      replacement, usually "" or a disabling variant; the result has
+             to compile (or parse, for JSON, TOML and YAML) and read no name
+             the file leaves undefined - checked for the whole plan before
+             the first test runs
     tests    -k expression selecting the test(s) that must fail
 
 Then:
@@ -53,6 +56,7 @@ produce the same output.
 from __future__ import annotations
 
 import argparse
+import builtins
 from concurrent.futures import ThreadPoolExecutor
 import json
 import os
@@ -60,10 +64,17 @@ from pathlib import Path
 import queue
 import shutil
 import subprocess
+import symtable
 import sys
 import tempfile
+import tomllib
+
+import yaml
 
 REPO = Path(__file__).resolve().parents[2]
+# What a module reads without defining it: the builtins, its own file, and
+# where Python 3.14 keeps the annotations of a conditional module statement.
+MODULE_NAMES = frozenset(dir(builtins)) | {"__file__", "__conditional_annotations__"}
 
 
 # pytest's exit codes. Only ONE of them means "the tests noticed": 1. The
@@ -235,6 +246,80 @@ def apply_mutation(case: dict, root: Path | None = None) -> tuple[Path, bytes]:
     return target, original
 
 
+def _label(case: dict) -> str:
+    """The case's name in the output; the plan format leaves it optional."""
+    return case.get("label", case["path"])
+
+
+def check_mutants(cases: list) -> None:
+    """Refuse the plan if a mutant does not run as written.
+
+    A mutant that does not compile, names something undefined or no longer
+    parses in its file's format fails its tests by that error alone, and
+    "caught" would prove nothing. A case once wrote `cookie` for
+    `self._cookie`; code moved into a deeper block left three snippets
+    cutting a line in half.
+    """
+    broken = []
+    for case in cases:
+        source = (REPO / case["path"]).read_text(encoding="utf-8")
+        mutated = source.replace(case["old"], case["new"], 1)
+        try:
+            _parse(case["path"], mutated)
+        except (SyntaxError, ValueError, yaml.YAMLError) as error:
+            broken.append(f"{_label(case)}: {error}")
+            continue
+        if not case["path"].endswith(".py"):
+            continue
+        # Only what the mutation brings in: what the original already reads
+        # is not the case's doing, and covers what the scan cannot follow.
+        introduced = _undefined_names(mutated, case["path"]) - _undefined_names(
+            source, case["path"]
+        )
+        if introduced:
+            broken.append(f"{_label(case)}: undefined {', '.join(sorted(introduced))}")
+    if broken:
+        raise SystemExit(
+            "These mutations do not run as written, so their tests would "
+            "fail on that alone:\n  " + "\n  ".join(broken)
+        )
+
+
+def _parse(path: str, text: str) -> None:
+    """Raise if `text` is not valid in the format of the file at `path`."""
+    match Path(path).suffix:
+        case ".py":
+            compile(text, path, "exec")
+        case ".json":
+            json.loads(text)
+        case ".toml":
+            tomllib.loads(text)
+        case ".yaml" | ".yml":
+            yaml.safe_load(text)
+
+
+def _undefined_names(text: str, path: str) -> set:
+    """The global names a module reads that nothing in it defines.
+
+    The standard library's symbol tables rather than Ruff's F821: the test
+    jobs that run the mutations do not install Ruff.
+    """
+    top = symtable.symtable(text, path, "exec")
+    defined = set(MODULE_NAMES)
+    read = set()
+    tables = [top]
+    while tables:
+        table = tables.pop()
+        tables.extend(table.get_children())
+        for symbol in table.get_symbols():
+            binds_module_name = table is top or symbol.is_declared_global()
+            if binds_module_name and (symbol.is_assigned() or symbol.is_imported()):
+                defined.add(symbol.get_name())
+            if symbol.is_referenced() and (table is top or symbol.is_global()):
+                read.add(symbol.get_name())
+    return read - defined
+
+
 # Every worker is a full pytest process with Home Assistant imported, so what
 # a big machine runs out of first is memory, about 0.15 GB a worker. Measured
 # on 32 cores with 203 cases (2026-10-03): 8 workers 40 s, 16 24 s, 24 21 s,
@@ -398,6 +483,7 @@ def main() -> int:
         # a plan that lost its cases - a bad filter, a truncated file - would
         # report the suite as fully guarded while proving nothing at all.
         raise SystemExit(f"{args.plan} describes no mutations")
+    check_mutants(cases)
     survived = []
 
     locations = collect_test_locations()
@@ -421,7 +507,7 @@ def main() -> int:
         results = run_in_parallel(cases, targets, jobs)
 
     for case, caught in zip(cases, results, strict=True):
-        label = case.get("label", case["path"])
+        label = _label(case)
         print(f"{'caught  ' if caught else 'SURVIVED'} {label}")
         if not caught:
             survived.append(label)

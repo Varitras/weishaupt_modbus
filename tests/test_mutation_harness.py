@@ -85,6 +85,49 @@ def test_the_original_comes_back_byte_for_byte(tmp_path, monkeypatch):
     assert path.read_bytes() == original
 
 
+def _refusal(tmp_path, monkeypatch, name, text, old, new):
+    (tmp_path / name).write_text(text, encoding="utf-8")
+    monkeypatch.setattr(mutate, "REPO", tmp_path)
+    case = {"label": "the case", "path": name, "old": old, "new": new}
+    with pytest.raises(SystemExit) as excinfo:
+        mutate.check_mutants([case])
+    return str(excinfo.value)
+
+
+def test_a_mutation_that_does_not_compile_is_refused(tmp_path, monkeypatch):
+    """Its tests fail on the SyntaxError, whatever they assert. Code moved
+    into a deeper block once left three snippets cutting a line in half."""
+    refusal = _refusal(
+        tmp_path, monkeypatch, "module.py", "value = 1\n", "value = 1\n", "value = (\n"
+    )
+
+    assert "the case" in refusal
+
+
+def test_a_mutation_naming_something_undefined_is_refused(tmp_path, monkeypatch):
+    """Audit W-27: a case wrote `cookie` for `self._cookie`, and the
+    NameError, not the assertion it was written for, failed its test."""
+    refusal = _refusal(
+        tmp_path,
+        monkeypatch,
+        "module.py",
+        "def read():\n    return 1\n",
+        "    return 1\n",
+        "    return cookie\n",
+    )
+
+    assert "the case" in refusal
+    assert "cookie" in refusal
+
+
+def test_a_data_file_mutation_that_breaks_its_format_is_refused(tmp_path, monkeypatch):
+    refusal = _refusal(
+        tmp_path, monkeypatch, "strings.json", '{"title": "Pump"}\n', '"}', '"'
+    )
+
+    assert "the case" in refusal
+
+
 def test_a_selector_matching_no_tests_is_an_error(monkeypatch):
     """pytest exits 5 for "no tests ran", which is non-zero - a typo in the
     selector would otherwise certify every mutation as caught."""
@@ -276,6 +319,10 @@ def test_the_shipped_plan_still_matches_the_code():
             f"{case['label']}: the snippet no longer matches {case['path']} "
             "exactly once - update the plan"
         )
+
+
+def test_every_shipped_mutant_runs_as_written():
+    mutate.check_mutants(_plan())
 
 
 def test_the_shipped_plan_is_not_empty():

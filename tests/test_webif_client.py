@@ -100,6 +100,8 @@ async def test_every_request_is_logged_but_never_the_login(pump, session, caplog
     assert lines[2].startswith(f"GET {PAGE}: HTTP 200,")
     assert USER not in caplog.text
     assert PASSWORD not in caplog.text
+    (held,) = pump.sessions
+    assert held not in caplog.text
     assert SESSION_ID not in caplog.text
 
 
