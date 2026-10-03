@@ -209,9 +209,8 @@ async def _async_setup_web_interface(
     entry.async_on_unload(
         async_dispatcher_connect(hass, SIGNAL_CONFIG_ENTRY_CHANGED, follow_pump)
     )
-    coordinator = WebifCoordinator(
-        hass, entry, client, polled_pages(entry, REQUIRED_TITLES)
-    )
+    polled = polled_pages(entry.data[CONF.PAGES], entry.options, REQUIRED_TITLES)
+    coordinator = WebifCoordinator(hass, entry, client, polled)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = WebifData(
         coordinator=coordinator, client=client, pump_data=started_with

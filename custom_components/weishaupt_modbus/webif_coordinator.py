@@ -13,6 +13,7 @@ from datetime import timedelta
 import logging
 import math
 import time
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -20,7 +21,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import CONF, CONST
+from .const import CONST
 from .webif import pages
 from .webif.client import Client, LoginRefused, Unreachable, WebifError
 from .webif.discovery import HEAT_PUMP_PAGE, HEATING_PAGE, STATISTICS_PAGE
@@ -76,19 +77,24 @@ class Page:
         """Every required title is there, and no value is left blank."""
         return pages.is_complete(self.read(text), self.required)
 
+    def missing(self, text: str) -> frozenset[str]:
+        """The required titles the page does not show."""
+        return self.required - {title for title, _ in self.read(text)}
+
 
 def polled_pages(
-    entry: ConfigEntry, required: Mapping[str, frozenset[str]]
+    paths: Mapping[str, str],
+    options: Mapping[str, Any],
+    required: Mapping[str, frozenset[str]],
 ) -> list[Page]:
-    """The entry's pages, each on the interval its option sets.
+    """The pages at `paths`, each on the interval its option sets.
 
     `required` are the titles each page must show, those of its sensors.
     """
-    paths = entry.data[CONF.PAGES]
 
     def every(key: str) -> timedelta:
         option, default = INTERVAL_OPTIONS[key]
-        return timedelta(minutes=entry.options.get(option, default))
+        return timedelta(minutes=options.get(option, default))
 
     return [
         Page(

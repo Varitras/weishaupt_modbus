@@ -248,10 +248,11 @@ first: the dialog offers *Web interface of a heat pump* only once a heat pump
 entry exists, and goes straight to the heat pump before that. Then
 *Settings → Devices & services → Add integration → Weishaupt WBB → Web
 interface of a heat pump*, pick the heat pump and enter the web interface's
-user and password. Logging in and finding the pages takes about half a
-minute, and the dialog shows its progress meanwhile; menus the controller
-serves only half are searched once more before the dialog reports it, and the
-dialog logs out again afterwards.
+user and password. Logging in, finding the pages and reading each once takes
+about a minute, and the dialog shows its progress meanwhile; pages the
+controller serves only half are searched once more before the dialog reports
+it, and the dialog logs out again afterwards. A page that lacks a value the
+sensors need is named in the dialog: that controller is not supported yet.
 
 To read only the web interface, for example from a second Home Assistant
 beside one that polls the heat pump over Modbus, disable the heat pump entry

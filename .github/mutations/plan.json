@@ -1535,7 +1535,7 @@
   {
     "label": "webif coordinator: every page keeps its default interval",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        return timedelta(minutes=entry.options.get(option, default))\n",
+    "old": "        return timedelta(minutes=options.get(option, default))\n",
     "new": "        return timedelta(minutes=default)\n",
     "tests": "each_page_follows_its_own_interval_option or statistics_interval_below"
   },
@@ -1570,9 +1570,9 @@
   {
     "label": "config flow: a menu served half twice ends the dialog's visit",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "        with suppress(Broken):\n            return await find_pages(client)\n",
+    "old": "        with suppress(Broken):\n            return await _visit(client)\n",
     "new": "",
-    "tests": "served_half_twice_is_searched_once_more"
+    "tests": "served_half_twice_is_searched_once_more or without_a_title_its_sensors_read"
   },
   {
     "label": "config flow: a refused login is tried twice",
@@ -1619,9 +1619,37 @@
   {
     "label": "config flow: a failed visit loses its error",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "            return None, {\"base\": web_interface_error(error)}\n",
-    "new": "            return None, {}\n",
+    "old": "            errors = {\"base\": web_interface_error(error)}\n",
+    "new": "            errors = {}\n",
     "tests": "visit_failing_after_its_progress or visit_that_fails_says_why"
+  },
+  {
+    "label": "config flow: the dialog does not read the pages it found",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        await _read_whole(client, page)\n",
+    "new": "        pass\n",
+    "tests": "reads_each_page_it_found_once or without_a_title_its_sensors_read"
+  },
+  {
+    "label": "config flow: a page without the titles its sensors read is not named",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        raise MissingTitles(PAGE_MENUS[page.key], missing) from error\n",
+    "new": "        raise\n",
+    "tests": "without_a_title_its_sensors_read"
+  },
+  {
+    "label": "config flow: a page lacking titles is not searched once more",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "class MissingTitles(Broken):\n",
+    "new": "class MissingTitles(WebifError):\n",
+    "tests": "without_a_title_its_sensors_read"
+  },
+  {
+    "label": "config flow: the form does not say which page lacks which titles",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    return {\"page\": error.page, \"titles\": \", \".join(sorted(error.titles))}\n",
+    "new": "    return {}\n",
+    "tests": "cannot_use"
   },
   {
     "label": "config flow: a failed visit hands the password back to the form",

@@ -13,7 +13,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.weishaupt_modbus import webif_coordinator
-from custom_components.weishaupt_modbus.const import CONF, CONST
+from custom_components.weishaupt_modbus.const import CONST
 from custom_components.weishaupt_modbus.webif.client import (
     Broken,
     LoginRefused,
@@ -142,11 +142,8 @@ async def round_at(coordinator, clock, seconds):
 def intervals(options):
     """Each page's interval, as the entry's options set it."""
     paths = {key: f"/{key}" for key in (HEAT_PUMP_PAGE, STATISTICS_PAGE, HEATING_PAGE)}
-    entry = MockConfigEntry(
-        domain=CONST.DOMAIN, data={CONF.PAGES: paths}, options=options
-    )
     required = dict.fromkeys(paths, frozenset())
-    return {page.key: page.interval for page in polled_pages(entry, required)}
+    return {page.key: page.interval for page in polled_pages(paths, options, required)}
 
 
 def test_without_options_the_pages_keep_the_default_intervals():

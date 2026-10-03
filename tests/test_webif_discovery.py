@@ -5,7 +5,10 @@ import asyncio
 import aiohttp
 import pytest
 
-from custom_components.weishaupt_modbus.config_flow import read_web_interface
+from custom_components.weishaupt_modbus.config_flow import (
+    MissingTitles,
+    read_web_interface,
+)
 from custom_components.weishaupt_modbus.webif import client as webif
 from custom_components.weishaupt_modbus.webif.discovery import (
     HEAT_PUMP_PAGE,
@@ -14,6 +17,7 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     find_pages,
 )
 
+from .test_webif_setup import PAGES, SHOWN, SITE
 from .webif_stand_in import (
     HEAT_PUMP_INFO,
     HEATING,
@@ -30,6 +34,7 @@ from .webif_stand_in import (
     link,
     menu_site,
     serving,
+    value,
 )
 
 LOGIN = [("GET", webif.INDEX), ("POST", webif.LOGIN)]
@@ -37,8 +42,9 @@ LOGIN = [("GET", webif.INDEX), ("POST", webif.LOGIN)]
 
 @pytest.fixture
 async def pump(socket_enabled):
+    """The menus and the three pages they lead to."""
     stand_in = StandInPump()
-    stand_in.site = menu_site()
+    stand_in.site = {**menu_site(), **SITE}
     async with serving(stand_in) as served:
         yield served
 
@@ -100,6 +106,49 @@ async def test_the_dialog_finds_the_pages_and_logs_out_again(hass, pump, monkeyp
     found = await read_web_interface(hass, pump.host, USER, PASSWORD)
 
     assert found[HEATING_PAGE] == STACK + f"{PUMP_MENU},{HEATING}"
+    assert pump.asked[-1] == ("GET", webif.LOGOUT)
+
+
+async def test_the_dialog_reads_each_page_it_found_once(hass, pump, monkeypatch):
+    """User decision, 2026-10-03: the dialog reads the pages it will poll, so
+    a page another model shows differently fails there and not ten minutes
+    later in the brake."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+
+    found = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert pump.asked == [
+        *LOGIN,
+        ("GET", PAGE_PATH),
+        ("GET", STACK + INFO),
+        ("GET", STACK + PUMP_MENU),
+        *(("GET", path) for path in found.values()),
+        ("GET", webif.LOGOUT),
+    ]
+
+
+async def test_a_page_without_a_title_its_sensors_read_is_named(
+    hass, pump, monkeypatch
+):
+    """Another model or firmware: the page came whole but lacked a title one
+    of its sensors reads, the dialog went through, and the brake stopped every
+    page ten minutes later without a word on why."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    missing = "EVI Sauggastemperatur"
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = column(
+        "".join(
+            value(title, shown)
+            for title, shown in SHOWN[HEAT_PUMP_PAGE].items()
+            if title != missing
+        )
+    )
+
+    with pytest.raises(MissingTitles) as raised:
+        await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert raised.value.page == "Info › Wärmepumpe"
+    assert raised.value.titles == {missing}
+    assert pump.asked.count(("GET", PAGE_PATH)) == 2, "searched once more, no more"
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
 
 

@@ -13,10 +13,11 @@
             "postfix_in_use": "Dieses Geräte-Postfix wird schon von einer anderen Wärmepumpe verwendet",
             "postfix_required": "Eine zweite Wärmepumpe braucht ein Geräte-Postfix",
             "invalid_auth": "Die Weboberfläche hat Benutzer und Passwort abgelehnt",
-            "cannot_read": "Die Weboberfläche hat ihre Menüs nicht vollständig angezeigt; bitte erneut versuchen"
+            "cannot_read": "Die Weboberfläche hat ihre Menüs nicht vollständig angezeigt; bitte erneut versuchen",
+            "missing_titles": "Die Seite {page} der Weboberfläche zeigt {titles} nicht. Dieser Regler wird noch nicht unterstützt."
         },
         "progress": {
-            "webif_visit": "Anmeldung an der Weboberfläche und Suche nach ihren Seiten. Das dauert etwa eine halbe Minute, etwas länger, wenn eine Seite erneut abgefragt werden muss."
+            "webif_visit": "Anmeldung an der Weboberfläche, Suche nach ihren Seiten und einmaliges Lesen jeder Seite. Das dauert etwa eine Minute, etwas länger, wenn eine Seite erneut abgefragt werden muss."
         },
         "step": {
             "user": {
@@ -78,7 +79,7 @@
             },
             "webif": {
                 "title": "Weboberfläche",
-                "description": "Liest weitere Werte aus der lokalen Weboberfläche der Wärmepumpe (experimentell). Anmelden und das Suchen der Seiten dauern etwa eine halbe Minute.",
+                "description": "Liest weitere Werte aus der lokalen Weboberfläche der Wärmepumpe (experimentell). Anmelden sowie das Suchen und Lesen der Seiten dauern etwa eine Minute.",
                 "data": {
                     "pump_entry_id": "Wärmepumpe",
                     "username": "Benutzer",
@@ -92,7 +93,7 @@
             },
             "reauth_confirm": {
                 "title": "Anmeldung an der Weboberfläche",
-                "description": "Die Weboberfläche hat ihre Anmeldung abgelehnt. Geben Sie die aktuelle ein; die Prüfung dauert etwa eine halbe Minute.",
+                "description": "Die Weboberfläche hat ihre Anmeldung abgelehnt. Geben Sie die aktuelle ein; die Prüfung dauert etwa eine Minute.",
                 "data": {
                     "username": "Benutzer",
                     "password": "Passwort"
@@ -104,7 +105,7 @@
             },
             "reconfigure_webif": {
                 "title": "Weboberfläche neu einrichten",
-                "description": "Eine neue Anmeldung für die Weboberfläche, und ihre Seiten werden neu gesucht. Die Prüfung dauert etwa eine halbe Minute.",
+                "description": "Eine neue Anmeldung für die Weboberfläche, und ihre Seiten werden neu gesucht. Die Prüfung dauert etwa eine Minute.",
                 "data": {
                     "username": "Benutzer",
                     "password": "Passwort"

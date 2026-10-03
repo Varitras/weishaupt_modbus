@@ -30,8 +30,9 @@ from .const import CONF, CONST
 from .kennfeld import get_filepath
 from .migrate_helpers import entry_unique_id
 from .webif.client import Broken, Client, LoginRefused, Unreachable, WebifError
-from .webif.discovery import find_pages
-from .webif_coordinator import INTERVAL_OPTIONS
+from .webif.discovery import PAGE_MENUS, find_pages
+from .webif_coordinator import INTERVAL_OPTIONS, Page, polled_pages
+from .webif_sensor import REQUIRED_TITLES
 from .weishaupt_modbus_api.const import (
     DEFAULT_PORT,
     DEFAULT_WRITE_LIMIT_PER_DAY,
@@ -115,12 +116,25 @@ def namespace_error(
     return None
 
 
+class MissingTitles(Broken):
+    """A page that came without titles its sensors read.
+
+    Another model or firmware than the one this was built for, not a hiccup.
+    """
+
+    def __init__(self, page: str, titles: frozenset[str]) -> None:
+        """Name the page by its menus, and the titles it lacks."""
+        super().__init__(f"{page}: {', '.join(sorted(titles))}")
+        self.page = page
+        self.titles = titles
+
+
 async def read_web_interface(
     hass: HomeAssistant, host: str, user: str, password: str
 ) -> dict[str, str]:
-    """The pages to poll, found on a short visit that logs out again.
+    """The pages to poll, found and read once on a short visit that logs out.
 
-    Menus served half are searched once more in the same session before the
+    Pages served half are searched once more in the same session before the
     visit gives up. Raises WebifError.
     """
     # No entry to detach it on unload: the visit detaches it itself.
@@ -138,11 +152,40 @@ async def read_web_interface(
     try:
         # The controller now and then serves a page half, twice in a row.
         with suppress(Broken):
-            return await find_pages(client)
-        return await find_pages(client)
+            return await _visit(client)
+        return await _visit(client)
     finally:
         await client.close()
         session.detach()
+
+
+async def _visit(client: Client) -> dict[str, str]:
+    """The pages found, each read once.
+
+    A page another model shows without a title its sensors read fails here,
+    not in the brake ten minutes after the entry was added.
+    """
+    found = await find_pages(client)
+    for page in polled_pages(found, {}, REQUIRED_TITLES):
+        await _read_whole(client, page)
+    return found
+
+
+async def _read_whole(client: Client, page: Page) -> None:
+    shown: list[str] = []
+
+    def whole(text: str) -> bool:
+        shown.append(text)
+        return page.is_whole(text)
+
+    try:
+        await client.page(page.path, whole)
+    except Broken as error:
+        # Only a page that came can tell which titles it lacks; one that has
+        # them all but a blank value is a hiccup.
+        if not shown or not (missing := page.missing(shown[-1])):
+            raise
+        raise MissingTitles(PAGE_MENUS[page.key], missing) from error
 
 
 def web_interface_error(error: WebifError) -> str:
@@ -151,7 +194,16 @@ def web_interface_error(error: WebifError) -> str:
         return "invalid_auth"
     if isinstance(error, Unreachable):
         return "cannot_connect"
+    if isinstance(error, MissingTitles):
+        return "missing_titles"
     return "cannot_read"
+
+
+def web_interface_error_placeholders(error: WebifError) -> dict[str, str]:
+    """The placeholders of the form's error for a visit that failed."""
+    if not isinstance(error, MissingTitles):
+        return {}
+    return {"page": error.page, "titles": ", ".join(sorted(error.titles))}
 
 
 PASSWORD_FIELD = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
@@ -351,13 +403,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         visit: asyncio.Task[dict[str, str]],
     ) -> config_entries.ConfigFlowResult:
         """The new entry with the pages the visit found, or the form again."""
-        pages, errors = self._visit_result(visit)
+        pages, errors, placeholders = self._visit_result(visit)
         login = self._visit_login
         pump = pumps.get(login[CONF.PUMP_ENTRY])
         if pump is None:
             return self.async_abort(reason="no_pump")
         if pages is None:
-            return self._webif_form(pumps, errors)
+            return self._webif_form(pumps, errors, placeholders)
         return self.async_create_entry(
             title=f"{pump.title} web interface",
             data={
@@ -370,7 +422,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         )
 
     def _webif_form(
-        self, pumps: dict[str, config_entries.ConfigEntry], errors: dict[str, str]
+        self,
+        pumps: dict[str, config_entries.ConfigEntry],
+        errors: dict[str, str],
+        placeholders: dict[str, str] | None = None,
     ) -> config_entries.ConfigFlowResult:
         schema = vol.Schema(
             {
@@ -391,6 +446,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
             step_id="webif",
             data_schema=self.add_suggested_values_to_schema(schema, typed),
             errors=errors,
+            description_placeholders=placeholders,
         )
 
     async def _visit_web_interface(
@@ -427,13 +483,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
 
     def _visit_result(
         self, visit: asyncio.Task[dict[str, str]]
-    ) -> tuple[dict[str, str] | None, dict[str, str]]:
-        """The pages the finished visit found, or the form's error."""
+    ) -> tuple[dict[str, str] | None, dict[str, str], dict[str, str]]:
+        """The pages the finished visit found, or the form's error and its placeholders."""
         self._visit = None
         try:
-            return visit.result(), {}
+            return visit.result(), {}, {}
         except WebifError as error:
-            return None, {"base": web_interface_error(error)}
+            errors = {"base": web_interface_error(error)}
+            return None, errors, web_interface_error_placeholders(error)
 
     async def async_step_reauth(
         self, entry_data: Mapping[str, Any]
@@ -473,9 +530,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
     ) -> config_entries.ConfigFlowResult:
         """Check the login on a short visit; the pages it finds replace the old."""
         if (visit := self._visit) is not None:
-            pages, errors = self._visit_result(visit)
+            pages, errors, placeholders = self._visit_result(visit)
             if pages is None:
-                return self._login_form(entry, step_id, errors)
+                return self._login_form(entry, step_id, errors, placeholders)
             return self.async_update_reload_and_abort(
                 entry,
                 data_updates={**self._visit_login, CONF.PAGES: pages},
@@ -489,7 +546,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         return await self._visit_web_interface(pump, user_input, next_step_id=step_id)
 
     def _login_form(
-        self, entry: config_entries.ConfigEntry, step_id: str, errors: dict[str, str]
+        self,
+        entry: config_entries.ConfigEntry,
+        step_id: str,
+        errors: dict[str, str],
+        placeholders: dict[str, str] | None = None,
     ) -> config_entries.ConfigFlowResult:
         user = self._visit_login.get(CONF.USERNAME, entry.data[CONF.USERNAME])
         schema = vol.Schema(
@@ -498,7 +559,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 vol.Required(CONF.PASSWORD): PASSWORD_FIELD,
             }
         )
-        return self.async_show_form(step_id=step_id, data_schema=schema, errors=errors)
+        return self.async_show_form(
+            step_id=step_id,
+            data_schema=schema,
+            errors=errors,
+            description_placeholders=placeholders,
+        )
 
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None

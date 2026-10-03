@@ -17,6 +17,12 @@ HEATING = "Heizen"
 HEAT_PUMP_PAGE = "heat_pump"
 STATISTICS_PAGE = "statistics"
 HEATING_PAGE = "heating"
+# Where each page sits in the controller's menus, as its user finds it there.
+PAGE_MENUS = {
+    HEAT_PUMP_PAGE: f"{INFO} › {HEAT_PUMP}",
+    STATISTICS_PAGE: f"{INFO} › {STATISTICS}",
+    HEATING_PAGE: f"{HEAT_PUMP} › {HEATING}",
+}
 
 
 async def find_pages(client: Client) -> dict[str, str]:

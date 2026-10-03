@@ -15,6 +15,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 import custom_components.weishaupt_modbus as integration
 from custom_components.weishaupt_modbus import config_flow
+from custom_components.weishaupt_modbus.config_flow import MissingTitles
 from custom_components.weishaupt_modbus.configentry import host_lock
 from custom_components.weishaupt_modbus.const import CONF, CONST
 from custom_components.weishaupt_modbus.webif.client import (
@@ -605,6 +606,40 @@ async def test_a_visit_that_fails_says_why(hass, web_interface, failure, error):
 
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": error}
+
+
+async def test_a_page_the_dialog_cannot_use_is_named_in_the_form(hass, web_interface):
+    """Which page lacks which titles: the only hint a user of another model
+    has before the brake would stop every page."""
+    pump = _pump_entry(hass)
+    web_interface.outcome = MissingTitles(
+        "Info › Wärmepumpe", frozenset({"EVI Sauggastemperatur", "Verdichter"})
+    )
+    form = await _web_form(hass)
+
+    result = await hass.config_entries.flow.async_configure(
+        form["flow_id"], {CONF.PUMP_ENTRY: pump.entry_id, **WEB_LOGIN}
+    )
+
+    assert result["errors"] == {"base": "missing_titles"}
+    assert result["description_placeholders"] == {
+        "page": "Info › Wärmepumpe",
+        "titles": "EVI Sauggastemperatur, Verdichter",
+    }
+
+
+async def test_a_reconfigure_names_a_page_it_cannot_use(hass, web_interface):
+    entry = _web_entry(hass, _pump_entry(hass))
+    web_interface.outcome = MissingTitles("Info › Statistik", frozenset({"JAZ Jahr"}))
+
+    form = await entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(form["flow_id"], WEB_LOGIN)
+
+    assert result["errors"] == {"base": "missing_titles"}
+    assert result["description_placeholders"] == {
+        "page": "Info › Statistik",
+        "titles": "JAZ Jahr",
+    }
 
 
 async def test_a_pumps_web_interface_is_added_once(hass, web_interface):

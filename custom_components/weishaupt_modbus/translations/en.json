@@ -13,10 +13,11 @@
       "postfix_in_use": "Another heat pump already uses this device postfix",
       "postfix_required": "A second heat pump needs a device postfix",
       "invalid_auth": "The web interface refused the user and password",
-      "cannot_read": "The web interface did not show its menus completely; try again"
+      "cannot_read": "The web interface did not show its menus completely; try again",
+      "missing_titles": "The web interface's page {page} does not show {titles}. This controller is not supported yet."
     },
     "progress": {
-      "webif_visit": "Logging in to the web interface and searching its pages. This takes about half a minute, a little longer when a page has to be asked for again."
+      "webif_visit": "Logging in to the web interface, searching its pages and reading each once. This takes about a minute, a little longer when a page has to be asked for again."
     },
     "step": {
       "user": {
@@ -78,7 +79,7 @@
       },
       "webif": {
         "title": "Web interface",
-        "description": "Reads more values from the heat pump's local web interface (experimental). Logging in and finding the pages takes about half a minute.",
+        "description": "Reads more values from the heat pump's local web interface (experimental). Logging in, finding the pages and reading them takes about a minute.",
         "data": {
           "pump_entry_id": "Heat pump",
           "username": "User",
@@ -92,7 +93,7 @@
       },
       "reauth_confirm": {
         "title": "Web interface login",
-        "description": "The web interface refused its login. Enter the current one; checking it takes about half a minute.",
+        "description": "The web interface refused its login. Enter the current one; checking it takes about a minute.",
         "data": {
           "username": "User",
           "password": "Password"
@@ -104,7 +105,7 @@
       },
       "reconfigure_webif": {
         "title": "Reconfigure the web interface",
-        "description": "A new login for the web interface, and its pages are searched again. Checking takes about half a minute.",
+        "description": "A new login for the web interface, and its pages are searched again. Checking takes about a minute.",
         "data": {
           "username": "User",
           "password": "Password"
