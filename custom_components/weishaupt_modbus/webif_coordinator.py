@@ -260,7 +260,11 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 return False
             # A struggling server gets no further request in this round.
             return not isinstance(error, Unreachable)
-        reading.values = dict(page.read(text))
+        # Only what a sensor reads: the rest of a page would go into the
+        # diagnostics download, an identifying entry among it maybe.
+        reading.values = {
+            title: shown for title, shown in page.read(text) if title in page.required
+        }
         reading.read_at = self._clock()
         reading.failures = 0
         return True

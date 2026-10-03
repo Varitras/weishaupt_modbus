@@ -1797,5 +1797,12 @@
     "old": "        try:\n            await client.close()\n        finally:\n            session.detach()\n",
     "new": "        await client.close()\n        session.detach()\n",
     "tests": "cancelled_in_its_logout"
+  },
+  {
+    "label": "webif coordinator: a page keeps every entry it shows",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            title: shown for title, shown in page.read(text) if title in page.required\n",
+    "new": "            title: shown for title, shown in page.read(text)\n",
+    "tests": "keeps_only_the_titles_its_sensors_read"
   }
 ]

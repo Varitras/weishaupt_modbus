@@ -329,7 +329,7 @@ here, not set.
 
 The user and password are stored in Home Assistant's configuration and sent
 to the heat pump only. The diagnostics download leaves them out, and the page
-addresses too.
+addresses too; of each page it holds only the values the sensors show.
 
 ## Actions
 

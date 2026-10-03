@@ -187,10 +187,24 @@ async def test_the_first_round_reads_every_page(coordinator, client, clock):
 
     assert client.asked == [HEAT_PUMP.path, STATISTICS.path, HEATING.path]
     assert coordinator.data == {
-        "heat_pump": {"Hochdruck": "24.4 BAR", "Verdichter": "2568 rpm"},
+        "heat_pump": {"Hochdruck": "24.4 BAR"},
         "statistics": {"JAZ Jahr": "4.16"},
         "heating": {"Leistungsbegrenzung": "60 %"},
     }
+
+
+async def test_a_page_keeps_only_the_titles_its_sensors_read(
+    coordinator, client, clock
+):
+    """Every entry of a page went into the diagnostics download, which is
+    meant for public issues, and a page may well carry an identifying one."""
+    client.answer(
+        HEAT_PUMP, WHOLE[HEAT_PUMP.path] + value("Seriennummer", "SN-0000-0000")
+    )
+
+    await round_at(coordinator, clock, 0)
+
+    assert coordinator.data["heat_pump"] == {"Hochdruck": "24.4 BAR"}
 
 
 @pytest.mark.parametrize(
