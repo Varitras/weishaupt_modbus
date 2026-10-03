@@ -8,6 +8,7 @@ __pycache__
 
 # misc
 .coverage
+.coverage.*
 coverage.xml
 .ruff_cache
 
