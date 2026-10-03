@@ -2028,5 +2028,33 @@
     "old": "            return self.async_update_reload_and_abort(\n                entry,\n                data_updates={**self._visit_login, CONF.PAGES: pages},\n                reason=reason,\n            )\n",
     "new": "            self.hass.config_entries.async_update_entry(\n                entry, data={**entry.data, **self._visit_login, CONF.PAGES: pages}\n            )\n            return self.async_abort(reason=reason)\n",
     "tests": "new_login_reloads_the_web_interface"
+  },
+  {
+    "label": "webif pages: the entries of another menu pass for children",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "    if STACK_LINK.fullmatch(href) is None or not href.startswith(parent + \",\"):\n",
+    "new": "    if STACK_LINK.fullmatch(href) is None:\n",
+    "tests": "entries_of_another_menu_are_no_children"
+  },
+  {
+    "label": "webif pages: a grandchild passes for a child",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "    return len(segments) == parent.count(\",\") + 2 and int(\n",
+    "new": "    return int(\n",
+    "tests": "grandchild_is_no_child"
+  },
+  {
+    "label": "webif pages: any link passes for a main menu",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "        and STACK_LINK.fullmatch(entry.href) is not None\n",
+    "new": "",
+    "tests": "no_stack_is_no_main_menu"
+  },
+  {
+    "label": "webif pages: a page showing nothing passes for complete",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "    return bool(found) and shown_once and all(text for _, text in found)\n",
+    "new": "    return shown_once and all(text for _, text in found)\n",
+    "tests": "showing_nothing_is_never_complete"
   }
 ]

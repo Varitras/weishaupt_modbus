@@ -77,7 +77,7 @@ WHOLE = {
     STATISTICS.path: value("JAZ Jahr", "4.16"),
     HEATING.path: link(f"{HEATING.path},{LIMIT}", "Leistungsbegrenzung", "60 %"),
 }
-EMPTY_COLUMN = value("Hochdruck", "")
+BLANK_VALUE = value("Hochdruck", "")
 
 
 class FakeClient:
@@ -293,7 +293,7 @@ async def test_after_a_timeout_the_round_asks_nothing_more(coordinator, client, 
 
 async def test_a_broken_page_does_not_end_the_round(coordinator, client, clock):
     """The server answered; only that page's content was wrong."""
-    client.answer(HEAT_PUMP, EMPTY_COLUMN)
+    client.answer(HEAT_PUMP, BLANK_VALUE)
 
     await round_at(coordinator, clock, 0)
 
@@ -305,7 +305,7 @@ async def test_one_failure_keeps_the_values_and_the_second_takes_them_away(
 ):
     await round_at(coordinator, clock, 0)
     kept = coordinator.data["heat_pump"]
-    client.answer(HEAT_PUMP, EMPTY_COLUMN, EMPTY_COLUMN, WHOLE[HEAT_PUMP.path])
+    client.answer(HEAT_PUMP, BLANK_VALUE, BLANK_VALUE, WHOLE[HEAT_PUMP.path])
 
     await round_at(coordinator, clock, 15 * 60)
     assert coordinator.data["heat_pump"] == kept
@@ -319,7 +319,7 @@ async def test_one_failure_keeps_the_values_and_the_second_takes_them_away(
 
 
 async def test_a_page_never_read_has_no_values_to_keep(coordinator, client, clock):
-    client.answer(HEAT_PUMP, EMPTY_COLUMN)
+    client.answer(HEAT_PUMP, BLANK_VALUE)
 
     await round_at(coordinator, clock, 0)
 

@@ -15,6 +15,9 @@ PUMP_MENU = "64000001000000000080000A0B010002000301"
 HEATING = "64001800000000000080000A0B020003000401"
 LIMIT = "64001807000000003C40000A0B030011010401"
 SIBLING = "64001900000000000080000A0B020003000401"
+SIBLING_CHILD = "64001901000000002D40000A0B030011010401"
+GRANDCHILD = "64001807010000000000000A0B040011010401"
+HEATING_PATH = "/settings_export.html?stack=" + f"{PUMP_MENU},{HEATING}"
 REQUIRED = frozenset({"Hochdruck", "Verdichter"})
 
 
@@ -60,6 +63,14 @@ def test_a_page_with_its_menu_instead_of_its_values_is_not_complete():
 
     assert pages.values(nested) == []
     assert not pages.is_complete(pages.values(nested), REQUIRED)
+
+
+def test_a_page_showing_nothing_is_never_complete():
+    """The controller's empty column, even for a page that requires no title."""
+    empty = MENU + column("")
+
+    assert pages.values(empty) == []
+    assert not pages.is_complete(pages.values(empty), frozenset())
 
 
 def test_an_entry_left_without_its_value_makes_the_page_incomplete():
@@ -127,7 +138,6 @@ def test_a_page_showing_a_sensor_title_twice_is_not_complete():
 
 
 def test_a_menu_shows_its_children_with_their_values():
-    parent = "/settings_export.html?stack=" + f"{PUMP_MENU},{HEATING}"
     page = (
         MENU
         + column(link([PUMP_MENU, HEATING], "Heizen"))
@@ -141,7 +151,7 @@ def test_a_menu_shows_its_children_with_their_values():
         )
     )
 
-    shown = {entry.title: entry.text for entry in pages.children(page, parent)}
+    shown = {entry.title: entry.text for entry in pages.children(page, HEATING_PATH)}
 
     assert shown == {"Schaltdifferenz": "4.5 K", "Leistungsbegrenzung": "60 %"}
 
@@ -156,13 +166,45 @@ def test_the_main_menus_are_the_links_of_one_segment():
     }
 
 
+def test_a_link_that_is_no_stack_is_no_main_menu():
+    """Discovery follows these links, and the client may fetch the logout
+    page as well: an Info entry leading there would end the session."""
+    page = column(
+        '<a class="nav-link browseobj" href="/logout.html"><h5>Info</h5></a>'
+        + link([PUMP_MENU], "Wärmepumpe")
+    )
+
+    assert pages.main_menus(page) == {
+        "Wärmepumpe": "/settings_export.html?stack=" + PUMP_MENU
+    }
+
+
 def test_siblings_nested_one_level_too_deep_are_no_children():
     """The broken answer lists the parent's siblings below it, still
     carrying their own depth in the segment."""
-    parent = "/settings_export.html?stack=" + f"{PUMP_MENU},{HEATING}"
     page = MENU + column(link([PUMP_MENU, HEATING, SIBLING], "Kühlen"))
 
-    assert pages.children(page, parent) == []
+    assert pages.children(page, HEATING_PATH) == []
+
+
+def test_the_entries_of_another_menu_are_no_children():
+    """The controller sometimes sends another section in place of the one
+    asked for; its entries have the right depth under the wrong parent."""
+    page = MENU + column(
+        link([PUMP_MENU, SIBLING, SIBLING_CHILD], "Leistungsbegrenzung", "30 %")
+    )
+
+    assert pages.children(page, HEATING_PATH) == []
+
+
+def test_a_grandchild_is_no_child():
+    """The depth its own segment names agrees with where it sits; only the
+    number of segments tells it from a child."""
+    page = MENU + column(
+        link([PUMP_MENU, HEATING, LIMIT, GRANDCHILD], "Leistungsbegrenzung", "30 %")
+    )
+
+    assert pages.children(page, HEATING_PATH) == []
 
 
 @pytest.mark.parametrize(
