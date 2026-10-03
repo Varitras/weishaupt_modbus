@@ -2003,6 +2003,12 @@
         },
         "webif_stopped": {
             "message": "Abruf der Weboberfläche nach wiederholten Fehlschlägen von {page} gestoppt: {error}"
+        },
+        "webif_pump_removed": {
+            "message": "Ihr Wärmepumpen-Eintrag wurde gelöscht. Löschen Sie diesen Eintrag und fügen Sie die Weboberfläche mit der Wärmepumpe neu hinzu."
+        },
+        "webif_login_refused": {
+            "message": "Die Weboberfläche hat Benutzer und Passwort abgelehnt."
         }
     },
     "issues": {

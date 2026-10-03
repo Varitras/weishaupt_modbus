@@ -102,8 +102,16 @@ def test_every_dialog_field_explains_itself(name):
 
 
 # What reaches the user as an error message: a service call's refusal or
-# failure, and the reason a poll failed.
-USER_FACING_ERRORS = {"HomeAssistantError", "ServiceValidationError", "UpdateFailed"}
+# failure, the reason a poll failed, and why an entry did not start - shown
+# on the entry, where a fixed English sentence once said its pump was gone.
+USER_FACING_ERRORS = {
+    "HomeAssistantError",
+    "ServiceValidationError",
+    "UpdateFailed",
+    "ConfigEntryError",
+    "ConfigEntryNotReady",
+    "ConfigEntryAuthFailed",
+}
 
 
 def _called_name(func: ast.expr) -> str | None:

@@ -2003,6 +2003,12 @@
     },
     "webif_stopped": {
       "message": "Web interface polling stopped after repeated failures of {page}: {error}"
+    },
+    "webif_pump_removed": {
+      "message": "Its heat pump entry was removed. Delete this entry and add the web interface again with the heat pump."
+    },
+    "webif_login_refused": {
+      "message": "The web interface refused the user and password."
     }
   },
   "issues": {

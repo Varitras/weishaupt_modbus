@@ -2003,6 +2003,12 @@
     },
     "webif_stopped" : {
       "message" : "Opvragen van de webinterface gestopt na herhaalde fouten van {page}: {error}"
+    },
+    "webif_pump_removed" : {
+      "message" : "De bijbehorende warmtepompvermelding is verwijderd. Verwijder deze vermelding en voeg de webinterface opnieuw toe met de warmtepomp."
+    },
+    "webif_login_refused" : {
+      "message" : "De webinterface heeft gebruiker en wachtwoord geweigerd."
     }
   },
   "issues" : {

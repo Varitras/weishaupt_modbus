@@ -206,7 +206,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         if self._refused is not None:
             # Until the reauth reloads the entry: an update requested by hand
             # would send the refused login again.
-            raise ConfigEntryAuthFailed(str(self._refused))
+            raise ConfigEntryAuthFailed(
+                translation_domain=CONST.DOMAIN, translation_key="webif_login_refused"
+            ) from self._refused
         if self._stopped_by is None:
             for page in self._due():
                 if not await self._fetch(page):
@@ -248,7 +250,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         except LoginRefused as error:
             # Stops polling at once: no wrong login is repeated.
             self._refused = error
-            raise ConfigEntryAuthFailed(str(error)) from error
+            raise ConfigEntryAuthFailed(
+                translation_domain=CONST.DOMAIN, translation_key="webif_login_refused"
+            ) from error
         except Closed:
             # The entry unloads under an update requested by hand: no failure
             # of the page, and nothing to ask any more.

@@ -1269,7 +1269,7 @@
   {
     "label": "webif coordinator: a refused login is counted like any failure",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        except LoginRefused as error:\n            # Stops polling at once: no wrong login is repeated.\n            self._refused = error\n            raise ConfigEntryAuthFailed(str(error)) from error\n",
+    "old": "        except LoginRefused as error:\n            # Stops polling at once: no wrong login is repeated.\n            self._refused = error\n            raise ConfigEntryAuthFailed(\n                translation_domain=CONST.DOMAIN, translation_key=\"webif_login_refused\"\n            ) from error\n",
     "new": "",
     "tests": "refused_login_stops_at_once"
   },
@@ -1430,7 +1430,7 @@
   {
     "label": "setup: a web interface without its pump fails unexplained",
     "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "    if pump is None:\n        raise ConfigEntryError(f\"{entry.title}: its heat pump entry was removed\")\n",
+    "old": "    if pump is None:\n        raise ConfigEntryError(\n            translation_domain=CONST.DOMAIN, translation_key=\"webif_pump_removed\"\n        )\n",
     "new": "",
     "tests": "without_its_pump_does_not_start"
   },
@@ -1846,5 +1846,12 @@
     "old": "        suggested_display_precision=3,\n",
     "new": "        suggested_display_precision=1,\n",
     "tests": "three_decimals_the_controller_gives"
+  },
+  {
+    "label": "setup: a removed pump is reported in a fixed English sentence",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        raise ConfigEntryError(\n            translation_domain=CONST.DOMAIN, translation_key=\"webif_pump_removed\"\n        )\n",
+    "new": "        raise ConfigEntryError(\"its heat pump entry was removed\")\n",
+    "tests": "user_sees_is_translated"
   }
 ]
