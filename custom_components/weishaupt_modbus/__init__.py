@@ -211,11 +211,17 @@ async def _async_setup_web_interface(
     )
     polled = polled_pages(entry.data[CONF.PAGES], entry.options, REQUIRED_TITLES)
     coordinator = WebifCoordinator(hass, entry, client, polled)
-    await coordinator.async_config_entry_first_refresh()
-    entry.runtime_data = WebifData(
-        coordinator=coordinator, client=client, pump_data=started_with
-    )
-    await hass.config_entries.async_forward_entry_setups(entry, WEBIF_PLATFORMS)
+    try:
+        await coordinator.async_config_entry_first_refresh()
+        entry.runtime_data = WebifData(
+            coordinator=coordinator, client=client, pump_data=started_with
+        )
+        await hass.config_entries.async_forward_entry_setups(entry, WEBIF_PLATFORMS)
+    except Exception:
+        # A setup that fails after the login would leave its session open on
+        # the controller, one more with every retry.
+        await client.close()
+        raise
     return True
 
 

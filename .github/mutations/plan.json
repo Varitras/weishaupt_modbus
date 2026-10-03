@@ -1388,8 +1388,8 @@
   {
     "label": "config flow: the dialog's visit stays logged in",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "        await client.close()\n",
-    "new": "",
+    "old": "            await client.close()\n",
+    "new": "            pass\n",
     "tests": "dialog_finds_the_pages_and_logs_out"
   },
   {
@@ -1409,7 +1409,7 @@
   {
     "label": "setup: a web interface starts without its first round",
     "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "    await coordinator.async_config_entry_first_refresh()\n",
+    "old": "        await coordinator.async_config_entry_first_refresh()\n",
     "new": "",
     "tests": "starts_with_a_round_of_its_pages"
   },
@@ -1486,7 +1486,7 @@
   {
     "label": "setup: the web interface gets no sensors",
     "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "    await hass.config_entries.async_forward_entry_setups(entry, WEBIF_PLATFORMS)\n",
+    "old": "        await hass.config_entries.async_forward_entry_setups(entry, WEBIF_PLATFORMS)\n",
     "new": "",
     "tests": "values_become_sensors"
   },
@@ -1748,5 +1748,19 @@
     "old": "            for key in (CONF.PUMP_ENTRY, CONF.USERNAME)\n",
     "new": "            for key in (CONF.PUMP_ENTRY, CONF.USERNAME, CONF.PASSWORD)\n",
     "tests": "visit_failing_after_its_progress"
+  },
+  {
+    "label": "setup: a setup failing after the login does not log out",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        await client.close()\n        raise\n",
+    "new": "        raise\n",
+    "tests": "failing_after_the_login_logs_out"
+  },
+  {
+    "label": "config flow: a visit cancelled in its logout keeps its session",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        try:\n            await client.close()\n        finally:\n            session.detach()\n",
+    "new": "        await client.close()\n        session.detach()\n",
+    "tests": "cancelled_in_its_logout"
   }
 ]

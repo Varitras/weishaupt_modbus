@@ -155,8 +155,11 @@ async def read_web_interface(
             return await _visit(client)
         return await _visit(client)
     finally:
-        await client.close()
-        session.detach()
+        # The dialog may close while the logout runs; the session goes anyway.
+        try:
+            await client.close()
+        finally:
+            session.detach()
 
 
 async def _visit(client: Client) -> dict[str, str]:

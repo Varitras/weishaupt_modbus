@@ -14,6 +14,7 @@ from pytest_homeassistant_custom_component.common import (
     mock_restore_cache_with_extra_data,
 )
 
+from custom_components.weishaupt_modbus import webif_coordinator
 from custom_components.weishaupt_modbus.config_flow import read_web_interface
 from custom_components.weishaupt_modbus.configentry import host_lock
 from custom_components.weishaupt_modbus.const import CONF, CONST, DEVICES
@@ -210,6 +211,22 @@ async def test_a_session_dropped_right_after_the_login_ends_the_round(hass, pump
 
     assert pump.asked.count(("POST", webif.LOGIN)) == 2
     assert pump.asked.count(("GET", PAGES[STATISTICS_PAGE])) == 0
+
+
+async def test_a_setup_failing_after_the_login_logs_out(hass, pump, monkeypatch):
+    """Each retry of a setup that failed after its login left one more
+    session open on the controller."""
+
+    def unreadable(self, text):
+        raise ValueError("a page layout nobody expected")
+
+    monkeypatch.setattr(webif_coordinator.Page, "read", unreadable)
+
+    entry = await _start(hass, _entries(hass, pump))
+
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert pump.asked[-1] == ("GET", webif.LOGOUT)
+    assert pump.sessions == set()
 
 
 async def test_unloading_stops_and_logs_out(hass, pump):

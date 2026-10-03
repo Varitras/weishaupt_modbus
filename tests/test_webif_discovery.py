@@ -5,6 +5,7 @@ import asyncio
 import aiohttp
 import pytest
 
+from custom_components.weishaupt_modbus import config_flow
 from custom_components.weishaupt_modbus.config_flow import (
     MissingTitles,
     read_web_interface,
@@ -16,6 +17,7 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     STATISTICS_PAGE,
     find_pages,
 )
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .test_webif_setup import PAGES, SHOWN, SITE
 from .webif_stand_in import (
@@ -175,6 +177,31 @@ async def test_an_error_status_is_not_searched_once_more(hass, pump, monkeypatch
     with pytest.raises(webif.Unreachable):
         await read_web_interface(hass, pump.host, USER, PASSWORD)
     assert pump.asked.count(("GET", PAGE_PATH)) == 1
+
+
+async def test_a_visit_cancelled_in_its_logout_lets_go_of_its_session(
+    hass, pump, monkeypatch
+):
+    """The dialog closed during the visit's last logout: the cancel cut the
+    logout short, and the session the visit had made was never let go."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    made = []
+
+    def recorded(*args, **kwargs):
+        made.append(async_create_clientsession(*args, **kwargs))
+        return made[-1]
+
+    monkeypatch.setattr(config_flow, "async_create_clientsession", recorded)
+    pump.delays[webif.LOGOUT] = 0.5
+    visit = asyncio.create_task(read_web_interface(hass, pump.host, USER, PASSWORD))
+    while ("GET", webif.LOGOUT) not in pump.asked:
+        await asyncio.sleep(0.01)
+
+    visit.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await visit
+
+    assert made[0].closed
 
 
 async def test_a_refused_login_is_not_tried_twice(hass, pump, monkeypatch):
