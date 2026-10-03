@@ -171,6 +171,14 @@ def test_the_address_becomes_a_url_an_ipv6_one_in_brackets(host, url):
     assert webif.base_url(host) == url
 
 
+async def test_a_client_for_a_bare_ipv6_address_asks_it_in_brackets(session):
+    """The address helper put the brackets in, but nothing held the client
+    to using it."""
+    client = connect(session, "2001:db8::10")
+
+    assert client._base == "http://[2001:db8::10]"
+
+
 async def test_a_page_is_read_after_a_login(pump, session):
     client = connect(session, pump.host)
 

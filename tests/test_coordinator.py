@@ -4,7 +4,10 @@ It maps the client's register cache onto the item list. Driven with a real
 Home Assistant core (the `hass` fixture) and a fake client.
 """
 
+import ast
 import copy
+import inspect
+import textwrap
 from types import SimpleNamespace
 
 from modbus_connection import ModbusConnectionError
@@ -204,3 +207,33 @@ def test_the_write_thresholds_default_and_follow_the_options():
         )
     )
     assert (chosen.warn_at, chosen.limit) == (10, 20)
+
+
+TIME_LIMITS = {"timeout", "timeout_at", "wait_for"}
+
+
+def _called(call: ast.Call) -> str:
+    if isinstance(call.func, ast.Attribute):
+        return call.func.attr
+    if isinstance(call.func, ast.Name):
+        return call.func.id
+    return ""
+
+
+def test_the_poll_sets_no_time_limit_of_its_own():
+    """The limit sits on each band, inside the controller's lock. One around
+    the whole poll counted the waits for the web interface as well, and timed
+    a healthy poll out while the web interface held the lock."""
+    poll = ast.parse(
+        textwrap.dedent(
+            inspect.getsource(WeishauptModbusCoordinator._async_update_data)
+        )
+    )
+
+    limits = [
+        ast.unparse(node)
+        for node in ast.walk(poll)
+        if isinstance(node, ast.Call) and _called(node) in TIME_LIMITS
+    ]
+
+    assert limits == []

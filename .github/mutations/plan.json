@@ -2336,5 +2336,19 @@
     "old": "        shown[:] = read(text)\n",
     "new": "        shown.extend(read(text))\n",
     "tests": "served_half_once_is_read_from_its_second_answer"
+  },
+  {
+    "label": "coordinator: an outer limit times the whole poll",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "            await self.device.async_update()\n",
+    "new": "            async with __import__(\"asyncio\").timeout(60):\n                await self.device.async_update()\n",
+    "tests": "poll_sets_no_time_limit_of_its_own"
+  },
+  {
+    "label": "webif client: a bare IPv6 address goes into the URL as it is",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        self._base = base_url(host)\n",
+    "new": "        self._base = f\"http://{host}\"\n",
+    "tests": "bare_ipv6_address_asks_it_in_brackets"
   }
 ]
