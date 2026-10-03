@@ -75,9 +75,9 @@ def _documented_registers() -> set[int]:
     """Every address the manufacturer documents, from the checked-in list.
 
     Read from a file rather than derived from BANDS: a guard whose oracle
-    is the thing it guards passes whatever BANDS happens to say (audit
-    2026-09-03). Changing a band now means changing this file too, and
-    that means going back to the data-point list.
+    is the thing it guards passes whatever BANDS happens to say. Changing a
+    band now means changing this file too, and that means going back to the
+    data-point list.
     """
     path = pathlib.Path(__file__).with_name("documented_registers.json")
     return set(json.loads(path.read_text(encoding="utf-8"))["addresses"])

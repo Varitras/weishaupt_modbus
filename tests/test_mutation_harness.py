@@ -105,8 +105,8 @@ def test_a_mutation_that_does_not_compile_is_refused(tmp_path, monkeypatch):
 
 
 def test_a_mutation_naming_something_undefined_is_refused(tmp_path, monkeypatch):
-    """Audit W-27: a case wrote `cookie` for `self._cookie`, and the
-    NameError, not the assertion it was written for, failed its test."""
+    """A case wrote `cookie` for `self._cookie`, and the NameError, not the
+    assertion it was written for, failed its test."""
     refusal = _refusal(
         tmp_path,
         monkeypatch,

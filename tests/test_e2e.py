@@ -933,8 +933,8 @@ HEATING_CIRCUIT_2_ROOM_TEMPERATURE = 31202
 
 
 async def test_a_disabled_heating_circuit_is_neither_polled_nor_an_entity(hass, pump):
-    """Audit P2-03: circuits 2-5 were read on every poll and registered as
-    entities showing unknown, whatever the entry said."""
+    """Circuits 2-5 were read on every poll and registered as entities
+    showing unknown, whatever the entry said."""
     await _setup(hass, _entry(hass))
 
     registry = er.async_get(hass)
