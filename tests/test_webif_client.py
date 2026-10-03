@@ -86,6 +86,17 @@ class FakeClock:
         return self.now
 
 
+async def test_an_answer_far_larger_than_any_page_ends_the_round(pump, session):
+    """Whatever answered at the pump's address could stream any amount: it
+    was read whole, decoded and parsed on the event loop, and asked again."""
+    pump.site[PAGE] = "x" * (webif.MAX_PAGE_BYTES + 1)
+    client = connect(session, pump.host)
+
+    with pytest.raises(webif.Unreachable):
+        await client.page(PAGE, whole)
+    assert pump.asked == [*LOGIN, ("GET", PAGE)]
+
+
 async def test_a_request_without_an_answer_is_logged_too(pump, session, caplog):
     """A request that timed out left no line, so the log could not tell a
     slow controller from a silent one."""

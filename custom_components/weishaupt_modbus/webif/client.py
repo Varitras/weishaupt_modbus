@@ -35,6 +35,10 @@ TIMEOUT_SECONDS = 20.0
 MIN_GAP_SECONDS = 5.0
 # Renewed daily: nothing is known of week-long sessions on this embedded server.
 SESSION_LIFETIME_SECONDS = 24 * 3600.0
+# The largest page the controller was seen to serve has 36 kB (a settings form
+# with 715 options), the polled ones about 9 kB. Far more is no page of it,
+# and would be read whole, decoded and parsed on the event loop.
+MAX_PAGE_BYTES = 512 * 1024
 
 
 class WebifError(Exception):
@@ -45,7 +49,8 @@ class Unreachable(WebifError):
     """The server struggles.
 
     No complete answer in time, a broken connection, an error status, a login
-    it could not serve, or a session it dropped right after the login.
+    it could not serve, a session it dropped right after the login, or an
+    answer far larger than any of its pages.
     """
 
 
@@ -145,6 +150,16 @@ def base_url(host: str) -> str:
     if isinstance(address, ipaddress.IPv6Address):
         return f"http://[{host}]"
     return f"http://{host}"
+
+
+async def _capped_body(response: aiohttp.ClientResponse) -> bytes | None:
+    """The whole body, or None once it outgrows any page of the controller."""
+    body = bytearray()
+    async for chunk in response.content.iter_any():
+        body += chunk
+        if len(body) > MAX_PAGE_BYTES:
+            return None
+    return bytes(body)
 
 
 def _page_text(path: str, answer: _Answer) -> str:
@@ -325,7 +340,11 @@ class Client:
                     allow_redirects=False,
                     timeout=self._timeout,
                 ) as response:
-                    body = await response.read()
+                    body = await _capped_body(response)
+                    if body is None:
+                        raise Unreachable(
+                            f"{method} {path}: more than {MAX_PAGE_BYTES} bytes"
+                        )
                     answer = _Answer(
                         response.status,
                         response.headers.get("Location", ""),

@@ -1895,5 +1895,19 @@
     "old": "    if isinstance(error, MissingMenuEntries):\n        return \"missing_menu_entries\"\n",
     "new": "",
     "tests": "another_language_is_told_so"
+  },
+  {
+    "label": "webif client: an answer of any size is read whole",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        if len(body) > MAX_PAGE_BYTES:\n            return None\n",
+    "new": "",
+    "tests": "far_larger_than_any_page"
+  },
+  {
+    "label": "webif client: an oversized answer is asked for again",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "                        raise Unreachable(\n                            f\"{method} {path}: more than {MAX_PAGE_BYTES} bytes\"\n",
+    "new": "                        raise Broken(\n                            f\"{method} {path}: more than {MAX_PAGE_BYTES} bytes\"\n",
+    "tests": "far_larger_than_any_page"
   }
 ]
