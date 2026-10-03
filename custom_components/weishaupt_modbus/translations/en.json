@@ -33,12 +33,12 @@
           "Heizkreis 3": "3rd heating circuit",
           "Heizkreis 4": "4th heating circuit",
           "Heizkreis 5": "5th heating circuit",
-          "Host": "Host",
+          "host": "Host",
           "Kennfeld-File": "Operation map file",
           "Name-Device-Prefix": "Name Device Prefix",
           "Name-Topic-Prefix": "Name Topic Prefix",
-          "Port": "Port",
-          "Prefix": "Prefix"
+          "port": "Port",
+          "prefix": "Prefix"
         },
         "data_description": {
           "Device-Postfix": "Leave empty for the first heat pump; every further one needs a postfix of its own. Cannot be changed later.",
@@ -46,12 +46,12 @@
           "Heizkreis 3": "Adds the entities of this heating circuit.",
           "Heizkreis 4": "Adds the entities of this heating circuit.",
           "Heizkreis 5": "Adds the entities of this heating circuit.",
-          "Host": "Name or IP address of the heat pump.",
+          "host": "Name or IP address of the heat pump.",
           "Kennfeld-File": "Power map of your model, used to estimate the heat output.",
           "Name-Device-Prefix": "Puts the prefix in front of the name of every register entity.",
           "Name-Topic-Prefix": "Puts the device's short name (WP, WW, ...) in front of the name of every register entity.",
-          "Port": "Modbus TCP port set on the heat pump, usually 502.",
-          "Prefix": "Part of every entity's unique id. Keep the default unless you carry over the history of another integration. Cannot be changed later."
+          "port": "Modbus TCP port set on the heat pump, usually 502.",
+          "prefix": "Part of every entity's unique id. Keep the default unless you carry over the history of another integration. Cannot be changed later."
         },
         "menu_options": {
           "pump": "Heat pump (Modbus)",
@@ -65,22 +65,22 @@
           "Heizkreis 3": "3rd heating circuit",
           "Heizkreis 4": "4th heating circuit",
           "Heizkreis 5": "5th heating circuit",
-          "Host": "Host",
+          "host": "Host",
           "Kennfeld-File": "Operation map file",
           "Name-Device-Prefix": "Name Device Prefix",
           "Name-Topic-Prefix": "Name Topic Prefix",
-          "Port": "Port"
+          "port": "Port"
         },
         "data_description": {
           "Heizkreis 2": "Adds the entities of this heating circuit.",
           "Heizkreis 3": "Adds the entities of this heating circuit.",
           "Heizkreis 4": "Adds the entities of this heating circuit.",
           "Heizkreis 5": "Adds the entities of this heating circuit.",
-          "Host": "Name or IP address of the heat pump.",
+          "host": "Name or IP address of the heat pump.",
           "Kennfeld-File": "Power map of your model, used to estimate the heat output.",
           "Name-Device-Prefix": "Puts the prefix in front of the name of every register entity.",
           "Name-Topic-Prefix": "Puts the device's short name (WP, WW, ...) in front of the name of every register entity.",
-          "Port": "Modbus TCP port set on the heat pump, usually 502."
+          "port": "Modbus TCP port set on the heat pump, usually 502."
         }
       },
       "webif": {

@@ -16,6 +16,20 @@ import re
 
 import pytest
 
+from custom_components.weishaupt_modbus.config_flow import (
+    MissingTitles,
+    UnclearValues,
+    UnknownUnits,
+    web_interface_error,
+    web_interface_error_placeholders,
+)
+from custom_components.weishaupt_modbus.webif.client import (
+    Broken,
+    LoginRefused,
+    Unreachable,
+)
+from custom_components.weishaupt_modbus.webif.discovery import MissingMenuEntries
+
 INTEGRATION = pathlib.Path(__file__).resolve().parents[1] / "custom_components"
 FLOW = next(INTEGRATION.glob("*/config_flow.py"))
 TRANSLATION_FILES = (
@@ -165,6 +179,50 @@ def test_every_translated_error_has_its_text_and_placeholders(name):
     assert set(messages) == set(raised), f"{name} and the code disagree"
     for key, given in raised.items():
         used = set(re.findall(r"\{(\w+)\}", messages[key]))
+        assert used == given, f"{name}: {key} uses {used}, the code gives {given}"
+
+
+# One of each way a dialog's visit can fail, as the form gets it.
+VISIT_FAILURES = (
+    LoginRefused("HTTP 303 to /index.html#wrongpassword"),
+    Unreachable("GET /index.html: TimeoutError"),
+    Broken("/settings_export.html"),
+    MissingTitles("Info › Wärmepumpe", frozenset({"Hochdruck"})),
+    UnclearValues("Info › Wärmepumpe", frozenset({"Hochdruck"})),
+    UnknownUnits("Info › Wärmepumpe", frozenset({"Hochdruck"})),
+    MissingMenuEntries({"Statistik"}),
+)
+
+
+def _keys_returned_by(function: str) -> set[str]:
+    tree = ast.parse(FLOW.read_text(encoding="utf-8"))
+    body = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef) and node.name == function
+    )
+    return {
+        node.value.value
+        for node in ast.walk(body)
+        if isinstance(node, ast.Return) and isinstance(node.value, ast.Constant)
+    }
+
+
+@pytest.mark.parametrize("name", TRANSLATION_FILES)
+def test_every_visit_error_names_what_the_code_fills_in(name):
+    """A translation that dropped {titles} named nothing, and the placeholder
+    check covered the raised errors only, not the dialog's."""
+    errors = json.loads((FLOW.parent / name).read_text(encoding="utf-8"))["config"][
+        "error"
+    ]
+
+    assert {web_interface_error(failure) for failure in VISIT_FAILURES} == (
+        _keys_returned_by("web_interface_error")
+    ), "a visit error without a failure above to check it by"
+    for failure in VISIT_FAILURES:
+        key = web_interface_error(failure)
+        used = set(re.findall(r"\{(\w+)\}", errors[key]))
+        given = set(web_interface_error_placeholders(failure))
         assert used == given, f"{name}: {key} uses {used}, the code gives {given}"
 
 

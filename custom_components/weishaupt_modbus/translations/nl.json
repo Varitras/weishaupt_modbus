@@ -33,12 +33,12 @@
           "Heizkreis 3" : "3de verwarmingskring",
           "Heizkreis 4" : "4de verwarmingskring",
           "Heizkreis 5" : "5de verwarmingskring",
-          "Host" : "Host",
+          "host" : "Host",
           "Kennfeld-File" : "Bestandsnaam werkingsschema",
           "Name-Device-Prefix" : "Naam apparaat-prefix",
           "Name-Topic-Prefix" : "Naam topic-prefix",
-          "Port" : "Poort",
-          "Prefix" : "Prefix"
+          "port" : "Poort",
+          "prefix" : "Prefix"
         },
         "data_description" : {
           "Device-Postfix" : "Leeg laten voor de eerste warmtepomp; elke volgende heeft een eigen postfix nodig. Later niet meer te wijzigen.",
@@ -46,12 +46,12 @@
           "Heizkreis 3" : "Voegt de entiteiten van deze verwarmingskring toe.",
           "Heizkreis 4" : "Voegt de entiteiten van deze verwarmingskring toe.",
           "Heizkreis 5" : "Voegt de entiteiten van deze verwarmingskring toe.",
-          "Host" : "Naam of IP-adres van de warmtepomp.",
+          "host" : "Naam of IP-adres van de warmtepomp.",
           "Kennfeld-File" : "Werkingsschema van uw model, gebruikt om het verwarmingsvermogen te schatten.",
           "Name-Device-Prefix" : "Zet de prefix voor de naam van elke registerentiteit.",
           "Name-Topic-Prefix" : "Zet de korte apparaatnaam (WP, WW, ...) voor de naam van elke registerentiteit.",
-          "Port" : "Modbus-TCP-poort zoals ingesteld op de warmtepomp, meestal 502.",
-          "Prefix" : "Deel van de unieke ID van elke entiteit. Alleen wijzigen om de geschiedenis van een andere integratie over te nemen. Later niet meer te wijzigen."
+          "port" : "Modbus-TCP-poort zoals ingesteld op de warmtepomp, meestal 502.",
+          "prefix" : "Deel van de unieke ID van elke entiteit. Alleen wijzigen om de geschiedenis van een andere integratie over te nemen. Later niet meer te wijzigen."
         },
         "menu_options" : {
           "pump" : "Warmtepomp (Modbus)",
@@ -65,22 +65,22 @@
           "Heizkreis 3" : "3de verwarmingskring",
           "Heizkreis 4" : "4de verwarmingskring",
           "Heizkreis 5" : "5de verwarmingskring",
-          "Host" : "Host",
+          "host" : "Host",
           "Kennfeld-File" : "Bestandsnaam werkingsschema",
           "Name-Device-Prefix" : "Naam apparaat-prefix",
           "Name-Topic-Prefix" : "Naam topic-prefix",
-          "Port" : "Poort"
+          "port" : "Poort"
         },
         "data_description" : {
           "Heizkreis 2" : "Voegt de entiteiten van deze verwarmingskring toe.",
           "Heizkreis 3" : "Voegt de entiteiten van deze verwarmingskring toe.",
           "Heizkreis 4" : "Voegt de entiteiten van deze verwarmingskring toe.",
           "Heizkreis 5" : "Voegt de entiteiten van deze verwarmingskring toe.",
-          "Host" : "Naam of IP-adres van de warmtepomp.",
+          "host" : "Naam of IP-adres van de warmtepomp.",
           "Kennfeld-File" : "Werkingsschema van uw model, gebruikt om het verwarmingsvermogen te schatten.",
           "Name-Device-Prefix" : "Zet de prefix voor de naam van elke registerentiteit.",
           "Name-Topic-Prefix" : "Zet de korte apparaatnaam (WP, WW, ...) voor de naam van elke registerentiteit.",
-          "Port" : "Modbus-TCP-poort zoals ingesteld op de warmtepomp, meestal 502."
+          "port" : "Modbus-TCP-poort zoals ingesteld op de warmtepomp, meestal 502."
         }
       },
       "webif" : {

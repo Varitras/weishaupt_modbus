@@ -751,8 +751,8 @@
   {
     "label": "translations: every dialog field has a help text",
     "path": "custom_components/weishaupt_modbus/translations/de.json",
-    "old": "                    \"Port\": \"Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502.\",\n                    \"Prefix\"",
-    "new": "                    \"Prefix\"",
+    "old": "                    \"port\": \"Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502.\",\n                    \"prefix\"",
+    "new": "                    \"prefix\"",
     "tests": "every_dialog_field_explains_itself"
   },
   {
@@ -2350,5 +2350,26 @@
     "old": "        self._base = base_url(host)\n",
     "new": "        self._base = f\"http://{host}\"\n",
     "tests": "bare_ipv6_address_asks_it_in_brackets"
+  },
+  {
+    "label": "options: a key renamed without its texts",
+    "path": "custom_components/weishaupt_modbus/const.py",
+    "old": "    OPTION_WEBIF_HEAT_PUMP_INTERVAL: str = \"heat_pump_interval_minutes\"\n",
+    "new": "    OPTION_WEBIF_HEAT_PUMP_INTERVAL: str = \"heat_pump_minutes\"\n",
+    "tests": "every_field_of_every_form_has_its_label_and_help"
+  },
+  {
+    "label": "translations: a dialog field labelled under another key",
+    "path": "custom_components/weishaupt_modbus/strings.json",
+    "old": "\"prefix\": \"Prefix\"",
+    "new": "\"Prefix\": \"Prefix\"",
+    "tests": "every_field_of_every_form_has_its_label_and_help"
+  },
+  {
+    "label": "translations: a visit error drops a placeholder",
+    "path": "custom_components/weishaupt_modbus/translations/de.json",
+    "old": "Die Seite {page} der Weboberfläche zeigt {titles} nicht.",
+    "new": "Die Seite {page} der Weboberfläche zeigt nicht alle Titel.",
+    "tests": "every_visit_error_names_what_the_code_fills_in"
   }
 ]

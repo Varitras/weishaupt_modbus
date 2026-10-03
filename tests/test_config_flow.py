@@ -5,7 +5,9 @@ integration.
 """
 
 import asyncio
+import json
 import logging
+import pathlib
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -898,6 +900,51 @@ async def _loaded(hass, monkeypatch, entry):
     await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     return integration.async_setup_entry.await_count
+
+
+TRANSLATION_FILES = (
+    "strings.json",
+    "translations/en.json",
+    "translations/de.json",
+    "translations/nl.json",
+)
+
+
+async def test_every_field_of_every_form_has_its_label_and_help(hass, web_interface):
+    """A renamed option key showed its raw name in the dialog with every test
+    passing: the texts were checked against each other, not against the
+    forms the flows draw."""
+    first_pump = await hass.config_entries.flow.async_init(
+        CONST.DOMAIN, context={"source": "user"}
+    )
+    pump = _pump_entry(hass)
+    web = _web_entry(hass, pump)
+    _pump_entry(hass, host="192.0.2.11")
+    forms = {
+        ("config", "user"): first_pump,
+        ("config", "webif"): await _web_form(hass),
+        ("config", "reauth_confirm"): await web.start_reauth_flow(hass),
+        ("config", "reconfigure_webif"): await web.start_reconfigure_flow(hass),
+        ("config", "reconfigure"): await pump.start_reconfigure_flow(hass),
+        ("options", "webif"): await hass.config_entries.options.async_init(
+            web.entry_id
+        ),
+        ("options", "init"): await hass.config_entries.options.async_init(
+            pump.entry_id
+        ),
+    }
+    component = pathlib.Path(config_flow.__file__).parent
+
+    for name in TRANSLATION_FILES:
+        texts = json.loads((component / name).read_text(encoding="utf-8"))
+        for (flow, step_id), form in forms.items():
+            assert form["step_id"] == step_id
+            step = texts[flow]["step"][step_id]
+            fields = {str(key) for key in form["data_schema"].schema}
+            unlabelled = fields - set(step.get("data", {}))
+            unexplained = fields - set(step.get("data_description", {}))
+            assert not unlabelled, f"{name}: {flow}.{step_id} labels {unlabelled}"
+            assert not unexplained, f"{name}: {flow}.{step_id} explains {unexplained}"
 
 
 async def test_new_options_reload_the_web_interface(hass, web_interface, monkeypatch):

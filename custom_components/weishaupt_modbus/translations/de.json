@@ -33,12 +33,12 @@
                     "Heizkreis 3": "3. Heizkreis",
                     "Heizkreis 4": "4. Heizkreis",
                     "Heizkreis 5": "5. Heizkreis",
-                    "Host": "Host/IP-Adresse",
+                    "host": "Host/IP-Adresse",
                     "Kennfeld-File": "Kennfeld Dateiname",
                     "Name-Device-Prefix": "Name Geräte-Prefix",
                     "Name-Topic-Prefix": "Name Topic-Prefix",
-                    "Port": "Port",
-                    "Prefix": "Prefix"
+                    "port": "Port",
+                    "prefix": "Prefix"
                 },
                 "data_description": {
                     "Device-Postfix": "Für die erste Wärmepumpe leer lassen, jede weitere braucht ein eigenes Postfix. Später nicht mehr änderbar.",
@@ -46,12 +46,12 @@
                     "Heizkreis 3": "Legt die Entitäten dieses Heizkreises an.",
                     "Heizkreis 4": "Legt die Entitäten dieses Heizkreises an.",
                     "Heizkreis 5": "Legt die Entitäten dieses Heizkreises an.",
-                    "Host": "Name oder IP-Adresse der Wärmepumpe.",
+                    "host": "Name oder IP-Adresse der Wärmepumpe.",
                     "Kennfeld-File": "Kennfeld Ihres Modells, daraus wird die Wärmeleistung geschätzt.",
                     "Name-Device-Prefix": "Stellt dem Namen jeder Register-Entität das Prefix voran.",
                     "Name-Topic-Prefix": "Stellt dem Namen jeder Register-Entität das Gerätekürzel (WP, WW, ...) voran.",
-                    "Port": "Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502.",
-                    "Prefix": "Teil der Unique-ID jeder Entität. Nur ändern, um die Historie einer anderen Integration zu übernehmen. Später nicht mehr änderbar."
+                    "port": "Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502.",
+                    "prefix": "Teil der Unique-ID jeder Entität. Nur ändern, um die Historie einer anderen Integration zu übernehmen. Später nicht mehr änderbar."
                 },
                 "menu_options": {
                     "pump": "Wärmepumpe (Modbus)",
@@ -65,22 +65,22 @@
                     "Heizkreis 3": "3. Heizkreis",
                     "Heizkreis 4": "4. Heizkreis",
                     "Heizkreis 5": "5. Heizkreis",
-                    "Host": "Host/IP-Adresse",
+                    "host": "Host/IP-Adresse",
                     "Kennfeld-File": "Kennfeld Dateiname",
                     "Name-Device-Prefix": "Name Geräte-Prefix",
                     "Name-Topic-Prefix": "Name Topic-Prefix",
-                    "Port": "Port"
+                    "port": "Port"
                 },
                 "data_description": {
                     "Heizkreis 2": "Legt die Entitäten dieses Heizkreises an.",
                     "Heizkreis 3": "Legt die Entitäten dieses Heizkreises an.",
                     "Heizkreis 4": "Legt die Entitäten dieses Heizkreises an.",
                     "Heizkreis 5": "Legt die Entitäten dieses Heizkreises an.",
-                    "Host": "Name oder IP-Adresse der Wärmepumpe.",
+                    "host": "Name oder IP-Adresse der Wärmepumpe.",
                     "Kennfeld-File": "Kennfeld Ihres Modells, daraus wird die Wärmeleistung geschätzt.",
                     "Name-Device-Prefix": "Stellt dem Namen jeder Register-Entität das Prefix voran.",
                     "Name-Topic-Prefix": "Stellt dem Namen jeder Register-Entität das Gerätekürzel (WP, WW, ...) voran.",
-                    "Port": "Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502."
+                    "port": "Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502."
                 }
             },
             "webif": {
