@@ -149,11 +149,13 @@ def intervals(options):
     return {page.key: page.interval for page in polled_pages(entry, required)}
 
 
-def test_without_options_the_statistics_and_heating_are_read_hourly():
+def test_without_options_the_pages_keep_the_default_intervals():
+    """User decision, 2026-10-03: 5 minutes for the heat pump page, 15 for
+    the statistics and the heating settings."""
     assert intervals({}) == {
-        HEAT_PUMP_PAGE: QUARTER_HOUR,
-        STATISTICS_PAGE: HOUR,
-        HEATING_PAGE: HOUR,
+        HEAT_PUMP_PAGE: timedelta(minutes=5),
+        STATISTICS_PAGE: QUARTER_HOUR,
+        HEATING_PAGE: QUARTER_HOUR,
     }
 
 

@@ -60,8 +60,8 @@ class MainConstants:
     OPTION_WEBIF_INTERVAL: str = "interval_minutes"
     OPTION_WEBIF_STATISTICS_INTERVAL: str = "statistics_interval_minutes"
     OPTION_WEBIF_HEATING_INTERVAL: str = "heating_interval_minutes"
-    WEBIF_INTERVAL_MINUTES: int = 15
-    WEBIF_SLOW_INTERVAL_MINUTES: int = 60
+    WEBIF_INTERVAL_MINUTES: int = 5
+    WEBIF_SLOW_INTERVAL_MINUTES: int = 15
     WEBIF_INTERVAL_MIN_MINUTES: int = 1
     WEBIF_INTERVAL_MAX_MINUTES: int = 60
 
