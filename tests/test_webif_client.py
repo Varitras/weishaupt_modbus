@@ -606,6 +606,18 @@ async def test_the_traffic_is_counted(pump, session):
     )
 
 
+async def test_an_incomplete_answer_to_the_second_ask_is_counted_too(pump, session):
+    """The sensor says pages that came incomplete; the second of two in a row
+    went uncounted, just when the access was getting worse."""
+    pump.pages = [BROKEN]
+    client = connect(session, pump.host)
+
+    with pytest.raises(webif.Broken):
+        await client.page(PAGE, whole)
+
+    assert client.traffic.incomplete_pages == 2
+
+
 async def test_the_slowest_answer_is_taken_once(pump, session):
     pump.delays[PAGE] = SLOW
     client = connect(session, pump.host)

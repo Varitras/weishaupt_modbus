@@ -975,8 +975,8 @@
   {
     "label": "webif client: a page wrong twice passes",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        if not complete(text):\n            raise Broken(path)\n",
-    "new": "        if not text:\n            raise Broken(path)\n",
+    "old": "        if not complete(text):\n            self.traffic.incomplete_pages += 1\n            raise Broken(path)\n",
+    "new": "        if not text:\n            self.traffic.incomplete_pages += 1\n            raise Broken(path)\n",
     "tests": "page_wrong_twice_is_broken"
   },
   {
@@ -1038,8 +1038,8 @@
   {
     "label": "webif client: a page that came incomplete goes uncounted",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        self.traffic.incomplete_pages += 1\n",
-    "new": "",
+    "old": "        self.traffic.incomplete_pages += 1\n        text = _page_text(path, await self._request(\"GET\", path))\n",
+    "new": "        text = _page_text(path, await self._request(\"GET\", path))\n",
     "tests": "traffic_is_counted"
   },
   {
@@ -2189,5 +2189,12 @@
     "old": "        _raise_for_error_status(LOGOUT, await self._request(\"GET\", LOGOUT))\n",
     "new": "        await self._request(\"GET\", LOGOUT)\n",
     "tests": "error_status_on_the_renewal_logout_ends_the_round"
+  },
+  {
+    "label": "webif client: a second incomplete answer goes uncounted",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        if not complete(text):\n            self.traffic.incomplete_pages += 1\n            raise Broken(path)\n",
+    "new": "        if not complete(text):\n            raise Broken(path)\n",
+    "tests": "second_ask_is_counted_too"
   }
 ]

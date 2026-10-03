@@ -281,6 +281,7 @@ class Client:
         self.traffic.incomplete_pages += 1
         text = _page_text(path, await self._request("GET", path))
         if not complete(text):
+            self.traffic.incomplete_pages += 1
             raise Broken(path)
         return text
 
