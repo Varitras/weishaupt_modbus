@@ -1024,9 +1024,30 @@
   {
     "label": "webif client: a login without its session cookie passes",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "            and answer.location == LOGIN_TARGET\n            and answer.cookie is not None\n",
+    "old": "            and answer.location == LOGIN_TARGET\n            and bool(answer.cookie)\n",
     "new": "            and answer.location == LOGIN_TARGET\n",
     "tests": "without_a_session_cookie_is_no_login"
+  },
+  {
+    "label": "webif client: an empty session cookie counts as a login",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "            and bool(answer.cookie)\n",
+    "new": "            and answer.cookie is not None\n",
+    "tests": "cannot_serve_is_no_refusal"
+  },
+  {
+    "label": "webif client: a login the controller cannot serve asks for new credentials",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "            raise Unreachable(\n                f\"POST {LOGIN}: HTTP {answer.status} to {answer.location or '-'}\"\n",
+    "new": "            raise LoginRefused(\n                f\"POST {LOGIN}: HTTP {answer.status} to {answer.location or '-'}\"\n",
+    "tests": "cannot_serve_is_no_refusal or without_a_session_cookie_is_no_login"
+  },
+  {
+    "label": "webif client: a wrong password is taken for a struggling controller",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        if answer.wrong_password:\n",
+    "new": "        if False:\n",
+    "tests": "wrong_credentials_end_the_round_at_the_login"
   },
   {
     "label": "webif client: the session is never renewed",

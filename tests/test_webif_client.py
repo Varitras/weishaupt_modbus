@@ -7,6 +7,7 @@ import re
 import socket
 
 import aiohttp
+from aiohttp import web
 import pytest
 
 from custom_components.weishaupt_modbus.webif import client as webif
@@ -21,6 +22,7 @@ from .webif_stand_in import (
     USER,
     WHOLE,
     StandInPump,
+    see_other,
     serving,
 )
 
@@ -131,7 +133,37 @@ async def test_a_login_answer_without_a_session_cookie_is_no_login(pump, session
     pump.sets_cookie = False
     client = connect(session, pump.host)
 
-    with pytest.raises(webif.LoginRefused):
+    with pytest.raises(webif.Unreachable):
+        await client.page(PAGE, whole)
+    assert pump.asked == LOGIN
+
+
+def database_unavailable():
+    return see_other("/index.html#nocon")
+
+
+def error_status():
+    return web.Response(status=500)
+
+
+def empty_session_cookie():
+    answer = see_other(webif.LOGIN_TARGET)
+    answer.headers["Set-Cookie"] = f"{webif.SESSION_COOKIE}=; path=/"
+    return answer
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [database_unavailable, error_status, empty_session_cookie],
+    ids=lambda answer: answer.__name__,
+)
+async def test_a_login_the_controller_cannot_serve_is_no_refusal(pump, session, answer):
+    """Every login answer but the wrong password counted as one: a controller
+    without its database asked the user for the credentials it already had."""
+    pump.login_answer = answer
+    client = connect(session, pump.host)
+
+    with pytest.raises(webif.Unreachable):
         await client.page(PAGE, whole)
     assert pump.asked == LOGIN
 

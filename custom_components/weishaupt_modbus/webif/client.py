@@ -27,6 +27,7 @@ LOGIN = "/login.html"
 LOGOUT = "/logout.html"
 OVERVIEW = "/settings_export.html"
 LOGIN_TARGET = "/home.html"
+WRONG_PASSWORD = INDEX + "#wrongpassword"
 SESSION_COOKIE = "session"
 # The longest whole answer in a 60-minute run took 15.5 s.
 TIMEOUT_SECONDS = 20.0
@@ -40,7 +41,11 @@ class WebifError(Exception):
 
 
 class Unreachable(WebifError):
-    """No complete answer in time, or the connection broke: the server struggles."""
+    """The server struggles.
+
+    No complete answer in time, a broken connection, or a login it could not
+    serve.
+    """
 
 
 class LoginRefused(WebifError):
@@ -78,6 +83,11 @@ class _Answer:
         The controller does not answer with the login form itself.
         """
         return self.status == HTTPStatus.SEE_OTHER and self.location == INDEX
+
+    @property
+    def wrong_password(self) -> bool:
+        """The login form's answer to credentials it does not know."""
+        return self.status == HTTPStatus.SEE_OTHER and self.location == WRONG_PASSWORD
 
 
 def _allowed(method: str, path: str) -> bool:
@@ -207,13 +217,19 @@ class Client:
     async def _login(self) -> None:
         await self._request("GET", INDEX)
         answer = await self._request("POST", LOGIN, self._credentials)
+        if answer.wrong_password:
+            raise LoginRefused(f"HTTP {answer.status} to {answer.location}")
         accepted = (
             answer.status == HTTPStatus.SEE_OTHER
             and answer.location == LOGIN_TARGET
-            and answer.cookie is not None
+            and bool(answer.cookie)
         )
         if not accepted:
-            raise LoginRefused(f"HTTP {answer.status} to {answer.location or '-'}")
+            # Its database out of reach (#nocon), an error status, no session:
+            # the controller struggles, and the credentials may well be right.
+            raise Unreachable(
+                f"POST {LOGIN}: HTTP {answer.status} to {answer.location or '-'}"
+            )
         self._cookie = answer.cookie
         self._logged_in_at = self._clock()
 

@@ -307,7 +307,9 @@ unknown. The heating power limit can be read here, not set.
   A failed page is asked for again only after its own interval. Check the
   web interface in a browser, then reload the entry to resume.
 - A refused login stops polling at once, an update requested by hand
-  included, and asks for the login again.
+  included, and asks for the login again. Any other failed login, such as
+  the controller reporting its database out of reach, counts like a failed
+  page.
 
 The user and password are stored in Home Assistant's configuration and sent
 to the heat pump only. The diagnostics download leaves them out, and the page

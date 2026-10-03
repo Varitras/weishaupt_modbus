@@ -93,7 +93,8 @@ class StandInPump:
     """Answers like the controller, and notes what it was asked.
 
     A page is answered from `site` by its address, otherwise from `pages`
-    in turn, the last one for good.
+    in turn, the last one for good. `login_answer`, when set, builds the
+    answer to every login instead.
     """
 
     def __init__(self):
@@ -107,6 +108,7 @@ class StandInPump:
         self.delays = {}
         self.keeps_sessions = True
         self.sets_cookie = True
+        self.login_answer = None
         self.sessions = set()
 
     def application(self):
@@ -130,6 +132,8 @@ class StandInPump:
     async def login(self, request):
         form = dict(await request.post())
         self.forms.append(form)
+        if self.login_answer is not None:
+            return self.login_answer()
         if form.get("pass") != PASSWORD:
             return see_other("/index.html#wrongpassword")
         session = f"{len(self.forms)}+{SESSION_ID}"
