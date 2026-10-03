@@ -15,7 +15,10 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.weishaupt_modbus import webif_coordinator
-from custom_components.weishaupt_modbus.config_flow import read_web_interface
+from custom_components.weishaupt_modbus.config_flow import (
+    ConfigFlow,
+    read_web_interface,
+)
 from custom_components.weishaupt_modbus.configentry import host_lock
 from custom_components.weishaupt_modbus.const import CONF, CONST, DEVICES
 from custom_components.weishaupt_modbus.diagnostics import (
@@ -319,6 +322,23 @@ async def test_a_refused_login_asks_for_a_new_one(hass, pump):
     flows = hass.config_entries.flow.async_progress_by_handler(CONST.DOMAIN)
     assert [flow["context"]["source"] for flow in flows] == ["reauth"]
     assert pump.asked == LOGIN
+
+
+async def test_a_web_interface_comes_through_a_migration_as_it_is(hass, pump):
+    """The migration read every entry as a pump and asked it for its host, so
+    the next version step would have stopped every web interface."""
+    entry = _entries(hass, pump)
+    own_id = f"{entry.data[CONF.PUMP_ENTRY]}-{CONST.WEB_INTERFACE}"
+    hass.config_entries.async_update_entry(entry, minor_version=0, unique_id=own_id)
+    kept = dict(entry.data)
+
+    await _start(hass, entry)
+
+    assert entry.state is ConfigEntryState.LOADED
+    current = (ConfigFlow.VERSION, ConfigFlow.MINOR_VERSION)
+    assert (entry.version, entry.minor_version) == current
+    assert dict(entry.data) == kept
+    assert entry.unique_id == own_id
 
 
 async def test_a_web_interface_without_its_pump_does_not_start(hass, pump):

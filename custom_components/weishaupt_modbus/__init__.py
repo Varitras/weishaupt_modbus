@@ -23,6 +23,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.typing import UNDEFINED
 from homeassistant.util import slugify
 
+from .config_flow import ConfigFlow
 from .configentry import (
     MyConfigEntry,
     MyData,
@@ -232,6 +233,15 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) -> bool:
     """Migrate old entry."""
+    if is_web_interface(config_entry):
+        # It came with version 11 and has nothing to carry over; the pump
+        # steps below would ask it for a host it does not have.
+        hass.config_entries.async_update_entry(
+            config_entry,
+            version=ConfigFlow.VERSION,
+            minor_version=ConfigFlow.MINOR_VERSION,
+        )
+        return True
 
     new_data = {**config_entry.data}
     _LOGGER.warning(

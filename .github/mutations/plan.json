@@ -1804,5 +1804,12 @@
     "old": "            title: shown for title, shown in page.read(text) if title in page.required\n",
     "new": "            title: shown for title, shown in page.read(text)\n",
     "tests": "keeps_only_the_titles_its_sensors_read"
+  },
+  {
+    "label": "migration: a web interface runs through the pump steps",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "            minor_version=ConfigFlow.MINOR_VERSION,\n        )\n        return True\n",
+    "new": "            minor_version=ConfigFlow.MINOR_VERSION,\n        )\n",
+    "tests": "comes_through_a_migration_as_it_is"
   }
 ]
