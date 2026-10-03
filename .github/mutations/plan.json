@@ -2259,5 +2259,19 @@
     "old": "        host_lock=host_lock(hass, host),\n        pacing=host_pacing(hass, host),\n",
     "new": "        host_lock=asyncio.Lock(),\n        pacing=host_pacing(hass, host),\n",
     "tests": "dialog_waits_while_its_pump_is_asked"
+  },
+  {
+    "label": "webif client: a request may take as long as it likes",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        self._timeout = aiohttp.ClientTimeout(total=TIMEOUT_SECONDS)\n",
+    "new": "        self._timeout = aiohttp.ClientTimeout(total=None)\n",
+    "tests": "cut_off_at_the_client_s_own_time_limit"
+  },
+  {
+    "label": "webif client: a request goes without the client's time limit",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "                    timeout=self._timeout,\n",
+    "new": "",
+    "tests": "cut_off_at_the_client_s_own_time_limit"
   }
 ]

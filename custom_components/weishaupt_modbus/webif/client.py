@@ -216,7 +216,6 @@ class Client:
         host_lock: asyncio.Lock,
         pacing: Pacing,
         gap: float | None = None,
-        timeout: float = TIMEOUT_SECONDS,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         """Prepare the client; nothing is sent before the first page.
@@ -236,10 +235,10 @@ class Client:
         self._credentials = {LOGIN_USER_FIELD: user, LOGIN_PASSWORD_FIELD: password}
         self._host_lock = host_lock
         self._pacing = pacing
-        # Read here, not as the default, so a test can shorten the gap for
-        # the clients that the dialogs and the setup create.
+        # Read here, not as defaults, so a test can shorten the gap and the
+        # time limit for the clients that the dialogs and the setup create.
         self._gap = MIN_GAP_SECONDS if gap is None else gap
-        self._timeout = aiohttp.ClientTimeout(total=timeout)
+        self._timeout = aiohttp.ClientTimeout(total=TIMEOUT_SECONDS)
         self._clock = clock
         self._lock = asyncio.Lock()
         self._logged_in_at: float | None = None

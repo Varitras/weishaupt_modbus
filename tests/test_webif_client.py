@@ -86,6 +86,21 @@ class FakeClock:
         return self.now
 
 
+async def test_a_request_is_cut_off_at_the_client_s_own_time_limit(
+    pump, session, monkeypatch
+):
+    """Every test set a limit of its own, so a client without one passed;
+    and with no Modbus limit around the lock any more, it alone keeps a
+    stalling web server from holding Modbus off."""
+    monkeypatch.setattr(webif, "TIMEOUT_SECONDS", SHORT_TIMEOUT)
+    client = connect(session, pump.host)
+    pump.delays[webif.INDEX] = SLOW
+
+    with pytest.raises(webif.Unreachable):
+        await client.page(PAGE, whole)
+    assert pump.asked == [("GET", webif.INDEX)]
+
+
 async def test_an_answer_far_larger_than_any_page_ends_the_round(pump, session):
     """Whatever answered at the pump's address could stream any amount: it
     was read whole, decoded and parsed on the event loop, and asked again."""
