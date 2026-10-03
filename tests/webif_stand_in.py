@@ -134,7 +134,7 @@ class StandInPump:
         self.forms.append(form)
         if self.login_answer is not None:
             return self.login_answer()
-        if form.get("pass") != PASSWORD:
+        if form.get(webif.LOGIN_PASSWORD_FIELD) != PASSWORD:
             return see_other("/index.html#wrongpassword")
         session = f"{len(self.forms)}+{SESSION_ID}"
         if self.keeps_sessions:

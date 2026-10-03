@@ -15,7 +15,13 @@ from dataclasses import dataclass
 from html.parser import HTMLParser
 import re
 
-STACK_LINK = re.compile(r"/settings_export\.html\?stack=[0-9A-F]{38}(?:,[0-9A-F]{38})*")
+# The one page the controller serves its menus and values from; a stack of
+# menu codes in the query names which.
+PAGE_PATH = "/settings_export.html"
+STACK_QUERY = "stack="
+STACK_LINK = re.compile(
+    re.escape(PAGE_PATH) + r"\?" + STACK_QUERY + r"[0-9A-F]{38}(?:,[0-9A-F]{38})*"
+)
 # A stack segment names its own menu depth in these two hex digits (01 for a
 # main menu, 02 below it, ...). The broken answers nest entries one level too
 # deep while they keep their old depth.
@@ -133,7 +139,7 @@ def is_child(href: str, parent: str) -> bool:
     """One level below parent, and the link's own segment says so."""
     if STACK_LINK.fullmatch(href) is None or not href.startswith(parent + ","):
         return False
-    segments = href.split("stack=", 1)[1].split(",")
+    segments = href.split(STACK_QUERY, 1)[1].split(",")
     return len(segments) == parent.count(",") + 2 and int(
         segments[-1][SEGMENT_DEPTH], 16
     ) == len(segments)

@@ -27,10 +27,12 @@ _LOGGER = logging.getLogger(__name__)
 INDEX = "/index.html"
 LOGIN = "/login.html"
 LOGOUT = "/logout.html"
-OVERVIEW = "/settings_export.html"
+OVERVIEW = pages.PAGE_PATH
 LOGIN_TARGET = "/home.html"
 WRONG_PASSWORD = INDEX + "#wrongpassword"
 SESSION_COOKIE = "session"
+LOGIN_USER_FIELD = "user"
+LOGIN_PASSWORD_FIELD = "pass"
 # The longest whole answer in a 60-minute run took 15.5 s.
 TIMEOUT_SECONDS = 20.0
 MIN_GAP_SECONDS = 5.0
@@ -221,7 +223,7 @@ class Client:
         session._retry_connection = False
         self._session = session
         self._base = base_url(host)
-        self._credentials = {"user": user, "pass": password}
+        self._credentials = {LOGIN_USER_FIELD: user, LOGIN_PASSWORD_FIELD: password}
         self._host_lock = host_lock
         self._pacing = pacing
         # Read here, not as the default, so a test can shorten the gap for
