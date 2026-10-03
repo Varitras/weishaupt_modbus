@@ -149,11 +149,16 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         self._readings = {page.key: _Reading() for page in polled}
         self._clock = clock
         self._stopped_by: tuple[str, str] | None = None
+        self._refused: LoginRefused | None = None
         self._issue = f"{STOPPED_ISSUE}_{config_entry.entry_id}"
         # Reloading the entry is how polling resumes after a stop.
         ir.async_delete_issue(hass, CONST.DOMAIN, self._issue)
 
     async def _async_update_data(self) -> dict[str, Values | None]:
+        if self._refused is not None:
+            # Until the reauth reloads the entry: an update requested by hand
+            # would send the refused login again.
+            raise ConfigEntryAuthFailed(str(self._refused))
         if self._stopped_by is None:
             for page in self._due():
                 if not await self._fetch(page):
@@ -189,6 +194,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             text = await self._client.page(page.path, page.is_whole)
         except LoginRefused as error:
             # Stops polling at once: no wrong login is repeated.
+            self._refused = error
             raise ConfigEntryAuthFailed(str(error)) from error
         except WebifError as error:
             reading.failures += 1

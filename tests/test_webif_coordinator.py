@@ -322,6 +322,21 @@ async def test_a_refused_login_stops_at_once_and_asks_for_credentials(
     assert client.asked == [HEAT_PUMP.path]
 
 
+async def test_a_refused_login_is_not_sent_again_by_a_later_refresh(
+    coordinator, client
+):
+    """Only the scheduled rounds stopped: every update requested by hand sent
+    the refused login again while the reauth waited."""
+    client.answer(HEAT_PUMP, LoginRefused("HTTP 303 to /index.html#wrongpassword"))
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator._async_update_data()
+    client.asked.clear()
+
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator._async_update_data()
+    assert client.asked == []
+
+
 async def test_a_reload_takes_the_stop_back(hass, entry, client, clock, coordinator):
     client.answer(HEAT_PUMP, Unreachable("timeout"))
     for quarter in range(3):

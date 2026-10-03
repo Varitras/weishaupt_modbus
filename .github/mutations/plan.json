@@ -1164,9 +1164,16 @@
   {
     "label": "webif coordinator: a refused login is counted like any failure",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        except LoginRefused as error:\n            # Stops polling at once: no wrong login is repeated.\n            raise ConfigEntryAuthFailed(str(error)) from error\n",
+    "old": "        except LoginRefused as error:\n            # Stops polling at once: no wrong login is repeated.\n            self._refused = error\n            raise ConfigEntryAuthFailed(str(error)) from error\n",
     "new": "",
     "tests": "refused_login_stops_at_once"
+  },
+  {
+    "label": "webif coordinator: an update by hand sends a refused login again",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if self._refused is not None:\n",
+    "new": "        if False:\n",
+    "tests": "not_sent_again_by_a_later_refresh"
   },
   {
     "label": "webif coordinator: a reload leaves the stop notice standing",
