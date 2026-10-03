@@ -26,7 +26,7 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .configentry import host_lock, host_pacing, is_web_interface
+from .configentry import host_lock, host_pacing, is_web_interface, web_interface_title
 from .const import CONF, CONST
 from .kennfeld import get_filepath
 from .migrate_helpers import entry_unique_id
@@ -489,7 +489,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 self._pumps_without_web_interface(), errors, placeholders
             )
         return self.async_create_entry(
-            title=f"{pump.title} web interface",
+            title=web_interface_title(pump.title),
             data={
                 CONF.KIND: CONST.WEB_INTERFACE,
                 CONF.PUMP_ENTRY: pump.entry_id,

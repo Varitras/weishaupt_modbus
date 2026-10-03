@@ -373,6 +373,55 @@ async def test_a_web_interface_follows_its_pump_to_a_new_address(
     assert web.runtime_data.client._host_lock is host_lock(hass, other_pump.host)
 
 
+async def test_a_web_interface_named_after_its_pump_takes_its_new_address(
+    hass, pump, other_pump
+):
+    """The pump's reconfigure titled it by its new address; its web interface
+    kept the old one in its title."""
+    web = await _start(hass, _entries(hass, pump))
+    pump_entry = hass.config_entries.async_get_entry(web.data[CONF.PUMP_ENTRY])
+
+    hass.config_entries.async_update_entry(
+        pump_entry,
+        title=other_pump.host,
+        data={**pump_entry.data, CONF.HOST: other_pump.host},
+    )
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert web.title == f"{other_pump.host} web interface"
+
+
+async def test_a_web_interface_named_after_its_pump_follows_a_new_name(hass, pump):
+    """Every new name, not only the first. A name alone changes nothing the
+    web interface asks with, so it is not logged out and in again for it."""
+    web = await _start(hass, _entries(hass, pump))
+    pump_entry = hass.config_entries.async_get_entry(web.data[CONF.PUMP_ENTRY])
+    pump.asked.clear()
+
+    for name in ("cellar", "basement"):
+        hass.config_entries.async_update_entry(pump_entry, title=name)
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert web.title == "basement web interface"
+    assert pump.asked == []
+
+
+async def test_a_web_interface_given_a_name_of_its_own_keeps_it(hass, pump, other_pump):
+    web = _entries(hass, pump)
+    hass.config_entries.async_update_entry(web, title="Weboberfläche Keller")
+    await _start(hass, web)
+    pump_entry = hass.config_entries.async_get_entry(web.data[CONF.PUMP_ENTRY])
+
+    hass.config_entries.async_update_entry(
+        pump_entry,
+        title=other_pump.host,
+        data={**pump_entry.data, CONF.HOST: other_pump.host},
+    )
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert web.title == "Weboberfläche Keller"
+
+
 async def test_switching_its_pump_on_and_off_leaves_the_web_interface_alone(
     hass, pump, mock_modbus
 ):

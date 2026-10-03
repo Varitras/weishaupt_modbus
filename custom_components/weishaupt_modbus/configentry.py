@@ -67,3 +67,8 @@ def host_pacing(hass: HomeAssistant, host: str) -> Pacing:
 def is_web_interface(entry: ConfigEntry) -> bool:
     """A pump's web interface rather than the pump over Modbus."""
     return entry.data.get(CONF.KIND) == CONST.WEB_INTERFACE
+
+
+def web_interface_title(pump_title: str) -> str:
+    """The title a pump's web interface entry is given, after the pump's."""
+    return f"{pump_title} web interface"

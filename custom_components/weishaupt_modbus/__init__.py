@@ -32,6 +32,7 @@ from .configentry import (
     host_lock,
     host_pacing,
     is_web_interface,
+    web_interface_title,
 )
 from .const import CONF, CONST
 from .coordinator import WeishauptModbusCoordinator, check_configured, write_budget
@@ -192,6 +193,7 @@ async def _async_setup_web_interface(
     entry.async_on_unload(hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, log_out))
 
     started_with = pump.data
+    pump_title = pump.title
     reloading = False
 
     @callback
@@ -199,10 +201,17 @@ async def _async_setup_web_interface(
         # The address, its lock and the sensor names come from the pump entry
         # as it was at this setup. A state change alone, such as disabling
         # the pump, changes none of them.
-        nonlocal reloading
+        nonlocal reloading, pump_title
         if reloading or changed.entry_id != pump.entry_id:
             return
         removed = change is ConfigEntryChange.REMOVED
+        # The title follows the pump's until the user gives it one of its own.
+        named_after_pump = entry.title == web_interface_title(pump_title)
+        if not removed and named_after_pump and changed.title != pump_title:
+            hass.config_entries.async_update_entry(
+                entry, title=web_interface_title(changed.title)
+            )
+        pump_title = changed.title
         if removed or changed.data != started_with:
             # Once: a running pump's own reload follows with a burst of
             # state changes, each of which would reload this entry again.

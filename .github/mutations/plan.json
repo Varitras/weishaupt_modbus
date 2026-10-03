@@ -2224,5 +2224,26 @@
     "old": "        if not pumps:\n            return self.async_abort(reason=\"no_pump\")\n        offered = self._pumps_without_web_interface()\n",
     "new": "        offered = self._pumps_without_web_interface()\n",
     "tests": "last_pump_gone_the_dialog_says_there_is_none"
+  },
+  {
+    "label": "setup: a web interface named after its pump keeps the old name",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        if not removed and named_after_pump and changed.title != pump_title:\n",
+    "new": "        if False:\n",
+    "tests": "named_after_its_pump_takes_its_new_address or named_after_its_pump_follows_a_new_name"
+  },
+  {
+    "label": "setup: a web interface named by its user takes the pump's name",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        if not removed and named_after_pump and changed.title != pump_title:\n",
+    "new": "        if not removed and changed.title != pump_title:\n",
+    "tests": "given_a_name_of_its_own_keeps_it"
+  },
+  {
+    "label": "setup: a web interface compares with the pump's first name for good",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        pump_title = changed.title\n",
+    "new": "",
+    "tests": "named_after_its_pump_follows_a_new_name"
   }
 ]
