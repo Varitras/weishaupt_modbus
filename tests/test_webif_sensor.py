@@ -16,6 +16,7 @@ from custom_components.weishaupt_modbus.webif_sensor import (
     WebifSensor,
     reading,
 )
+from homeassistant.components.sensor import SensorDeviceClass
 
 PUMP_DATA = {
     CONF.PREFIX: CONST.DEF_PREFIX,
@@ -73,6 +74,19 @@ def test_aus_reads_0_only_for_an_idle_power_or_speed(key, expected):
     to Home Assistant's statistics, which then count the next reading in full
     again; on the power limit it more likely means no limit."""
     assert reading(_description(key), "Aus") == expected
+
+
+def test_an_energy_shows_the_three_decimals_the_controller_gives():
+    """One decimal rounded a day's 0.013 kWh to 0.0 kWh: the finer resolution
+    these sensors were taken in for."""
+    energies = [
+        sensor
+        for sensor in WEBIF_SENSORS
+        if sensor.device_class is SensorDeviceClass.ENERGY
+    ]
+
+    assert len(energies) == 12
+    assert {sensor.suggested_display_precision for sensor in energies} == {3}
 
 
 def test_every_page_requires_the_titles_of_its_sensors():

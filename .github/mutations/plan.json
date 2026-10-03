@@ -1839,5 +1839,12 @@
     "old": "        if pump.entry_id not in offered:\n            return self.async_abort(reason=\"web_interface_exists\")\n",
     "new": "",
     "tests": "added_meanwhile"
+  },
+  {
+    "label": "webif sensor: an energy shows one decimal",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        suggested_display_precision=3,\n",
+    "new": "        suggested_display_precision=1,\n",
+    "tests": "three_decimals_the_controller_gives"
   }
 ]

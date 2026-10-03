@@ -168,7 +168,8 @@ def _text(key: str, title: str, **attributes: Any) -> WebifSensorDescription:
 
 def _energy(key: str, title: str) -> WebifSensorDescription:
     # Day, month and year start again from zero; a rising total reads the
-    # drop as a new period, not as a loss.
+    # drop as a new period, not as a loss. Three decimals, as the page shows
+    # them: their finer resolution is why these values are read here at all.
     return _sensor(
         key,
         title,
@@ -178,7 +179,7 @@ def _energy(key: str, title: str) -> WebifSensorDescription:
         device_class=SensorDeviceClass.ENERGY,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         state_class=SensorStateClass.TOTAL_INCREASING,
-        suggested_display_precision=1,
+        suggested_display_precision=3,
     )
 
 
