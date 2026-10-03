@@ -19,7 +19,7 @@ from custom_components.weishaupt_modbus.config_flow import (
     ConfigFlow,
     read_web_interface,
 )
-from custom_components.weishaupt_modbus.configentry import host_lock
+from custom_components.weishaupt_modbus.configentry import HOST_LOCKS, host_lock
 from custom_components.weishaupt_modbus.const import CONF, CONST, DEVICES
 from custom_components.weishaupt_modbus.diagnostics import (
     async_get_config_entry_diagnostics,
@@ -41,6 +41,7 @@ from homeassistant.core import State
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
+from .locking import WatchedLock, until
 from .webif_stand_in import (
     HEAT_PUMP_INFO,
     HEATING,
@@ -439,12 +440,13 @@ async def test_a_statistics_interval_below_the_heat_pump_page_sets_the_rounds(
 async def test_the_web_interface_waits_while_its_pump_is_asked(hass, pump):
     """Modbus and the web interface of one pump never ask it at once."""
     entry = _entries(hass, pump)
+    lock = WatchedLock()
+    hass.data.setdefault(HOST_LOCKS, {})[pump.host] = lock
 
-    async with host_lock(hass, pump.host):
-        starting = asyncio.create_task(hass.config_entries.async_setup(entry.entry_id))
-        await asyncio.sleep(0.1)
+    async with lock:
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await until(lambda: lock.waited or pump.asked)
         assert pump.asked == []
-    await starting
     await hass.async_block_till_done(wait_background_tasks=True)
 
     assert entry.state is ConfigEntryState.LOADED

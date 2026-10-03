@@ -16,7 +16,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 import custom_components.weishaupt_modbus as integration
 from custom_components.weishaupt_modbus import config_flow
 from custom_components.weishaupt_modbus.config_flow import MissingTitles
-from custom_components.weishaupt_modbus.configentry import host_lock
+from custom_components.weishaupt_modbus.configentry import HOST_LOCKS
 from custom_components.weishaupt_modbus.const import CONF, CONST
 from custom_components.weishaupt_modbus.webif.client import (
     Broken,
@@ -26,11 +26,11 @@ from custom_components.weishaupt_modbus.webif.client import (
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.helpers import config_validation as cv
 
+from .locking import WatchedLock, until
+
 pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
 
 HOST = "192.0.2.10"
-# Long enough for an unhindered probe of the mock to finish many times over.
-BUSY = 0.1
 
 # Prefix and postfix are fixed at creation: the reconfigure page has no field for them.
 FIXED_AT_CREATION = (CONF.PREFIX, CONF.DEVICE_POSTFIX)
@@ -308,9 +308,12 @@ async def test_a_host_without_a_pump_is_reported(hass, mock_modbus):
 async def test_the_probe_waits_while_the_controller_is_busy(hass):
     """The probe read its register while the web interface could be asking
     the same controller: the one access to it that skipped the shared lock."""
-    async with host_lock(hass, HOST):
+    lock = WatchedLock()
+    hass.data.setdefault(HOST_LOCKS, {})[HOST] = lock
+
+    async with lock:
         probing = hass.async_create_task(config_flow.pump_answers(hass, PAGE_ONE))
-        await asyncio.sleep(BUSY)
+        await until(lambda: lock.waited or probing.done())
         assert not probing.done()
 
     assert await probing

@@ -36,6 +36,8 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.write_budget import
     WriteBudget,
 )
 
+from .locking import WatchedLock, until
+
 OUTSIDE_TEMPERATURE = 30001
 CONSTANT_LOWERING = 41111  # TEMPERATURE setpoint whose 0x8000 means off
 POWER_REQUEST = 33103  # PERCENTAGE
@@ -358,9 +360,6 @@ async def test_a_dead_link_is_raised_not_swallowed(pump, unit):
 
 # --- the controller, shared with the web interface ----------------------------
 
-# Long enough for an unguarded request to reach the wire through the library.
-HELD_SECONDS = 0.05
-
 
 def _recorded(read, calls):
     async def recording(*args, **kwargs):
@@ -373,7 +372,7 @@ def _recorded(read, calls):
 async def test_a_poll_waits_while_the_web_interface_holds_the_controller(
     unit, monkeypatch
 ):
-    host_lock = asyncio.Lock()
+    host_lock = WatchedLock()
     pump = WeishauptHeatPump(
         unit, _all_items(), WriteBudget(warn_at=0, limit=0), host_lock
     )
@@ -383,7 +382,7 @@ async def test_a_poll_waits_while_the_web_interface_holds_the_controller(
 
     async with host_lock:
         polling = asyncio.create_task(pump.async_update())
-        await asyncio.sleep(HELD_SECONDS)
+        await until(lambda: host_lock.waited or reads)
         assert reads == []
     await polling
 
@@ -393,7 +392,7 @@ async def test_a_poll_waits_while_the_web_interface_holds_the_controller(
 async def test_a_write_waits_while_the_web_interface_holds_the_controller(
     unit, monkeypatch
 ):
-    host_lock = asyncio.Lock()
+    host_lock = WatchedLock()
     pump = WeishauptHeatPump(
         unit, _all_items(), WriteBudget(warn_at=0, limit=0), host_lock
     )
@@ -402,7 +401,7 @@ async def test_a_write_waits_while_the_web_interface_holds_the_controller(
 
     async with host_lock:
         writing = asyncio.create_task(pump.write(_row(pump, PV_SETPOINT), 1))
-        await asyncio.sleep(HELD_SECONDS)
+        await until(lambda: host_lock.waited or writes)
         assert writes == []
 
     assert await writing is True

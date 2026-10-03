@@ -13,6 +13,7 @@ import pytest
 
 from custom_components.weishaupt_modbus.webif import client as webif
 
+from .locking import WatchedLock, until
 from .webif_stand_in import (
     HEATING,
     PAGE_PATH,
@@ -436,12 +437,12 @@ async def test_two_clients_of_one_pump_keep_the_gap_between_them(pump, session):
 
 
 async def test_a_request_waits_while_modbus_holds_the_controller(pump, session):
-    host_lock = asyncio.Lock()
+    host_lock = WatchedLock()
     client = connect(session, pump.host, host_lock=host_lock)
 
     async with host_lock:
         reading = asyncio.create_task(client.page(PAGE, whole))
-        await asyncio.sleep(SHORT_TIMEOUT)
+        await until(lambda: host_lock.waited or pump.asked)
         assert pump.asked == []
 
     assert await reading == WHOLE
