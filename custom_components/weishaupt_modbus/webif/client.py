@@ -69,6 +69,28 @@ class Pacing:
     last_request: float | None = None
 
 
+@dataclass
+class Traffic:
+    """What a client asked of the controller, counted for its diagnostics.
+
+    Every count starts at zero with the client; its sensor adds what it last
+    recorded, so that a count runs on across restarts.
+    """
+
+    requests: int = 0
+    logins: int = 0
+    incomplete_pages: int = 0
+    failed_reads: int = 0
+
+    def restore(self, count: str, recorded: int) -> None:
+        """A count as its sensor last recorded it, on top of this start's.
+
+        Added, not assigned: the first round runs before the sensors restore,
+        and what it asked is counted here already.
+        """
+        setattr(self, count, getattr(self, count) + recorded)
+
+
 @dataclass(frozen=True)
 class _Answer:
     status: int
@@ -161,6 +183,8 @@ class Client:
         self._logged_in_at: float | None = None
         self._cookie: str | None = None
         self._closed = False
+        self.traffic = Traffic()
+        self._slowest: float | None = None
 
     async def page(self, path: str, complete: Callable[[str], bool]) -> str:
         """The page at path, whole by `complete`.
@@ -171,19 +195,32 @@ class Client:
         async with self._lock:
             if self._closed:
                 raise WebifError(f"{path}: the client is closed")
-            await self._ensure_session()
+            try:
+                return await self._read(path, complete)
+            except Broken, Unreachable:
+                self.traffic.failed_reads += 1
+                raise
+
+    def take_slowest_answer(self) -> float | None:
+        """The longest answer since the last call, in seconds; None for none."""
+        slowest, self._slowest = self._slowest, None
+        return slowest
+
+    async def _read(self, path: str, complete: Callable[[str], bool]) -> str:
+        await self._ensure_session()
+        answer = await self._request("GET", path)
+        if answer.session_lost:
+            self._logged_in_at = None
+            await self._login()
             answer = await self._request("GET", path)
-            if answer.session_lost:
-                self._logged_in_at = None
-                await self._login()
-                answer = await self._request("GET", path)
-            text = _page_text(path, answer)
-            if complete(text):
-                return text
-            text = _page_text(path, await self._request("GET", path))
-            if not complete(text):
-                raise Broken(path)
+        text = _page_text(path, answer)
+        if complete(text):
             return text
+        self.traffic.incomplete_pages += 1
+        text = _page_text(path, await self._request("GET", path))
+        if not complete(text):
+            raise Broken(path)
+        return text
 
     async def close(self) -> None:
         """Log out, so the server frees the session at once.
@@ -232,6 +269,7 @@ class Client:
             )
         self._cookie = answer.cookie
         self._logged_in_at = self._clock()
+        self.traffic.logins += 1
 
     async def _request(
         self, method: str, path: str, form: dict[str, str] | None = None
@@ -281,6 +319,8 @@ class Client:
             finally:
                 finished = self._clock()
                 self._pacing.last_request = finished
+                self.traffic.requests += 1
+                self._slowest = max(finished - started, self._slowest or 0.0)
         return answer, finished - started
 
     async def _pace(self) -> None:

@@ -8,7 +8,7 @@ away, and the third stops all polling until the entry is reloaded.
 """
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import timedelta
 import logging
 import math
@@ -23,7 +23,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import CONST
 from .webif import pages
-from .webif.client import Client, LoginRefused, Unreachable, WebifError
+from .webif.client import Client, LoginRefused, Traffic, Unreachable, WebifError
 from .webif.discovery import HEAT_PUMP_PAGE, HEATING_PAGE, STATISTICS_PAGE
 
 _LOGGER = logging.getLogger(__name__)
@@ -131,6 +131,12 @@ def _oldest_first(reading: _Reading) -> float:
     return -math.inf if reading.read_at is None else reading.read_at
 
 
+def _seconds_since(read_at: float | None, now: float) -> int | None:
+    if read_at is None:
+        return None
+    return round(now - read_at)
+
+
 class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
     """Each page's last whole values by page key; None where they are gone."""
 
@@ -158,8 +164,32 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         self._stopped_by: tuple[str, str] | None = None
         self._refused: LoginRefused | None = None
         self._issue = f"{STOPPED_ISSUE}_{config_entry.entry_id}"
+        # The slowest answer of the last round that asked anything.
+        self.answer_seconds: float | None = None
         # Reloading the entry is how polling resumes after a stop.
         ir.async_delete_issue(hass, CONST.DOMAIN, self._issue)
+
+    @property
+    def traffic(self) -> Traffic:
+        """What the client has asked of the controller so far."""
+        return self._client.traffic
+
+    def diagnostics(self) -> dict[str, Any]:
+        """The polling's own state, for the diagnostics download."""
+        now = self._clock()
+        return {
+            "answer_seconds": self.answer_seconds,
+            "traffic": asdict(self.traffic),
+            "stopped_by": self._stopped_by,
+            "login_refused": self._refused is not None,
+            "page_states": {
+                key: {
+                    "failures": reading.failures,
+                    "seconds_since_read": _seconds_since(reading.read_at, now),
+                }
+                for key, reading in self._readings.items()
+            },
+        }
 
     async def _async_update_data(self) -> dict[str, Values | None]:
         if self._refused is not None:
@@ -170,6 +200,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             for page in self._due():
                 if not await self._fetch(page):
                     break
+        if (slowest := self._client.take_slowest_answer()) is not None:
+            self.answer_seconds = slowest
         if self._stopped_by is not None:
             page_key, error = self._stopped_by
             raise UpdateFailed(

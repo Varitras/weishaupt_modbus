@@ -1932,6 +1932,21 @@
             },
             "webif_schaltdifferenz_heizen": {
                 "name": "{prefix}Schaltdifferenz Heizen"
+            },
+            "webif_answer_time": {
+                "name": "Antwortzeit"
+            },
+            "webif_requests": {
+                "name": "Anfragen"
+            },
+            "webif_logins": {
+                "name": "Anmeldungen"
+            },
+            "webif_incomplete_pages": {
+                "name": "Unvollständige Seiten"
+            },
+            "webif_failed_reads": {
+                "name": "Fehlgeschlagene Abrufe"
             }
         }
     },

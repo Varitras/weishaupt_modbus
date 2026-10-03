@@ -982,8 +982,8 @@
   {
     "label": "webif client: a page wrong twice passes",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "            if not complete(text):\n                raise Broken(path)\n",
-    "new": "            if not text:\n                raise Broken(path)\n",
+    "old": "        if not complete(text):\n            raise Broken(path)\n",
+    "new": "        if not text:\n            raise Broken(path)\n",
     "tests": "page_wrong_twice_is_broken"
   },
   {
@@ -1008,6 +1008,69 @@
     "tests": "no_post_but_the_login"
   },
   {
+    "label": "webif client: a request goes uncounted",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "                self.traffic.requests += 1\n",
+    "new": "",
+    "tests": "traffic_is_counted"
+  },
+  {
+    "label": "webif client: a login goes uncounted",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        self.traffic.logins += 1\n",
+    "new": "",
+    "tests": "traffic_is_counted"
+  },
+  {
+    "label": "webif client: a page that came incomplete goes uncounted",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        self.traffic.incomplete_pages += 1\n",
+    "new": "",
+    "tests": "traffic_is_counted"
+  },
+  {
+    "label": "webif client: a failed read goes uncounted",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "                self.traffic.failed_reads += 1\n",
+    "new": "",
+    "tests": "traffic_is_counted"
+  },
+  {
+    "label": "webif client: a recorded count replaces the count of this start",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        setattr(self, count, getattr(self, count) + recorded)\n",
+    "new": "        setattr(self, count, recorded)\n",
+    "tests": "recorded_count_is_added or run_on_across_a_restart"
+  },
+  {
+    "label": "webif client: the slowest answer outlives its round",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        slowest, self._slowest = self._slowest, None\n",
+    "new": "        slowest = self._slowest\n",
+    "tests": "slowest_answer_is_taken_once"
+  },
+  {
+    "label": "webif coordinator: the answer time is never taken",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if (slowest := self._client.take_slowest_answer()) is not None:\n            self.answer_seconds = slowest\n",
+    "new": "",
+    "tests": "answer_time_is_the_slowest or polling_shows_on_diagnostic_sensors"
+  },
+  {
+    "label": "webif sensor: the polling sensors go unavailable with the values",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        \"\"\"Also after the brake has stopped the polling: it explains the stop.\"\"\"\n        return True\n",
+    "new": "        \"\"\"Also after the brake has stopped the polling: it explains the stop.\"\"\"\n        return super().available\n",
+    "tests": "stay_shown_when_polling_fails"
+  },
+  {
+    "label": "webif sensor: a restart sets the counts back to zero",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        self.coordinator.traffic.restore(self.entity_description.key, recorded)\n",
+    "new": "",
+    "tests": "run_on_across_a_restart"
+  },
+  {
     "label": "webif client: aiohttp asks a dropped page again by itself",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
     "old": "        session._retry_connection = False\n",
@@ -1017,8 +1080,8 @@
   {
     "label": "webif client: a lost session is not renewed",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "            if answer.session_lost:\n",
-    "new": "            if False:\n",
+    "old": "        if answer.session_lost:\n",
+    "new": "        if False:\n",
     "tests": "lost_session_is_renewed_once"
   },
   {
@@ -1388,8 +1451,8 @@
   {
     "label": "webif sensor: a sensor sits on its topic's device, not the web interface's",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "        self._attr_device_info = device_info(pump_data, DEVICES.WEBIF)\n",
-    "new": "        self._attr_device_info = device_info(pump_data, description.topic)\n",
+    "old": "        # add to the pump entry's devices; it gets one of its own.\n        self._attr_device_info = device_info(pump_data, DEVICES.WEBIF)\n",
+    "new": "        # add to the pump entry's devices; it gets one of its own.\n        self._attr_device_info = device_info(pump_data, description.topic)\n",
     "tests": "sits_on_the_web_interface_device"
   },
   {

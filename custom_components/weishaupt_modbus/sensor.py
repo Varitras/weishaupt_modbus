@@ -8,7 +8,14 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .configentry import MyConfigEntry, WebifConfigEntry, is_web_interface
 from .const import TYPES
 from .entity_helpers import build_entity_list
-from .webif_sensor import WEBIF_SENSORS, WebifSensor
+from .webif_sensor import (
+    ANSWER_TIME,
+    TRAFFIC_SENSORS,
+    WEBIF_SENSORS,
+    AnswerTimeSensor,
+    TrafficSensor,
+    WebifSensor,
+)
 from .write_counter_sensor import WRITE_COUNTER_DESCRIPTIONS, WriteCounterSensor
 
 # Read only; the coordinator polls for every entity at once.
@@ -24,8 +31,17 @@ async def async_setup_entry(
     if is_web_interface(config_entry):
         web = cast(WebifConfigEntry, config_entry).runtime_data
         async_add_entities(
-            WebifSensor(web.coordinator, web.pump_data, description)
-            for description in WEBIF_SENSORS
+            [
+                *(
+                    WebifSensor(web.coordinator, web.pump_data, description)
+                    for description in WEBIF_SENSORS
+                ),
+                *(
+                    TrafficSensor(web.coordinator, web.pump_data, description)
+                    for description in TRAFFIC_SENSORS
+                ),
+                AnswerTimeSensor(web.coordinator, web.pump_data, ANSWER_TIME),
+            ]
         )
         return
     coordinator = config_entry.runtime_data.coordinator

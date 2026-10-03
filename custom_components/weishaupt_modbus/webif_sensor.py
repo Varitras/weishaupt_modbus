@@ -5,10 +5,11 @@ section, or a changed display, would otherwise pass for a reading.
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Any
 
 from homeassistant.components.sensor import (
+    RestoreSensor,
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
@@ -31,6 +32,7 @@ from .const import DEVICES
 from .entities import device_info, name_prefix
 from .migrate_helpers import unique_id_from_parts
 from .webif import pages
+from .webif.client import Traffic
 from .webif.discovery import HEAT_PUMP_PAGE, HEATING_PAGE, STATISTICS_PAGE
 from .webif_coordinator import WebifCoordinator
 
@@ -297,6 +299,27 @@ REQUIRED_TITLES = {
     for page in (HEAT_PUMP_PAGE, STATISTICS_PAGE, HEATING_PAGE)
 }
 
+# User wish, 2026-10-03: whether the access gets worse over time shows in
+# Home Assistant's statistics of these.
+TRAFFIC_SENSORS = tuple(
+    SensorEntityDescription(
+        key=count.name,
+        translation_key=f"webif_{count.name}",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    )
+    for count in fields(Traffic)
+)
+ANSWER_TIME = SensorEntityDescription(
+    key="answer_time",
+    translation_key="webif_answer_time",
+    device_class=SensorDeviceClass.DURATION,
+    native_unit_of_measurement=UnitOfTime.SECONDS,
+    state_class=SensorStateClass.MEASUREMENT,
+    suggested_display_precision=1,
+    entity_category=EntityCategory.DIAGNOSTIC,
+)
+
 
 def reading(description: WebifSensorDescription, shown: str | None) -> Any:
     """The value as Home Assistant shows it; None for no value or a wrong unit."""
@@ -311,19 +334,18 @@ def reading(description: WebifSensorDescription, shown: str | None) -> Any:
     return pages.number(shown)
 
 
-class WebifSensor(CoordinatorEntity[WebifCoordinator], SensorEntity):
-    """A value of a web interface page, on the web interface's device."""
+class _WebifEntity(CoordinatorEntity[WebifCoordinator], SensorEntity):
+    """A sensor on the web interface's device."""
 
-    entity_description: WebifSensorDescription
     _attr_has_entity_name = True
 
     def __init__(
         self,
         coordinator: WebifCoordinator,
         pump_data: Mapping[str, Any],
-        description: WebifSensorDescription,
+        description: SensorEntityDescription,
     ) -> None:
-        """Name the sensor the way the pump's own sensors are named."""
+        """Place the sensor on the web interface's device."""
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_unique_id = unique_id_from_parts(
@@ -332,6 +354,21 @@ class WebifSensor(CoordinatorEntity[WebifCoordinator], SensorEntity):
         # A device belongs to one config entry, so the web interface cannot
         # add to the pump entry's devices; it gets one of its own.
         self._attr_device_info = device_info(pump_data, DEVICES.WEBIF)
+
+
+class WebifSensor(_WebifEntity):
+    """A value of a web interface page, on the web interface's device."""
+
+    entity_description: WebifSensorDescription
+
+    def __init__(
+        self,
+        coordinator: WebifCoordinator,
+        pump_data: Mapping[str, Any],
+        description: WebifSensorDescription,
+    ) -> None:
+        """Name the sensor the way the pump's own sensors are named."""
+        super().__init__(coordinator, pump_data, description)
         self._attr_translation_placeholders = {
             "prefix": name_prefix(pump_data, description.topic)
         }
@@ -351,3 +388,44 @@ class WebifSensor(CoordinatorEntity[WebifCoordinator], SensorEntity):
 
     def _values(self) -> dict[str, str] | None:
         return self.coordinator.data.get(self.entity_description.page)
+
+
+class _PollingSensor(_WebifEntity):
+    """A sensor about the polling itself, beside the web interface's values."""
+
+    @property
+    def available(self) -> bool:
+        """Also after the brake has stopped the polling: it explains the stop."""
+        return True
+
+
+class AnswerTimeSensor(_PollingSensor):
+    """How long the controller took for the slowest answer of the last round."""
+
+    @property
+    def native_value(self) -> float | None:
+        """The slowest answer of the last round that asked anything."""
+        return self.coordinator.answer_seconds
+
+
+class TrafficSensor(_PollingSensor, RestoreSensor):
+    """A count of what was asked, running on across restarts.
+
+    The client starts its counts at zero on every (re)load; the last recorded
+    state is added on top in async_added_to_hass, as for the write counters.
+    """
+
+    @property
+    def native_value(self) -> int:
+        """The count as the client holds it now."""
+        return int(getattr(self.coordinator.traffic, self.entity_description.key))
+
+    async def async_added_to_hass(self) -> None:
+        """Add the last recorded count to the fresh client's."""
+        await super().async_added_to_hass()
+        last_data = await self.async_get_last_sensor_data()
+        if last_data is None or last_data.native_value is None:
+            return
+        # RestoreSensor types the value as any sensor value; ours is a count.
+        recorded = int(str(last_data.native_value))
+        self.coordinator.traffic.restore(self.entity_description.key, recorded)

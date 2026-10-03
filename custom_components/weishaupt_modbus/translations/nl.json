@@ -1932,6 +1932,21 @@
       },
       "webif_schaltdifferenz_heizen" : {
         "name" : "{prefix}Schakelverschil verwarmen"
+      },
+      "webif_answer_time" : {
+        "name" : "Antwoordtijd"
+      },
+      "webif_requests" : {
+        "name" : "Verzoeken"
+      },
+      "webif_logins" : {
+        "name" : "Aanmeldingen"
+      },
+      "webif_incomplete_pages" : {
+        "name" : "Onvolledige pagina's"
+      },
+      "webif_failed_reads" : {
+        "name" : "Mislukte opvragingen"
       }
     }
   },

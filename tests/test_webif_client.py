@@ -422,3 +422,38 @@ async def test_pages_asked_for_at_once_are_served_one_after_the_other(pump, sess
         WHOLE,
     ]
     assert pump.asked == [*LOGIN, ("GET", PAGE), ("GET", PAGE)]
+
+
+async def test_the_traffic_is_counted(pump, session):
+    """User wish, 2026-10-03: diagnostic sensors show whether the access gets
+    worse over time, from what the client counts while it asks."""
+    pump.pages = [BROKEN, WHOLE]
+    client = connect(session, pump.host)
+
+    await client.page(PAGE, whole)
+    pump.status = 500
+    with pytest.raises(webif.Broken):
+        await client.page(PAGE, whole)
+
+    assert client.traffic == webif.Traffic(
+        requests=5, logins=1, incomplete_pages=1, failed_reads=1
+    )
+
+
+async def test_the_slowest_answer_is_taken_once(pump, session):
+    pump.delays[PAGE] = SLOW
+    client = connect(session, pump.host)
+    await client.page(PAGE, whole)
+
+    assert client.take_slowest_answer() >= SLOW - CLOCK_TOLERANCE
+    assert client.take_slowest_answer() is None
+
+
+def test_a_recorded_count_is_added_to_the_count_of_this_start():
+    """The first round runs before the sensors restore: a count it made is in
+    the client already and must not be lost."""
+    traffic = webif.Traffic(requests=5)
+
+    traffic.restore("requests", 100)
+
+    assert traffic.requests == 105

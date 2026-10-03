@@ -271,9 +271,10 @@ new one by itself.
 
 ### What it reads
 
-47 sensors on a device of their own, *WH Web interface* (with the heat
-pump's postfix). Home Assistant gives every device to one entry, so they
-cannot join the heat pump's devices.
+47 sensors with the pump's values, and five about the polling itself, on a
+device of their own, *WH Web interface* (with the heat pump's postfix). Home
+Assistant gives every device to one entry, so they cannot join the heat
+pump's devices.
 
 - **Readings**: setpoint temperature, dynamic switching difference, pump M1
   speed, flow rate, diverter valve position, target and actual output, eight
@@ -285,6 +286,12 @@ cannot join the heat pump's devices.
   overall.
 - **Diagnostic**: the heating power limit and switching difference, the two
   controller software versions and the outdoor unit variant.
+- **The polling itself** (diagnostic): the answer time, the slowest answer of
+  the last round, and the counts of requests, logins, pages that came
+  incomplete and failed reads. The counts carry over restarts, so Home
+  Assistant's statistics show over weeks whether the web interface answers
+  more slowly or serves more incomplete pages, which preceded its crashes.
+  They stay shown when polling has stopped.
 
 The *Name topic prefix* option of the heat pump entry names these sensors
 like their Modbus siblings, with `WP_` or `ST_` in front.

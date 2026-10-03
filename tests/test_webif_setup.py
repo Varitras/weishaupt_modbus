@@ -9,7 +9,10 @@ from datetime import timedelta
 from itertools import pairwise
 
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    mock_restore_cache_with_extra_data,
+)
 
 from custom_components.weishaupt_modbus.config_flow import read_web_interface
 from custom_components.weishaupt_modbus.configentry import host_lock
@@ -23,10 +26,16 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     HEATING_PAGE,
     STATISTICS_PAGE,
 )
-from custom_components.weishaupt_modbus.webif_sensor import WEBIF_SENSORS
+from custom_components.weishaupt_modbus.webif_sensor import (
+    ANSWER_TIME,
+    TRAFFIC_SENSORS,
+    WEBIF_SENSORS,
+)
 from homeassistant.config_entries import ConfigEntryDisabler, ConfigEntryState
-from homeassistant.const import EVENT_HOMEASSISTANT_STOP
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP, EntityCategory
+from homeassistant.core import State
 from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from .webif_stand_in import (
     HEAT_PUMP_INFO,
@@ -68,6 +77,8 @@ SAMPLE = {
     "": "127",
     None: "V3.0",
 }
+# The values, and the sensors about the polling itself.
+EVERY_SENSOR = (*WEBIF_SENSORS, *TRAFFIC_SENSORS, ANSWER_TIME)
 SHOWN: dict = {}
 for sensor in WEBIF_SENSORS:
     SHOWN.setdefault(sensor.page, {})[sensor.title] = SAMPLE[sensor.shown_unit]
@@ -319,7 +330,7 @@ async def test_a_web_interface_stops_when_its_pump_is_removed(hass, pump):
     again = await _start(hass, _entries(hass, pump))
     registry = er.async_get(hass)
     assert len(er.async_entries_for_config_entry(registry, again.entry_id)) == len(
-        WEBIF_SENSORS
+        EVERY_SENSOR
     )
 
 
@@ -365,9 +376,11 @@ async def test_the_diagnostics_leave_out_the_login_and_the_page_addresses(hass, 
     data = diagnostics["entry"]["data"]
     assert {data[CONF.USERNAME], data[CONF.PASSWORD], data[CONF.PAGES]} == {REDACTED}
     assert PAGES[HEATING_PAGE] not in str(diagnostics)
-    assert (
-        diagnostics["coordinator"]["pages"][STATISTICS_PAGE] == SHOWN[STATISTICS_PAGE]
-    )
+    coordinator = diagnostics["coordinator"]
+    assert coordinator["pages"][STATISTICS_PAGE] == SHOWN[STATISTICS_PAGE]
+    assert coordinator["traffic"]["requests"] == len(FIRST_ROUND)
+    assert coordinator["page_states"][HEAT_PUMP_PAGE]["failures"] == 0
+    assert coordinator["stopped_by"] is None
 
 
 async def test_the_values_become_sensors_on_a_device_of_their_own(hass, pump):
@@ -375,7 +388,7 @@ async def test_the_values_become_sensors_on_a_device_of_their_own(hass, pump):
     registry = er.async_get(hass)
 
     assert len(er.async_entries_for_config_entry(registry, entry.entry_id)) == len(
-        WEBIF_SENSORS
+        EVERY_SENSOR
     )
     high_pressure = registry.async_get_entity_id(
         "sensor", CONST.DOMAIN, f"{CONST.DEF_PREFIX}webif_hochdruck"
@@ -444,3 +457,67 @@ async def test_a_pump_run_once_and_then_disabled_still_shows_its_web_interface(
     device = dr.async_get(hass).async_get(registry.async_get(high_pressure).device_id)
     assert device.config_entries == {web.entry_id}
     assert device.disabled_by is None
+
+
+TRAFFIC_COUNTS = ("requests", "logins", "incomplete_pages", "failed_reads")
+
+
+def _sensor(hass, key):
+    return er.async_get(hass).async_get_entity_id(
+        "sensor", CONST.DOMAIN, f"{CONST.DEF_PREFIX}webif_{key}"
+    )
+
+
+async def test_the_polling_shows_on_diagnostic_sensors(hass, pump):
+    """User wish, 2026-10-03: whether the access gets worse over time shows
+    in Home Assistant's statistics of these sensors."""
+    await _start(hass, _entries(hass, pump))
+    registry = er.async_get(hass)
+
+    counts = {key: hass.states.get(_sensor(hass, key)).state for key in TRAFFIC_COUNTS}
+    assert counts == {
+        "requests": "5",
+        "logins": "1",
+        "incomplete_pages": "0",
+        "failed_reads": "0",
+    }
+    answer = hass.states.get(_sensor(hass, "answer_time"))
+    assert float(answer.state) >= 0
+    assert answer.attributes["unit_of_measurement"] == "s"
+    web_device = registry.async_get(_sensor(hass, "hochdruck")).device_id
+    for key in (*TRAFFIC_COUNTS, "answer_time"):
+        registered = registry.async_get(_sensor(hass, key))
+        assert registered.entity_category is EntityCategory.DIAGNOSTIC
+        assert registered.device_id == web_device
+
+
+async def test_the_counts_run_on_across_a_restart(hass, pump):
+    """User decision, 2026-10-03: the counts carry over a restart."""
+    web = _entries(hass, pump)
+    er.async_get(hass).async_get_or_create(
+        "sensor",
+        CONST.DOMAIN,
+        f"{CONST.DEF_PREFIX}webif_requests",
+        config_entry=web,
+        suggested_object_id="web_requests",
+    )
+    recorded = {"native_value": 100, "native_unit_of_measurement": None}
+    mock_restore_cache_with_extra_data(
+        hass, [(State("sensor.web_requests", "100"), recorded)]
+    )
+
+    await _start(hass, web)
+
+    assert hass.states.get("sensor.web_requests").state == str(100 + len(FIRST_ROUND))
+
+
+async def test_the_diagnostic_sensors_stay_shown_when_polling_fails(hass, pump):
+    """The values go unavailable after the brake; the counts explain why."""
+    entry = await _start(hass, _entries(hass, pump))
+
+    entry.runtime_data.coordinator.async_set_update_error(UpdateFailed("stopped"))
+    await hass.async_block_till_done()
+
+    assert hass.states.get(_sensor(hass, "hochdruck")).state == "unavailable"
+    for key in (*TRAFFIC_COUNTS, "answer_time"):
+        assert hass.states.get(_sensor(hass, key)).state != "unavailable"

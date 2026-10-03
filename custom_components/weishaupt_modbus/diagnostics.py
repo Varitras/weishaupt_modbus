@@ -69,5 +69,6 @@ def _web_interface(entry: WebifConfigEntry) -> dict[str, Any]:
         "coordinator": {
             "last_update_success": coordinator.last_update_success,
             "pages": coordinator.data,
+            **coordinator.diagnostics(),
         },
     }

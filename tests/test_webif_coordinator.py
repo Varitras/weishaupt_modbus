@@ -17,6 +17,7 @@ from custom_components.weishaupt_modbus.const import CONST
 from custom_components.weishaupt_modbus.webif.client import (
     Broken,
     LoginRefused,
+    Traffic,
     Unreachable,
 )
 from custom_components.weishaupt_modbus.webif.discovery import (
@@ -81,15 +82,22 @@ class FakeClient:
     """Answers each page from a script; the last answer repeats.
 
     An answer is a page's text or an error to raise. Like the real client,
-    it returns only a text `complete` accepts.
+    it returns only a text `complete` accepts. `slowest` is the answer time
+    the next round takes from it.
     """
 
     def __init__(self):
         self.asked = []
         self.script = {}
+        self.traffic = Traffic()
+        self.slowest = None
 
     def answer(self, page, *answers):
         self.script[page.path] = list(answers)
+
+    def take_slowest_answer(self):
+        slowest, self.slowest = self.slowest, None
+        return slowest
 
     async def page(self, path, complete):
         self.asked.append(path)
@@ -349,6 +357,31 @@ async def test_a_refused_login_is_not_sent_again_by_a_later_refresh(
     with pytest.raises(ConfigEntryAuthFailed):
         await coordinator._async_update_data()
     assert client.asked == []
+
+
+async def test_the_answer_time_is_the_slowest_of_the_last_round_that_asked(
+    coordinator, client, clock
+):
+    """A round with nothing due asks nothing, and keeps the time shown."""
+    client.slowest = 1.9
+    await round_at(coordinator, clock, 0)
+    assert coordinator.answer_seconds == 1.9
+
+    await round_at(coordinator, clock, 60)
+
+    assert coordinator.answer_seconds == 1.9
+
+
+async def test_the_diagnostics_tell_how_old_each_reading_is(coordinator, client, clock):
+    """A support case tells a page never read from one read a while ago."""
+    client.answer(STATISTICS, Unreachable("timeout"))
+    await round_at(coordinator, clock, 0)
+    clock.now = 120
+
+    states = coordinator.diagnostics()["page_states"]
+
+    assert states["heat_pump"] == {"failures": 0, "seconds_since_read": 120}
+    assert states["statistics"] == {"failures": 1, "seconds_since_read": None}
 
 
 async def test_a_reload_takes_the_stop_back(hass, entry, client, clock, coordinator):

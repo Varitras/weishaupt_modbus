@@ -1932,6 +1932,21 @@
       },
       "webif_schaltdifferenz_heizen": {
         "name": "{prefix}Heating switching difference"
+      },
+      "webif_answer_time": {
+        "name": "Answer time"
+      },
+      "webif_requests": {
+        "name": "Requests"
+      },
+      "webif_logins": {
+        "name": "Logins"
+      },
+      "webif_incomplete_pages": {
+        "name": "Incomplete pages"
+      },
+      "webif_failed_reads": {
+        "name": "Failed reads"
       }
     }
   },
