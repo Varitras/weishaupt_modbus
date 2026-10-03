@@ -4,7 +4,6 @@
       "already_configured" : "Deze warmtepomp is al geconfigureerd",
       "reconfigure_successful" : "Configuratie bijgewerkt",
       "reauth_successful" : "De nieuwe aanmelding is geaccepteerd",
-      "webif_not_reconfigurable" : "Een webinterface-vermelding neemt het adres van de warmtepomp over. Bij een geweigerde aanmelding vraagt zij om een nieuwe; het interval staat in de opties.",
       "no_pump" : "Stel eerst de warmtepomp in; de webinterface wordt daaraan toegevoegd."
     },
     "error" : {
@@ -90,6 +89,18 @@
       "reauth_confirm" : {
         "title" : "Aanmelding bij de webinterface",
         "description" : "De webinterface heeft de aanmelding geweigerd. Voer de huidige in; de controle duurt ongeveer een halve minuut.",
+        "data" : {
+          "username" : "Gebruiker",
+          "password" : "Wachtwoord"
+        },
+        "data_description" : {
+          "username" : "De gebruiker op de aanmeldpagina van de webinterface.",
+          "password" : "Het wachtwoord op de aanmeldpagina van de webinterface."
+        }
+      },
+      "reconfigure_webif" : {
+        "title" : "Webinterface opnieuw configureren",
+        "description" : "Een nieuwe aanmelding voor de webinterface, en de pagina's worden opnieuw gezocht. De controle duurt ongeveer een halve minuut.",
         "data" : {
           "username" : "Gebruiker",
           "password" : "Wachtwoord"

@@ -1227,9 +1227,9 @@
   {
     "label": "config flow: a web interface entry opens the pump's reconfigure",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "        if is_web_interface(self._reconfigure_entry):\n            return self.async_abort(reason=\"webif_not_reconfigurable\")\n",
+    "old": "        if is_web_interface(self._reconfigure_entry):\n            return await self.async_step_reconfigure_webif()\n",
     "new": "",
-    "tests": "web_interface_entry_is_not_reconfigured"
+    "tests": "web_interface_entry_is_reconfigured_with_a_new_login"
   },
   {
     "label": "config flow: a web interface entry gets the pump's options",
@@ -1461,5 +1461,19 @@
     "old": "                for option, default in INTERVAL_OPTIONS.values()\n",
     "new": "                for option, default in list(INTERVAL_OPTIONS.values())[:1]\n",
     "tests": "interval_is_its_own_option"
+  },
+  {
+    "label": "config flow: a reconfigured web interface keeps its old pages",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                    data_updates={**user_input, CONF.PAGES: pages},\n",
+    "new": "                    data_updates=user_input,\n",
+    "tests": "web_interface_entry_is_reconfigured_with_a_new_login"
+  },
+  {
+    "label": "config flow: the web interface login comes without its user",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                vol.Required(CONF.USERNAME, default=entry.data[CONF.USERNAME]): str,\n",
+    "new": "                vol.Required(CONF.USERNAME): str,\n",
+    "tests": "web_interface_entry_is_reconfigured_with_a_new_login"
   }
 ]

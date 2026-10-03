@@ -545,15 +545,45 @@ async def test_a_refused_login_is_replaced_by_a_new_one(hass, web_interface):
     assert web_interface.visits == [(HOST, "tester", "renewed")]
 
 
-async def test_a_web_interface_entry_is_not_reconfigured(hass):
+async def test_a_web_interface_entry_is_reconfigured_with_a_new_login_and_pages(
+    hass, web_interface
+):
+    """User wish, 2026-10-02: a new login and the pages searched again,
+    without removing the entry and its sensors."""
     entry = _web_entry(hass, _pump_entry(hass))
+    moved = {
+        **FOUND_PAGES,
+        "statistics": "/settings_export.html?stack=0C000C28000000000000000A0B020003000401",
+    }
+    web_interface.outcome = moved
+    renewed = {CONF.USERNAME: "other", CONF.PASSWORD: "renewed"}
 
-    result = await hass.config_entries.flow.async_init(
-        CONST.DOMAIN, context={"source": "reconfigure", "entry_id": entry.entry_id}
-    )
+    form = await entry.start_reconfigure_flow(hass)
+    assert form["step_id"] == "reconfigure_webif"
+    prefilled = form["data_schema"]({CONF.PASSWORD: "typed"})
+    assert prefilled[CONF.USERNAME] == WEB_LOGIN[CONF.USERNAME]
+    result = await hass.config_entries.flow.async_configure(form["flow_id"], renewed)
+    await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.ABORT
-    assert result["reason"] == "webif_not_reconfigurable"
+    assert result["reason"] == "reconfigure_successful"
+    assert {key: entry.data[key] for key in renewed} == renewed
+    assert entry.data[CONF.PAGES] == moved
+    assert web_interface.visits == [(HOST, "other", "renewed")]
+
+
+async def test_a_reconfigure_visit_that_fails_keeps_the_old_login(hass, web_interface):
+    entry = _web_entry(hass, _pump_entry(hass))
+    web_interface.outcome = LoginRefused("HTTP 303 to /index.html#wrongpassword")
+
+    form = await entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        form["flow_id"], {CONF.USERNAME: "other", CONF.PASSWORD: "wrong"}
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "invalid_auth"}
+    assert {key: entry.data[key] for key in WEB_LOGIN} == WEB_LOGIN
 
 
 async def test_the_web_interface_interval_is_its_own_option(hass, web_interface):

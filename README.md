@@ -250,8 +250,9 @@ about half a minute; the dialog logs out again afterwards.
 
 The entry takes the heat pump's address. Its options set how often each page
 is read, 1 to 60 minutes: the heat pump page every 15 minutes by default,
-the statistics and the heating settings every 60. *Reconfigure* is not
-offered for this entry; a refused login asks for a new one by itself.
+the statistics and the heating settings every 60. *Reconfigure* takes a new
+user and password and searches the pages again; a refused login asks for a
+new one by itself.
 
 ### What it reads
 

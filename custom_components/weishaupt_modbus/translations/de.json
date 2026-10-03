@@ -4,7 +4,6 @@
             "already_configured": "Diese Wärmepumpe ist bereits eingerichtet",
             "reconfigure_successful": "Konfiguration aktualisiert",
             "reauth_successful": "Die neue Anmeldung wurde angenommen",
-            "webif_not_reconfigurable": "Ein Eintrag der Weboberfläche übernimmt die Adresse seiner Wärmepumpe. Wird die Anmeldung abgelehnt, fragt er nach einer neuen; das Intervall steht in den Optionen.",
             "no_pump": "Richten Sie zuerst die Wärmepumpe ein; die Weboberfläche wird ihr hinzugefügt."
         },
         "error": {
@@ -90,6 +89,18 @@
             "reauth_confirm": {
                 "title": "Anmeldung an der Weboberfläche",
                 "description": "Die Weboberfläche hat ihre Anmeldung abgelehnt. Geben Sie die aktuelle ein; die Prüfung dauert etwa eine halbe Minute.",
+                "data": {
+                    "username": "Benutzer",
+                    "password": "Passwort"
+                },
+                "data_description": {
+                    "username": "Der Benutzer der Anmeldeseite der Weboberfläche.",
+                    "password": "Das Passwort der Anmeldeseite der Weboberfläche."
+                }
+            },
+            "reconfigure_webif": {
+                "title": "Weboberfläche neu einrichten",
+                "description": "Eine neue Anmeldung für die Weboberfläche, und ihre Seiten werden neu gesucht. Die Prüfung dauert etwa eine halbe Minute.",
                 "data": {
                     "username": "Benutzer",
                     "password": "Passwort"

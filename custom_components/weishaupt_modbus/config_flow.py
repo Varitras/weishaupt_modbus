@@ -357,8 +357,34 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
     async def async_step_reauth_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """A new login for the web interface, checked on a short visit."""
-        entry = self._get_reauth_entry()
+        """A new login for the web interface it refused."""
+        return await self._web_interface_login(
+            self._get_reauth_entry(),
+            user_input,
+            step_id="reauth_confirm",
+            reason="reauth_successful",
+        )
+
+    async def async_step_reconfigure_webif(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """A new login for the web interface, and its pages searched again."""
+        return await self._web_interface_login(
+            self._get_reconfigure_entry(),
+            user_input,
+            step_id="reconfigure_webif",
+            reason="reconfigure_successful",
+        )
+
+    async def _web_interface_login(
+        self,
+        entry: config_entries.ConfigEntry,
+        user_input: dict[str, Any] | None,
+        *,
+        step_id: str,
+        reason: str,
+    ) -> config_entries.ConfigFlowResult:
+        """Check the login on a short visit; the pages it finds replace the old."""
         errors: dict[str, str] = {}
         if user_input is not None:
             pump = self.hass.config_entries.async_get_entry(entry.data[CONF.PUMP_ENTRY])
@@ -377,7 +403,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 return self.async_update_reload_and_abort(
                     entry,
                     data_updates={**user_input, CONF.PAGES: pages},
-                    reason="reauth_successful",
+                    reason=reason,
                 )
         schema = vol.Schema(
             {
@@ -385,9 +411,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 vol.Required(CONF.PASSWORD): PASSWORD_FIELD,
             }
         )
-        return self.async_show_form(
-            step_id="reauth_confirm", data_schema=schema, errors=errors
-        )
+        return self.async_show_form(step_id=step_id, data_schema=schema, errors=errors)
 
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
@@ -396,7 +420,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         errors: dict[str, str] = {}
         self._reconfigure_entry = self._get_reconfigure_entry()
         if is_web_interface(self._reconfigure_entry):
-            return self.async_abort(reason="webif_not_reconfigurable")
+            return await self.async_step_reconfigure_webif()
 
         # Pre-seed internal state dictionary with the current saved entry data
         if not self._stored_data:
