@@ -14,6 +14,9 @@
             "invalid_auth": "Die Weboberfläche hat Benutzer und Passwort abgelehnt",
             "cannot_read": "Die Weboberfläche hat ihre Menüs nicht vollständig angezeigt; bitte erneut versuchen"
         },
+        "progress": {
+            "webif_visit": "Anmeldung an der Weboberfläche und Suche nach ihren Seiten. Das dauert etwa eine halbe Minute, etwas länger, wenn eine Seite erneut abgefragt werden muss."
+        },
         "step": {
             "user": {
                 "data": {

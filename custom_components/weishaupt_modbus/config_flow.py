@@ -1,5 +1,6 @@
 """Config flow."""
 
+import asyncio
 from collections.abc import Mapping
 from contextlib import suppress
 from pathlib import Path
@@ -182,6 +183,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         """Initialize the flow."""
         self._stored_data: dict[str, Any] = {}
         self._reconfigure_entry: config_entries.ConfigEntry | None = None
+        self._visit: asyncio.Task[dict[str, str]] | None = None
+        self._visit_login: dict[str, Any] = {}
+        self._after_visit = ""
 
     def _postfixes_of_other_flows(self) -> set[str]:
         """The postfixes every other open flow of this integration has reserved."""
@@ -326,33 +330,44 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
     ) -> config_entries.ConfigFlowResult:
         """A pump's web interface: which pump, and the login."""
         pumps = self._pumps()
-        errors: dict[str, str] = {}
-        if user_input is not None:
-            pump = pumps.get(user_input[CONF.PUMP_ENTRY])
-            if pump is None:
-                return self.async_abort(reason="no_pump")
-            await self.async_set_unique_id(f"{pump.entry_id}-{CONST.WEB_INTERFACE}")
-            self._abort_if_unique_id_configured()
-            try:
-                pages = await read_web_interface(
-                    self.hass,
-                    pump.data[CONF.HOST],
-                    user_input[CONF.USERNAME],
-                    user_input[CONF.PASSWORD],
-                )
-            except WebifError as error:
-                errors["base"] = web_interface_error(error)
-            else:
-                return self.async_create_entry(
-                    title=f"{pump.title} web interface",
-                    data={
-                        CONF.KIND: CONST.WEB_INTERFACE,
-                        CONF.PUMP_ENTRY: pump.entry_id,
-                        CONF.USERNAME: user_input[CONF.USERNAME],
-                        CONF.PASSWORD: user_input[CONF.PASSWORD],
-                        CONF.PAGES: pages,
-                    },
-                )
+        if (visit := self._visit) is not None:
+            return self._webif_visited(pumps, visit)
+        if user_input is None:
+            return self._webif_form(pumps, {})
+        pump = pumps.get(user_input[CONF.PUMP_ENTRY])
+        if pump is None:
+            return self.async_abort(reason="no_pump")
+        await self.async_set_unique_id(f"{pump.entry_id}-{CONST.WEB_INTERFACE}")
+        self._abort_if_unique_id_configured()
+        return await self._visit_web_interface(pump, user_input, next_step_id="webif")
+
+    def _webif_visited(
+        self,
+        pumps: dict[str, config_entries.ConfigEntry],
+        visit: asyncio.Task[dict[str, str]],
+    ) -> config_entries.ConfigFlowResult:
+        """The new entry with the pages the visit found, or the form again."""
+        pages, errors = self._visit_result(visit)
+        login = self._visit_login
+        pump = pumps.get(login[CONF.PUMP_ENTRY])
+        if pump is None:
+            return self.async_abort(reason="no_pump")
+        if pages is None:
+            return self._webif_form(pumps, errors)
+        return self.async_create_entry(
+            title=f"{pump.title} web interface",
+            data={
+                CONF.KIND: CONST.WEB_INTERFACE,
+                CONF.PUMP_ENTRY: pump.entry_id,
+                CONF.USERNAME: login[CONF.USERNAME],
+                CONF.PASSWORD: login[CONF.PASSWORD],
+                CONF.PAGES: pages,
+            },
+        )
+
+    def _webif_form(
+        self, pumps: dict[str, config_entries.ConfigEntry], errors: dict[str, str]
+    ) -> config_entries.ConfigFlowResult:
         schema = vol.Schema(
             {
                 vol.Required(CONF.PUMP_ENTRY): vol.In(
@@ -362,7 +377,59 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 vol.Required(CONF.PASSWORD): PASSWORD_FIELD,
             }
         )
-        return self.async_show_form(step_id="webif", data_schema=schema, errors=errors)
+        # After a failed visit the pump and the user come back; the password not.
+        typed = {
+            key: self._visit_login[key]
+            for key in (CONF.PUMP_ENTRY, CONF.USERNAME)
+            if key in self._visit_login
+        }
+        return self.async_show_form(
+            step_id="webif",
+            data_schema=self.add_suggested_values_to_schema(schema, typed),
+            errors=errors,
+        )
+
+    async def _visit_web_interface(
+        self,
+        pump: config_entries.ConfigEntry,
+        login: dict[str, Any],
+        *,
+        next_step_id: str,
+    ) -> config_entries.ConfigFlowResult:
+        """Start the short visit; the dialog shows its progress meanwhile."""
+        self._visit_login = login
+        self._after_visit = next_step_id
+        self._visit = self.hass.async_create_task(
+            read_web_interface(
+                self.hass,
+                pump.data[CONF.HOST],
+                login[CONF.USERNAME],
+                login[CONF.PASSWORD],
+            )
+        )
+        return await self.async_step_webif_visit()
+
+    async def async_step_webif_visit(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """The visit runs; Home Assistant calls this again once it is done."""
+        if self._visit is not None and not self._visit.done():
+            return self.async_show_progress(
+                step_id="webif_visit",
+                progress_action="webif_visit",
+                progress_task=self._visit,
+            )
+        return self.async_show_progress_done(next_step_id=self._after_visit)
+
+    def _visit_result(
+        self, visit: asyncio.Task[dict[str, str]]
+    ) -> tuple[dict[str, str] | None, dict[str, str]]:
+        """The pages the finished visit found, or the form's error."""
+        self._visit = None
+        try:
+            return visit.result(), {}
+        except WebifError as error:
+            return None, {"base": web_interface_error(error)}
 
     async def async_step_reauth(
         self, entry_data: Mapping[str, Any]
@@ -401,29 +468,29 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         reason: str,
     ) -> config_entries.ConfigFlowResult:
         """Check the login on a short visit; the pages it finds replace the old."""
-        errors: dict[str, str] = {}
-        if user_input is not None:
-            pump = self.hass.config_entries.async_get_entry(entry.data[CONF.PUMP_ENTRY])
-            if pump is None:
-                return self.async_abort(reason="no_pump")
-            try:
-                pages = await read_web_interface(
-                    self.hass,
-                    pump.data[CONF.HOST],
-                    user_input[CONF.USERNAME],
-                    user_input[CONF.PASSWORD],
-                )
-            except WebifError as error:
-                errors["base"] = web_interface_error(error)
-            else:
-                return self.async_update_reload_and_abort(
-                    entry,
-                    data_updates={**user_input, CONF.PAGES: pages},
-                    reason=reason,
-                )
+        if (visit := self._visit) is not None:
+            pages, errors = self._visit_result(visit)
+            if pages is None:
+                return self._login_form(entry, step_id, errors)
+            return self.async_update_reload_and_abort(
+                entry,
+                data_updates={**self._visit_login, CONF.PAGES: pages},
+                reason=reason,
+            )
+        if user_input is None:
+            return self._login_form(entry, step_id, {})
+        pump = self.hass.config_entries.async_get_entry(entry.data[CONF.PUMP_ENTRY])
+        if pump is None:
+            return self.async_abort(reason="no_pump")
+        return await self._visit_web_interface(pump, user_input, next_step_id=step_id)
+
+    def _login_form(
+        self, entry: config_entries.ConfigEntry, step_id: str, errors: dict[str, str]
+    ) -> config_entries.ConfigFlowResult:
+        user = self._visit_login.get(CONF.USERNAME, entry.data[CONF.USERNAME])
         schema = vol.Schema(
             {
-                vol.Required(CONF.USERNAME, default=entry.data[CONF.USERNAME]): str,
+                vol.Required(CONF.USERNAME, default=user): str,
                 vol.Required(CONF.PASSWORD): PASSWORD_FIELD,
             }
         )

@@ -428,15 +428,18 @@ def _web_entry(hass, pump):
 
 @pytest.fixture
 def web_interface(monkeypatch):
-    """The short visit to the web interface, scripted: what it finds or raises.
+    """The short visit to the web interface, scripted: what it finds or raises,
+    and, with `held` set, not before the test lets it go.
 
     The entry a dialog creates is not started here; starting it has tests of
     its own.
     """
-    script = SimpleNamespace(visits=[], outcome=FOUND_PAGES)
+    script = SimpleNamespace(visits=[], outcome=FOUND_PAGES, held=None)
 
     async def visit(_hass, host, user, password):
         script.visits.append((host, user, password))
+        if script.held is not None:
+            await script.held.wait()
         if isinstance(script.outcome, Exception):
             raise script.outcome
         return script.outcome
@@ -476,6 +479,78 @@ async def test_with_a_pump_set_up_the_dialog_asks_what_to_add(hass):
 
     assert result["type"] is FlowResultType.MENU
     assert result["menu_options"] == ["pump", "webif"]
+
+
+async def _submit_while_the_visit_is_held(hass, web_interface, flow_id, user_input):
+    """Submit the form; the dialog must answer while the visit still runs."""
+    web_interface.held = asyncio.Event()
+    shown = await asyncio.wait_for(
+        hass.config_entries.flow.async_configure(flow_id, user_input), timeout=5
+    )
+    web_interface.held.set()
+    await hass.async_block_till_done()
+    return shown, await hass.config_entries.flow.async_configure(flow_id)
+
+
+async def test_the_dialog_shows_its_progress_while_it_visits(hass, web_interface):
+    """User wish, 2026-10-03: the visit's half minute showed as a spinning
+    button only."""
+    pump = _pump_entry(hass)
+    form = await _web_form(hass)
+
+    shown, result = await _submit_while_the_visit_is_held(
+        hass,
+        web_interface,
+        form["flow_id"],
+        {CONF.PUMP_ENTRY: pump.entry_id, **WEB_LOGIN},
+    )
+
+    assert shown["type"] is FlowResultType.SHOW_PROGRESS
+    assert shown["progress_action"] == "webif_visit"
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+
+async def test_a_reconfigure_shows_its_progress_while_it_visits(hass, web_interface):
+    entry = _web_entry(hass, _pump_entry(hass))
+    form = await entry.start_reconfigure_flow(hass)
+
+    shown, result = await _submit_while_the_visit_is_held(
+        hass,
+        web_interface,
+        form["flow_id"],
+        {CONF.USERNAME: "other", CONF.PASSWORD: "renewed"},
+    )
+    await hass.async_block_till_done()
+
+    assert shown["type"] is FlowResultType.SHOW_PROGRESS
+    assert result["reason"] == "reconfigure_successful"
+
+
+async def test_a_visit_failing_after_its_progress_shows_the_form_again(
+    hass, web_interface
+):
+    pump = _pump_entry(hass)
+    web_interface.outcome = LoginRefused("HTTP 303 to /index.html#wrongpassword")
+    form = await _web_form(hass)
+
+    _, result = await _submit_while_the_visit_is_held(
+        hass,
+        web_interface,
+        form["flow_id"],
+        {CONF.PUMP_ENTRY: pump.entry_id, **WEB_LOGIN},
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "invalid_auth"}
+    suggested = {
+        str(key): key.description["suggested_value"]
+        for key in result["data_schema"].schema
+        if key.description
+    }
+    assert suggested == {
+        CONF.PUMP_ENTRY: pump.entry_id,
+        CONF.USERNAME: WEB_LOGIN[CONF.USERNAME],
+    }, "the pump and the user come back, the password not"
 
 
 async def test_a_pumps_web_interface_is_added_with_the_pages_found(hass, web_interface):

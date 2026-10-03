@@ -1248,7 +1248,7 @@
   {
     "label": "config flow: a second web interface for the same pump is visited",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "            await self.async_set_unique_id(f\"{pump.entry_id}-{CONST.WEB_INTERFACE}\")\n            self._abort_if_unique_id_configured()\n",
+    "old": "        await self.async_set_unique_id(f\"{pump.entry_id}-{CONST.WEB_INTERFACE}\")\n        self._abort_if_unique_id_configured()\n",
     "new": "",
     "tests": "pumps_web_interface_is_added_once"
   },
@@ -1465,14 +1465,14 @@
   {
     "label": "config flow: a reconfigured web interface keeps its old pages",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "                    data_updates={**user_input, CONF.PAGES: pages},\n",
-    "new": "                    data_updates=user_input,\n",
+    "old": "                data_updates={**self._visit_login, CONF.PAGES: pages},\n",
+    "new": "                data_updates=self._visit_login,\n",
     "tests": "web_interface_entry_is_reconfigured_with_a_new_login"
   },
   {
     "label": "config flow: the web interface login comes without its user",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "                vol.Required(CONF.USERNAME, default=entry.data[CONF.USERNAME]): str,\n",
+    "old": "                vol.Required(CONF.USERNAME, default=user): str,\n",
     "new": "                vol.Required(CONF.USERNAME): str,\n",
     "tests": "web_interface_entry_is_reconfigured_with_a_new_login"
   },
@@ -1524,5 +1524,26 @@
     "old": "        pacing=host_pacing(hass, host),\n",
     "new": "        pacing=type(host_pacing(hass, host))(),\n",
     "tests": "dialog_and_the_running_entry_keep_the_gap"
+  },
+  {
+    "label": "config flow: the dialog waits for its visit without a progress screen",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        if self._visit is not None and not self._visit.done():\n",
+    "new": "        if False:\n",
+    "tests": "shows_its_progress_while_it_visits"
+  },
+  {
+    "label": "config flow: a failed visit loses its error",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "            return None, {\"base\": web_interface_error(error)}\n",
+    "new": "            return None, {}\n",
+    "tests": "visit_failing_after_its_progress or visit_that_fails_says_why"
+  },
+  {
+    "label": "config flow: a failed visit hands the password back to the form",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "            for key in (CONF.PUMP_ENTRY, CONF.USERNAME)\n",
+    "new": "            for key in (CONF.PUMP_ENTRY, CONF.USERNAME, CONF.PASSWORD)\n",
+    "tests": "visit_failing_after_its_progress"
   }
 ]

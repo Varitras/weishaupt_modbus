@@ -14,6 +14,9 @@
       "invalid_auth": "The web interface refused the user and password",
       "cannot_read": "The web interface did not show its menus completely; try again"
     },
+    "progress": {
+      "webif_visit": "Logging in to the web interface and searching its pages. This takes about half a minute, a little longer when a page has to be asked for again."
+    },
     "step": {
       "user": {
         "data": {

@@ -14,6 +14,9 @@
       "invalid_auth" : "De webinterface heeft gebruiker en wachtwoord geweigerd",
       "cannot_read" : "De webinterface heeft de menu's niet volledig getoond; probeer het opnieuw"
     },
+    "progress" : {
+      "webif_visit" : "Aanmelden bij de webinterface en de pagina's zoeken. Dit duurt ongeveer een halve minuut, iets langer als een pagina opnieuw moet worden opgevraagd."
+    },
     "step" : {
       "user" : {
         "data" : {
