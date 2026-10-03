@@ -64,7 +64,9 @@ echo "== pytest =="
 # end-to-end tests against a real Home Assistant run here too.
 # --cov-fail-under: coverage was 95 % when the gate was adopted (2026-09-03);
 # raise it when coverage rises, never lower it to get past a red run.
-"$PYTHON" -m pytest tests/ -q -m "" --cov=custom_components/weishaupt_modbus --cov-report=term:skip-covered --cov-fail-under=94
+# -n auto spreads the suite over the cores (pytest-xdist): 49 s on one core,
+# 14 s on 32 (2026-10-03). CI keeps the serial run, a second order for free.
+"$PYTHON" -m pytest tests/ -q -m "" -n auto --cov=custom_components/weishaupt_modbus --cov-report=term:skip-covered --cov-fail-under=94
 
 # The second Home Assistant version is optional because its interpreter
 # lives wherever you put it:
@@ -82,7 +84,7 @@ if [ -n "$MIN_HA_PYTHON" ]; then
     "$MIN_HA_PYTHON" .github/scripts/check_min_ha.py
 
     echo "== pytest (minimum Home Assistant) =="
-    "$MIN_HA_PYTHON" -m pytest tests/ -q -m ""
+    "$MIN_HA_PYTHON" -m pytest tests/ -q -m "" -n auto
 else
     echo "== pytest (minimum Home Assistant): SKIPPED, set MIN_HA_PYTHON =="
 fi

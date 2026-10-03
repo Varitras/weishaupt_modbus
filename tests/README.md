@@ -38,6 +38,7 @@ instance each and are deselected by default:
 pytest tests/ -q            # fast: everything but e2e
 pytest tests/ -q -m e2e     # only the slow ones
 pytest tests/ -q -m ""      # all - what CI and check.sh run
+pytest tests/ -q -m "" -n auto   # the same, spread over the cores
 ```
 
 ## Why a mutation run
