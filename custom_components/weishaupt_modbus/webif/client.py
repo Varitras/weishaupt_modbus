@@ -98,8 +98,8 @@ class Traffic:
     def restore(self, count: str, recorded: int) -> None:
         """A count as its sensor last recorded it, on top of this start's.
 
-        Added, not assigned: the first round runs before the sensors restore,
-        and what it asked is counted here already.
+        Added, not assigned, so nothing counted before the sensor restored is
+        lost.
         """
         setattr(self, count, getattr(self, count) + recorded)
 

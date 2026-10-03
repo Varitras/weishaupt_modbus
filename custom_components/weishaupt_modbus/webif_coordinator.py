@@ -287,8 +287,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 translation_domain=CONST.DOMAIN, translation_key="webif_login_refused"
             ) from error
         except Closed:
-            # The entry unloads under an update requested by hand: no failure
-            # of the page, and nothing to ask any more.
+            # The entry unloads while a round runs: no failure of the page,
+            # and nothing to ask any more.
             return False
         except WebifError as error:
             reading.failures += 1

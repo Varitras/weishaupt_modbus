@@ -672,8 +672,8 @@ async def test_the_slowest_answer_is_taken_once(pump, session):
 
 
 def test_a_recorded_count_is_added_to_the_count_of_this_start():
-    """The first round runs before the sensors restore: a count it made is in
-    the client already and must not be lost."""
+    """A count made before the sensor restored is in the client already and
+    must not be lost."""
     traffic = webif.Traffic(requests=5)
 
     traffic.restore("requests", 100)

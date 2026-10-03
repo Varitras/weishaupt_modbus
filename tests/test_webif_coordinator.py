@@ -424,9 +424,9 @@ async def test_a_good_reading_in_between_starts_the_count_anew(
 async def test_a_closed_client_ends_the_round_without_a_failure(
     hass, coordinator, client, clock, entry
 ):
-    """An unload during an update requested by hand closed the client; its
-    pages counted as failures, and the third raised the stop notice for an
-    entry that was going."""
+    """An unload during a round closed the client; its pages counted as
+    failures, and the third raised the stop notice for an entry that was
+    going."""
     timeout = Unreachable("timeout")
     client.answer(STATISTICS, timeout, timeout, Closed("the client is closed"))
     for hour in range(3):

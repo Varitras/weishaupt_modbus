@@ -1010,7 +1010,7 @@
   {
     "label": "webif coordinator: a closed client counts as a failed page",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        except Closed:\n            # The entry unloads under an update requested by hand: no failure\n            # of the page, and nothing to ask any more.\n            return False\n",
+    "old": "        except Closed:\n            # The entry unloads while a round runs: no failure of the page,\n            # and nothing to ask any more.\n            return False\n",
     "new": "",
     "tests": "closed_client_ends_the_round"
   },

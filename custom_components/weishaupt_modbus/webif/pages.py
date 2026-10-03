@@ -30,7 +30,7 @@ STACK_LINK = re.compile(
 # deep while they keep their old depth.
 SEGMENT_DEPTH = slice(26, 28)
 NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
-# The controller writes "Aus" for an idle power, request or pump speed.
+# The controller writes "Aus" for an idle power, power request or speed.
 OFF = "Aus"
 NO_VALUE = "--"
 
