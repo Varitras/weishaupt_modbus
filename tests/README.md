@@ -145,5 +145,11 @@ synthetic pages, `test_webif_client.py` and `test_webif_discovery.py` talk
 to the stand-in in `webif_stand_in.py` on the loopback address,
 `test_webif_coordinator.py` drives the polling with a fake client, and
 `test_webif_sensor.py` and `test_webif_setup.py` cover the sensors and the
-entry (the latter marked `e2e`). No recorded page is used: those carry a
-serial number, an access code and addresses.
+entry (the latter marked `e2e`). No recorded page is in the repository: those
+carry a serial number, an access code and addresses. `test_webif_recordings.py`
+checks the sensor catalogue against recordings of a real controller that stay
+on the machine that made them; it is skipped unless pointed at them:
+
+```
+WEISHAUPT_WEBIF_RECORDINGS=<capture folder of the probe tool> pytest tests/test_webif_recordings.py -m ""
+```
