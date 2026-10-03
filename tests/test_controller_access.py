@@ -9,8 +9,10 @@ controller, and every test passed.
 
 The check is lexical and per function: the lock has to be taken in the
 function that sends, where a reader sees it. A nested function does not
-inherit it, since it may run after the lock is released. The positive list
-of the web interface is held to the same place.
+inherit it, since it may run after the lock is released. A request wrapped
+in another awaited call, a `wait_for` or a `gather`, counts all the same. The
+positive list of the web interface is held to the same place, as a refusal
+before the request.
 """
 
 import ast
@@ -65,21 +67,26 @@ DEVICE_METHODS = _awaitable_methods(WeishauptHeatPump)
 
 
 def _awaited_calls(tree):
-    """Every call that is awaited or entered by `async with`, whether the
-    function it is in holds the lock there, and that function."""
-    found = []
+    """Every call in what is awaited or entered by `async with`, also one
+    wrapped in another call there (`wait_for`, `gather`, `shield`); whether
+    the function it is in holds the lock there, and that function."""
+    found = {}
+
+    def note(expression, held, function):
+        for call in ast.walk(expression):
+            if isinstance(call, ast.Call):
+                found.setdefault(call, (call, held, function))
 
     def visit(node, held, function):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
             held, function = False, node
-        if isinstance(node, ast.Await) and isinstance(node.value, ast.Call):
-            found.append((node.value, held, function))
+        if isinstance(node, ast.Await):
+            note(node.value, held, function)
         if isinstance(node, ast.AsyncWith):
             for item in node.items:
                 visit(item.context_expr, held, function)
-                if isinstance(item.context_expr, ast.Call):
-                    found.append((item.context_expr, held, function))
-                held = held or LOCK in ast.unparse(item.context_expr)
+                note(item.context_expr, held, function)
+                held = held or _is_host_lock(item.context_expr)
             for statement in node.body:
                 visit(statement, held, function)
             return
@@ -87,7 +94,7 @@ def _awaited_calls(tree):
             visit(child, held, function)
 
     visit(tree, False, None)
-    return found
+    return list(found.values())
 
 
 def _name_of(node):
@@ -96,6 +103,14 @@ def _name_of(node):
     if isinstance(node, ast.Name):
         return node.id
     return None
+
+
+def _is_host_lock(expression):
+    """`self._host_lock`, `host_lock(hass, host)`: a name that ends in it.
+    One that merely contains it is another lock."""
+    target = expression.func if isinstance(expression, ast.Call) else expression
+    name = _name_of(target)
+    return name is not None and name.endswith(LOCK)
 
 
 def _is_request(call):
@@ -134,11 +149,23 @@ def _web_requests(source):
     ]
 
 
-def _asks_the_positive_list_first(function, call):
+def _refuses_off_the_list(node):
+    """`if not _allowed(...):` with a raise in its body."""
+    if not isinstance(node, ast.If):
+        return False
+    test = node.test
+    asks = (
+        isinstance(test, ast.UnaryOp)
+        and isinstance(test.op, ast.Not)
+        and isinstance(test.operand, ast.Call)
+        and _name_of(test.operand.func) == POSITIVE_LIST
+    )
+    return asks and any(isinstance(statement, ast.Raise) for statement in node.body)
+
+
+def _refused_off_the_list_first(function, call):
     return function is not None and any(
-        isinstance(node, ast.Call)
-        and _name_of(node.func) == POSITIVE_LIST
-        and node.lineno < call.lineno
+        _refuses_off_the_list(node) and node.lineno < call.lineno
         for node in ast.walk(function)
     )
 
@@ -148,7 +175,7 @@ def _unlisted_web_requests(source):
         where
         for where, call, _, function in _requests(source)
         if call.func.attr in WEB_REQUESTS
-        and not _asks_the_positive_list_first(function, call)
+        and not _refused_off_the_list_first(function, call)
     ]
 
 
@@ -254,3 +281,44 @@ def test_the_scan_catches_a_positive_list_asked_one_call_up():
 
     assert _unlisted_web_requests(asked_by_the_caller) == ["6: self._session.request"]
     assert _unlisted_web_requests(asked_where_it_goes_out) == []
+
+
+def test_the_positive_list_has_to_refuse_not_just_be_asked():
+    """A call whose answer nobody looks at passed for the check."""
+    asked_and_ignored = (
+        "async def _exchange(self, method, path):\n"
+        "    _allowed(method, path)\n"
+        "    async with self._session.request(method, path) as answer:\n"
+        "        return answer\n"
+    )
+
+    assert _unlisted_web_requests(asked_and_ignored) == ["3: self._session.request"]
+
+
+def test_the_scan_sees_a_request_wrapped_in_another_call():
+    """A time limit or a gathering around the request hid it, and `wait_for`
+    is the shape a time limit would come back in."""
+    wrapped = (
+        "async def probe(unit):\n"
+        "    await asyncio.wait_for(unit.read_input_registers(30001, 1), 5)\n"
+    )
+    gathered = (
+        "async def poll(first, second):\n"
+        "    await asyncio.gather(first.async_update(), second.async_update())\n"
+    )
+
+    assert _unlocked_requests(wrapped) == ["2: unit.read_input_registers"]
+    assert _unlocked_requests(gathered) == [
+        "2: first.async_update",
+        "2: second.async_update",
+    ]
+
+
+def test_a_lock_that_only_contains_the_name_is_another_lock():
+    another = (
+        "async def exchange(self):\n"
+        "    async with self._host_lock_for_tests:\n"
+        "        await self._session.request(method, url)\n"
+    )
+
+    assert _unlocked_requests(another) == ["3: self._session.request"]

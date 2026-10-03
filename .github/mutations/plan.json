@@ -2371,5 +2371,26 @@
     "old": "Die Seite {page} der Weboberfläche zeigt {titles} nicht.",
     "new": "Die Seite {page} der Weboberfläche zeigt nicht alle Titel.",
     "tests": "every_visit_error_names_what_the_code_fills_in"
+  },
+  {
+    "label": "controller access: the positive list is asked and its answer ignored",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        if not _allowed(method, path):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "new": "        _allowed(method, path)\n",
+    "tests": "every_web_request_asks_the_positive_list_first"
+  },
+  {
+    "label": "controller access: the probe goes out wrapped in a time limit, without the lock",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        async with (\n            host_lock(hass, data[CONF.HOST]),\n            async_get_temporary_unit(hass, params, MODBUS_UNIT_ID) as unit,\n        ):\n            await unit.read_input_registers(PROBE_REGISTER, 1)\n",
+    "new": "        async with async_get_temporary_unit(hass, params, MODBUS_UNIT_ID) as unit:\n            await asyncio.wait_for(unit.read_input_registers(PROBE_REGISTER, 1), 5)\n",
+    "tests": "every_request_to_the_controller_holds_the_host_lock"
+  },
+  {
+    "label": "controller access: a web request goes out under a lock merely named like it",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        async with self._host_lock:\n            started = self._clock()\n",
+    "new": "        async with self._host_lock_for_tests:\n            started = self._clock()\n",
+    "tests": "every_request_to_the_controller_holds_the_host_lock"
   }
 ]
