@@ -86,6 +86,29 @@ class FakeClock:
         return self.now
 
 
+async def test_a_request_without_an_answer_is_logged_too(pump, session, caplog):
+    """A request that timed out left no line, so the log could not tell a
+    slow controller from a silent one."""
+    caplog.set_level(logging.DEBUG, logger=webif.__name__)
+    client = connect(session, pump.host)
+    await client.page(PAGE, whole)
+    pump.delays[PAGE] = SLOW
+    caplog.clear()
+
+    with short_timeout(client), pytest.raises(webif.Unreachable):
+        await client.page(PAGE, whole)
+
+    lines = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == webif.__name__
+    ]
+    assert len(lines) == 1
+    assert re.fullmatch(
+        rf"GET {re.escape(PAGE)}: TimeoutError after \d+\.\d s", lines[0]
+    )
+
+
 @pytest.mark.parametrize(
     ("host", "url"),
     [

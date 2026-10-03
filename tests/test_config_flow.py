@@ -5,6 +5,7 @@ integration.
 """
 
 import asyncio
+import logging
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -613,6 +614,21 @@ async def test_a_visit_that_fails_says_why(hass, web_interface, failure, error):
 
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": error}
+
+
+async def test_a_failed_visit_leaves_a_debug_line(hass, web_interface, caplog):
+    """The visit's error became a key in the form and nothing else: the log
+    could not say why a dialog had failed."""
+    caplog.set_level(logging.DEBUG, logger=config_flow.__name__)
+    pump = _pump_entry(hass)
+    web_interface.outcome = Unreachable("GET /index.html: TimeoutError")
+    form = await _web_form(hass)
+
+    await hass.config_entries.flow.async_configure(
+        form["flow_id"], {CONF.PUMP_ENTRY: pump.entry_id, **WEB_LOGIN}
+    )
+
+    assert "GET /index.html: TimeoutError" in caplog.text
 
 
 async def test_a_page_the_dialog_cannot_use_is_named_in_the_form(hass, web_interface):

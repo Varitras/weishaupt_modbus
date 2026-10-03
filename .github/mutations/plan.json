@@ -1290,7 +1290,7 @@
   {
     "label": "webif client: an unreachable pump's address is in the message",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "                raise Unreachable(f\"{method} {path}: {type(error).__name__}\") from error\n",
+    "old": "                raise Unreachable(f\"{method} {path}: {kind}\") from error\n",
     "new": "                raise Unreachable(f\"{method} {path}: {error!r}\") from error\n",
     "tests": "takes_no_connection_is_unreachable"
   },
@@ -1640,8 +1640,8 @@
   {
     "label": "webif client: a request leaves no line in the log",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        _LOGGER.debug(\n",
-    "new": "        (\n",
+    "old": "        _LOGGER.debug(\n            \"%s %s: HTTP %s%s, %.1f s\",\n",
+    "new": "        (\n            \"%s %s: HTTP %s%s, %.1f s\",\n",
     "tests": "every_request_is_logged_but_never_the_login"
   },
   {
@@ -1867,5 +1867,19 @@
     "old": "                async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):\n",
     "new": "                async with self._host_lock:\n",
     "tests": "never_answers_is_cut_off"
+  },
+  {
+    "label": "webif client: a request without an answer leaves no line",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "                _LOGGER.debug(\n                    \"%s %s: %s after %.1f s\",\n",
+    "new": "                (\n                    \"%s %s: %s after %.1f s\",\n",
+    "tests": "without_an_answer_is_logged"
+  },
+  {
+    "label": "config flow: a failed visit leaves no line in the log",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "            _LOGGER.debug(\"Web interface visit failed: %s\", error)\n",
+    "new": "",
+    "tests": "failed_visit_leaves_a_debug_line"
   }
 ]

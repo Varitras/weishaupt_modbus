@@ -334,7 +334,15 @@ class Client:
                     )
             except (TimeoutError, aiohttp.ClientError) as error:
                 # The kind only: aiohttp's own text names the pump's address.
-                raise Unreachable(f"{method} {path}: {type(error).__name__}") from error
+                kind = type(error).__name__
+                _LOGGER.debug(
+                    "%s %s: %s after %.1f s",
+                    method,
+                    path,
+                    kind,
+                    self._clock() - started,
+                )
+                raise Unreachable(f"{method} {path}: {kind}") from error
             finally:
                 finished = self._clock()
                 self._pacing.last_request = finished

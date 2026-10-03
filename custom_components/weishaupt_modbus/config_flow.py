@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import Mapping
 from contextlib import suppress
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +41,8 @@ from .weishaupt_modbus_api.const import (
     EEPROM_WRITE_RATING,
     MODBUS_UNIT_ID,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _kennfeld_files(folder: Path) -> list[str]:
@@ -514,6 +517,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         try:
             return visit.result(), {}, {}
         except WebifError as error:
+            _LOGGER.debug("Web interface visit failed: %s", error)
             errors = {"base": web_interface_error(error)}
             return None, errors, web_interface_error_placeholders(error)
 
