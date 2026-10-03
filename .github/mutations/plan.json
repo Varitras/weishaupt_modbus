@@ -1183,13 +1183,6 @@
     "tests": "request_waits_while_modbus_holds"
   },
   {
-    "label": "webif coordinator: rounds follow the shortest interval alone",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        tick = math.gcd(*(int(page.interval.total_seconds()) for page in polled))\n",
-    "new": "        tick = min(int(page.interval.total_seconds()) for page in polled)\n",
-    "tests": "step_that_divides_every_interval or 7_minutes_beside_one_of_5"
-  },
-  {
     "label": "webif coordinator: a round a second early skips a due page",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
     "old": "DUE_SLACK_SECONDS = 5.0\n",
@@ -1255,8 +1248,8 @@
   {
     "label": "webif coordinator: a stopped coordinator still asks by hand",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        if self._stopped_by is None:\n            for page in self._due():\n",
-    "new": "        if True:\n            for page in self._due():\n",
+    "old": "        if self._stopped_by is None:\n            finished = await self._round()\n",
+    "new": "        if True:\n            finished = await self._round()\n",
     "tests": "third_failure_in_a_row_stops"
   },
   {
@@ -2098,5 +2091,26 @@
     "old": "import re\n",
     "new": "import re\n\nfrom homeassistant.core import HomeAssistant\n",
     "tests": "web_interface_imports_nothing_of_home_assistant"
+  },
+  {
+    "label": "webif coordinator: rounds come on the shortest interval, whatever is due",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        wait = min(self._due_in(page, now) for page in self._pages)\n",
+    "new": "        wait = self._shortest_interval.total_seconds()\n",
+    "tests": "refresh_by_hand_does_not_put_the_next_round_off or 7_minutes_beside_one_of_5"
+  },
+  {
+    "label": "webif coordinator: a round ended by a timeout is followed at once",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            wait = max(wait, self._shortest_interval.total_seconds())\n",
+    "new": "            wait = min(wait, self._shortest_interval.total_seconds())\n",
+    "tests": "round_ended_by_a_timeout_gives_the_controller_a_rest"
+  },
+  {
+    "label": "webif coordinator: the next plan undoes the brake",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if self._stopped_by is not None:\n            return\n        now = self._clock()\n",
+    "new": "        now = self._clock()\n",
+    "tests": "third_failure_in_a_row_stops"
   }
 ]

@@ -5,7 +5,6 @@ integration.
 """
 
 import asyncio
-from datetime import timedelta
 from itertools import pairwise
 
 import pytest
@@ -415,14 +414,21 @@ async def test_a_web_interface_stops_when_its_pump_is_removed(hass, pump):
     )
 
 
+def _next_round_within(entry, minutes):
+    """Whether the round after the first comes within the minutes, less the
+    seconds the first round took to reach that page."""
+    wait = entry.runtime_data.coordinator.update_interval.total_seconds()
+    return minutes * 60 - webif_coordinator.DUE_SLACK_SECONDS < wait <= minutes * 60
+
+
 async def test_the_heat_pump_page_follows_the_interval_option(hass, pump):
-    """7 minutes beside the other pages' 15: a round every minute keeps both,
-    where rounds every 7 read the other pages every 21."""
+    """7 minutes beside the other pages' 15: the next round is the heat pump
+    page's, 7 minutes after the first."""
     entry = await _start(
         hass, _entries(hass, pump, options={CONST.OPTION_WEBIF_HEAT_PUMP_INTERVAL: 7})
     )
 
-    assert entry.runtime_data.coordinator.update_interval == timedelta(minutes=1)
+    assert _next_round_within(entry, 7)
 
 
 async def test_a_statistics_interval_below_the_heat_pump_page_sets_the_rounds(
@@ -434,7 +440,7 @@ async def test_a_statistics_interval_below_the_heat_pump_page_sets_the_rounds(
     }
     entry = await _start(hass, _entries(hass, pump, options=options))
 
-    assert entry.runtime_data.coordinator.update_interval == timedelta(minutes=3)
+    assert _next_round_within(entry, 3)
 
 
 async def test_the_web_interface_waits_while_its_pump_is_asked(hass, pump):

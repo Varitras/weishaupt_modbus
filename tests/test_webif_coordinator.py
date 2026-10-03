@@ -11,7 +11,10 @@ import pathlib
 import re
 
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
 
 from custom_components.weishaupt_modbus import webif_coordinator
 from custom_components.weishaupt_modbus.const import CONST
@@ -35,6 +38,7 @@ from custom_components.weishaupt_modbus.webif_coordinator import (
 )
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.util import dt as dt_util
 
 STACK = "/settings_export.html?stack="
 PUMP_MENU = "64000001000000000080000A0B010002000301"
@@ -144,6 +148,14 @@ def coordinator(hass, entry, client, clock):
     )
 
 
+@pytest.fixture
+def listened(coordinator):
+    """Home Assistant plans rounds only for a coordinator something listens to."""
+    stop_listening = coordinator.async_add_listener(lambda: None)
+    yield coordinator
+    stop_listening()
+
+
 async def round_at(coordinator, clock, seconds):
     clock.now = seconds
     await coordinator.async_refresh()
@@ -207,44 +219,45 @@ async def test_a_page_keeps_only_the_titles_its_sensors_read(
     assert coordinator.data["heat_pump"] == {"Hochdruck": "24.4 BAR"}
 
 
-@pytest.mark.parametrize(
-    ("minutes", "tick"),
-    [((15, 60, 60), 15), ((10, 15, 15), 5), ((5, 7, 15), 1)],
-)
-async def test_a_round_comes_on_the_step_that_divides_every_interval(
-    hass, entry, client, minutes, tick
-):
-    polled = [
-        replace(page, interval=timedelta(minutes=interval))
-        for page, interval in zip(
-            (HEAT_PUMP, STATISTICS, HEATING), minutes, strict=True
-        )
-    ]
-
-    coordinator = WebifCoordinator(hass, entry, client, polled)
-
-    assert coordinator.update_interval == timedelta(minutes=tick)
-
-
 async def test_a_page_of_7_minutes_beside_one_of_5_comes_after_7_not_10(
     hass, entry, client, clock
 ):
     """The round came as often as the most frequent page, so a slower page
-    waited past its own interval for the faster page's next round."""
+    waited past its own interval for the faster page's next round. Each
+    round now comes when the next page is due, and none asks nothing."""
     polled = [
         replace(HEAT_PUMP, interval=timedelta(minutes=5)),
         replace(STATISTICS, interval=timedelta(minutes=7)),
     ]
     coordinator = WebifCoordinator(hass, entry, client, polled, clock=clock)
-    tick = coordinator.update_interval.total_seconds()
-    read_at = []
-    for step in range(round(15 * 60 / tick)):
+    rounds = []
+    while clock.now <= 15 * 60:
         client.asked.clear()
-        await round_at(coordinator, clock, step * tick)
-        if STATISTICS.path in client.asked:
-            read_at.append(clock.now / 60)
+        await coordinator.async_refresh()
+        rounds.append((clock.now / 60, list(client.asked)))
+        clock.now += coordinator.update_interval.total_seconds()
 
-    assert read_at == [0, 7, 14]
+    assert rounds == [
+        (0, [HEAT_PUMP.path, STATISTICS.path]),
+        (5, [HEAT_PUMP.path]),
+        (7, [STATISTICS.path]),
+        (10, [HEAT_PUMP.path]),
+        (14, [STATISTICS.path]),
+        (15, [HEAT_PUMP.path]),
+    ]
+
+
+async def test_a_round_ended_by_a_timeout_gives_the_controller_a_rest(
+    coordinator, client, clock
+):
+    """The pages a timeout kept the round from are due at once; asking them
+    right away would leave a struggling controller no rest."""
+    client.answer(HEAT_PUMP, Unreachable("timeout"))
+
+    await round_at(coordinator, clock, 0)
+
+    assert client.asked == [HEAT_PUMP.path]
+    assert coordinator.update_interval == QUARTER_HOUR
 
 
 async def test_a_page_is_asked_for_again_once_its_interval_is_over(
@@ -259,6 +272,23 @@ async def test_a_page_is_asked_for_again_once_its_interval_is_over(
     client.asked.clear()
     await round_at(coordinator, clock, 15 * 60 + 60)
     assert client.asked == []
+
+
+async def test_a_refresh_by_hand_does_not_put_the_next_round_off(
+    hass, listened, client, clock
+):
+    """Home Assistant plans the next round from the end of every refresh, one
+    requested by hand included: an update shortly before a page was due put
+    that page off by a whole round."""
+    await round_at(listened, clock, 0)
+    await round_at(listened, clock, 15 * 60 - 10)
+    client.asked.clear()
+    clock.now = 15 * 60
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=11))
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert client.asked == [HEAT_PUMP.path]
 
 
 async def test_a_round_a_second_early_still_reads_a_due_page(

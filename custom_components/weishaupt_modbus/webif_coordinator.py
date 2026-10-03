@@ -1,10 +1,11 @@
 """Keeping the web interface's pages fresh, and stopping when they will not come.
 
-A round asks for the pages that are due, the one with the oldest reading
-first: after a timeout nothing else is asked in that round, and a fixed order
-would leave the last pages starving on a struggling pump. A page that fails
-keeps its last values through one failure, the second in a row takes them
-away, and the third stops all polling until the entry is reloaded.
+A round comes when the next page is due and asks for every page that is, the
+one with the oldest reading first: after a timeout nothing else is asked in
+that round, and a fixed order would leave the last pages starving on a
+struggling pump. A page that fails keeps its last values through one failure,
+the second in a row takes them away, and the third stops all polling until
+the entry is reloaded.
 """
 
 from collections.abc import Callable, Mapping
@@ -153,17 +154,16 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         *,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
-        """A round on the largest step that divides every page's interval."""
-        # On the shortest interval alone, a page of 7 minutes beside one of 5
-        # came every 10. A round with nothing due asks nothing.
-        tick = math.gcd(*(int(page.interval.total_seconds()) for page in polled))
+        """Each round plans the next for when the next page is due."""
+        shortest = min(page.interval for page in polled)
         super().__init__(
             hass,
             _LOGGER,
             config_entry=config_entry,
             name="weishaupt-webif",
-            update_interval=timedelta(seconds=tick),
+            update_interval=shortest,
         )
+        self._shortest_interval = shortest
         self._client = client
         self._pages = polled
         self._readings = {page.key: _Reading() for page in polled}
@@ -211,9 +211,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 translation_domain=CONST.DOMAIN, translation_key="webif_login_refused"
             ) from self._refused
         if self._stopped_by is None:
-            for page in self._due():
-                if not await self._fetch(page):
-                    break
+            finished = await self._round()
+            self._plan_next_round(finished)
         if (slowest := self._client.take_slowest_answer()) is not None:
             self.answer_seconds = slowest
         if self._stopped_by is not None:
@@ -230,19 +229,41 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             for key, reading in self._readings.items()
         }
 
+    async def _round(self) -> bool:
+        """Ask every due page; False when the round had to end early."""
+        for page in self._due():
+            if not await self._fetch(page):
+                return False
+        return True
+
+    def _plan_next_round(self, finished: bool) -> None:
+        # Home Assistant plans the next round from the end of every refresh,
+        # one requested by hand included: on a fixed interval, an update just
+        # before a page was due put that page off by a whole round.
+        if self._stopped_by is not None:
+            return
+        now = self._clock()
+        wait = min(self._due_in(page, now) for page in self._pages)
+        if not finished:
+            # The pages the round did not reach are due at once; the
+            # struggling controller gets the shortest interval to recover.
+            wait = max(wait, self._shortest_interval.total_seconds())
+        self.update_interval = timedelta(seconds=wait)
+
     def _due(self) -> list[Page]:
         now = self._clock()
-        due = [page for page in self._pages if self._is_due(page, now)]
+        due = [
+            page for page in self._pages if self._due_in(page, now) <= DUE_SLACK_SECONDS
+        ]
         return sorted(due, key=lambda page: _oldest_first(self._readings[page.key]))
 
-    def _is_due(self, page: Page, now: float) -> bool:
+    def _due_in(self, page: Page, now: float) -> float:
         # From the last try, not the last good reading: a failed page waits out
         # its interval too, also for an update requested by hand.
         asked_at = self._readings[page.key].asked_at
-        return (
-            asked_at is None
-            or now - asked_at >= page.interval.total_seconds() - DUE_SLACK_SECONDS
-        )
+        if asked_at is None:
+            return 0.0
+        return asked_at + page.interval.total_seconds() - now
 
     async def _fetch(self, page: Page) -> bool:
         """Read one page; False when the round has to end."""
