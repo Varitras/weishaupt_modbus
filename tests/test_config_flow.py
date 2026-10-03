@@ -649,18 +649,57 @@ async def test_a_reconfigure_names_a_page_it_cannot_use(hass, web_interface):
     }
 
 
-async def test_a_pumps_web_interface_is_added_once(hass, web_interface):
-    pump = _pump_entry(hass)
-    _web_entry(hass, pump)
+def _offered_pumps(form):
+    """The pump entries the web interface form lets the user pick."""
+    schema = form["data_schema"].schema
+    field = next(key for key in schema if str(key) == CONF.PUMP_ENTRY)
+    return set(schema[field].container)
+
+
+async def test_the_web_dialog_offers_only_pumps_without_one(hass, web_interface):
+    """A pump that had its web interface was offered, and picking it ended
+    the dialog with "This heat pump is already configured"."""
+    first = _pump_entry(hass)
+    _web_entry(hass, first)
+    second = _pump_entry(hass, host="192.0.2.11")
+
     form = await _web_form(hass)
 
+    assert _offered_pumps(form) == {second.entry_id}
+
+
+async def test_with_every_pump_on_its_web_interface_the_dialog_says_so(
+    hass, web_interface
+):
+    pump = _pump_entry(hass)
+    _web_entry(hass, pump)
+    menu = await hass.config_entries.flow.async_init(
+        CONST.DOMAIN, context={"source": "user"}
+    )
+
     result = await hass.config_entries.flow.async_configure(
-        form["flow_id"], {CONF.PUMP_ENTRY: pump.entry_id, **WEB_LOGIN}
+        menu["flow_id"], {"next_step_id": "webif"}
     )
 
     assert result["type"] is FlowResultType.ABORT
-    assert result["reason"] == "already_configured"
-    assert web_interface.visits == [], "no visit for an entry that exists"
+    assert result["reason"] == "every_pump_has_web_interface"
+    assert web_interface.visits == []
+
+
+async def test_a_web_interface_added_meanwhile_ends_the_dialog(hass, web_interface):
+    """Another dialog added the pump's web interface while this one was open."""
+    first = _pump_entry(hass)
+    _pump_entry(hass, host="192.0.2.11")
+    form = await _web_form(hass)
+    _web_entry(hass, first)
+
+    result = await hass.config_entries.flow.async_configure(
+        form["flow_id"], {CONF.PUMP_ENTRY: first.entry_id, **WEB_LOGIN}
+    )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "web_interface_exists"
+    assert web_interface.visits == []
 
 
 async def test_a_refused_login_is_replaced_by_a_new_one(hass, web_interface):

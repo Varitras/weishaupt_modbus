@@ -305,6 +305,19 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
             if not is_web_interface(entry)
         }
 
+    def _pumps_without_web_interface(self) -> dict[str, config_entries.ConfigEntry]:
+        """The pumps the dialog offers: each has one web interface at most."""
+        taken = {
+            entry.data[CONF.PUMP_ENTRY]
+            for entry in self.hass.config_entries.async_entries(CONST.DOMAIN)
+            if is_web_interface(entry)
+        }
+        return {
+            entry_id: pump
+            for entry_id, pump in self._pumps().items()
+            if entry_id not in taken
+        }
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
@@ -394,13 +407,17 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         pumps = self._pumps()
         if (visit := self._visit) is not None:
             return self._webif_visited(pumps, visit)
+        offered = self._pumps_without_web_interface()
+        if not offered:
+            return self.async_abort(reason="every_pump_has_web_interface")
         if user_input is None:
-            return self._webif_form(pumps, {})
+            return self._webif_form(offered, {})
         pump = pumps.get(user_input[CONF.PUMP_ENTRY])
         if pump is None:
             return self.async_abort(reason="no_pump")
         await self.async_set_unique_id(f"{pump.entry_id}-{CONST.WEB_INTERFACE}")
-        self._abort_if_unique_id_configured()
+        if pump.entry_id not in offered:
+            return self.async_abort(reason="web_interface_exists")
         return await self._visit_web_interface(pump, user_input, next_step_id="webif")
 
     def _webif_visited(
@@ -415,7 +432,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         if pump is None:
             return self.async_abort(reason="no_pump")
         if pages is None:
-            return self._webif_form(pumps, errors, placeholders)
+            return self._webif_form(
+                self._pumps_without_web_interface(), errors, placeholders
+            )
         return self.async_create_entry(
             title=f"{pump.title} web interface",
             data={

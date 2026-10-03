@@ -5,7 +5,10 @@
       "reconfigure_successful": "Configuration updated",
       "reauth_successful": "The new login was accepted",
       "no_pump": "Set up the heat pump first; its web interface is added to it.",
-      "pump_removed": "Its heat pump entry was removed. Delete this web interface entry and add it again with the heat pump."
+      "pump_removed": "Its heat pump entry was removed. Delete this web interface entry and add it again with the heat pump.",
+      "already_in_progress": "Another dialog is already setting this up.",
+      "every_pump_has_web_interface": "Every heat pump already has its web interface.",
+      "web_interface_exists": "This heat pump already has its web interface."
     },
     "error": {
       "cannot_connect": "Failed to connect",

@@ -1372,11 +1372,11 @@
     "tests": "interval_is_its_own_option"
   },
   {
-    "label": "config flow: a second web interface for the same pump is visited",
+    "label": "config flow: a web interface entry gets no unique id",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "        await self.async_set_unique_id(f\"{pump.entry_id}-{CONST.WEB_INTERFACE}\")\n        self._abort_if_unique_id_configured()\n",
+    "old": "        await self.async_set_unique_id(f\"{pump.entry_id}-{CONST.WEB_INTERFACE}\")\n",
     "new": "",
-    "tests": "pumps_web_interface_is_added_once"
+    "tests": "added_with_the_pages_found"
   },
   {
     "label": "config flow: the dialog's visit stays logged in",
@@ -1818,5 +1818,26 @@
     "old": "        return f\"http://[{host}]\"\n",
     "new": "        return f\"http://{host}\"\n",
     "tests": "ipv6_one_in_brackets"
+  },
+  {
+    "label": "config flow: the web dialog offers a pump that has its web interface",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "            return self._webif_form(offered, {})\n",
+    "new": "            return self._webif_form(pumps, {})\n",
+    "tests": "offers_only_pumps_without_one"
+  },
+  {
+    "label": "config flow: with every pump on its web interface the dialog shows an empty list",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        if not offered:\n            return self.async_abort(reason=\"every_pump_has_web_interface\")\n",
+    "new": "",
+    "tests": "every_pump_on_its_web_interface"
+  },
+  {
+    "label": "config flow: a web interface added meanwhile gets a second one",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        if pump.entry_id not in offered:\n            return self.async_abort(reason=\"web_interface_exists\")\n",
+    "new": "",
+    "tests": "added_meanwhile"
   }
 ]

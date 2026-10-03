@@ -24,6 +24,12 @@ TRANSLATION_FILES = (
     "translations/de.json",
     "translations/nl.json",
 )
+# The reasons Home Assistant's own helpers abort a flow with, on its behalf:
+# a second dialog for the same unique id showed the raw key.
+HELPER_REASONS = {
+    "async_set_unique_id": "already_in_progress",
+    "_abort_if_unique_id_configured": "already_configured",
+}
 
 
 def _flow_messages() -> set[str]:
@@ -32,10 +38,14 @@ def _flow_messages() -> set[str]:
     Read out of the source rather than listed here: a list beside the flow is
     one more place to forget. The three shapes it uses are
     `async_abort(reason=...)`, an assignment into the `errors` dict, and a
-    returned key (`namespace_error`).
+    returned key (`namespace_error`); and the reasons of Home Assistant's
+    helpers it calls.
     """
     messages = set()
+    helper_reasons = set()
     for node in ast.walk(ast.parse(FLOW.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.Attribute) and node.attr in HELPER_REASONS:
+            helper_reasons.add(HELPER_REASONS[node.attr])
         if (
             (isinstance(node, ast.keyword) and node.arg == "reason")
             or (
@@ -45,7 +55,7 @@ def _flow_messages() -> set[str]:
             or isinstance(node, ast.Return)
         ):
             messages.add(node.value)
-    return {
+    return helper_reasons | {
         node.value
         for node in messages
         if isinstance(node, ast.Constant) and isinstance(node.value, str)
@@ -170,3 +180,4 @@ def test_the_reader_finds_the_messages_it_is_pointed_at():
     assert "already_configured" in messages, "an async_abort reason"
     assert "cannot_connect" in messages, "an errors[...] assignment"
     assert "postfix_required" in messages, "a returned key"
+    assert "already_in_progress" in messages, "a reason of a helper it calls"

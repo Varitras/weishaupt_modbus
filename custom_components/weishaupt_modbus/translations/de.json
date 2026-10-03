@@ -5,7 +5,10 @@
             "reconfigure_successful": "Konfiguration aktualisiert",
             "reauth_successful": "Die neue Anmeldung wurde angenommen",
             "no_pump": "Richten Sie zuerst die Wärmepumpe ein; die Weboberfläche wird ihr hinzugefügt.",
-            "pump_removed": "Ihr Wärmepumpen-Eintrag wurde gelöscht. Löschen Sie diesen Eintrag der Weboberfläche und fügen Sie ihn mit der Wärmepumpe neu hinzu."
+            "pump_removed": "Ihr Wärmepumpen-Eintrag wurde gelöscht. Löschen Sie diesen Eintrag der Weboberfläche und fügen Sie ihn mit der Wärmepumpe neu hinzu.",
+            "already_in_progress": "Ein anderer Dialog richtet das bereits ein.",
+            "every_pump_has_web_interface": "Jede Wärmepumpe hat ihre Weboberfläche schon.",
+            "web_interface_exists": "Diese Wärmepumpe hat ihre Weboberfläche schon."
         },
         "error": {
             "cannot_connect": "Verbindung fehlgeschlagen",
