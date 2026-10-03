@@ -380,6 +380,32 @@ async def test_the_session_is_renewed_after_a_day(pump, session):
     assert pump.asked == [("GET", webif.LOGOUT), *LOGIN, ("GET", PAGE)]
 
 
+async def test_an_error_status_on_the_login_page_ends_the_round(pump, session):
+    """The client went on to send the user and password, and to ask for the
+    page, to a server that had just said it could not serve."""
+    pump.failing[webif.INDEX] = 503
+    client = connect(session, pump.host)
+
+    with pytest.raises(webif.Unreachable):
+        await client.page(PAGE, whole)
+    assert pump.asked == [("GET", webif.INDEX)]
+
+
+async def test_an_error_status_on_the_renewal_logout_ends_the_round(pump, session):
+    """Nothing follows an error status, not even the login of the daily
+    renewal: it logged in again beside a session the logout had not ended."""
+    clock = FakeClock()
+    client = connect(session, pump.host, clock=clock)
+    await client.page(PAGE, whole)
+    clock.now = webif.SESSION_LIFETIME_SECONDS
+    pump.failing[webif.LOGOUT] = 503
+    pump.asked.clear()
+
+    with pytest.raises(webif.Unreachable):
+        await client.page(PAGE, whole)
+    assert pump.asked == [("GET", webif.LOGOUT)]
+
+
 async def test_a_logout_that_times_out_ends_the_round_before_the_new_login(
     pump, session
 ):

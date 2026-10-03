@@ -1593,7 +1593,7 @@
     "path": "custom_components/weishaupt_modbus/webif/client.py",
     "old": "        raise Unreachable(f\"{path}: HTTP {answer.status} to {answer.location or '-'}\")\n",
     "new": "        raise Broken(f\"{path}: HTTP {answer.status} to {answer.location or '-'}\")\n",
-    "tests": "error_status or dropped_right_after_the_login or lost_again_right_after"
+    "tests": "error_status_is or dropped_right_after_the_login or lost_again_right_after"
   },
   {
     "label": "webif client: the session id goes through aiohttp's cookie handling",
@@ -2175,5 +2175,19 @@
     "old": "    if isinstance(error, UnknownUnits):\n        return \"unknown_units\"\n",
     "new": "",
     "tests": "cannot_use_is_named_in_the_form"
+  },
+  {
+    "label": "webif client: an error status on the login page is ignored",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        _raise_for_error_status(INDEX, await self._request(\"GET\", INDEX))\n",
+    "new": "        await self._request(\"GET\", INDEX)\n",
+    "tests": "error_status_on_the_login_page_ends_the_round"
+  },
+  {
+    "label": "webif client: an error status on the renewal logout is ignored",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        _raise_for_error_status(LOGOUT, await self._request(\"GET\", LOGOUT))\n",
+    "new": "        await self._request(\"GET\", LOGOUT)\n",
+    "tests": "error_status_on_the_renewal_logout_ends_the_round"
   }
 ]

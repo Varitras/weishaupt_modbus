@@ -190,6 +190,14 @@ def _page_text(path: str, answer: _Answer) -> str:
     return answer.text
 
 
+def _raise_for_error_status(path: str, answer: _Answer) -> None:
+    # The login page and the logout answer otherwise than a page, but an
+    # error status says the same: the server cannot serve, and anything
+    # asked after it only adds load.
+    if answer.status >= HTTPStatus.BAD_REQUEST:
+        raise Unreachable(f"{path}: HTTP {answer.status}")
+
+
 class Client:
     """One login, one page at a time, for one pump.
 
@@ -303,10 +311,10 @@ class Client:
         if self._logged_in_at is None:
             return
         self._logged_in_at = None
-        await self._request("GET", LOGOUT)
+        _raise_for_error_status(LOGOUT, await self._request("GET", LOGOUT))
 
     async def _login(self) -> None:
-        await self._request("GET", INDEX)
+        _raise_for_error_status(INDEX, await self._request("GET", INDEX))
         answer = await self._request("POST", LOGIN, self._credentials)
         if answer.wrong_password:
             raise LoginRefused(f"HTTP {answer.status} to {answer.location}")

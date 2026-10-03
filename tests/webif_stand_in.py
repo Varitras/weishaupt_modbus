@@ -94,7 +94,8 @@ class StandInPump:
 
     A page is answered from `site` by its address, otherwise from `pages`
     in turn, the last one for good. `login_answer`, when set, builds the
-    answer to every login instead.
+    answer to every login instead. A path in `failing` is answered with its
+    error status alone.
     """
 
     def __init__(self):
@@ -105,6 +106,7 @@ class StandInPump:
         self.site = {}
         self.pages = [WHOLE]
         self.status = 200
+        self.failing = {}
         self.delays = {}
         self.keeps_sessions = True
         self.sets_cookie = True
@@ -117,6 +119,8 @@ class StandInPump:
             self.asked.append((request.method, request.raw_path))
             self.arrivals.append(time.monotonic())
             await asyncio.sleep(self.delays.get(request.raw_path, 0))
+            if request.raw_path in self.failing:
+                return web.Response(status=self.failing[request.raw_path])
             return await handler(request)
 
         application = web.Application(middlewares=[note])
