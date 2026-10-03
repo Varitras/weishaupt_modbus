@@ -12,6 +12,7 @@ from custom_components.weishaupt_modbus.config_flow import (
     UnknownUnits,
     read_web_interface,
 )
+from custom_components.weishaupt_modbus.configentry import HOST_LOCKS
 from custom_components.weishaupt_modbus.webif import client as webif
 from custom_components.weishaupt_modbus.webif.discovery import (
     HEAT_PUMP_PAGE,
@@ -22,6 +23,7 @@ from custom_components.weishaupt_modbus.webif.discovery import (
 )
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
+from .locking import WatchedLock, until
 from .test_webif_setup import PAGES, SHOWN, SITE
 from .webif_stand_in import (
     HEAT_PUMP_INFO,
@@ -150,6 +152,23 @@ async def test_the_dialog_finds_the_pages_and_logs_out_again(hass, pump, monkeyp
 
     assert found[HEATING_PAGE] == STACK + f"{PUMP_MENU},{HEATING}"
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
+
+
+async def test_the_dialog_waits_while_its_pump_is_asked(hass, pump, monkeypatch):
+    """Handed a lock of its own, the dialog would ask the controller beside a
+    Modbus poll, and nothing showed it."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    lock = WatchedLock()
+    hass.data.setdefault(HOST_LOCKS, {})[pump.host] = lock
+
+    async with lock:
+        visit = hass.async_create_task(
+            read_web_interface(hass, pump.host, USER, PASSWORD)
+        )
+        await until(lambda: lock.waited or pump.asked)
+        assert pump.asked == []
+
+    assert (await visit)[HEATING_PAGE] == STACK + f"{PUMP_MENU},{HEATING}"
 
 
 async def test_the_dialog_reads_each_page_it_found_once(hass, pump, monkeypatch):

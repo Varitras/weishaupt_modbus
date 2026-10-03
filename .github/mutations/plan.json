@@ -2245,5 +2245,19 @@
     "old": "        pump_title = changed.title\n",
     "new": "",
     "tests": "named_after_its_pump_follows_a_new_name"
+  },
+  {
+    "label": "setup: the pump polls and writes under a lock of its own",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        unit, itemlist, write_budget(entry), host_lock(hass, entry.data[CONF.HOST])\n",
+    "new": "        unit, itemlist, write_budget(entry), type(host_lock(hass, entry.data[CONF.HOST]))()\n",
+    "tests": "polls_and_writes_under_the_lock_its_web_interface_shares"
+  },
+  {
+    "label": "config flow: the dialog asks under a lock of its own",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        host_lock=host_lock(hass, host),\n        pacing=host_pacing(hass, host),\n",
+    "new": "        host_lock=asyncio.Lock(),\n        pacing=host_pacing(hass, host),\n",
+    "tests": "dialog_waits_while_its_pump_is_asked"
   }
 ]

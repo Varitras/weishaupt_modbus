@@ -20,6 +20,7 @@ from pytest_homeassistant_custom_component.components.diagnostics import (
     get_diagnostics_for_config_entry,
 )
 
+from custom_components.weishaupt_modbus.configentry import host_lock
 from custom_components.weishaupt_modbus.const import CONF, CONST
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.const import DEFAULT_PORT
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.device import (
@@ -92,6 +93,17 @@ async def _setup(hass, entry):
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     return entry
+
+
+async def test_the_pump_polls_and_writes_under_the_lock_its_web_interface_shares(
+    hass,
+):
+    """Handed a lock of its own, the pump would poll and write beside a
+    request of its web interface, and nothing showed it."""
+    entry = await _setup(hass, _entry(hass))
+
+    device = entry.runtime_data.coordinator.device
+    assert device._host_lock is host_lock(hass, entry.data[CONF.HOST])
 
 
 async def test_setup_creates_a_sensor_from_the_first_refresh(hass):
