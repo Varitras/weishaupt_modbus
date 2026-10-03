@@ -328,8 +328,6 @@ class Client:
     async def _request(
         self, method: str, path: str, form: dict[str, str] | None = None
     ) -> _Answer:
-        if not _allowed(method, path):
-            raise ValueError(f"{method} {path} is not on the positive list")
         async with self._pacing.lock:
             await self._pace()
             answer, seconds = await self._exchange(method, path, form)
@@ -348,6 +346,9 @@ class Client:
         self, method: str, path: str, form: dict[str, str] | None
     ) -> tuple[_Answer, float]:
         """One request under the lock Modbus shares, and how long it took."""
+        # Asked where the request goes out, so no other way out can skip it.
+        if not _allowed(method, path):
+            raise ValueError(f"{method} {path} is not on the positive list")
         cookie = {"Cookie": f"{SESSION_COOKIE}={self._cookie}"} if self._cookie else {}
         async with self._host_lock:
             started = self._clock()

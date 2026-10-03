@@ -2056,5 +2056,40 @@
     "old": "    return bool(found) and shown_once and all(text for _, text in found)\n",
     "new": "    return shown_once and all(text for _, text in found)\n",
     "tests": "showing_nothing_is_never_complete"
+  },
+  {
+    "label": "controller access: the pump probe goes out without the host lock",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "            host_lock(hass, data[CONF.HOST]),\n",
+    "new": "",
+    "tests": "every_request_to_the_controller_holds_the_host_lock"
+  },
+  {
+    "label": "controller access: a band is read under a lock of its own",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "                async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):\n                    await component.async_update()\n",
+    "new": "                async with asyncio.Lock(), asyncio.timeout(BAND_TIMEOUT_SECONDS):\n                    await component.async_update()\n",
+    "tests": "every_request_to_the_controller_holds_the_host_lock"
+  },
+  {
+    "label": "controller access: a web request goes out under a lock of its own",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        async with self._host_lock:\n            started = self._clock()\n",
+    "new": "        async with asyncio.Lock():\n            started = self._clock()\n",
+    "tests": "every_request_to_the_controller_holds_the_host_lock"
+  },
+  {
+    "label": "webif client: a request off the positive list goes out",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        if not _allowed(method, path):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "new": "",
+    "tests": "off_the_positive_list"
+  },
+  {
+    "label": "controller access: a web request goes out without the positive list",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        if not _allowed(method, path):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "new": "",
+    "tests": "every_web_request_asks_the_positive_list_first"
   }
 ]

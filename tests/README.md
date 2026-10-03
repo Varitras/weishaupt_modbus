@@ -67,6 +67,7 @@ because the thing it prevents happened, here or in a sibling project.
 | `test_flow_messages.py` | Every abort reason and error key the config flow can show has a text in `strings.json` and all three translations, and none outlives its use |
 | `test_ci_matrix.py` | The CI matrix tests the Home Assistant releases it claims to: the declared minimum, and the newest final release (never a beta) |
 | `test_comment_narration.py` | No comment merely restates the code it sits on (heuristic; a genuine why-comment passes) |
+| `test_controller_access.py` | Every request to the controller - each Modbus read and write, each web request - takes the host lock in the function that sends it (the pump dialog's probe once did not), and the function that sends a web request asks the positive list first, so only GET and the login POST go out |
 | `test_durations.py` | No single test quietly starts taking minutes (budget in `durations.py`, enforced from `conftest.py`), and a run that stops making progress is cut off rather than only measured |
 | `test_guards.py` | No guard binds itself to one source file; every guard is listed; `check.sh` matches CI |
 | `test_imports.py` | Every module imports outside the author's own tree - the `from config.custom_components...` line that shipped on main cannot ship again |
