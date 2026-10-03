@@ -310,6 +310,56 @@ def test_no_selector_clause_is_a_word_that_means_anything():
     )
 
 
+def _clauses_naming_the_harness(cases: list) -> list:
+    """Selector clauses that pick a test of this file, in a case that mutates
+    anything but the harness itself.
+
+    Some of these fail whatever a shipped mutant does - the plan check finds
+    its snippet gone, the copy check needs the .git a worker copy lacks - so a
+    case selecting one would read as caught in any case.
+    """
+    own = set(
+        re.findall(
+            r"^\s*(?:async )?def (test_\w+)",
+            Path(__file__).read_text(encoding="utf-8"),
+            re.MULTILINE,
+        )
+    )
+    harness = {path.relative_to(REPO).as_posix() for path in (SCRIPT, PLAN)}
+    return [
+        f"{case['label']}: {clause!r}"
+        for case in cases
+        if case["path"] not in harness
+        for clause in (
+            part.strip() for part in re.split(r"\s+(?:or|and)\s+", case["tests"])
+        )
+        if any(clause in name for name in own)
+    ]
+
+
+def test_no_selector_clause_names_a_test_of_the_harness_itself():
+    naming = _clauses_naming_the_harness(_plan())
+
+    assert not naming, (
+        f"selector clause(s) picking a harness test: {naming}. Those fail on "
+        "every mutant; name the test the mutation is about."
+    )
+
+
+def test_the_check_catches_a_clause_naming_a_harness_test():
+    case = {
+        "label": "x",
+        "path": "custom_components/weishaupt_modbus/config_flow.py",
+        "tests": "probe_waits_while_the_controller_is_busy or worker_copies_hold_the_tracked",
+    }
+    of_the_harness = {**case, "path": ".github/mutations/plan.json"}
+
+    assert _clauses_naming_the_harness([case]) == [
+        "x: 'worker_copies_hold_the_tracked'"
+    ]
+    assert _clauses_naming_the_harness([of_the_harness]) == []
+
+
 def test_the_shipped_plan_still_matches_the_code():
     """The plan is only useful while its snippets exist. Left to rot it would
     fail at the worst moment - when someone finally runs it."""

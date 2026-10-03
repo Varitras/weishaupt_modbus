@@ -2392,5 +2392,12 @@
     "old": "        async with self._host_lock:\n            started = self._clock()\n",
     "new": "        async with self._host_lock_for_tests:\n            started = self._clock()\n",
     "tests": "every_request_to_the_controller_holds_the_host_lock"
+  },
+  {
+    "label": "mutation plan: a case selects a test of the harness",
+    "path": ".github/mutations/plan.json",
+    "old": "\"tests\": \"takes_no_connection_is_unreachable\"",
+    "new": "\"tests\": \"takes_no_connection_is_unreachable or worker_copies_hold_the_tracked_files\"",
+    "tests": "no_selector_clause_names_a_test_of_the_harness_itself"
   }
 ]
