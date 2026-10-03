@@ -40,7 +40,7 @@ non-zero if any mutation SURVIVED - that is, the suite stayed green while the
 code was broken, which means the test does not test it.
 
 Cases run several at a time, each in its own copy of the repository under the
-system temp directory (`--jobs`, default: cores - 2, capped at 8). Copies
+system temp directory (`--jobs`, default: cores - 2, capped at 24). Copies
 rather than locking, because the thing being shared is a file this script
 deliberately breaks. `--jobs 1` skips the copying and works in the repository
 itself, which is what to fall back to if a parallel run ever reports
@@ -236,11 +236,12 @@ def apply_mutation(case: dict, root: Path | None = None) -> tuple[Path, bytes]:
 
 
 # Every worker is a full pytest process with Home Assistant imported, so what
-# runs out first is memory, not cores. The measurement below stops at six, and
-# above it nobody has shown a gain - while cores-2 on a 64-core build machine
+# a big machine runs out of first is memory, about 0.15 GB a worker. Measured
+# on 32 cores with 203 cases (2026-10-03): 8 workers 40 s, 16 24 s, 24 21 s,
+# 30 19 s. Past 24 the gain is small, while cores-2 on a 64-core build machine
 # would start 62 interpreters at once and each a copy of the tree. --jobs
 # overrides this for anyone who has measured otherwise.
-MAX_DEFAULT_JOBS = 8
+MAX_DEFAULT_JOBS = 24
 
 
 def default_jobs() -> int:
@@ -287,21 +288,26 @@ def build_worktrees(count: int, into: Path, cases: list) -> list:
     and that placement is doing real work: on WSL2 the repository lives on
     /mnt/c, whose filesystem calls cross into Windows and cost roughly twice
     what the Linux-native temp directory does. Measured on one mutation, 4.7s
-    against 2.4s. A copy is 1.7 MB, so even eight of them are noise.
+    against 2.4s. For the same reason only the first copy is read from the
+    repository and the others are copied from it: from /mnt/c every file is
+    a round trip into Windows, 0.9 s a copy and 14 s before the first of
+    sixteen workers could start (2026-10-03).
     """
-    trees = []
-    for index in range(count):
+    first = into / "worker0"
+    _copy_tracked_tree(first)
+    # A tree missing a file the plan mutates would report every one of its
+    # cases as an unrelated pytest error. Cheaper to say so here, once,
+    # naming the file - the alternative is reading a wall of exit-code 4.
+    for case in cases:
+        if not (first / case["path"]).exists():
+            raise SystemExit(
+                f"the worker copy has no {case['path']}, which the plan "
+                "mutates. Check WORKTREE_EXCLUDES."
+            )
+    trees = [first]
+    for index in range(1, count):
         tree = into / f"worker{index}"
-        _copy_tracked_tree(tree)
-        # A tree missing a file the plan mutates would report every one of its
-        # cases as an unrelated pytest error. Cheaper to say so here, once,
-        # naming the file - the alternative is reading a wall of exit-code 4.
-        for case in cases:
-            if not (tree / case["path"]).exists():
-                raise SystemExit(
-                    f"the worker copy has no {case['path']}, which the plan "
-                    "mutates. Check WORKTREE_EXCLUDES."
-                )
+        shutil.copytree(first, tree)
         trees.append(tree)
     return trees
 

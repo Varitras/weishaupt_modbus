@@ -182,6 +182,22 @@ def test_the_file_is_restored_even_when_the_run_explodes(tmp_path, monkeypatch):
     assert target.read_text(encoding="utf-8") == original
 
 
+def test_the_worker_copies_hold_the_tracked_files_each_on_its_own(tmp_path):
+    """The later copies come from the first, not from the repository; a link
+    instead of a copy would let two workers' mutations meet."""
+    trees = mutate.build_worktrees(3, tmp_path, [])
+    tracked = sorted(path.relative_to(REPO) for path in mutate._tracked_files())
+
+    for tree in trees:
+        held = sorted(
+            path.relative_to(tree) for path in tree.rglob("*") if path.is_file()
+        )
+        assert held == tracked
+    (trees[1] / "pyproject.toml").write_text("mutated", encoding="utf-8")
+    assert (trees[0] / "pyproject.toml").read_text(encoding="utf-8") != "mutated"
+    assert (trees[2] / "pyproject.toml").read_text(encoding="utf-8") != "mutated"
+
+
 def test_an_empty_plan_is_refused(tmp_path, monkeypatch):
     """ "all 0 mutations caught" is the same green line as a real run."""
     plan = tmp_path / "plan.json"
