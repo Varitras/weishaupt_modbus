@@ -1965,5 +1965,12 @@
     "old": "                    Entry(_normalised(self._title), _normalised(self._text), self._href)\n",
     "new": "                    Entry(self._title.strip(), _normalised(self._text), self._href)\n",
     "tests": "normalised_like_its_text"
+  },
+  {
+    "label": "webif client: any method but POST passes on a read path",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "    if method != \"GET\":\n        return False\n",
+    "new": "",
+    "tests": "only_get_reads_a_page"
   }
 ]

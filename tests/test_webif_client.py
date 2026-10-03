@@ -483,6 +483,13 @@ def test_no_post_but_the_login(method, path, allowed):
     assert webif._allowed(method, path) is allowed
 
 
+@pytest.mark.parametrize("method", ["PUT", "DELETE", "PATCH", "HEAD"])
+def test_only_get_reads_a_page(method):
+    """Every method but POST passed the positive list on the read paths."""
+    assert not webif._allowed(method, webif.INDEX)
+    assert not webif._allowed(method, PAGE)
+
+
 async def test_requests_keep_their_distance(pump, session):
     client = connect(session, pump.host, gap=GAP)
 

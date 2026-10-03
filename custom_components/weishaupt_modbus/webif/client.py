@@ -128,6 +128,8 @@ class _Answer:
 def _allowed(method: str, path: str) -> bool:
     if method == "POST":
         return path == LOGIN
+    if method != "GET":
+        return False
     return (
         path in (INDEX, LOGOUT, OVERVIEW)
         or pages.STACK_LINK.fullmatch(path) is not None
