@@ -6,7 +6,7 @@ audit class "comment describes behaviour the code no longer has"). A prose rule
 does not reach the moment of writing; this scan does, over the shipped package
 and the test suite alike.
 
-ponytail: heuristic with a known ceiling - it flags only the bluntest form, a
+A heuristic with a known ceiling: it flags only the bluntest form, a
 comment whose every content word already appears in the adjacent code. A
 decision comment carries extra words (why, incident, limit) and passes; the
 scan cannot judge meaning, so treat a hit as a prompt to reread and reword, and
@@ -27,7 +27,7 @@ PACKAGE = (
 TESTS = pathlib.Path(__file__).resolve().parent
 
 WORD = re.compile(r"[A-Za-z][A-Za-z0-9]{2,}")
-EXEMPT_PREFIXES = ("ponytail:", "noqa", "type:", "TODO", "FIXME", "!", "fmt:")
+EXEMPT_PREFIXES = ("noqa", "type:", "TODO", "FIXME", "!", "fmt:")
 FILLER = set(keyword.kwlist) | {
     "the",
     "and",
