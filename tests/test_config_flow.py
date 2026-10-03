@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 from modbus_connection import ModbusConnectionError
+from probatio import to_field_list
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -21,6 +22,7 @@ from custom_components.weishaupt_modbus.webif.client import (
     Unreachable,
 )
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
+from homeassistant.helpers import config_validation as cv
 
 pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
 
@@ -610,6 +612,21 @@ async def test_the_web_interface_interval_is_its_own_option(hass, web_interface)
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert entry.options == chosen
+
+
+async def test_the_interval_sliders_show_their_minutes(hass, web_interface):
+    """Live, 2026-10-03: a plain range from 1 to 60 drew a slider without its
+    value; the minutes showed only while the slider was dragged."""
+    entry = _web_entry(hass, _pump_entry(hass))
+
+    form = await hass.config_entries.options.async_init(entry.entry_id)
+    # How Home Assistant hands the form to the frontend.
+    fields = to_field_list(form["data_schema"], custom_serializer=cv.custom_serializer)
+
+    numbers = [field["selector"]["number"] for field in fields]
+    assert [(number["mode"], number["unit_of_measurement"]) for number in numbers] == [
+        ("slider", "min")
+    ] * 3
 
 
 async def test_a_web_interface_holds_no_postfix_of_its_own(hass):

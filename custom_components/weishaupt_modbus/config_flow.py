@@ -10,10 +10,14 @@ import voluptuous as vol
 
 from homeassistant import config_entries, exceptions
 from homeassistant.components.modbus import async_get_temporary_unit
+from homeassistant.const import UnitOfTime
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     TextSelector,
     TextSelectorConfig,
     TextSelectorType,
@@ -588,12 +592,18 @@ class WebifOptionsFlow(config_entries.OptionsFlowWithReload):
         if user_input is not None:
             return self.async_create_entry(data=user_input)
         options = self.config_entry.options
+        # A plain range this short draws a slider that hides its value.
         minutes = vol.All(
-            vol.Coerce(int),
-            vol.Range(
-                min=CONST.WEBIF_INTERVAL_MIN_MINUTES,
-                max=CONST.WEBIF_INTERVAL_MAX_MINUTES,
+            NumberSelector(
+                NumberSelectorConfig(
+                    min=CONST.WEBIF_INTERVAL_MIN_MINUTES,
+                    max=CONST.WEBIF_INTERVAL_MAX_MINUTES,
+                    step=1,
+                    mode=NumberSelectorMode.SLIDER,
+                    unit_of_measurement=UnitOfTime.MINUTES,
+                )
             ),
+            vol.Coerce(int),
         )
         schema = vol.Schema(
             {

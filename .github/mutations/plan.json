@@ -1475,5 +1475,12 @@
     "old": "                vol.Required(CONF.USERNAME, default=entry.data[CONF.USERNAME]): str,\n",
     "new": "                vol.Required(CONF.USERNAME): str,\n",
     "tests": "web_interface_entry_is_reconfigured_with_a_new_login"
+  },
+  {
+    "label": "config flow: the interval sliders hide their minutes again",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "            NumberSelector(\n                NumberSelectorConfig(\n                    min=CONST.WEBIF_INTERVAL_MIN_MINUTES,\n",
+    "new": "            vol.Range(min=1, max=60)\n            or NumberSelector(\n                NumberSelectorConfig(\n                    min=CONST.WEBIF_INTERVAL_MIN_MINUTES,\n",
+    "tests": "interval_sliders_show_their_minutes"
   }
 ]
