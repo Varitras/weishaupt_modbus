@@ -23,8 +23,7 @@ from custom_components.weishaupt_modbus.webif.discovery import (
 )
 from custom_components.weishaupt_modbus.webif_sensor import (
     REQUIRED_TITLES,
-    WEBIF_SENSORS,
-    reading,
+    shown_in_unknown_units,
 )
 
 RECORDINGS = os.environ.get("WEISHAUPT_WEBIF_RECORDINGS")
@@ -91,13 +90,9 @@ def test_the_catalogue_reads_the_recorded_page(key):
     )
     assert whole, f"no whole recording of {key}; the closest lacks {sorted(closest)}"
 
-    sensors = {sensor.title: sensor for sensor in WEBIF_SENSORS if sensor.page == key}
     wrong = {
-        title: shown
+        title: dict(found)[title]
         for found in whole
-        for title, shown in found
-        if title in sensors
-        and shown not in (pages.NO_VALUE, pages.OFF)
-        and reading(sensors[title], shown) is None
+        for title in shown_in_unknown_units(key, found)
     }
     assert not wrong, f"shown in another unit than the catalogue expects: {wrong}"

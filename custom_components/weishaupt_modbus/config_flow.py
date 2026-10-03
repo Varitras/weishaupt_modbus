@@ -33,7 +33,7 @@ from .migrate_helpers import entry_unique_id
 from .webif.client import Broken, Client, LoginRefused, Unreachable, WebifError
 from .webif.discovery import PAGE_MENUS, MissingMenuEntries, find_pages
 from .webif_coordinator import INTERVAL_OPTIONS, Page, polled_pages
-from .webif_sensor import REQUIRED_TITLES
+from .webif_sensor import REQUIRED_TITLES, shown_in_unknown_units
 from .weishaupt_modbus_api.const import (
     DEFAULT_PORT,
     DEFAULT_WRITE_LIMIT_PER_DAY,
@@ -132,6 +132,30 @@ class MissingTitles(Broken):
         self.titles = titles
 
 
+class UnclearValues(Broken):
+    """A page that showed all its titles, some without a value or twice.
+
+    Now and then a hiccup, which asking again mends; on a model that shows
+    the page so, never.
+    """
+
+    def __init__(self, page: str, titles: frozenset[str]) -> None:
+        """Name the page by its menus, and the titles shown so."""
+        super().__init__(f"{page}: {', '.join(sorted(titles))}")
+        self.page = page
+        self.titles = titles
+
+
+class UnknownUnits(WebifError):
+    """A whole page showing values in a unit their sensors do not read."""
+
+    def __init__(self, page: str, titles: frozenset[str]) -> None:
+        """Name the page by its menus, and the titles in another unit."""
+        super().__init__(f"{page}: {', '.join(sorted(titles))}")
+        self.page = page
+        self.titles = titles
+
+
 async def read_web_interface(
     hass: HomeAssistant, host: str, user: str, password: str
 ) -> dict[str, str]:
@@ -188,13 +212,29 @@ async def _read_whole(client: Client, page: Page) -> None:
         return page.is_whole(text)
 
     try:
-        await client.page(page.path, whole)
+        text = await client.page(page.path, whole)
     except Broken as error:
-        # Only a page that came can tell which titles it lacks; one that has
-        # them all but a blank value is a hiccup.
-        if not shown or not (missing := page.missing(shown[-1])):
+        lacking = _lacking(page, shown[-1] if shown else "")
+        if lacking is None:
             raise
-        raise MissingTitles(PAGE_MENUS[page.key], missing) from error
+        raise lacking from error
+    if unknown := shown_in_unknown_units(page.key, page.read(text)):
+        raise UnknownUnits(PAGE_MENUS[page.key], unknown)
+
+
+def _lacking(page: Page, text: str) -> Broken | None:
+    """What keeps a page that came from being whole.
+
+    None for a page that came only half, with none of its titles: the
+    controller's empty column, its main menus nested, another section's
+    values. Asking again a little later mends that.
+    """
+    titles = {title for title, _ in page.read(text)}
+    if not titles & page.required:
+        return None
+    if missing := page.missing(text):
+        return MissingTitles(PAGE_MENUS[page.key], missing)
+    return UnclearValues(PAGE_MENUS[page.key], page.unclear(text))
 
 
 def web_interface_error(error: WebifError) -> str:
@@ -205,6 +245,10 @@ def web_interface_error(error: WebifError) -> str:
         return "cannot_connect"
     if isinstance(error, MissingTitles):
         return "missing_titles"
+    if isinstance(error, UnclearValues):
+        return "unclear_values"
+    if isinstance(error, UnknownUnits):
+        return "unknown_units"
     if isinstance(error, MissingMenuEntries):
         return "missing_menu_entries"
     return "cannot_read"
@@ -212,7 +256,7 @@ def web_interface_error(error: WebifError) -> str:
 
 def web_interface_error_placeholders(error: WebifError) -> dict[str, str]:
     """The placeholders of the form's error for a visit that failed."""
-    if isinstance(error, MissingTitles):
+    if isinstance(error, MissingTitles | UnclearValues | UnknownUnits):
         return {"page": error.page, "titles": ", ".join(sorted(error.titles))}
     if isinstance(error, MissingMenuEntries):
         return {"titles": ", ".join(sorted(error.titles))}

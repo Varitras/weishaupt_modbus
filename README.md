@@ -250,11 +250,13 @@ entry exists, and goes straight to the heat pump before that. Then
 interface of a heat pump*, pick the heat pump and enter the web interface's
 user and password. A heat pump has one web interface entry: the list offers
 only heat pumps that have none yet. Logging in, finding the pages and reading
-each once takes
-about a minute, and the dialog shows its progress meanwhile; pages the
-controller serves only half are searched once more before the dialog reports
-it, and the dialog logs out again afterwards. A page that lacks a value the
-sensors need is named in the dialog: that controller is not supported yet.
+each once takes about a minute, and the dialog shows its progress meanwhile;
+pages the controller serves only half are searched once more before the dialog
+asks you to try again a little later, and the dialog logs out again
+afterwards. A page that lacks a title the sensors read, or shows a value in a
+unit they do not know, is named in the dialog with those titles: that
+controller is not supported yet. Values shown empty or twice are named the
+same way, with a request to try again.
 
 To read only the web interface, for example from a second Home Assistant
 beside one that polls the heat pump over Modbus, disable the heat pump entry

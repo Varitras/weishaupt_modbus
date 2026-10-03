@@ -1759,8 +1759,8 @@
   {
     "label": "config flow: a page without the titles its sensors read is not named",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "        raise MissingTitles(PAGE_MENUS[page.key], missing) from error\n",
-    "new": "        raise\n",
+    "old": "        return MissingTitles(PAGE_MENUS[page.key], missing)\n",
+    "new": "        return None\n",
     "tests": "without_a_title_its_sensors_read"
   },
   {
@@ -2112,5 +2112,68 @@
     "old": "        if self._stopped_by is not None:\n            return\n        now = self._clock()\n",
     "new": "        now = self._clock()\n",
     "tests": "third_failure_in_a_row_stops"
+  },
+  {
+    "label": "webif discovery: a menu served half reads as another language",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        if not shown:\n            raise\n",
+    "new": "",
+    "tests": "menu_served_half_on_every_ask_is_not_called_another_language"
+  },
+  {
+    "label": "config flow: a page served half reads as another model",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    if not titles & page.required:\n        return None\n",
+    "new": "",
+    "tests": "page_served_half_on_every_ask_is_not_called_unsupported"
+  },
+  {
+    "label": "config flow: values empty or twice go unnamed",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    return UnclearValues(PAGE_MENUS[page.key], page.unclear(text))\n",
+    "new": "    return None\n",
+    "tests": "values_shown_empty_or_twice_are_named"
+  },
+  {
+    "label": "webif coordinator: a title shown twice is not unclear",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        twice = {title for title in self.required if counts[title] > 1}\n",
+    "new": "        twice = set()\n",
+    "tests": "values_shown_empty_or_twice_are_named"
+  },
+  {
+    "label": "webif coordinator: an empty value is not unclear",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        empty = {title for title, shown in found if not shown}\n",
+    "new": "        empty = set()\n",
+    "tests": "values_shown_empty_or_twice_are_named"
+  },
+  {
+    "label": "config flow: a value in an unknown unit passes the dialog",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    if unknown := shown_in_unknown_units(page.key, page.read(text)):\n        raise UnknownUnits(PAGE_MENUS[page.key], unknown)\n",
+    "new": "",
+    "tests": "unit_its_sensor_does_not_read_is_named"
+  },
+  {
+    "label": "webif sensor: no value and off read as an unknown unit",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        and shown not in (pages.NO_VALUE, pages.OFF)\n",
+    "new": "",
+    "tests": "no_value_and_off_are_no_unknown_unit"
+  },
+  {
+    "label": "config flow: values empty or twice say only try again",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    if isinstance(error, UnclearValues):\n        return \"unclear_values\"\n",
+    "new": "",
+    "tests": "cannot_use_is_named_in_the_form"
+  },
+  {
+    "label": "config flow: an unknown unit says only try again",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    if isinstance(error, UnknownUnits):\n        return \"unknown_units\"\n",
+    "new": "",
+    "tests": "cannot_use_is_named_in_the_form"
   }
 ]

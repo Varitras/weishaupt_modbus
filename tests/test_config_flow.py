@@ -17,7 +17,11 @@ import voluptuous as vol
 
 import custom_components.weishaupt_modbus as integration
 from custom_components.weishaupt_modbus import config_flow
-from custom_components.weishaupt_modbus.config_flow import MissingTitles
+from custom_components.weishaupt_modbus.config_flow import (
+    MissingTitles,
+    UnclearValues,
+    UnknownUnits,
+)
 from custom_components.weishaupt_modbus.configentry import HOST_LOCKS
 from custom_components.weishaupt_modbus.const import CONF, CONST
 from custom_components.weishaupt_modbus.webif.client import (
@@ -648,11 +652,21 @@ async def test_a_failed_visit_leaves_a_debug_line(hass, web_interface, caplog):
     assert "GET /index.html: TimeoutError" in caplog.text
 
 
-async def test_a_page_the_dialog_cannot_use_is_named_in_the_form(hass, web_interface):
-    """Which page lacks which titles: the only hint a user of another model
-    has before the brake would stop every page."""
+@pytest.mark.parametrize(
+    ("fault", "error"),
+    [
+        (MissingTitles, "missing_titles"),
+        (UnclearValues, "unclear_values"),
+        (UnknownUnits, "unknown_units"),
+    ],
+)
+async def test_a_page_the_dialog_cannot_use_is_named_in_the_form(
+    hass, web_interface, fault, error
+):
+    """Which page, and which of its titles: the only hint a user of another
+    model has before the brake would stop every page."""
     pump = _pump_entry(hass)
-    web_interface.outcome = MissingTitles(
+    web_interface.outcome = fault(
         "Info › Wärmepumpe", frozenset({"EVI Sauggastemperatur", "Verdichter"})
     )
     form = await _web_form(hass)
@@ -661,7 +675,7 @@ async def test_a_page_the_dialog_cannot_use_is_named_in_the_form(hass, web_inter
         form["flow_id"], {CONF.PUMP_ENTRY: pump.entry_id, **WEB_LOGIN}
     )
 
-    assert result["errors"] == {"base": "missing_titles"}
+    assert result["errors"] == {"base": error}
     assert result["description_placeholders"] == {
         "page": "Info › Wärmepumpe",
         "titles": "EVI Sauggastemperatur, Verdichter",

@@ -16,8 +16,10 @@
       "postfix_in_use" : "Een andere warmtepomp gebruikt deze apparaat-postfix al",
       "postfix_required" : "Een tweede warmtepomp heeft een apparaat-postfix nodig",
       "invalid_auth" : "De webinterface heeft gebruiker en wachtwoord geweigerd",
-      "cannot_read" : "De webinterface heeft de menu's niet volledig getoond; probeer het opnieuw",
+      "cannot_read" : "De webinterface stuurde de pagina's meerdere keren achter elkaar slechts gedeeltelijk; probeer het over een paar minuten opnieuw",
       "missing_titles" : "De pagina {page} van de webinterface toont {titles} niet. Deze regelaar wordt nog niet ondersteund.",
+      "unclear_values" : "De pagina {page} van de webinterface toont {titles} zonder waarde of meer dan eens. Probeer het opnieuw; blijft het zo, dan wordt deze regelaar nog niet ondersteund.",
+      "unknown_units" : "De pagina {page} van de webinterface toont {titles} in een eenheid die de integratie niet kent. Deze regelaar wordt nog niet ondersteund.",
       "missing_menu_entries" : "De menu's van de webinterface tonen {titles} niet. De integratie vindt haar pagina's via deze Duitse namen: staat de taal van de regelaar op Duits?"
     },
     "progress" : {

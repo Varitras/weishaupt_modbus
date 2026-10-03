@@ -341,6 +341,21 @@ def reading(description: WebifSensorDescription, shown: str | None) -> Any:
     return pages.number(shown)
 
 
+def shown_in_unknown_units(page: str, found: list[tuple[str, str]]) -> frozenset[str]:
+    """The titles of the page whose sensor cannot read the value shown.
+
+    "--" and "Aus" are the controller's own words for no value, not a unit.
+    """
+    sensors = {sensor.title: sensor for sensor in WEBIF_SENSORS if sensor.page == page}
+    return frozenset(
+        title
+        for title, shown in found
+        if title in sensors
+        and shown not in (pages.NO_VALUE, pages.OFF)
+        and reading(sensors[title], shown) is None
+    )
+
+
 class _WebifEntity(CoordinatorEntity[WebifCoordinator], SensorEntity):
     """A sensor on the web interface's device."""
 

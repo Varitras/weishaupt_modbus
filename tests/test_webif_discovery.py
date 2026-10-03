@@ -8,6 +8,8 @@ import pytest
 from custom_components.weishaupt_modbus import config_flow
 from custom_components.weishaupt_modbus.config_flow import (
     MissingTitles,
+    UnclearValues,
+    UnknownUnits,
     read_web_interface,
 )
 from custom_components.weishaupt_modbus.webif import client as webif
@@ -41,6 +43,16 @@ from .webif_stand_in import (
 )
 
 LOGIN = [("GET", webif.INDEX), ("POST", webif.LOGIN)]
+HEAT_PUMP_SHOWN = list(SHOWN[HEAT_PUMP_PAGE].items())
+
+
+def heat_pump_page(entries):
+    return column("".join(value(title, shown) for title, shown in entries))
+
+
+def shown_otherwise(title, text):
+    """The heat pump page's entries with one title showing text instead."""
+    return [(name, text if name == title else shown) for name, shown in HEAT_PUMP_SHOWN]
 
 
 @pytest.fixture
@@ -166,6 +178,99 @@ async def test_a_page_without_a_title_its_sensors_read_is_named(
     assert raised.value.titles == {missing}
     assert pump.asked.count(("GET", PAGE_PATH)) == 2, "searched once more, no more"
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
+
+
+@pytest.mark.parametrize(
+    "half",
+    [
+        MAIN_MENUS + column(""),
+        MAIN_MENUS + column(link([INFO, PUMP_MENU], "Wärmepumpe")),
+        SITE[PAGES[STATISTICS_PAGE]],
+    ],
+    ids=["empty column", "main menus nested", "another section"],
+)
+async def test_a_page_served_half_on_every_ask_is_not_called_unsupported(
+    hass, pump, monkeypatch, half
+):
+    """Four half answers in a row - two visits, two asks each - and the
+    dialog said the controller was not supported, naming every title of the
+    page; asking again a little later succeeds."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = half
+
+    with pytest.raises(webif.Broken) as raised:
+        await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert type(raised.value) is webif.Broken
+
+
+async def test_a_menu_served_half_on_every_ask_is_not_called_another_language(
+    hass, pump, monkeypatch
+):
+    """An empty column in place of the Info menu, four times, and the dialog
+    asked whether the controller's language was German."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    pump.site[STACK + INFO] = MAIN_MENUS + column("")
+
+    with pytest.raises(webif.Broken) as raised:
+        await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert type(raised.value) is webif.Broken
+
+
+@pytest.mark.parametrize(
+    ("entries", "unclear"),
+    [
+        (shown_otherwise("Hochdruck", ""), {"Hochdruck"}),
+        ([*HEAT_PUMP_SHOWN, ("Verdichter", "2568 rpm")], {"Verdichter"}),
+        ([*HEAT_PUMP_SHOWN, ("Betrieb", "")], {"Betrieb"}),
+    ],
+    ids=["value left empty", "title twice", "unread entry left empty"],
+)
+async def test_values_shown_empty_or_twice_are_named(
+    hass, pump, monkeypatch, entries, unclear
+):
+    """The dialog said the menus had come incomplete and to try again, which
+    cannot help on a model that shows the page so."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(entries)
+
+    with pytest.raises(UnclearValues) as raised:
+        await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert raised.value.page == "Info › Wärmepumpe"
+    assert raised.value.titles == unclear
+
+
+async def test_a_value_in_a_unit_its_sensor_does_not_read_is_named(
+    hass, pump, monkeypatch
+):
+    """Another spelling of the unit passed the dialog, and the sensor read
+    unknown for good without a word on why."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(
+        shown_otherwise("Hochdruck", "24.4 bar")
+    )
+
+    with pytest.raises(UnknownUnits) as raised:
+        await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert raised.value.page == "Info › Wärmepumpe"
+    assert raised.value.titles == {"Hochdruck"}
+
+
+async def test_no_value_and_off_are_no_unknown_unit(hass, pump, monkeypatch):
+    """The controller's own words for no value and for an idle power."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    entries = [
+        (title, {"Hochdruck": "--", "Ist Leistung": "Aus"}.get(title, shown))
+        for title, shown in HEAT_PUMP_SHOWN
+    ]
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(entries)
+
+    found = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert found[HEAT_PUMP_PAGE] == PAGES[HEAT_PUMP_PAGE]
 
 
 async def test_a_menu_served_half_twice_is_searched_once_more(hass, pump, monkeypatch):

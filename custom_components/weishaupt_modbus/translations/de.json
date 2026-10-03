@@ -16,8 +16,10 @@
             "postfix_in_use": "Dieses Geräte-Postfix wird schon von einer anderen Wärmepumpe verwendet",
             "postfix_required": "Eine zweite Wärmepumpe braucht ein Geräte-Postfix",
             "invalid_auth": "Die Weboberfläche hat Benutzer und Passwort abgelehnt",
-            "cannot_read": "Die Weboberfläche hat ihre Menüs nicht vollständig angezeigt; bitte erneut versuchen",
+            "cannot_read": "Die Weboberfläche hat ihre Seiten mehrmals hintereinander nur teilweise geschickt; bitte in ein paar Minuten erneut versuchen",
             "missing_titles": "Die Seite {page} der Weboberfläche zeigt {titles} nicht. Dieser Regler wird noch nicht unterstützt.",
+            "unclear_values": "Die Seite {page} der Weboberfläche zeigt {titles} ohne Wert oder mehrfach. Bitte erneut versuchen; bleibt es so, wird dieser Regler noch nicht unterstützt.",
+            "unknown_units": "Die Seite {page} der Weboberfläche zeigt {titles} in einer Einheit, die die Integration nicht kennt. Dieser Regler wird noch nicht unterstützt.",
             "missing_menu_entries": "Die Menüs der Weboberfläche zeigen {titles} nicht. Die Integration findet ihre Seiten über diese deutschen Namen: Ist am Regler Deutsch als Sprache eingestellt?"
         },
         "progress": {

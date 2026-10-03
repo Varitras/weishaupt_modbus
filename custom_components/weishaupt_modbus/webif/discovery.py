@@ -76,6 +76,11 @@ async def _entries(
     try:
         await client.page(path, complete)
     except Broken as error:
+        # A menu showing nothing of its own level came half, which asking
+        # again a little later mends; one showing other entries is in
+        # another language or of another model.
+        if not shown:
+            raise
         raise MissingMenuEntries(wanted - shown.keys()) from error
     return shown
 

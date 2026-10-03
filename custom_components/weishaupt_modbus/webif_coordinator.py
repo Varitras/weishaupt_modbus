@@ -8,6 +8,7 @@ the second in a row takes them away, and the third stops all polling until
 the entry is reloaded.
 """
 
+from collections import Counter
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass
 from datetime import timedelta
@@ -79,12 +80,20 @@ class Page:
         return pages.values(text)
 
     def is_whole(self, text: str) -> bool:
-        """Every required title is there, and no value is left blank."""
+        """Every required title is there once, and no value is left blank."""
         return pages.is_complete(self.read(text), self.required)
 
     def missing(self, text: str) -> frozenset[str]:
         """The required titles the page does not show."""
         return self.required - {title for title, _ in self.read(text)}
+
+    def unclear(self, text: str) -> frozenset[str]:
+        """The titles shown without a value, and the required ones shown twice."""
+        found = self.read(text)
+        counts = Counter(title for title, _ in found)
+        empty = {title for title, shown in found if not shown}
+        twice = {title for title in self.required if counts[title] > 1}
+        return frozenset(empty | twice)
 
 
 def polled_pages(
