@@ -458,6 +458,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         pumps = self._pumps()
         if (visit := self._visit) is not None:
             return self._webif_visited(pumps, visit)
+        if not pumps:
+            return self.async_abort(reason="no_pump")
         offered = self._pumps_without_web_interface()
         if not offered:
             return self.async_abort(reason="every_pump_has_web_interface")

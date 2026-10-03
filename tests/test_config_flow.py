@@ -733,6 +733,25 @@ async def test_with_every_pump_on_its_web_interface_the_dialog_says_so(
     assert web_interface.visits == []
 
 
+async def test_with_the_last_pump_gone_the_dialog_says_there_is_none(
+    hass, web_interface
+):
+    """The menu came with a pump, which went before the web interface was
+    picked, and the dialog said every heat pump already had one."""
+    pump = _pump_entry(hass)
+    menu = await hass.config_entries.flow.async_init(
+        CONST.DOMAIN, context={"source": "user"}
+    )
+    await hass.config_entries.async_remove(pump.entry_id)
+
+    result = await hass.config_entries.flow.async_configure(
+        menu["flow_id"], {"next_step_id": "webif"}
+    )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "no_pump"
+
+
 async def test_a_web_interface_added_meanwhile_ends_the_dialog(hass, web_interface):
     """Another dialog added the pump's web interface while this one was open."""
     first = _pump_entry(hass)

@@ -2217,5 +2217,12 @@
     "old": "        if not shown or not missing:\n            raise\n",
     "new": "        if not shown:\n            raise\n",
     "tests": "menu_entry_shown_twice_is_not_taken_at_random"
+  },
+  {
+    "label": "config flow: with no pump left the dialog says every pump has one",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        if not pumps:\n            return self.async_abort(reason=\"no_pump\")\n        offered = self._pumps_without_web_interface()\n",
+    "new": "        offered = self._pumps_without_web_interface()\n",
+    "tests": "last_pump_gone_the_dialog_says_there_is_none"
   }
 ]
