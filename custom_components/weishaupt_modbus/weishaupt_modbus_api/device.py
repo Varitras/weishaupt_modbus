@@ -51,6 +51,10 @@ BANDS: tuple[Band, ...] = (
 HOLDING_REGISTERS = range(40000, 50000)
 # Outside temperature to operating status: every Weishaupt serves these.
 SYSTEM_BAND: Band = (30001, 30006)
+# Ends a band read that hangs. The library gives up on the first block the
+# link cannot serve, so a healthy read never comes near it. Timed inside the
+# controller's lock: waiting for the web interface is not the link failing.
+BAND_TIMEOUT_SECONDS = 60
 
 
 def band_of(address: int) -> Band:
@@ -136,7 +140,7 @@ class WeishauptHeatPump:
         self._written_while_polling.clear()
         for band, component in self._components.items():
             try:
-                async with self._host_lock:
+                async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):
                     await component.async_update()
             except ModbusExceptionError as err:
                 # Any code: the controller answers a refused block with a

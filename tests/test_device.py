@@ -17,11 +17,19 @@ from modbus_connection import (
 )
 from modbus_connection.mock import MockModbusConnection
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.weishaupt_modbus.configentry import host_lock
-from custom_components.weishaupt_modbus.const import DEVICES, FORMATS, TYPES
+from custom_components.weishaupt_modbus.const import (
+    CONF,
+    CONST,
+    DEVICES,
+    FORMATS,
+    TYPES,
+)
+from custom_components.weishaupt_modbus.coordinator import WeishauptModbusCoordinator
 from custom_components.weishaupt_modbus.items import ModbusItem
-from custom_components.weishaupt_modbus.weishaupt_modbus_api import hpconst
+from custom_components.weishaupt_modbus.weishaupt_modbus_api import device, hpconst
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.device import (
     BANDS,
     HOLDING_REGISTERS,
@@ -406,6 +414,55 @@ async def test_a_write_waits_while_the_web_interface_holds_the_controller(
 
     assert await writing is True
     assert len(writes) == 1
+
+
+SHORT_LIMIT_SECONDS = 0.5
+
+
+async def test_waiting_for_the_web_interface_does_not_time_the_poll_out(
+    hass, unit, monkeypatch
+):
+    """The poll's time limit counted the wait for the web interface too: a
+    few slow web answers could time a healthy poll out."""
+    monkeypatch.setattr(device, "BAND_TIMEOUT_SECONDS", SHORT_LIMIT_SECONDS)
+    host_lock = WatchedLock()
+    items = _all_items()
+    pump = WeishauptHeatPump(unit, items, WriteBudget(warn_at=0, limit=0), host_lock)
+    entry = MockConfigEntry(domain=CONST.DOMAIN, data={CONF.HOST: "127.0.0.1"})
+    entry.add_to_hass(hass)
+    coordinator = WeishauptModbusCoordinator(
+        hass=hass, device=pump, api_items=items, config_entry=entry
+    )
+
+    async with host_lock:
+        polling = asyncio.create_task(coordinator._async_update_data())
+        await until(lambda: host_lock.waited)
+        await asyncio.sleep(2 * SHORT_LIMIT_SECONDS)
+
+    assert await polling
+
+
+async def test_a_band_read_that_never_answers_is_cut_off(unit, monkeypatch):
+    """The time limit moved inside the lock; it still has to end a read the
+    link never answers, or the poll would hang for good."""
+    monkeypatch.setattr(device, "BAND_TIMEOUT_SECONDS", SHORT_LIMIT_SECONDS)
+    never = asyncio.Event()
+
+    async def silent(*_args, **_kwargs):
+        await never.wait()
+
+    monkeypatch.setattr(unit, "read_input_registers", silent)
+    pump = WeishauptHeatPump(
+        unit, _all_items(), WriteBudget(warn_at=0, limit=0), asyncio.Lock()
+    )
+
+    reading = asyncio.create_task(pump.async_update())
+    _, pending = await asyncio.wait({reading}, timeout=10 * SHORT_LIMIT_SECONDS)
+    for task in pending:
+        task.cancel()
+
+    assert not pending, "the read was never cut off"
+    assert isinstance(reading.exception(), TimeoutError)
 
 
 async def test_the_entries_of_one_pump_share_its_lock(hass):

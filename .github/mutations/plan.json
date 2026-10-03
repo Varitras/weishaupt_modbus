@@ -1157,8 +1157,8 @@
   {
     "label": "device: a poll reads while the web interface holds the controller",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "                async with self._host_lock:\n                    await component.async_update()\n",
-    "new": "                async with asyncio.Lock():\n                    await component.async_update()\n",
+    "old": "                async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):\n                    await component.async_update()\n",
+    "new": "                async with asyncio.Lock(), asyncio.timeout(BAND_TIMEOUT_SECONDS):\n                    await component.async_update()\n",
     "tests": "poll_waits_while_the_web_interface_holds"
   },
   {
@@ -1853,5 +1853,19 @@
     "old": "        raise ConfigEntryError(\n            translation_domain=CONST.DOMAIN, translation_key=\"webif_pump_removed\"\n        )\n",
     "new": "        raise ConfigEntryError(\"its heat pump entry was removed\")\n",
     "tests": "user_sees_is_translated"
+  },
+  {
+    "label": "device: the band time limit counts the wait for the web interface",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "                async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):\n",
+    "new": "                async with asyncio.timeout(BAND_TIMEOUT_SECONDS), self._host_lock:\n",
+    "tests": "does_not_time_the_poll_out"
+  },
+  {
+    "label": "device: a band read that hangs is never cut off",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "                async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):\n",
+    "new": "                async with self._host_lock:\n",
+    "tests": "never_answers_is_cut_off"
   }
 ]
