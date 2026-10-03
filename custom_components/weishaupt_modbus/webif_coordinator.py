@@ -149,13 +149,16 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         *,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
-        """A round as often as the most frequent page is due."""
+        """A round on the largest step that divides every page's interval."""
+        # On the shortest interval alone, a page of 7 minutes beside one of 5
+        # came every 10. A round with nothing due asks nothing.
+        tick = math.gcd(*(int(page.interval.total_seconds()) for page in polled))
         super().__init__(
             hass,
             _LOGGER,
             config_entry=config_entry,
             name="weishaupt-webif",
-            update_interval=min(page.interval for page in polled),
+            update_interval=timedelta(seconds=tick),
         )
         self._client = client
         self._pages = polled

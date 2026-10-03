@@ -363,11 +363,13 @@ async def test_a_web_interface_stops_when_its_pump_is_removed(hass, pump):
 
 
 async def test_the_heat_pump_page_follows_the_interval_option(hass, pump):
+    """7 minutes beside the other pages' 15: a round every minute keeps both,
+    where rounds every 7 read the other pages every 21."""
     entry = await _start(
         hass, _entries(hass, pump, options={CONST.OPTION_WEBIF_INTERVAL: 7})
     )
 
-    assert entry.runtime_data.coordinator.update_interval == timedelta(minutes=7)
+    assert entry.runtime_data.coordinator.update_interval == timedelta(minutes=1)
 
 
 async def test_a_statistics_interval_below_the_heat_pump_page_sets_the_rounds(

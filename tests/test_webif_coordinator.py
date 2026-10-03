@@ -4,6 +4,7 @@ Driven with a real Home Assistant core and a fake client that answers each
 page from a script; the client's own rules are tested in test_webif_client.
 """
 
+from dataclasses import replace
 from datetime import timedelta
 import json
 import pathlib
@@ -192,8 +193,44 @@ async def test_the_first_round_reads_every_page(coordinator, client, clock):
     }
 
 
-async def test_a_round_comes_as_often_as_the_most_frequent_page(coordinator):
-    assert coordinator.update_interval == QUARTER_HOUR
+@pytest.mark.parametrize(
+    ("minutes", "tick"),
+    [((15, 60, 60), 15), ((10, 15, 15), 5), ((5, 7, 15), 1)],
+)
+async def test_a_round_comes_on_the_step_that_divides_every_interval(
+    hass, entry, client, minutes, tick
+):
+    polled = [
+        replace(page, interval=timedelta(minutes=interval))
+        for page, interval in zip(
+            (HEAT_PUMP, STATISTICS, HEATING), minutes, strict=True
+        )
+    ]
+
+    coordinator = WebifCoordinator(hass, entry, client, polled)
+
+    assert coordinator.update_interval == timedelta(minutes=tick)
+
+
+async def test_a_page_of_7_minutes_beside_one_of_5_comes_after_7_not_10(
+    hass, entry, client, clock
+):
+    """The round came as often as the most frequent page, so a slower page
+    waited past its own interval for the faster page's next round."""
+    polled = [
+        replace(HEAT_PUMP, interval=timedelta(minutes=5)),
+        replace(STATISTICS, interval=timedelta(minutes=7)),
+    ]
+    coordinator = WebifCoordinator(hass, entry, client, polled, clock=clock)
+    tick = coordinator.update_interval.total_seconds()
+    read_at = []
+    for step in range(round(15 * 60 / tick)):
+        client.asked.clear()
+        await round_at(coordinator, clock, step * tick)
+        if STATISTICS.path in client.asked:
+            read_at.append(clock.now / 60)
+
+    assert read_at == [0, 7, 14]
 
 
 async def test_a_page_is_asked_for_again_once_its_interval_is_over(

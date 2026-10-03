@@ -1183,11 +1183,11 @@
     "tests": "request_waits_while_modbus_holds"
   },
   {
-    "label": "webif coordinator: rounds follow the least frequent page",
+    "label": "webif coordinator: rounds follow the shortest interval alone",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            update_interval=min(page.interval for page in polled),\n",
-    "new": "            update_interval=max(page.interval for page in polled),\n",
-    "tests": "as_often_as_the_most_frequent_page"
+    "old": "        tick = math.gcd(*(int(page.interval.total_seconds()) for page in polled))\n",
+    "new": "        tick = min(int(page.interval.total_seconds()) for page in polled)\n",
+    "tests": "step_that_divides_every_interval or 7_minutes_beside_one_of_5"
   },
   {
     "label": "webif coordinator: a round a second early skips a due page",
