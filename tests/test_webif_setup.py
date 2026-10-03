@@ -168,8 +168,9 @@ def _entries(hass, pump, password=PASSWORD, options=None):
 
 
 async def _start(hass, entry):
+    """Set the entry up and wait for its first round, which runs after it."""
     await hass.config_entries.async_setup(entry.entry_id)
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     return entry
 
 
@@ -202,6 +203,21 @@ async def test_a_web_interface_starts_with_a_round_of_its_pages(hass, pump):
     assert pump.asked == [*LOGIN, *(("GET", path) for path in PAGES.values())]
 
 
+async def test_the_start_does_not_wait_for_the_first_round(hass, pump):
+    """Live, the first round took 25 to 45 s, and Home Assistant's start
+    waited for all of it."""
+    pump.delays[webif.INDEX] = 0.5
+    entry = _entries(hass, pump)
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert ("GET", PAGES[HEAT_PUMP_PAGE]) not in pump.asked
+    assert hass.states.get(_sensor(hass, "hochdruck")).state == "unavailable"
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert hass.states.get(_sensor(hass, "hochdruck")).state == "12.0"
+
+
 async def test_a_session_dropped_right_after_the_login_ends_the_round(hass, pump):
     """Live, 2026-10-02 and 03, with the quoted cookie: the controller drops
     every fresh session. One new login per round, not one per page."""
@@ -213,9 +229,10 @@ async def test_a_session_dropped_right_after_the_login_ends_the_round(hass, pump
     assert pump.asked.count(("GET", PAGES[STATISTICS_PAGE])) == 0
 
 
-async def test_a_setup_failing_after_the_login_logs_out(hass, pump, monkeypatch):
+async def test_a_first_round_failing_leaves_no_session_behind(hass, pump, monkeypatch):
     """Each retry of a setup that failed after its login left one more
-    session open on the controller."""
+    session open on the controller. The round now fails after the setup:
+    no retry, one session, and the unload logs it out."""
 
     def unreadable(self, text):
         raise ValueError("a page layout nobody expected")
@@ -224,9 +241,23 @@ async def test_a_setup_failing_after_the_login_logs_out(hass, pump, monkeypatch)
 
     entry = await _start(hass, _entries(hass, pump))
 
-    assert entry.state is ConfigEntryState.SETUP_RETRY
-    assert pump.asked[-1] == ("GET", webif.LOGOUT)
+    assert entry.state is ConfigEntryState.LOADED
+    assert len(pump.sessions) == 1
+    assert await hass.config_entries.async_unload(entry.entry_id)
     assert pump.sessions == set()
+
+
+async def test_an_update_asked_for_during_the_first_round_adds_no_round(hass, pump):
+    """The first round runs beside the start: an update asked for meanwhile
+    would ask the pages it has not reached yet a second time."""
+    pump.delays[webif.INDEX] = 0.5
+    entry = _entries(hass, pump)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+
+    await entry.runtime_data.coordinator.async_request_refresh()
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert pump.asked == FIRST_ROUND
 
 
 async def test_unloading_stops_and_logs_out(hass, pump):
@@ -281,9 +312,10 @@ async def test_unloading_after_the_stop_logs_no_error(hass, pump, caplog):
 
 
 async def test_a_refused_login_asks_for_a_new_one(hass, pump):
+    """The first round runs after the setup, so the entry stays loaded."""
     entry = await _start(hass, _entries(hass, pump, password="outdated"))
 
-    assert entry.state is ConfigEntryState.SETUP_ERROR
+    assert entry.state is ConfigEntryState.LOADED
     flows = hass.config_entries.flow.async_progress_by_handler(CONST.DOMAIN)
     assert [flow["context"]["source"] for flow in flows] == ["reauth"]
     assert pump.asked == LOGIN
@@ -314,7 +346,7 @@ async def test_a_web_interface_follows_its_pump_to_a_new_address(
     hass.config_entries.async_update_entry(
         pump_entry, data={**pump_entry.data, CONF.HOST: other_pump.host}
     )
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
 
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
     assert other_pump.asked == FIRST_ROUND
@@ -339,7 +371,7 @@ async def test_switching_its_pump_on_and_off_leaves_the_web_interface_alone(
         await hass.config_entries.async_set_disabled_by(
             pump_entry.entry_id, disabled_by
         )
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
 
     assert pump.asked == []
     assert web.state is ConfigEntryState.LOADED
@@ -393,9 +425,10 @@ async def test_the_web_interface_waits_while_its_pump_is_asked(hass, pump):
         await asyncio.sleep(0.1)
         assert pump.asked == []
     await starting
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
 
     assert entry.state is ConfigEntryState.LOADED
+    assert pump.asked == FIRST_ROUND
 
 
 async def test_the_diagnostics_leave_out_the_login_and_the_page_addresses(hass, pump):

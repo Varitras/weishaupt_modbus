@@ -312,6 +312,9 @@ here, not set.
 - It stays logged in. It logs in again when the controller has dropped the
   session, renews the session once a day, and logs out when the entry is
   unloaded or Home Assistant stops.
+- The first round, a login and the three pages, takes 20 seconds or more.
+  It runs after the entry has started, so Home Assistant's start does not
+  wait for it; the sensors show unavailable until it is done.
 - A page that arrived whole but wrong is asked for once more. After a
   timeout, a broken connection, an error status or a session dropped right
   after the login, nothing more is asked in that round.

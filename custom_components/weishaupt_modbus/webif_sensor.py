@@ -393,7 +393,8 @@ class WebifSensor(_WebifEntity):
         )
 
     def _values(self) -> dict[str, str] | None:
-        return self.coordinator.data.get(self.entity_description.page)
+        # No data at all until the first round, which runs after the setup.
+        return (self.coordinator.data or {}).get(self.entity_description.page)
 
 
 class _PollingSensor(_WebifEntity):

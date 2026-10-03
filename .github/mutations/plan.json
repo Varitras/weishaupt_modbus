@@ -1402,9 +1402,30 @@
   {
     "label": "setup: a web interface starts without its first round",
     "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "        await coordinator.async_config_entry_first_refresh()\n",
+    "old": "    entry.async_create_background_task(\n        hass, coordinator.async_refresh(), \"weishaupt-webif first round\"\n    )\n",
     "new": "",
     "tests": "starts_with_a_round_of_its_pages"
+  },
+  {
+    "label": "setup: the start waits for the first round",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    entry.async_create_background_task(\n        hass, coordinator.async_refresh(), \"weishaupt-webif first round\"\n    )\n",
+    "new": "    await coordinator.async_refresh()\n",
+    "tests": "start_does_not_wait_for_the_first_round"
+  },
+  {
+    "label": "setup: the first round goes around the refresh lock",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        hass, coordinator.async_refresh(), \"weishaupt-webif first round\"\n",
+    "new": "        hass, coordinator._async_refresh(), \"weishaupt-webif first round\"\n",
+    "tests": "during_the_first_round_adds_no_round"
+  },
+  {
+    "label": "webif sensor: a sensor added before the first round breaks",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        return (self.coordinator.data or {}).get(self.entity_description.page)\n",
+    "new": "        return self.coordinator.data.get(self.entity_description.page)\n",
+    "tests": "start_does_not_wait_for_the_first_round"
   },
   {
     "label": "setup: a web interface without its pump fails unexplained",
@@ -1507,7 +1528,7 @@
   {
     "label": "setup: the web interface gets no sensors",
     "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "        await hass.config_entries.async_forward_entry_setups(entry, WEBIF_PLATFORMS)\n",
+    "old": "    await hass.config_entries.async_forward_entry_setups(entry, WEBIF_PLATFORMS)\n",
     "new": "",
     "tests": "values_become_sensors"
   },
@@ -1769,13 +1790,6 @@
     "old": "            for key in (CONF.PUMP_ENTRY, CONF.USERNAME)\n",
     "new": "            for key in (CONF.PUMP_ENTRY, CONF.USERNAME, CONF.PASSWORD)\n",
     "tests": "visit_failing_after_its_progress"
-  },
-  {
-    "label": "setup: a setup failing after the login does not log out",
-    "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "        await client.close()\n        raise\n",
-    "new": "        raise\n",
-    "tests": "failing_after_the_login_logs_out"
   },
   {
     "label": "config flow: a visit cancelled in its logout keeps its session",
