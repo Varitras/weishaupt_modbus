@@ -221,6 +221,9 @@ async def test_reconfigure_updates_the_entry_in_place(hass):
     result = await _reconfigure(
         hass, entry, {**RECONFIGURE_PAGE, CONF.HOST: "192.0.2.20"}
     )
+    # The reconfigure reloads the entry; left running, that reload would end
+    # inside Home Assistant's stop at teardown.
+    await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.ABORT, result.get("errors")
     assert result["reason"] == "reconfigure_successful"
@@ -396,6 +399,7 @@ async def test_a_reconfigure_taking_the_endpoint_survives_a_probing_user_flow(
     assert moved["reason"] == "reconfigure_successful"
     release.set()
     result = await asyncio.wait_for(pending, timeout=5)
+    await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
@@ -664,6 +668,7 @@ async def test_a_refused_login_is_replaced_by_a_new_one(hass, web_interface):
     form = await entry.start_reauth_flow(hass)
     assert form["step_id"] == "reauth_confirm"
     result = await hass.config_entries.flow.async_configure(form["flow_id"], renewed)
+    await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reauth_successful"

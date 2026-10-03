@@ -825,6 +825,9 @@ async def test_a_warning_above_the_limit_is_refused(hass):
             CONST.OPTION_WRITE_LIMIT_PER_DAY: 60,
         },
     )
+    # The options reload the entry; left running, that reload ended inside
+    # Home Assistant's stop at teardown, now and then (a lingering timer).
+    await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
 
