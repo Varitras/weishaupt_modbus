@@ -186,10 +186,11 @@ async def test_a_page_wrong_twice_is_broken(pump, session):
 
 
 async def test_an_error_status_is_no_page_and_gets_no_second_try(pump, session):
+    """A struggling server, not a page served half: the round ends there."""
     pump.status = 500
     client = connect(session, pump.host)
 
-    with pytest.raises(webif.Broken):
+    with pytest.raises(webif.Unreachable):
         await client.page(PAGE, whole)
     assert pump.asked == [*LOGIN, ("GET", PAGE)]
 
@@ -244,12 +245,13 @@ async def test_a_lost_session_is_renewed_once(pump, session):
     assert pump.asked == [("GET", PAGE), *LOGIN, ("GET", PAGE)]
 
 
-async def test_a_session_lost_again_right_after_the_login_is_broken(pump, session):
-    """No login loop: one new login per round, whatever the server does."""
+async def test_a_session_lost_again_right_after_the_login_ends_the_round(pump, session):
+    """It counted as a page served half, so the round went on and every
+    further page logged in again: four logins in one round."""
     pump.keeps_sessions = False
     client = connect(session, pump.host)
 
-    with pytest.raises(webif.Broken):
+    with pytest.raises(webif.Unreachable):
         await client.page(PAGE, whole)
     assert pump.asked == [*LOGIN, ("GET", PAGE), *LOGIN, ("GET", PAGE)]
 
@@ -260,7 +262,9 @@ async def test_a_redirected_page_names_where_it_was_sent(pump, session):
     pump.keeps_sessions = False
     client = connect(session, pump.host)
 
-    with pytest.raises(webif.Broken, match=re.escape(f"HTTP 303 to {webif.INDEX}")):
+    with pytest.raises(
+        webif.Unreachable, match=re.escape(f"HTTP 303 to {webif.INDEX}")
+    ):
         await client.page(PAGE, whole)
 
 
@@ -432,7 +436,7 @@ async def test_the_traffic_is_counted(pump, session):
 
     await client.page(PAGE, whole)
     pump.status = 500
-    with pytest.raises(webif.Broken):
+    with pytest.raises(webif.Unreachable):
         await client.page(PAGE, whole)
 
     assert client.traffic == webif.Traffic(

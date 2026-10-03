@@ -43,8 +43,8 @@ class WebifError(Exception):
 class Unreachable(WebifError):
     """The server struggles.
 
-    No complete answer in time, a broken connection, or a login it could not
-    serve.
+    No complete answer in time, a broken connection, an error status, a login
+    it could not serve, or a session it dropped right after the login.
     """
 
 
@@ -131,8 +131,10 @@ def _session_cookie(headers: Iterable[str]) -> str | None:
 
 
 def _page_text(path: str, answer: _Answer) -> str:
+    # Not a page served half: the server could not serve it, or dropped the
+    # session it had just given, and asking further pages only adds load.
     if answer.status != HTTPStatus.OK:
-        raise Broken(f"{path}: HTTP {answer.status} to {answer.location or '-'}")
+        raise Unreachable(f"{path}: HTTP {answer.status} to {answer.location or '-'}")
     return answer.text
 
 

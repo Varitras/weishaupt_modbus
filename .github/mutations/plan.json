@@ -1528,9 +1528,16 @@
   {
     "label": "webif client: a redirected page hides where it was sent",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        raise Broken(f\"{path}: HTTP {answer.status} to {answer.location or '-'}\")\n",
-    "new": "        raise Broken(f\"{path}: HTTP {answer.status}\")\n",
+    "old": "        raise Unreachable(f\"{path}: HTTP {answer.status} to {answer.location or '-'}\")\n",
+    "new": "        raise Unreachable(f\"{path}: HTTP {answer.status}\")\n",
     "tests": "names_where_it_was_sent"
+  },
+  {
+    "label": "webif client: an error status counts as a page served half",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        raise Unreachable(f\"{path}: HTTP {answer.status} to {answer.location or '-'}\")\n",
+    "new": "        raise Broken(f\"{path}: HTTP {answer.status} to {answer.location or '-'}\")\n",
+    "tests": "error_status or dropped_right_after_the_login or lost_again_right_after"
   },
   {
     "label": "webif client: the session id goes through aiohttp's cookie handling",

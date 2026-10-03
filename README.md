@@ -311,7 +311,8 @@ unknown. The heating power limit can be read here, not set.
   session, renews the session once a day, and logs out when the entry is
   unloaded or Home Assistant stops.
 - A page that arrived whole but wrong is asked for once more. After a
-  timeout or a broken connection nothing more is asked in that round.
+  timeout, a broken connection, an error status or a session dropped right
+  after the login, nothing more is asked in that round.
 - A page that fails keeps its values once; the second failure in a row makes
   them unavailable; the third stops polling and raises a repair notice.
   A failed page is asked for again only after its own interval. Check the

@@ -166,6 +166,17 @@ async def test_a_menu_served_half_twice_is_searched_once_more(hass, pump, monkey
     assert len(pump.forms) == 1, "searched again in the same session"
 
 
+async def test_an_error_status_is_not_searched_once_more(hass, pump, monkeypatch):
+    """An error status counted as a menu served half, so the dialog asked
+    the struggling server for the whole search a second time."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    pump.status = 500
+
+    with pytest.raises(webif.Unreachable):
+        await read_web_interface(hass, pump.host, USER, PASSWORD)
+    assert pump.asked.count(("GET", PAGE_PATH)) == 1
+
+
 async def test_a_refused_login_is_not_tried_twice(hass, pump, monkeypatch):
     monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
 

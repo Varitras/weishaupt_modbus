@@ -201,6 +201,17 @@ async def test_a_web_interface_starts_with_a_round_of_its_pages(hass, pump):
     assert pump.asked == [*LOGIN, *(("GET", path) for path in PAGES.values())]
 
 
+async def test_a_session_dropped_right_after_the_login_ends_the_round(hass, pump):
+    """Live, 2026-10-02 and 03, with the quoted cookie: the controller drops
+    every fresh session. One new login per round, not one per page."""
+    pump.keeps_sessions = False
+
+    await _start(hass, _entries(hass, pump))
+
+    assert pump.asked.count(("POST", webif.LOGIN)) == 2
+    assert pump.asked.count(("GET", PAGES[STATISTICS_PAGE])) == 0
+
+
 async def test_unloading_stops_and_logs_out(hass, pump):
     entry = await _start(hass, _entries(hass, pump))
 
