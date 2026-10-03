@@ -171,6 +171,24 @@ async def test_after_a_timeout_nothing_follows(pump, session):
     assert pump.asked == [*LOGIN, ("GET", PAGE)]
 
 
+async def test_a_dropped_connection_is_not_asked_again(socket_enabled, session):
+    """aiohttp sent a GET once more by itself when the connection dropped
+    before the answer: a second request at once, outside the gap, to a
+    controller that had just struggled."""
+    arrivals = []
+
+    async def drop(reader, writer):
+        request = await reader.readuntil(b"\r\n\r\n")
+        arrivals.append(request.split(b" ", 2)[1].decode())
+        writer.close()
+
+    async with await asyncio.start_server(drop, "127.0.0.1", 0) as server:
+        port = server.sockets[0].getsockname()[1]
+        with pytest.raises(webif.Unreachable):
+            await connect(session, f"127.0.0.1:{port}").page(PAGE, whole)
+    assert arrivals == [webif.INDEX]
+
+
 async def test_a_pump_that_takes_no_connection_is_unreachable(socket_enabled, session):
     with socket.socket() as closed:
         closed.bind(("127.0.0.1", 0))

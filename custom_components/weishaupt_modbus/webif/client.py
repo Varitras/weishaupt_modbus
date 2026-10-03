@@ -132,6 +132,11 @@ class Client:
         """
         if not isinstance(session.cookie_jar, aiohttp.DummyCookieJar):
             raise TypeError("the session must leave cookies to the client")
+        # aiohttp sends a GET once more by itself when the connection drops
+        # before the answer: at once, outside the gap, to a controller that
+        # has just struggled. There is no public switch; aiohttp's own test
+        # client turns it off the same way.
+        session._retry_connection = False
         self._session = session
         self._base = f"http://{host}"
         self._credentials = {"user": user, "pass": password}

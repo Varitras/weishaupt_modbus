@@ -1001,6 +1001,13 @@
     "tests": "no_post_but_the_login"
   },
   {
+    "label": "webif client: aiohttp asks a dropped page again by itself",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        session._retry_connection = False\n",
+    "new": "",
+    "tests": "dropped_connection_is_not_asked_again"
+  },
+  {
     "label": "webif client: a lost session is not renewed",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
     "old": "            if answer.session_lost:\n",
