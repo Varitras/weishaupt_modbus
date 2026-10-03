@@ -114,6 +114,21 @@ async def test_an_overview_without_the_heat_pump_menu_is_broken(pump, client):
         await find_pages(client)
 
 
+async def test_a_menu_entry_shown_twice_is_not_taken_at_random(pump, client):
+    """The last of two links of the same title was stored in the entry for
+    good, whichever page it led to."""
+    pump.site[STACK + INFO] = MAIN_MENUS + column(
+        link([INFO, HEAT_PUMP_INFO], "Wärmepumpe")
+        + link([INFO, STATISTICS_INFO], "Statistik")
+        + link([INFO, "0C000C24000000000000000A0B020003000401"], "Wärmepumpe")
+    )
+
+    with pytest.raises(webif.Broken) as raised:
+        await find_pages(client)
+
+    assert type(raised.value) is webif.Broken
+
+
 async def test_the_menu_entries_not_found_are_named(pump, client):
     """A controller set to another language shows its menus whole, under
     other names; the dialog said "try again", which could never help."""

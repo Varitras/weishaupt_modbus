@@ -6,6 +6,7 @@ overview, Info, and the heat pump's main menu. Nothing else is opened on the
 way; the heat pump menu also lists Reset.
 """
 
+from collections import Counter
 from collections.abc import Callable
 
 from . import pages
@@ -63,36 +64,39 @@ async def _entries(
     client: Client,
     path: str,
     wanted: set[str],
-    read: Callable[[str], dict[str, str]],
+    read: Callable[[str], list[tuple[str, str]]],
 ) -> dict[str, str]:
     """The entries the page at path shows, title to link, `wanted` among them."""
-    shown: dict[str, str] = {}
+    shown: list[tuple[str, str]] = []
 
     def complete(text: str) -> bool:
-        shown.clear()
-        shown.update(read(text))
-        return wanted <= shown.keys()
+        shown[:] = read(text)
+        counts = Counter(title for title, _ in shown)
+        # A wanted title shown twice leaves two links to pick from.
+        return all(counts[title] == 1 for title in wanted)
 
     try:
         await client.page(path, complete)
     except Broken as error:
-        # A menu showing nothing of its own level came half, which asking
-        # again a little later mends; one showing other entries is in
-        # another language or of another model.
-        if not shown:
+        missing = wanted - {title for title, _ in shown}
+        # A menu showing nothing of its own level came half, and one showing
+        # all it should with a title twice came wrong: asking again a little
+        # later may mend either. One showing other entries is in another
+        # language or of another model.
+        if not shown or not missing:
             raise
-        raise MissingMenuEntries(wanted - shown.keys()) from error
-    return shown
+        raise MissingMenuEntries(missing) from error
+    return dict(shown)
 
 
-def _links_below(path: str) -> Callable[[str], dict[str, str]]:
-    """The entries one level below the menu at path, title to link."""
+def _links_below(path: str) -> Callable[[str], list[tuple[str, str]]]:
+    """The entries one level below the menu at path, title and link."""
 
-    def links(text: str) -> dict[str, str]:
-        return {
-            entry.title: entry.href
+    def links(text: str) -> list[tuple[str, str]]:
+        return [
+            (entry.title, entry.href)
             for entry in pages.children(text, path)
             if entry.href is not None
-        }
+        ]
 
     return links

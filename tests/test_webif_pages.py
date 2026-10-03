@@ -160,10 +160,10 @@ def test_the_main_menus_are_the_links_of_one_segment():
     """The broken answer that nests the main menus gives them two segments."""
     nested = MENU + column(link([MAIN, PUMP_MENU], "Wärmepumpe"))
 
-    assert pages.main_menus(nested) == {
-        "Info": "/settings_export.html?stack=" + MAIN,
-        "Wärmepumpe": "/settings_export.html?stack=" + PUMP_MENU,
-    }
+    assert pages.main_menus(nested) == [
+        ("Info", "/settings_export.html?stack=" + MAIN),
+        ("Wärmepumpe", "/settings_export.html?stack=" + PUMP_MENU),
+    ]
 
 
 def test_a_link_that_is_no_stack_is_no_main_menu():
@@ -174,9 +174,9 @@ def test_a_link_that_is_no_stack_is_no_main_menu():
         + link([PUMP_MENU], "Wärmepumpe")
     )
 
-    assert pages.main_menus(page) == {
-        "Wärmepumpe": "/settings_export.html?stack=" + PUMP_MENU
-    }
+    assert pages.main_menus(page) == [
+        ("Wärmepumpe", "/settings_export.html?stack=" + PUMP_MENU)
+    ]
 
 
 def test_siblings_nested_one_level_too_deep_are_no_children():

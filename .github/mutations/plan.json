@@ -1311,7 +1311,7 @@
   {
     "label": "webif discovery: a menu without the entry wanted passes",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        return wanted <= shown.keys()\n",
+    "old": "        return all(counts[title] == 1 for title in wanted)\n",
     "new": "        return True\n",
     "tests": "menu_without_the_entry_wanted"
   },
@@ -1878,7 +1878,7 @@
   {
     "label": "webif discovery: the missing menu entries go unnamed",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        raise MissingMenuEntries(wanted - shown.keys()) from error\n",
+    "old": "        raise MissingMenuEntries(missing) from error\n",
     "new": "        raise\n",
     "tests": "entries_not_found_are_named"
   },
@@ -2116,8 +2116,8 @@
   {
     "label": "webif discovery: a menu served half reads as another language",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        if not shown:\n            raise\n",
-    "new": "",
+    "old": "        if not shown or not missing:\n            raise\n",
+    "new": "        if not missing:\n            raise\n",
     "tests": "menu_served_half_on_every_ask_is_not_called_another_language"
   },
   {
@@ -2203,5 +2203,19 @@
     "old": "                        outcome += f\", more than {MAX_PAGE_BYTES} bytes\"\n",
     "new": "",
     "tests": "larger_than_any_page_is_logged_too"
+  },
+  {
+    "label": "webif discovery: a wanted entry shown twice passes",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        return all(counts[title] == 1 for title in wanted)\n",
+    "new": "        return all(counts[title] >= 1 for title in wanted)\n",
+    "tests": "menu_entry_shown_twice_is_not_taken_at_random"
+  },
+  {
+    "label": "webif discovery: a wanted entry shown twice reads as another language",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        if not shown or not missing:\n            raise\n",
+    "new": "        if not shown:\n            raise\n",
+    "tests": "menu_entry_shown_twice_is_not_taken_at_random"
   }
 ]
