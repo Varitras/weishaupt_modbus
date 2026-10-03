@@ -297,7 +297,9 @@ The *Name topic prefix* option of the heat pump entry names these sensors
 like their Modbus siblings, with `WP_` or `ST_` in front.
 
 A value counts only in the unit the page shows for it; anything else reads as
-unknown. The heating power limit can be read here, not set.
+unknown. The page shows an idle power or speed as `Aus`, which reads as 0
+there and as unknown on any other value. The heating power limit can be read
+here, not set.
 
 ### How gently it asks
 

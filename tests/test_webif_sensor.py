@@ -41,7 +41,6 @@ def _sensor(key, data):
         ("hochdruck", "24.4 °C", None),
         ("hochdruck", None, None),
         ("ist_leistung", "4.9 KW", 4.9),
-        ("ist_leistung", "Aus", 0.0),
         ("solltemperatur", "--", None),
         ("schaltspiele_verdichter", "13994", 13994.0),
         ("jaz_jahr", "4.16", 4.16),
@@ -53,6 +52,27 @@ def test_a_shown_value_is_a_reading_only_in_its_unit(key, shown, expected):
     """A value in another unit is another value: a page of another section,
     or a display the catalogue does not know."""
     assert reading(_description(key), shown) == expected
+
+
+@pytest.mark.parametrize(
+    ("key", "expected"),
+    [
+        ("soll_leistung", 0.0),
+        ("ist_leistung", 0.0),
+        ("drehzahl_pumpe_m1", 0.0),
+        ("verdichter_drehzahl", 0.0),
+        ("schaltspiele_verdichter", None),
+        ("betriebsstunden_verdichter", None),
+        ("th_energie_heizen_tag", None),
+        ("jaz_jahr", None),
+        ("leistungsbegrenzung_heizen", None),
+    ],
+)
+def test_aus_reads_0_only_for_an_idle_power_or_speed(key, expected):
+    """Elsewhere "Aus" read as 0 too: on a rising total that is a meter reset
+    to Home Assistant's statistics, which then count the next reading in full
+    again; on the power limit it more likely means no limit."""
+    assert reading(_description(key), "Aus") == expected
 
 
 def test_every_page_requires_the_titles_of_its_sensors():

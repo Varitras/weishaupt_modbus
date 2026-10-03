@@ -55,12 +55,16 @@ class WebifSensorDescription(SensorEntityDescription):
     `shown_unit` is the text after the number; None for a value that is text.
     `topic` is the pump device whose short name the name prefix option puts
     in front, as for the Modbus sensors of the same subject.
+    `off_is_zero` marks a power or speed, which the controller shows as "Aus"
+    when idle; anywhere else "Aus" reads unknown, since a 0 on a rising total
+    resets it in Home Assistant's statistics.
     """
 
     page: str
     title: str
     shown_unit: str | None
     topic: str = DEVICES.WP
+    off_is_zero: bool = False
 
 
 def _sensor(
@@ -140,6 +144,7 @@ def _power(key: str, title: str) -> WebifSensorDescription:
         key,
         title,
         KILOWATT,
+        off_is_zero=True,
         device_class=SensorDeviceClass.POWER,
         native_unit_of_measurement=UnitOfPower.KILO_WATT,
         state_class=SensorStateClass.MEASUREMENT,
@@ -193,7 +198,7 @@ def _performance(key: str, title: str) -> WebifSensorDescription:
 HEAT_PUMP_SENSORS = (
     _temperature("solltemperatur", "Solltemperatur"),
     _difference("schaltdifferenz_dynamisch", "Schaltdifferenz dynamisch"),
-    _percentage("drehzahl_pumpe_m1", "Drehzahl Pumpe M1"),
+    _percentage("drehzahl_pumpe_m1", "Drehzahl Pumpe M1", off_is_zero=True),
     _sensor(
         "volumenstrom",
         "Volumenstrom",
@@ -227,6 +232,7 @@ HEAT_PUMP_SENSORS = (
         "verdichter_drehzahl",
         "Verdichter",
         RPM,
+        off_is_zero=True,
         native_unit_of_measurement=REVOLUTIONS_PER_MINUTE,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=0,
@@ -327,7 +333,7 @@ def reading(description: WebifSensorDescription, shown: str | None) -> Any:
         return None
     if description.shown_unit is None:
         return shown
-    if shown == pages.OFF:
+    if shown == pages.OFF and description.off_is_zero:
         return 0.0
     if pages.unit(shown) != description.shown_unit:
         return None

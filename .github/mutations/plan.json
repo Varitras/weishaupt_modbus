@@ -966,13 +966,6 @@
     "tests": "values_of_another_section_do_not_pass"
   },
   {
-    "label": "webif pages: \"Aus\" reads as no value instead of 0",
-    "path": "custom_components/weishaupt_modbus/webif/pages.py",
-    "old": "        return 0.0\n",
-    "new": "        return None\n",
-    "tests": "a_shown_value_becomes_a_number"
-  },
-  {
     "label": "webif client: a timeout escapes as a bare TimeoutError",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
     "old": "            except (TimeoutError, aiohttp.ClientError) as error:\n",
@@ -1444,9 +1437,37 @@
   {
     "label": "webif sensor: Aus is no reading instead of 0",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "    if shown == pages.OFF:\n        return 0.0\n",
+    "old": "    if shown == pages.OFF and description.off_is_zero:\n        return 0.0\n",
     "new": "",
-    "tests": "reading_only_in_its_unit"
+    "tests": "aus_reads_0_only"
+  },
+  {
+    "label": "webif sensor: Aus reads 0 on a rising total or a limit too",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    if shown == pages.OFF and description.off_is_zero:\n",
+    "new": "    if shown == pages.OFF:\n",
+    "tests": "aus_reads_0_only"
+  },
+  {
+    "label": "webif sensor: an idle power reads unknown",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        KILOWATT,\n        off_is_zero=True,\n",
+    "new": "        KILOWATT,\n",
+    "tests": "aus_reads_0_only"
+  },
+  {
+    "label": "webif sensor: an idle pump reads unknown",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    _percentage(\"drehzahl_pumpe_m1\", \"Drehzahl Pumpe M1\", off_is_zero=True),\n",
+    "new": "    _percentage(\"drehzahl_pumpe_m1\", \"Drehzahl Pumpe M1\"),\n",
+    "tests": "aus_reads_0_only"
+  },
+  {
+    "label": "webif sensor: an idle compressor reads unknown",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        RPM,\n        off_is_zero=True,\n",
+    "new": "        RPM,\n",
+    "tests": "aus_reads_0_only"
   },
   {
     "label": "webif sensor: -- passes for a text value",

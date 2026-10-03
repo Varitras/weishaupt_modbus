@@ -165,8 +165,6 @@ def unit(text: str) -> str:
 
 
 def number(text: str) -> float | None:
-    """The leading number of a shown value; 0 for "Aus", None for "--" or text."""
-    if text == OFF:
-        return 0.0
+    """The leading number of a shown value; None for "--" or text."""
     match = NUMBER.match(text)
     return float(match.group(0)) if match else None

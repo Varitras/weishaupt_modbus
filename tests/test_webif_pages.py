@@ -138,7 +138,7 @@ def test_siblings_nested_one_level_too_deep_are_no_children():
         ("-4.0 K", -4.0),
         ("5356.310 KWh", 5356.31),
         ("41 %", 41.0),
-        ("Aus", 0.0),
+        ("Aus", None),
         ("--", None),
         ("Warmwasser", None),
     ],
