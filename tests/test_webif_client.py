@@ -1,6 +1,7 @@
 """How the client talks to the web interface, against a stand-in on loopback."""
 
 import asyncio
+from contextlib import contextmanager
 from itertools import pairwise
 import logging
 import re
@@ -38,6 +39,21 @@ SLOW = 0.5
 
 def whole(text):
     return text == WHOLE
+
+
+@contextmanager
+def short_timeout(client):
+    """The short timeout for the request meant to run into it, and no other.
+
+    Logins under it raced it: a pause of the machine longer than a tenth of
+    a second timed the login out instead, and the test failed (2026-10-03).
+    """
+    kept = client._timeout
+    client._timeout = aiohttp.ClientTimeout(total=SHORT_TIMEOUT)
+    try:
+        yield
+    finally:
+        client._timeout = kept
 
 
 @pytest.fixture
@@ -198,12 +214,14 @@ async def test_an_error_status_is_no_page_and_gets_no_second_try(pump, session):
 
 
 async def test_after_a_timeout_nothing_follows(pump, session):
+    client = connect(session, pump.host)
+    await client.page(PAGE, whole)
+    pump.asked.clear()
     pump.delays[PAGE] = SLOW
-    client = connect(session, pump.host, timeout=SHORT_TIMEOUT)
 
-    with pytest.raises(webif.Unreachable):
+    with short_timeout(client), pytest.raises(webif.Unreachable):
         await client.page(PAGE, whole)
-    assert pump.asked == [*LOGIN, ("GET", PAGE)]
+    assert pump.asked == [("GET", PAGE)]
 
 
 async def test_a_dropped_connection_is_not_asked_again(socket_enabled, session):
@@ -291,13 +309,13 @@ async def test_a_logout_that_times_out_ends_the_round_before_the_new_login(
 ):
     """Nothing follows a timeout, not even the login of the daily renewal."""
     clock = FakeClock()
-    client = connect(session, pump.host, clock=clock, timeout=SHORT_TIMEOUT)
+    client = connect(session, pump.host, clock=clock)
     await client.page(PAGE, whole)
     clock.now = webif.SESSION_LIFETIME_SECONDS
     pump.delays[webif.LOGOUT] = SLOW
     pump.asked.clear()
 
-    with pytest.raises(webif.Unreachable):
+    with short_timeout(client), pytest.raises(webif.Unreachable):
         await client.page(PAGE, whole)
     assert pump.asked == [("GET", webif.LOGOUT)]
 
@@ -349,11 +367,12 @@ async def test_a_closed_client_says_so_and_asks_nothing(pump, session):
 
 
 async def test_a_logout_without_an_answer_does_not_fail_the_close(pump, session):
-    client = connect(session, pump.host, timeout=SHORT_TIMEOUT)
+    client = connect(session, pump.host)
     await client.page(PAGE, whole)
     pump.delays[webif.LOGOUT] = SLOW
 
-    await client.close()
+    with short_timeout(client):
+        await client.close()
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
 
 
