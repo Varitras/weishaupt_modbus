@@ -94,7 +94,7 @@
         "data_description": {
           "pump_entry_id": "The heat pump the web interface belongs to; its address is used.",
           "username": "The user on the web interface's login page.",
-          "password": "The password on the web interface's login page. It is stored in Home Assistant and sent to the heat pump only."
+          "password": "The password on the web interface's login page. It is stored in Home Assistant and sent to the heat pump only, as plain HTTP: the controller offers nothing else, so keep it on a network you trust."
         }
       },
       "reauth_confirm": {

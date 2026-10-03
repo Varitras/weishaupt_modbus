@@ -94,7 +94,7 @@
                 "data_description": {
                     "pump_entry_id": "Die Wärmepumpe, zu der die Weboberfläche gehört; ihre Adresse wird verwendet.",
                     "username": "Der Benutzer der Anmeldeseite der Weboberfläche.",
-                    "password": "Das Passwort der Anmeldeseite der Weboberfläche. Es wird in Home Assistant gespeichert und nur an die Wärmepumpe gesendet."
+                    "password": "Das Passwort der Anmeldeseite der Weboberfläche. Es wird in Home Assistant gespeichert und nur an die Wärmepumpe gesendet, unverschlüsselt per HTTP: Der Regler bietet nichts anderes an, betreiben Sie ihn deshalb in einem Netz, dem Sie vertrauen."
                 }
             },
             "reauth_confirm": {

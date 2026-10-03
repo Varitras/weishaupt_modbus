@@ -94,7 +94,7 @@
         "data_description" : {
           "pump_entry_id" : "De warmtepomp waartoe de webinterface hoort; het adres daarvan wordt gebruikt.",
           "username" : "De gebruiker op de aanmeldpagina van de webinterface.",
-          "password" : "Het wachtwoord op de aanmeldpagina van de webinterface. Het wordt in Home Assistant opgeslagen en alleen naar de warmtepomp gestuurd."
+          "password" : "Het wachtwoord op de aanmeldpagina van de webinterface. Het wordt in Home Assistant opgeslagen en alleen naar de warmtepomp gestuurd, onversleuteld via HTTP: de regelaar biedt niets anders, houd hem dus in een netwerk dat u vertrouwt."
         }
       },
       "reauth_confirm" : {
