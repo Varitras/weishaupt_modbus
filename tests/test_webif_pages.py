@@ -77,18 +77,53 @@ def test_the_values_of_another_section_do_not_pass_for_the_heat_pump():
     assert not pages.is_complete(pages.values(statistics), REQUIRED)
 
 
-def test_the_selected_option_is_a_setting_s_value():
-    form = (
-        '<form action="pro_save.html" method="POST"><input type="hidden" name="id" value="x">'
-        '<select class="form-control" name="value">\n<option value="59">\n59</option>\n'
-        '<option value="60" selected>\n60</option>\n<option value="61">\n61</option>\n</select>'
-        '<button type="submit" class="btn btn-success">Speichern</button></form>'
-    )
-    page = MENU + column(
-        f'<div class="nav-link browseobj" role="tab">\n<h5>Leistungsbegrenzung</h5>\n{form}\n</div>'
+def test_an_entry_left_open_does_not_spill_into_the_next():
+    """A new entry reset its title and text, not whether it was still inside
+    a title: an unclosed <h5> made the next entry's value part of its title."""
+    page = column(
+        '<div class="nav-link browseobj"><h5>Hochdruck</div>'
+        '<div class="nav-link browseobj">2568 rpm<h5>Verdichter</h5></div>'
     )
 
-    assert pages.values(page) == [("Leistungsbegrenzung", "60")]
+    assert pages.values(page) == [("Hochdruck", ""), ("Verdichter", "2568 rpm")]
+
+
+def test_an_anchor_entry_without_a_link_closes_on_its_own_tag():
+    """An <a> entry without href was counted as a <div>, never closed, and
+    swallowed the entries after it."""
+    page = column(
+        '<a class="nav-link browseobj" role="tab"><h5>Hochdruck</h5>24.4 BAR</a>'
+        + value("Verdichter", "2568 rpm")
+    )
+
+    assert pages.values(page) == [("Hochdruck", "24.4 BAR"), ("Verdichter", "2568 rpm")]
+
+
+def test_a_class_that_only_contains_the_marker_is_no_entry():
+    page = column(
+        '<div class="browseobjects"><h5>Hochdruck</h5>24.4 BAR</div>'
+        + value("Verdichter", "2568 rpm")
+    )
+
+    assert pages.values(page) == [("Verdichter", "2568 rpm")]
+
+
+def test_a_title_is_normalised_like_its_text():
+    """A title broken across lines never matched its sensor's."""
+    page = column(value("Betriebsstd.\n   Verdichter", "16847 h"))
+
+    assert pages.values(page) == [("Betriebsstd. Verdichter", "16847 h")]
+
+
+def test_a_page_showing_a_sensor_title_twice_is_not_complete():
+    """The sensor read whichever came last, and nothing said the page was odd."""
+    found = [
+        ("Hochdruck", "24.4 BAR"),
+        ("Verdichter", "2568 rpm"),
+        ("Hochdruck", "12.0 BAR"),
+    ]
+
+    assert not pages.is_complete(found, REQUIRED)
 
 
 def test_a_menu_shows_its_children_with_their_values():

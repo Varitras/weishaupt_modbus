@@ -11,10 +11,13 @@ values of another section. Nothing in the status says so; only the content
 does, which is why every check here looks at the content.
 """
 
+from collections import Counter
 from dataclasses import dataclass
 from html.parser import HTMLParser
 import re
 
+ENTRY_CLASS = "browseobj"
+ENTRY_TAGS = ("a", "div")
 # The one page the controller serves its menus and values from; a stack of
 # menu codes in the query names which.
 PAGE_PATH = "/settings_export.html"
@@ -42,50 +45,42 @@ class Entry:
 
 
 class _Entries(HTMLParser):
-    """Every browseobj entry in page order.
-
-    A setting carries its value as the selected <option> of a save form; the
-    other options and the save button are not part of it.
-    """
+    """Every browseobj entry in page order."""
 
     def __init__(self) -> None:
         super().__init__()
         self.entries: list[Entry] = []
         self._depth = 0
+        self._tag = ""
         self._href: str | None = None
         self._title = ""
         self._text = ""
         self._in_title = False
-        self._skipping: str | None = None
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = dict(attrs)
         if self._depth == 0:
             self._open(tag, attributes)
             return
-        if tag == self._container():
+        if tag == self._tag:
             self._depth += 1
         elif tag == "h5":
             self._in_title = True
-        elif tag == "button" or (tag == "option" and "selected" not in attributes):
-            self._skipping = tag
 
     def handle_endtag(self, tag: str) -> None:
         if self._depth == 0:
             return
         if tag == "h5":
             self._in_title = False
-        elif tag == self._skipping:
-            self._skipping = None
-        elif tag == self._container():
+        elif tag == self._tag:
             self._depth -= 1
             if self._depth == 0:
                 self.entries.append(
-                    Entry(self._title.strip(), " ".join(self._text.split()), self._href)
+                    Entry(_normalised(self._title), _normalised(self._text), self._href)
                 )
 
     def handle_data(self, data: str) -> None:
-        if self._depth == 0 or self._skipping is not None:
+        if self._depth == 0:
             return
         if self._in_title:
             self._title += data
@@ -93,16 +88,19 @@ class _Entries(HTMLParser):
             self._text += data
 
     def _open(self, tag: str, attributes: dict[str, str | None]) -> None:
-        if "browseobj" not in (attributes.get("class") or "") or tag not in (
-            "a",
-            "div",
-        ):
+        classes = (attributes.get("class") or "").split()
+        if tag not in ENTRY_TAGS or ENTRY_CLASS not in classes:
             return
-        self._depth, self._title, self._text = 1, "", ""
+        self._depth = 1
+        self._tag = tag
         self._href = attributes.get("href") if tag == "a" else None
+        self._title = ""
+        self._text = ""
+        self._in_title = False
 
-    def _container(self) -> str:
-        return "a" if self._href is not None else "div"
+
+def _normalised(text: str) -> str:
+    return " ".join(text.split())
 
 
 def entries(page: str) -> list[Entry]:
@@ -155,13 +153,15 @@ def children(page: str, parent: str) -> list[Entry]:
 
 
 def is_complete(found: list[tuple[str, str]], required: frozenset[str]) -> bool:
-    """Every required title is there, and no value is left blank.
+    """Every required title is there once, and no value is left blank.
 
     The required titles are what tells a heat pump page from the statistics
-    the controller sometimes sends in its place.
+    the controller sometimes sends in its place. One shown twice would leave
+    its sensor two values to pick from.
     """
-    titles = {title for title, _ in found}
-    return bool(found) and required <= titles and all(text for _, text in found)
+    counts = Counter(title for title, _ in found)
+    shown_once = all(counts[title] == 1 for title in required)
+    return bool(found) and shown_once and all(text for _, text in found)
 
 
 def unit(text: str) -> str:
