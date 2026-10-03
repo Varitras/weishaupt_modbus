@@ -86,6 +86,21 @@ class FakeClock:
         return self.now
 
 
+@pytest.mark.parametrize(
+    ("host", "url"),
+    [
+        ("192.0.2.10", "http://192.0.2.10"),
+        ("2001:db8::10", "http://[2001:db8::10]"),
+        ("pump.example", "http://pump.example"),
+        ("127.0.0.1:8080", "http://127.0.0.1:8080"),
+    ],
+)
+def test_the_address_becomes_a_url_an_ipv6_one_in_brackets(host, url):
+    """A pump added by its IPv6 address could never get its web interface:
+    without brackets the URL did not parse, and every visit failed."""
+    assert webif.base_url(host) == url
+
+
 async def test_a_page_is_read_after_a_login(pump, session):
     client = connect(session, pump.host)
 

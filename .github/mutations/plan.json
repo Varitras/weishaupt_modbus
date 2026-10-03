@@ -1811,5 +1811,12 @@
     "old": "            minor_version=ConfigFlow.MINOR_VERSION,\n        )\n        return True\n",
     "new": "            minor_version=ConfigFlow.MINOR_VERSION,\n        )\n",
     "tests": "comes_through_a_migration_as_it_is"
+  },
+  {
+    "label": "webif client: an IPv6 address goes into the URL without brackets",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        return f\"http://[{host}]\"\n",
+    "new": "        return f\"http://{host}\"\n",
+    "tests": "ipv6_one_in_brackets"
   }
 ]

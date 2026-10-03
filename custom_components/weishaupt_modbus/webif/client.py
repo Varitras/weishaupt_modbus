@@ -13,6 +13,7 @@ from collections.abc import Callable, Iterable
 from contextlib import suppress
 from dataclasses import dataclass, field
 from http import HTTPStatus
+import ipaddress
 import logging
 import time
 
@@ -134,6 +135,18 @@ def _session_cookie(headers: Iterable[str]) -> str | None:
     return None
 
 
+def base_url(host: str) -> str:
+    """The controller's root as a URL; a bare IPv6 address needs brackets."""
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        # A name, or an address with its port.
+        return f"http://{host}"
+    if isinstance(address, ipaddress.IPv6Address):
+        return f"http://[{host}]"
+    return f"http://{host}"
+
+
 def _page_text(path: str, answer: _Answer) -> str:
     # Not a page served half: the server could not serve it, or dropped the
     # session it had just given, and asking further pages only adds load.
@@ -176,7 +189,7 @@ class Client:
         # client turns it off the same way.
         session._retry_connection = False
         self._session = session
-        self._base = f"http://{host}"
+        self._base = base_url(host)
         self._credentials = {"user": user, "pass": password}
         self._host_lock = host_lock
         self._pacing = pacing
