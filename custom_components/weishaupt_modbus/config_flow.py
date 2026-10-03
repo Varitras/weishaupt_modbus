@@ -485,7 +485,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
             return self._login_form(entry, step_id, {})
         pump = self.hass.config_entries.async_get_entry(entry.data[CONF.PUMP_ENTRY])
         if pump is None:
-            return self.async_abort(reason="no_pump")
+            return self.async_abort(reason="pump_removed")
         return await self._visit_web_interface(pump, user_input, next_step_id=step_id)
 
     def _login_form(

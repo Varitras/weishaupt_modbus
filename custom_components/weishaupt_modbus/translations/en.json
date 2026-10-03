@@ -4,7 +4,8 @@
       "already_configured": "This heat pump is already configured",
       "reconfigure_successful": "Configuration updated",
       "reauth_successful": "The new login was accepted",
-      "no_pump": "Set up the heat pump first; its web interface is added to it."
+      "no_pump": "Set up the heat pump first; its web interface is added to it.",
+      "pump_removed": "Its heat pump entry was removed. Delete this web interface entry and add it again with the heat pump."
     },
     "error": {
       "cannot_connect": "Failed to connect",

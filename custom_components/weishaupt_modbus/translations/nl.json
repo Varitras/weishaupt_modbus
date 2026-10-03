@@ -4,7 +4,8 @@
       "already_configured" : "Deze warmtepomp is al geconfigureerd",
       "reconfigure_successful" : "Configuratie bijgewerkt",
       "reauth_successful" : "De nieuwe aanmelding is geaccepteerd",
-      "no_pump" : "Stel eerst de warmtepomp in; de webinterface wordt daaraan toegevoegd."
+      "no_pump" : "Stel eerst de warmtepomp in; de webinterface wordt daaraan toegevoegd.",
+      "pump_removed" : "De bijbehorende warmtepompvermelding is verwijderd. Verwijder deze webinterfacevermelding en voeg hem opnieuw toe met de warmtepomp."
     },
     "error" : {
       "cannot_connect" : "Connectie gefaald",

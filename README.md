@@ -260,9 +260,11 @@ leaves the entry connecting over Modbus at every start. The web interface
 keeps working without it, and the heat pump's Modbus connection stays with
 the other Home Assistant.
 
-The entry takes the heat pump's address. Its options set how often each page
-is read, 1 to 60 minutes: the heat pump page every 5 minutes by default,
-the statistics and the heating settings every 15. *Reconfigure* takes a new
+The entry takes the heat pump's address and follows it when the heat pump
+entry is reconfigured; when the heat pump entry is deleted, it stops. Its
+options set how often each page is read, 1 to 60 minutes: the heat pump
+page every 5 minutes by default, the statistics and the heating settings
+every 15. *Reconfigure* takes a new
 user and password and searches the pages again; a refused login asks for a
 new one by itself.
 
@@ -443,7 +445,9 @@ recorded statistics - the history is the register's and stays.
 
 1. *Settings → Devices & services → Weishaupt WBB*, open the entry's menu and
    choose *Delete*. This removes its devices and entities; what the
-   recorder already stored stays in its database.
+   recorder already stored stays in its database. A heat pump's web
+   interface is an entry of its own: delete it as well, on its own it only
+   stops.
 2. Delete `www/local/weishaupt_modbus_powermap*.svg` from your configuration
    directory if you no longer want the preview picture.
 3. To remove the integration itself, uninstall it in HACS (or delete

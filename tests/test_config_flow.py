@@ -636,6 +636,24 @@ async def test_a_refused_login_is_replaced_by_a_new_one(hass, web_interface):
     assert web_interface.visits == [(HOST, "tester", "renewed")]
 
 
+@pytest.mark.parametrize("start", ["start_reauth_flow", "start_reconfigure_flow"])
+async def test_a_web_interface_whose_pump_was_removed_says_so(
+    hass, web_interface, start
+):
+    """Reauth and reconfigure asked to set the heat pump up first, which could
+    not help: a heat pump added again is an entry this one does not know."""
+    pump = _pump_entry(hass)
+    entry = _web_entry(hass, pump)
+    await hass.config_entries.async_remove(pump.entry_id)
+
+    form = await getattr(entry, start)(hass)
+    result = await hass.config_entries.flow.async_configure(form["flow_id"], WEB_LOGIN)
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "pump_removed"
+    assert web_interface.visits == []
+
+
 async def test_a_web_interface_entry_is_reconfigured_with_a_new_login_and_pages(
     hass, web_interface
 ):

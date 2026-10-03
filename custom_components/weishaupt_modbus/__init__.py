@@ -9,12 +9,17 @@ import aiohttp
 from modbus_connection import ModbusTcpParams
 
 from homeassistant.components.modbus import async_get_unit
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import (
+    SIGNAL_CONFIG_ENTRY_CHANGED,
+    ConfigEntry,
+    ConfigEntryChange,
+)
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
-from homeassistant.core import Event, HomeAssistant
+from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.typing import UNDEFINED
 from homeassistant.util import slugify
 
@@ -182,12 +187,34 @@ async def _async_setup_web_interface(
     # the session stays open on the controller until it expires. Not a
     # one-time listener: that one removes itself, and the unload again.
     entry.async_on_unload(hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, log_out))
+
+    started_with = pump.data
+    reloading = False
+
+    @callback
+    def follow_pump(change: ConfigEntryChange, changed: ConfigEntry) -> None:
+        # The address, its lock and the sensor names come from the pump entry
+        # as it was at this setup. A state change alone, such as disabling
+        # the pump, changes none of them.
+        nonlocal reloading
+        if reloading or changed.entry_id != pump.entry_id:
+            return
+        removed = change is ConfigEntryChange.REMOVED
+        if removed or changed.data != started_with:
+            # Once: a running pump's own reload follows with a burst of
+            # state changes, each of which would reload this entry again.
+            reloading = True
+            hass.config_entries.async_schedule_reload(entry.entry_id)
+
+    entry.async_on_unload(
+        async_dispatcher_connect(hass, SIGNAL_CONFIG_ENTRY_CHANGED, follow_pump)
+    )
     coordinator = WebifCoordinator(
         hass, entry, client, polled_pages(entry, REQUIRED_TITLES)
     )
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = WebifData(
-        coordinator=coordinator, client=client, pump_data=pump.data
+        coordinator=coordinator, client=client, pump_data=started_with
     )
     await hass.config_entries.async_forward_entry_setups(entry, WEBIF_PLATFORMS)
     return True

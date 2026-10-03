@@ -1421,6 +1421,41 @@
     "tests": "stopping_home_assistant_leaves_no_session_open"
   },
   {
+    "label": "setup: a web interface keeps polling when its pump is removed",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        if removed or changed.data != started_with:\n",
+    "new": "        if changed.data != started_with:\n",
+    "tests": "stops_when_its_pump_is_removed"
+  },
+  {
+    "label": "setup: a web interface keeps its pump's old address",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        if removed or changed.data != started_with:\n",
+    "new": "        if removed:\n",
+    "tests": "follows_its_pump_to_a_new_address"
+  },
+  {
+    "label": "setup: switching the pump on or off reloads its web interface",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        if removed or changed.data != started_with:\n",
+    "new": "        if True:\n",
+    "tests": "switching_its_pump_on_and_off"
+  },
+  {
+    "label": "setup: a running pump's reload reloads its web interface again and again",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "            reloading = True\n",
+    "new": "",
+    "tests": "follows_its_pump_to_a_new_address"
+  },
+  {
+    "label": "config flow: an orphaned web interface is told to set its pump up first",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "            return self.async_abort(reason=\"pump_removed\")\n",
+    "new": "            return self.async_abort(reason=\"no_pump\")\n",
+    "tests": "whose_pump_was_removed"
+  },
+  {
     "label": "webif client: a closed client logs in again",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
     "old": "            if self._closed:\n                raise WebifError(f\"{path}: the client is closed\")\n",

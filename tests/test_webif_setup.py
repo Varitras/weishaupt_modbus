@@ -90,6 +90,16 @@ SITE = {
     ),
 }
 LOGIN = [("GET", webif.INDEX), ("POST", webif.LOGIN)]
+FIRST_ROUND = [*LOGIN, *(("GET", path) for path in PAGES.values())]
+# What the pump entry needs besides the address to run its Modbus side.
+MODBUS_SIDE = {
+    CONF.PORT: 502,
+    CONF.KENNFELD_FILE: CONST.DEF_KENNFELDFILE,
+    CONF.HK2: False,
+    CONF.HK3: False,
+    CONF.HK4: False,
+    CONF.HK5: False,
+}
 REDACTED = "**REDACTED**"
 GAP = 0.2
 # The event loop may wake a sleeper a whisker early by its clock resolution.
@@ -149,6 +159,27 @@ async def _start(hass, entry):
     await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     return entry
+
+
+@pytest.fixture
+async def other_pump(pump):
+    """A second stand-in, at another address."""
+    stand_in = StandInPump()
+    stand_in.site = dict(SITE)
+    async with serving(stand_in) as served:
+        yield served
+
+
+async def _run_the_pump(hass, web, mock_modbus):
+    """Enable the web interface's pump entry, with what its Modbus side needs."""
+    mock_modbus.load_raw({"input": {30001: 123}})
+    pump_entry = hass.config_entries.async_get_entry(web.data[CONF.PUMP_ENTRY])
+    hass.config_entries.async_update_entry(
+        pump_entry, data={**pump_entry.data, **MODBUS_SIDE}
+    )
+    await hass.config_entries.async_set_disabled_by(pump_entry.entry_id, None)
+    await hass.async_block_till_done()
+    assert pump_entry.state is ConfigEntryState.LOADED
 
 
 async def test_a_web_interface_starts_with_a_round_of_its_pages(hass, pump):
@@ -228,6 +259,68 @@ async def test_a_web_interface_without_its_pump_does_not_start(hass, pump):
     assert entry.state is ConfigEntryState.SETUP_ERROR
     assert "removed" in entry.reason
     assert pump.asked == []
+
+
+@pytest.mark.parametrize("running", [False, True], ids=["pump_off", "pump_running"])
+async def test_a_web_interface_follows_its_pump_to_a_new_address(
+    hass, pump, other_pump, mock_modbus, running
+):
+    """The pump entry's reconfigure gave it a new address; the web interface
+    kept polling the old one, under a lock Modbus no longer took."""
+    web = await _start(hass, _entries(hass, pump))
+    if running:
+        await _run_the_pump(hass, web, mock_modbus)
+    pump_entry = hass.config_entries.async_get_entry(web.data[CONF.PUMP_ENTRY])
+
+    hass.config_entries.async_update_entry(
+        pump_entry, data={**pump_entry.data, CONF.HOST: other_pump.host}
+    )
+    await hass.async_block_till_done()
+
+    assert pump.asked[-1] == ("GET", webif.LOGOUT)
+    assert other_pump.asked == FIRST_ROUND
+    assert web.runtime_data.client._host_lock is host_lock(hass, other_pump.host)
+
+
+async def test_switching_its_pump_on_and_off_leaves_the_web_interface_alone(
+    hass, pump, mock_modbus
+):
+    """Only the pump's data matter to its web interface: switching the pump
+    on or off must not log the web interface out and in again."""
+    mock_modbus.load_raw({"input": {30001: 123}})
+    web = _entries(hass, pump)
+    pump_entry = hass.config_entries.async_get_entry(web.data[CONF.PUMP_ENTRY])
+    hass.config_entries.async_update_entry(
+        pump_entry, data={**pump_entry.data, **MODBUS_SIDE}
+    )
+    await _start(hass, web)
+    pump.asked.clear()
+
+    for disabled_by in (None, ConfigEntryDisabler.USER):
+        await hass.config_entries.async_set_disabled_by(
+            pump_entry.entry_id, disabled_by
+        )
+        await hass.async_block_till_done()
+
+    assert pump.asked == []
+    assert web.state is ConfigEntryState.LOADED
+
+
+async def test_a_web_interface_stops_when_its_pump_is_removed(hass, pump):
+    """The deleted pump entry left its web interface polling, and a pump added
+    again with its web interface got no sensors: their ids were still taken."""
+    web = await _start(hass, _entries(hass, pump))
+
+    await hass.config_entries.async_remove(web.data[CONF.PUMP_ENTRY])
+    await hass.async_block_till_done()
+
+    assert web.state is ConfigEntryState.SETUP_ERROR
+    assert pump.asked[-1] == ("GET", webif.LOGOUT)
+    again = await _start(hass, _entries(hass, pump))
+    registry = er.async_get(hass)
+    assert len(er.async_entries_for_config_entry(registry, again.entry_id)) == len(
+        WEBIF_SENSORS
+    )
 
 
 async def test_the_heat_pump_page_follows_the_interval_option(hass, pump):
