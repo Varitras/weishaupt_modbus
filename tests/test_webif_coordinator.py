@@ -295,10 +295,27 @@ async def test_a_page_broken_for_good_stops_polling_while_others_still_come(
 ):
     """Design: the brake also holds for a page that keeps arriving incomplete."""
     client.answer(STATISTICS, value("JAZ gesamt", "4.16"))
-    for quarter in range(3):
-        await round_at(coordinator, clock, quarter * 15 * 60)
+    for hour in range(3):
+        await round_at(coordinator, clock, hour * 60 * 60)
 
     assert coordinator.update_interval is None
+
+
+@pytest.mark.parametrize("by_hand", [False, True], ids=["scheduled", "by_hand"])
+async def test_a_failed_page_waits_its_own_interval_before_the_next_try(
+    coordinator, client, clock, by_hand
+):
+    """A failed page was due again at every refresh: on the rounds of the
+    most frequent page and on any update requested by hand, so its three
+    failures came within minutes instead of three of its own intervals."""
+    client.answer(STATISTICS, value("JAZ gesamt", "4.16"))
+    for quarter in range(8):
+        await round_at(coordinator, clock, quarter * 15 * 60)
+        if by_hand:
+            await coordinator.async_refresh()
+
+    assert client.asked.count(STATISTICS.path) == 2
+    assert coordinator.update_interval == QUARTER_HOUR
 
 
 async def test_a_good_reading_in_between_starts_the_count_anew(

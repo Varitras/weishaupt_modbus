@@ -1099,6 +1099,13 @@
     "tests": "second_early_still_reads"
   },
   {
+    "label": "webif coordinator: a failed page is due again at every refresh",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        asked_at = self._readings[page.key].asked_at\n",
+    "new": "        asked_at = self._readings[page.key].read_at\n",
+    "tests": "failed_page_waits_its_own_interval"
+  },
+  {
     "label": "webif coordinator: due pages go in a fixed order",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
     "old": "        return sorted(due, key=lambda page: _oldest_first(self._readings[page.key]))\n",

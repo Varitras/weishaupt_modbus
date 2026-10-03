@@ -117,6 +117,7 @@ def polled_pages(
 class _Reading:
     values: Values | None = None
     read_at: float | None = None
+    asked_at: float | None = None
     failures: int = 0
 
 
@@ -181,15 +182,18 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         return sorted(due, key=lambda page: _oldest_first(self._readings[page.key]))
 
     def _is_due(self, page: Page, now: float) -> bool:
-        read_at = self._readings[page.key].read_at
+        # From the last try, not the last good reading: a failed page waits out
+        # its interval too, also for an update requested by hand.
+        asked_at = self._readings[page.key].asked_at
         return (
-            read_at is None
-            or now - read_at >= page.interval.total_seconds() - DUE_SLACK_SECONDS
+            asked_at is None
+            or now - asked_at >= page.interval.total_seconds() - DUE_SLACK_SECONDS
         )
 
     async def _fetch(self, page: Page) -> bool:
         """Read one page; False when the round has to end."""
         reading = self._readings[page.key]
+        reading.asked_at = self._clock()
         try:
             text = await self._client.page(page.path, page.is_whole)
         except LoginRefused as error:
