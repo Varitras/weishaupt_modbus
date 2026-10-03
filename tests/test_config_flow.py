@@ -194,8 +194,11 @@ async def test_a_flow_still_probing_holds_its_postfix_against_a_second_one(
     second = await hass.config_entries.flow.async_init(
         CONST.DOMAIN, context={"source": "user"}
     )
-    refused = await hass.config_entries.flow.async_configure(
-        second["flow_id"], {**PAGE_ONE, CONF.HOST: "192.0.2.11"}
+    refused = await asyncio.wait_for(
+        hass.config_entries.flow.async_configure(
+            second["flow_id"], {**PAGE_ONE, CONF.HOST: "192.0.2.11"}
+        ),
+        timeout=5,
     )
     release.set()
     created = await asyncio.wait_for(first_result, timeout=5)
