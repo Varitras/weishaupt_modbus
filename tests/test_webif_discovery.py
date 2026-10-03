@@ -95,3 +95,25 @@ async def test_the_dialog_finds_the_pages_and_logs_out_again(hass, pump, monkeyp
 
     assert found[HEATING_PAGE] == STACK + f"{PUMP_MENU},{HEATING}"
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
+
+
+async def test_a_menu_served_half_twice_is_searched_once_more(hass, pump, monkeypatch):
+    """User wish, 2026-10-03: the controller now and then serves a page half,
+    twice in a row; the dialog tries again before it shows an error."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    whole_info = pump.site.pop(STACK + INFO)
+    half_info = MAIN_MENUS + column(link([INFO, HEAT_PUMP_INFO], "Wärmepumpe"))
+    pump.pages = [half_info, half_info, whole_info]
+
+    found = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert found[STATISTICS_PAGE] == STACK + f"{INFO},{STATISTICS_INFO}"
+    assert len(pump.forms) == 1, "searched again in the same session"
+
+
+async def test_a_refused_login_is_not_tried_twice(hass, pump, monkeypatch):
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+
+    with pytest.raises(webif.LoginRefused):
+        await read_web_interface(hass, pump.host, USER, "wrong")
+    assert len(pump.forms) == 1

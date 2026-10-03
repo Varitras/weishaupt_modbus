@@ -1482,5 +1482,19 @@
     "old": "            NumberSelector(\n                NumberSelectorConfig(\n                    min=CONST.WEBIF_INTERVAL_MIN_MINUTES,\n",
     "new": "            vol.Range(min=1, max=60)\n            or NumberSelector(\n                NumberSelectorConfig(\n                    min=CONST.WEBIF_INTERVAL_MIN_MINUTES,\n",
     "tests": "interval_sliders_show_their_minutes"
+  },
+  {
+    "label": "config flow: a menu served half twice ends the dialog's visit",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        with suppress(Broken):\n            return await find_pages(client)\n",
+    "new": "",
+    "tests": "served_half_twice_is_searched_once_more"
+  },
+  {
+    "label": "config flow: a refused login is tried twice",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        with suppress(Broken):\n",
+    "new": "        with suppress(WebifError):\n",
+    "tests": "refused_login_is_not_tried_twice"
   }
 ]

@@ -1,6 +1,7 @@
 """Config flow."""
 
 from collections.abc import Mapping
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +28,7 @@ from .configentry import host_lock, is_web_interface
 from .const import CONF, CONST
 from .kennfeld import get_filepath
 from .migrate_helpers import entry_unique_id
-from .webif.client import Client, LoginRefused, Unreachable, WebifError
+from .webif.client import Broken, Client, LoginRefused, Unreachable, WebifError
 from .webif.discovery import find_pages
 from .webif_coordinator import INTERVAL_OPTIONS
 from .weishaupt_modbus_api.const import (
@@ -114,7 +115,8 @@ async def read_web_interface(
 ) -> dict[str, str]:
     """The pages to poll, found on a short visit that logs out again.
 
-    Raises WebifError.
+    Menus served half are searched once more in the same session before the
+    visit gives up. Raises WebifError.
     """
     # No entry to detach it on unload: the visit detaches it itself.
     session = async_create_clientsession(
@@ -122,6 +124,9 @@ async def read_web_interface(
     )
     client = Client(session, host, user, password, host_lock=host_lock(hass, host))
     try:
+        # The controller now and then serves a page half, twice in a row.
+        with suppress(Broken):
+            return await find_pages(client)
         return await find_pages(client)
     finally:
         await client.close()
