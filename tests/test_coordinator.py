@@ -132,6 +132,18 @@ async def test_communication_failure_is_update_failed(hass, caplog):
     assert not [record for record in caplog.records if record.exc_info]
 
 
+async def test_a_poll_that_timed_out_names_its_kind(hass):
+    """A band that hangs ends in a bare TimeoutError, whose text is empty:
+    the notice read "Communication failed: " with nothing after it."""
+    client = FakeDevice([], fail=TimeoutError())
+    coordinator = _modbus_coordinator(hass, _entry(hass), client, [])
+
+    with pytest.raises(UpdateFailed) as raised:
+        await coordinator._async_update_data()
+
+    assert raised.value.translation_placeholders == {"error": "TimeoutError"}
+
+
 async def test_three_failed_polls_keep_the_last_values_the_fourth_does_not(hass):
     """A controller that misses one poll took every entity to unavailable
     for a scan interval and back; automations on unavailable fired on every

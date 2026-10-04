@@ -107,7 +107,8 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             await self.device.async_update()
         except (TimeoutError, ModbusError) as err:
-            return self._failed_poll(str(err), err)
+            # A band's time limit raises a bare TimeoutError, without a text.
+            return self._failed_poll(str(err) or type(err).__name__, err)
         except Exception as err:
             # A fault of this code or of a library, not of the link. Counted
             # all the same: uncounted, it passed the grace polls, and Home

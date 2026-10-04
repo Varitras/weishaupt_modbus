@@ -2854,5 +2854,12 @@
     "old": "                with suppress(WebifError):\n",
     "new": "                with suppress():\n",
     "tests": "logout_the_pump_does_not_serve_ends_the_close_quietly"
+  },
+  {
+    "label": "coordinator: a failure without a text names its kind",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "            return self._failed_poll(str(err) or type(err).__name__, err)\n",
+    "new": "            return self._failed_poll(str(err), err)\n",
+    "tests": "poll_that_timed_out_names_its_kind"
   }
 ]
