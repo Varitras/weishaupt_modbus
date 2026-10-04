@@ -21,7 +21,9 @@ attach it.
 
 The controller now and then serves a page half or not at all. That does not
 end the run: after a minute's rest the tool logs in again and asks only for
-what it still lacks, ten times at most.
+what it still lacks, ten times at most. A run takes about a minute; one the
+controller keeps failing takes up to about three quarters of an hour before
+the tool gives up.
 
 Needs Python 3.10 or newer and a copy of the whole repository: the titles are
 read with the integration's own page parser.
@@ -46,8 +48,10 @@ from types import ModuleType
 from typing import Any
 import urllib.parse
 
+# parent.parent rather than parents[1]: a copy of this file alone at the root
+# of a drive has no parents[1], and the message below would not be reached.
 PAGES_PATH = (
-    pathlib.Path(__file__).resolve().parents[1]
+    pathlib.Path(__file__).resolve().parent.parent
     / "custom_components"
     / "weishaupt_modbus"
     / "webif"
@@ -117,6 +121,8 @@ YES = ("y", "yes")
 RESUME_WAIT_SECONDS = 60.0
 MAX_ATTEMPTS = 10
 MENU_SEPARATOR = " › "
+# The shell's code for a run ended by Ctrl+C.
+STOPPED_BY_THE_USER = 130
 TRANSPORT_ERRORS = (OSError, http.client.HTTPException)
 
 
@@ -562,17 +568,33 @@ def capture(
     return None
 
 
+def _address(text: str) -> str:
+    """The heat pump's address alone, as the integration takes it; no URL."""
+    if "/" in text:
+        raise argparse.ArgumentTypeError(
+            "give the address alone, like 192.0.2.10 or a name, not a web address"
+        )
+    return text
+
+
 def main(argv: list[str] | None = None) -> int:
     """Ask for the credentials, read the pages, and save the file."""
     # A console that cannot show a title must not end the run.
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("host", help="the heat pump's address, as in the integration")
+    parser.add_argument(
+        "host", type=_address, help="the heat pump's address, as in the integration"
+    )
     arguments = parser.parse_args(argv)
-    user = input("Web interface user: ").strip()
-    password = getpass.getpass("Web interface password: ")
-    report = capture(arguments.host, user, password, input)
+    try:
+        user = input("Web interface user: ").strip()
+        password = getpass.getpass("Web interface password: ")
+        report = capture(arguments.host, user, password, input)
+    except KeyboardInterrupt:
+        # A session it was logged in to was logged out on the way here.
+        print("\nStopped.")
+        return STOPPED_BY_THE_USER
     if report is None:
         return 1
     target = pathlib.Path(f"webif_titles_{time.strftime('%Y%m%d_%H%M%S')}.json")

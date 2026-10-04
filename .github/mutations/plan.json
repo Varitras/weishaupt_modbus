@@ -3036,5 +3036,12 @@
     "old": "        if index.status >= HTTPStatus.BAD_REQUEST:\n",
     "new": "        if False:\n",
     "tests": "error_status_on_the_login_page_sends_no_login"
+  },
+  {
+    "label": "capture: a web address is refused before anything is asked",
+    "path": "tools/webif_capture.py",
+    "old": "    if \"/\" in text:\n",
+    "new": "    if False:\n",
+    "tests": "web_address_is_refused_before_anything_is_asked"
   }
 ]

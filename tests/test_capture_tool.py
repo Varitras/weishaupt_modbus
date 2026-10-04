@@ -11,6 +11,7 @@ import asyncio
 import importlib.util
 import json
 import pathlib
+import subprocess
 import sys
 import time
 
@@ -85,6 +86,8 @@ HEAT_PUMP_PAGE, STATISTICS_PAGE = WALK[3], WALK[4]
 LOGIN = [("GET", webif.INDEX), ("POST", webif.LOGIN)]
 LOGOUT = [("GET", webif.LOGOUT)]
 A_MINUTE = 60
+# The shell's code for a run ended by Ctrl+C.
+STOPPED_BY_THE_USER = 130
 GERMAN = {
     "info": "Info",
     "pump": "Wärmepumpe",
@@ -577,6 +580,45 @@ def test_the_tool_looks_for_the_titles_the_integration_finds(name):
 )
 def test_the_tool_asks_only_what_the_client_may(method, path):
     assert capture_tool._allowed(method, path) == webif._allowed(method, path)
+
+
+def test_a_web_address_is_refused_before_anything_is_asked(monkeypatch):
+    """Given as a URL, the address ended in a traceback - after the user had
+    typed the user name and the password."""
+    monkeypatch.setattr("builtins.input", lambda _prompt: pytest.fail("asked"))
+    monkeypatch.setattr(capture_tool, "capture", lambda *_arguments: pytest.fail("ran"))
+
+    with pytest.raises(SystemExit):
+        capture_tool.main(["http://192.0.2.1/"])
+
+
+def test_ctrl_c_ends_the_run_without_a_traceback(monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda _prompt: USER)
+    monkeypatch.setattr(capture_tool.getpass, "getpass", lambda _prompt: PASSWORD)
+
+    def interrupted(*_arguments):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(capture_tool, "capture", interrupted)
+
+    assert capture_tool.main(["192.0.2.1"]) == STOPPED_BY_THE_USER
+
+
+def test_the_tool_alone_says_it_needs_the_repository(tmp_path):
+    copy = tmp_path / "webif_capture.py"
+    copy.write_bytes((REPO / "tools" / "webif_capture.py").read_bytes())
+
+    result = subprocess.run(
+        [sys.executable, str(copy), "192.0.2.1"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "whole repository" in result.stderr
+    assert "Traceback" not in result.stderr
 
 
 def test_the_file_lands_where_the_tool_runs(tmp_path, monkeypatch):
