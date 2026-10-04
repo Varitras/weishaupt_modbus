@@ -2,27 +2,17 @@
 
 It logs in, finds the pages to poll by their titles, reads each once and logs
 out: a login the controller refuses, or a page another model shows, fails in
-the dialog rather than in the brake minutes after the entry was added. What
-went wrong becomes the form's error here as well.
+the dialog rather than in the brake minutes after the entry was added.
 """
-
-from collections.abc import Coroutine
-from typing import Any
 
 import aiohttp
 
-from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .configentry import host_lock, host_pacing
-from .webif.client import Broken, Client, LoginRefused, Unreachable, WebifError
-from .webif.discovery import (
-    PAGE_MENUS,
-    DoubledMenuEntries,
-    MissingMenuEntries,
-    find_pages,
-)
+from .webif.client import Broken, Client, WebifError
+from .webif.discovery import PAGE_MENUS, DoubledMenuEntries, find_pages
 from .webif_coordinator import Page, polled_pages
 from .webif_sensor import REQUIRED_TITLES, shown_in_unknown_units
 
@@ -165,45 +155,3 @@ def _lacking(page: Page, text: str) -> Broken | None:
     if missing := page.missing(text):
         return MissingTitles(PAGE_MENUS[page.key], missing)
     return UnclearValues(PAGE_MENUS[page.key], page.unclear(text))
-
-
-def web_interface_error(error: WebifError) -> str:
-    """The form's error for a visit that failed."""
-    if isinstance(error, LoginRefused):
-        return "invalid_auth"
-    if isinstance(error, Unreachable):
-        return "cannot_connect"
-    if isinstance(error, MissingTitles):
-        return "missing_titles"
-    if isinstance(error, UnclearValues):
-        return "unclear_values"
-    if isinstance(error, UnknownUnits):
-        return "unknown_units"
-    if isinstance(error, MissingMenuEntries):
-        return "missing_menu_entries"
-    if isinstance(error, DoubledMenuEntries):
-        return "doubled_menu_entries"
-    return "cannot_read"
-
-
-def web_interface_error_placeholders(error: WebifError) -> dict[str, str]:
-    """The placeholders of the form's error for a visit that failed."""
-    if isinstance(error, MissingTitles | UnclearValues | UnknownUnits):
-        return {"page": error.page, "titles": ", ".join(sorted(error.titles))}
-    if isinstance(error, MissingMenuEntries | DoubledMenuEntries):
-        return {"titles": ", ".join(sorted(error.titles))}
-    return {}
-
-
-async def holding_its_rounds[T](
-    entry: ConfigEntry | None, visit: Coroutine[Any, Any, T]
-) -> T:
-    """A dialog's visit, with the rounds of the running entry it is for held.
-
-    Both keep the gap together, and a dialog that works out reloads the
-    entry anyway.
-    """
-    if entry is None or entry.state is not ConfigEntryState.LOADED:
-        return await visit
-    async with entry.runtime_data.coordinator.dialog_visiting():
-        return await visit

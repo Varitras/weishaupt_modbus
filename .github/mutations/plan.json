@@ -1331,14 +1331,14 @@
   },
   {
     "label": "config flow: a refused login reads as a broken page",
-    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
     "old": "        return \"invalid_auth\"\n",
     "new": "        return \"cannot_read\"\n",
     "tests": "visit_that_fails_says_why"
   },
   {
     "label": "config flow: no connection reads as a broken page",
-    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
     "old": "    if isinstance(error, Unreachable):\n        return \"cannot_connect\"\n",
     "new": "    if isinstance(error, Unreachable):\n        return \"cannot_read\"\n",
     "tests": "visit_that_fails_says_why"
@@ -1704,7 +1704,7 @@
     "label": "config flow: a refused login is tried twice",
     "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "    except Broken as error:\n        if type(error) not in SEARCHED_AGAIN:\n",
-    "new": "    except WebifError as error:\n        if isinstance(error, MissingTitles | MissingMenuEntries):\n",
+    "new": "    except WebifError as error:\n        if isinstance(error, MissingTitles):\n",
     "tests": "refused_login_is_not_tried_twice"
   },
   {
@@ -1765,7 +1765,7 @@
   },
   {
     "label": "config flow: the form does not say which page lacks which titles",
-    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
     "old": "    return {\"page\": error.page, \"titles\": \", \".join(sorted(error.titles))}\n",
     "new": "    return {}\n",
     "tests": "cannot_use"
@@ -1877,7 +1877,7 @@
   },
   {
     "label": "config flow: a controller in another language is told to try again",
-    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
     "old": "    if isinstance(error, MissingMenuEntries):\n        return \"missing_menu_entries\"\n",
     "new": "",
     "tests": "another_language_is_told_so"
@@ -2157,14 +2157,14 @@
   },
   {
     "label": "config flow: values empty or twice say only try again",
-    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
     "old": "    if isinstance(error, UnclearValues):\n        return \"unclear_values\"\n",
     "new": "",
     "tests": "cannot_use_is_named_in_the_form"
   },
   {
     "label": "config flow: an unknown unit says only try again",
-    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
     "old": "    if isinstance(error, UnknownUnits):\n        return \"unknown_units\"\n",
     "new": "",
     "tests": "cannot_use_is_named_in_the_form"
@@ -2579,7 +2579,7 @@
     "label": "config flow: a controller in another language is searched once more",
     "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "SEARCHED_AGAIN = (Broken, UnclearValues, DoubledMenuEntries)\n",
-    "new": "SEARCHED_AGAIN = (Broken, UnclearValues, DoubledMenuEntries, MissingMenuEntries)\n",
+    "new": "SEARCHED_AGAIN = (Broken, *Broken.__subclasses__())\n",
     "tests": "another_language_is_searched_only_once"
   },
   {
@@ -2626,7 +2626,7 @@
   },
   {
     "label": "config flow: a menu entry shown twice is not named in the form",
-    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
     "old": "    if isinstance(error, DoubledMenuEntries):\n        return \"doubled_menu_entries\"\n",
     "new": "",
     "tests": "menu_entry_shown_twice_is_named_in_the_form"
@@ -2920,8 +2920,8 @@
   },
   {
     "label": "config flow: only a loaded entry has rounds to hold",
-    "path": "custom_components/weishaupt_modbus/webif_visit.py",
-    "old": "    if entry is None or entry.state is not ConfigEntryState.LOADED:\n",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    if entry is None or entry.state is not config_entries.ConfigEntryState.LOADED:\n",
     "new": "    if entry is None:\n",
     "tests": "reconfigured_with_a_new_login_and_pages"
   },

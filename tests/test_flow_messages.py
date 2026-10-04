@@ -17,6 +17,10 @@ import re
 
 import pytest
 
+from custom_components.weishaupt_modbus.config_flow import (
+    web_interface_error,
+    web_interface_error_placeholders,
+)
 from custom_components.weishaupt_modbus.const import CONF
 from custom_components.weishaupt_modbus.webif.client import (
     Broken,
@@ -31,15 +35,10 @@ from custom_components.weishaupt_modbus.webif_visit import (
     MissingTitles,
     UnclearValues,
     UnknownUnits,
-    web_interface_error,
-    web_interface_error_placeholders,
 )
 
 INTEGRATION = pathlib.Path(__file__).resolve().parents[1] / "custom_components"
 FLOW = next(INTEGRATION.glob("*/config_flow.py"))
-# The dialogs, and the visit to the web interface they make: the form errors
-# of a visit that failed are named there.
-FLOW_MODULES = (FLOW, next(INTEGRATION.glob("*/webif_visit.py")))
 TRANSLATION_FILES = (
     "strings.json",
     "translations/en.json",
@@ -60,9 +59,7 @@ def _flow_messages() -> set[str]:
     Read out of the source rather than listed here: a list beside the flow is
     one more place to forget.
     """
-    return set().union(
-        *(_messages_in(module.read_text(encoding="utf-8")) for module in FLOW_MODULES)
-    )
+    return _messages_in(FLOW.read_text(encoding="utf-8"))
 
 
 def _messages_in(source: str) -> set[str]:
@@ -274,10 +271,10 @@ VISIT_FAILURES = (
 
 
 def _keys_returned_by(function: str) -> set[str]:
+    tree = ast.parse(FLOW.read_text(encoding="utf-8"))
     body = next(
         node
-        for module in FLOW_MODULES
-        for node in ast.walk(ast.parse(module.read_text(encoding="utf-8")))
+        for node in ast.walk(tree)
         if isinstance(node, ast.FunctionDef) and node.name == function
     )
     return {

@@ -1,7 +1,7 @@
 """Config flow."""
 
 import asyncio
-from collections.abc import Mapping
+from collections.abc import Coroutine, Mapping
 import logging
 from pathlib import Path
 from typing import Any
@@ -27,14 +27,10 @@ from .configentry import host_lock, is_web_interface, web_interface_title
 from .const import CONF, CONST
 from .kennfeld import get_filepath
 from .migrate_helpers import entry_unique_id
-from .webif.client import WebifError
+from .webif.client import LoginRefused, Unreachable, WebifError
+from .webif.discovery import DoubledMenuEntries, MissingMenuEntries
 from .webif_coordinator import INTERVAL_OPTIONS
-from .webif_visit import (
-    holding_its_rounds,
-    read_web_interface,
-    web_interface_error,
-    web_interface_error_placeholders,
-)
+from .webif_visit import MissingTitles, UnclearValues, UnknownUnits, read_web_interface
 from .weishaupt_modbus_api.const import (
     DEFAULT_PORT,
     DEFAULT_WRITE_LIMIT_PER_DAY,
@@ -133,6 +129,48 @@ def namespace_error(
     if postfix in taken:
         return "postfix_in_use"
     return None
+
+
+def web_interface_error(error: WebifError) -> str:
+    """The form's error for a visit that failed."""
+    if isinstance(error, LoginRefused):
+        return "invalid_auth"
+    if isinstance(error, Unreachable):
+        return "cannot_connect"
+    if isinstance(error, MissingTitles):
+        return "missing_titles"
+    if isinstance(error, UnclearValues):
+        return "unclear_values"
+    if isinstance(error, UnknownUnits):
+        return "unknown_units"
+    if isinstance(error, MissingMenuEntries):
+        return "missing_menu_entries"
+    if isinstance(error, DoubledMenuEntries):
+        return "doubled_menu_entries"
+    return "cannot_read"
+
+
+def web_interface_error_placeholders(error: WebifError) -> dict[str, str]:
+    """The placeholders of the form's error for a visit that failed."""
+    if isinstance(error, MissingTitles | UnclearValues | UnknownUnits):
+        return {"page": error.page, "titles": ", ".join(sorted(error.titles))}
+    if isinstance(error, MissingMenuEntries | DoubledMenuEntries):
+        return {"titles": ", ".join(sorted(error.titles))}
+    return {}
+
+
+async def holding_its_rounds[T](
+    entry: config_entries.ConfigEntry | None, visit: Coroutine[Any, Any, T]
+) -> T:
+    """A dialog's visit, with the rounds of the running entry it is for held.
+
+    Both keep the gap together, and a dialog that works out reloads the
+    entry anyway.
+    """
+    if entry is None or entry.state is not config_entries.ConfigEntryState.LOADED:
+        return await visit
+    async with entry.runtime_data.coordinator.dialog_visiting():
+        return await visit
 
 
 PASSWORD_FIELD = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
