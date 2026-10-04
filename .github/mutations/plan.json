@@ -2949,8 +2949,8 @@
   {
     "label": "capture: a picked page of the wrong shape is picked anew",
     "path": "tools/webif_capture.py",
-    "old": "                del walk.chosen[step.key]\n",
-    "new": "                pass\n",
+    "old": "        del walk.chosen[key]\n",
+    "new": "        pass\n",
     "tests": "picked_page_of_the_wrong_shape_is_picked_anew"
   },
   {
@@ -2959,5 +2959,19 @@
     "old": "    if step.shows_values:\n        return {\"entries\"",
     "new": "    if True:\n        return {\"entries\"",
     "tests": "menu_keeps_its_titles_only"
+  },
+  {
+    "label": "capture: a page showing another page's values is not taken",
+    "path": "tools/webif_capture.py",
+    "old": "    return None if step.menu or not twins else twins[0]\n",
+    "new": "    return None\n",
+    "tests": "page_showing_another_sections_values_is_read_again"
+  },
+  {
+    "label": "capture: both pages with the same values are read again",
+    "path": "tools/webif_capture.py",
+    "old": "            del walk.read[twin]\n",
+    "new": "",
+    "tests": "page_showing_another_sections_values_is_read_again"
   }
 ]

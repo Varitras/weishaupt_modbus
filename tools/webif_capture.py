@@ -440,6 +440,32 @@ def _whole(step: Step, entries: list[Any]) -> bool:
     )
 
 
+def _twin(step: Step, entries: list[Any], walk: _Walk) -> str | None:
+    """Another page of values already read with the very same titles, if any.
+
+    The controller now and then serves one section's values in place of
+    another's, whole by every check of its own; which of the two came right
+    cannot be told.
+    """
+    titles = {entry.title for entry in entries}
+    twins = [
+        other.key
+        for other in STEPS
+        if not other.menu
+        and other.key in walk.read
+        and {entry.title for entry in walk.read[other.key]} == titles
+    ]
+    return None if step.menu or not twins else twins[0]
+
+
+def _drop_pick(walk: _Walk, key: str) -> None:
+    # A picked page that does not fit is more likely a wrong pick than a
+    # hiccup: kept, it would be asked for the same way in every attempt.
+    if key in walk.picked:
+        walk.picked.discard(key)
+        del walk.chosen[key]
+
+
 def _read_missing(session: Session, walk: _Walk, ask: Callable[[str], str]) -> None:
     """Read every page not yet read whole, in the order of the menus."""
     for step in STEPS:
@@ -448,12 +474,14 @@ def _read_missing(session: Session, walk: _Walk, ask: Callable[[str], str]) -> N
         path = _entry(step, walk, ask).href if step.parent else OVERVIEW
         entries = _entries(step, session.page(path, step.key), path)
         if not _whole(step, entries):
-            if step.key in walk.picked:
-                # More likely a wrong pick than a hiccup: kept, it would be
-                # asked for the same way in every attempt.
-                walk.picked.discard(step.key)
-                del walk.chosen[step.key]
+            _drop_pick(walk, step.key)
             raise Half(f"{step.what} came half")
+        twin = _twin(step, entries, walk)
+        if twin is not None:
+            del walk.read[twin]
+            _drop_pick(walk, step.key)
+            _drop_pick(walk, twin)
+            raise Half(f"{step.what} showed the values of another page")
         walk.read[step.key] = entries
         print(f"   {step.what}: {len(entries)} entries")
 

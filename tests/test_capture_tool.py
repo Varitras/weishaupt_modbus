@@ -338,6 +338,32 @@ async def test_a_page_served_half_is_asked_for_again_after_a_minute(
     ]
 
 
+async def test_a_page_showing_another_sections_values_is_read_again(socket_enabled):
+    """The controller now and then sends the statistics in place of the heat
+    pump page: whole by every check of its own, and the file taught the
+    statistics' titles as the heat pump page's."""
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN)
+        whole = pump.site.pop(HEAT_PUMP_PAGE)
+        pump.pages = [pump.site[STATISTICS_PAGE], whole]
+        report, _, rests = await run_capture(pump)
+
+    # Which of the two came right cannot be told: both are asked again.
+    assert pump.asked == [
+        *LOGIN,
+        *asked(WALK[:5]),
+        *LOGOUT,
+        *LOGIN,
+        *asked(WALK[3:]),
+        *LOGOUT,
+    ]
+    assert rests.count(A_MINUTE) == 1
+    assert by_page(report)["heat_pump"]["entries"] == [
+        ["Flow temperature", "35.2 °C"],
+        ["Compressor", "Off"],
+    ]
+
+
 async def test_no_answer_ends_the_attempt_without_a_logout(socket_enabled):
     """After no answer nothing more is asked, not even the logout, and the run
     gives up after its last attempt instead of asking on and on."""
