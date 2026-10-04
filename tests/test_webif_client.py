@@ -663,7 +663,10 @@ async def test_two_clients_of_one_pump_keep_the_gap_between_them(pump, session):
 
 
 async def test_a_request_waits_while_modbus_holds_the_controller(pump, session):
+    """Waiting for the lock is not holding it: a request made under it and
+    sent after it was let go passed."""
     host_lock = WatchedLock()
+    pump.watched_lock = host_lock
     client = connect(session, pump.host, host_lock=host_lock)
 
     async with host_lock:
@@ -673,6 +676,7 @@ async def test_a_request_waits_while_modbus_holds_the_controller(pump, session):
 
     assert await reading == WHOLE
     assert pump.asked == [*LOGIN, ("GET", PAGE)]
+    assert all(pump.held), "a request arrived without the lock"
 
 
 async def test_pages_asked_for_at_once_are_served_one_after_the_other(pump, session):

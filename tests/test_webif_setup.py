@@ -497,6 +497,7 @@ async def test_the_web_interface_waits_while_its_pump_is_asked(hass, pump):
     entry = _entries(hass, pump)
     lock = WatchedLock()
     hass.data.setdefault(HOST_LOCKS, {})[pump.host] = lock
+    pump.watched_lock = lock
 
     async with lock:
         assert await hass.config_entries.async_setup(entry.entry_id)
@@ -506,6 +507,7 @@ async def test_the_web_interface_waits_while_its_pump_is_asked(hass, pump):
 
     assert entry.state is ConfigEntryState.LOADED
     assert pump.asked == FIRST_ROUND
+    assert all(pump.held), "the entry asked without its pump's lock"
 
 
 async def test_the_diagnostics_leave_out_the_login_and_the_page_addresses(hass, pump):

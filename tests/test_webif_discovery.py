@@ -173,6 +173,7 @@ async def test_the_dialog_waits_while_its_pump_is_asked(hass, pump, monkeypatch)
     monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
     lock = WatchedLock()
     hass.data.setdefault(HOST_LOCKS, {})[pump.host] = lock
+    pump.watched_lock = lock
 
     async with lock:
         visit = hass.async_create_task(
@@ -182,6 +183,7 @@ async def test_the_dialog_waits_while_its_pump_is_asked(hass, pump, monkeypatch)
         assert pump.asked == []
 
     assert (await visit)[HEATING_PAGE] == STACK + f"{PUMP_MENU},{HEATING}"
+    assert all(pump.held), "the dialog asked without its pump's lock"
 
 
 async def test_the_dialog_reads_each_page_it_found_once(hass, pump, monkeypatch):

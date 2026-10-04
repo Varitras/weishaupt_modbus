@@ -96,7 +96,9 @@ class StandInPump:
     in turn, the last one for good. `login_answer`, when set, builds the
     answer to every login instead. A path in `failing` is answered with its
     error status alone. A page in `stalls` sends its headers and its first
-    character at once, and the rest after that many seconds.
+    character at once, and the rest after that many seconds. With
+    `watched_lock` set, `held` notes for every request whether that lock was
+    held when it arrived.
     """
 
     def __init__(self):
@@ -110,6 +112,8 @@ class StandInPump:
         self.failing = {}
         self.delays = {}
         self.stalls = {}
+        self.watched_lock = None
+        self.held = []
         self.keeps_sessions = True
         self.sets_cookie = True
         self.login_answer = None
@@ -120,6 +124,8 @@ class StandInPump:
         async def note(request, handler):
             self.asked.append((request.method, request.raw_path))
             self.arrivals.append(time.monotonic())
+            if self.watched_lock is not None:
+                self.held.append(self.watched_lock.locked())
             await asyncio.sleep(self.delays.get(request.raw_path, 0))
             if request.raw_path in self.failing:
                 return web.Response(status=self.failing[request.raw_path])

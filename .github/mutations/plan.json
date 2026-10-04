@@ -2511,5 +2511,47 @@
     "old": "        if FAILED_COUNT.search(result.stdout) is None:\n            raise SystemExit(\n                f\"selector {selector!r}: pytest exited 1 without a failed test \"\n                \"- a run the timeout killed, or a fixture that raised - which \"\n                \"says nothing about the mutation. Last output:\\n\"\n                + (result.stdout or \"(empty)\").strip()[-2000:]\n            )\n",
     "new": "",
     "tests": "without_a_failed_test_is_not_read_as_caught"
+  },
+  {
+    "label": "controller access: the pump writes after letting go of the lock",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        async with self._host_lock:\n            await component.write(_field_name(item), word)\n",
+    "new": "        async with self._host_lock:\n            writing = component.write(_field_name(item), word)\n        await writing\n",
+    "tests": "a_write_waits_while_the_web_interface_holds_the_controller"
+  },
+  {
+    "label": "controller access: the pump polls after letting go of the lock",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "                async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):\n                    await component.async_update()\n",
+    "new": "                async with self._host_lock:\n                    updating = component.async_update()\n                async with asyncio.timeout(BAND_TIMEOUT_SECONDS):\n                    await updating\n",
+    "tests": "a_poll_waits_while_the_web_interface_holds_the_controller"
+  },
+  {
+    "label": "controller access: the probe reads after letting go of the lock",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        async with (\n            host_lock(hass, data[CONF.HOST]),\n            async_get_temporary_unit(hass, params, MODBUS_UNIT_ID) as unit,\n        ):\n            await unit.read_input_registers(PROBE_REGISTER, 1)\n",
+    "new": "        async with async_get_temporary_unit(hass, params, MODBUS_UNIT_ID) as unit:\n            async with host_lock(hass, data[CONF.HOST]):\n                pass\n            await unit.read_input_registers(PROBE_REGISTER, 1)\n",
+    "tests": "probe_waits_while_the_controller_is_busy"
+  },
+  {
+    "label": "controller access: the client asks after letting go of the lock",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
+    "new": "        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n        if True:\n            try:\n",
+    "tests": "request_waits_while_modbus_holds_the_controller"
+  },
+  {
+    "label": "controller access: the dialog asks after letting go of the lock",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
+    "new": "        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n        if True:\n            try:\n",
+    "tests": "dialog_waits_while_its_pump_is_asked"
+  },
+  {
+    "label": "controller access: the entry asks after letting go of the lock",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
+    "new": "        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n        if True:\n            try:\n",
+    "tests": "web_interface_waits_while_its_pump_is_asked"
   }
 ]

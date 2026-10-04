@@ -369,9 +369,11 @@ async def test_a_dead_link_is_raised_not_swallowed(pump, unit):
 # --- the controller, shared with the web interface ----------------------------
 
 
-def _recorded(read, calls):
+def _recorded(read, calls, lock):
+    """`read`, noting whether `lock` is held each time a request goes out."""
+
     async def recording(*args, **kwargs):
-        calls.append(args)
+        calls.append(lock.locked())
         return await read(*args, **kwargs)
 
     return recording
@@ -380,13 +382,17 @@ def _recorded(read, calls):
 async def test_a_poll_waits_while_the_web_interface_holds_the_controller(
     unit, monkeypatch
 ):
+    """Waiting for the lock is not holding it: a band read made under it and
+    sent after it was let go passed."""
     host_lock = WatchedLock()
     pump = WeishauptHeatPump(
         unit, _all_items(), WriteBudget(warn_at=0, limit=0), host_lock
     )
     reads = []
     for name in ("read_input_registers", "read_holding_registers"):
-        monkeypatch.setattr(unit, name, _recorded(getattr(unit, name), reads))
+        monkeypatch.setattr(
+            unit, name, _recorded(getattr(unit, name), reads, host_lock)
+        )
 
     async with host_lock:
         polling = asyncio.create_task(pump.async_update())
@@ -395,6 +401,7 @@ async def test_a_poll_waits_while_the_web_interface_holds_the_controller(
     await polling
 
     assert reads
+    assert all(reads), "a band read went out without the lock"
 
 
 async def test_a_write_waits_while_the_web_interface_holds_the_controller(
@@ -405,7 +412,9 @@ async def test_a_write_waits_while_the_web_interface_holds_the_controller(
         unit, _all_items(), WriteBudget(warn_at=0, limit=0), host_lock
     )
     writes = []
-    monkeypatch.setattr(unit, "write_register", _recorded(unit.write_register, writes))
+    monkeypatch.setattr(
+        unit, "write_register", _recorded(unit.write_register, writes, host_lock)
+    )
 
     async with host_lock:
         writing = asyncio.create_task(pump.write(_row(pump, PV_SETPOINT), 1))
@@ -413,7 +422,7 @@ async def test_a_write_waits_while_the_web_interface_holds_the_controller(
         assert writes == []
 
     assert await writing is True
-    assert len(writes) == 1
+    assert writes == [True], "the write went out without the lock"
 
 
 SHORT_LIMIT_SECONDS = 0.5

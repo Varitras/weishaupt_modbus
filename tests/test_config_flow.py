@@ -12,6 +12,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 from modbus_connection import ModbusConnectionError
+from modbus_connection.mock import MockModbusUnit
 from probatio import to_field_list
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -314,11 +315,20 @@ async def test_a_host_without_a_pump_is_reported(hass, mock_modbus):
     assert result["errors"] == {"base": "cannot_connect"}
 
 
-async def test_the_probe_waits_while_the_controller_is_busy(hass):
+async def test_the_probe_waits_while_the_controller_is_busy(hass, monkeypatch):
     """The probe read its register while the web interface could be asking
-    the same controller: the one access to it that skipped the shared lock."""
+    the same controller: the one access to it that skipped the shared lock.
+    Waiting for the lock is not holding it, so the read notes whether it is."""
     lock = WatchedLock()
     hass.data.setdefault(HOST_LOCKS, {})[HOST] = lock
+    held = []
+    read = MockModbusUnit.read_input_registers
+
+    async def noted(unit, *args, **kwargs):
+        held.append(lock.locked())
+        return await read(unit, *args, **kwargs)
+
+    monkeypatch.setattr(MockModbusUnit, "read_input_registers", noted)
 
     async with lock:
         probing = hass.async_create_task(config_flow.pump_answers(hass, PAGE_ONE))
@@ -326,6 +336,7 @@ async def test_the_probe_waits_while_the_controller_is_busy(hass):
         assert not probing.done()
 
     assert await probing
+    assert held == [True], "the probe read without the lock"
 
 
 async def test_prefix_and_postfix_cannot_be_changed_afterwards(hass):
