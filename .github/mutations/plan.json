@@ -2882,5 +2882,12 @@
     "old": "    shows_its_own_level = page.menu and bool(titles)\n",
     "new": "    shows_its_own_level = page.menu\n",
     "tests": "heating_menu_served_half_on_every_ask_is_not_called_unsupported"
+  },
+  {
+    "label": "client: 400 is an error status",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "    if answer.status >= HTTPStatus.BAD_REQUEST:\n        raise Unreachable(f\"{path}: HTTP {answer.status}\")\n",
+    "new": "    if answer.status > HTTPStatus.BAD_REQUEST:\n        raise Unreachable(f\"{path}: HTTP {answer.status}\")\n",
+    "tests": "error_status_on_the_login_page_ends_the_round or error_status_on_the_renewal_logout_ends_the_round"
   }
 ]

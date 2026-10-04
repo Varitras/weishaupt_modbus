@@ -459,7 +459,8 @@ async def test_the_session_is_renewed_after_a_day(pump, session):
     assert pump.asked == [("GET", webif.LOGOUT), *LOGIN, ("GET", PAGE)]
 
 
-ERROR_STATUSES = pytest.mark.parametrize("status", [404, 503])
+# 400 is where an error status begins.
+ERROR_STATUSES = pytest.mark.parametrize("status", [400, 404, 503])
 
 
 @ERROR_STATUSES
