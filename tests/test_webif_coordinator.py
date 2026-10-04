@@ -292,6 +292,40 @@ async def test_a_refresh_by_hand_does_not_put_the_next_round_off(
     assert client.asked == [HEAT_PUMP.path]
 
 
+class SlowClient(FakeClient):
+    """Each answer takes `seconds` on the clock, as the controller's do."""
+
+    def __init__(self, clock, seconds):
+        super().__init__()
+        self.clock = clock
+        self.seconds = seconds
+
+    async def page(self, path, complete):
+        self.clock.now += self.seconds
+        return await super().page(path, complete)
+
+
+async def test_a_page_falling_due_as_the_round_ends_still_gets_a_round(
+    hass, entry, clock
+):
+    """A wait of exactly zero reads as "no polling" to Home Assistant: a page
+    that fell due just as a round reading another page ended stopped the
+    polling for good, with no stop and no notice."""
+    client = SlowClient(clock, seconds=6)
+    polled = [HEAT_PUMP, replace(STATISTICS, interval=QUARTER_HOUR)]
+    coordinator = WebifCoordinator(hass, entry, client, polled, clock=clock)
+    stop_listening = coordinator.async_add_listener(lambda: None)
+    await round_at(coordinator, clock, 0)
+    await round_at(coordinator, clock, 15 * 60)
+    client.asked.clear()
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=5))
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert client.asked == [STATISTICS.path]
+    stop_listening()
+
+
 async def test_a_round_a_second_early_still_reads_a_due_page(
     coordinator, client, clock
 ):

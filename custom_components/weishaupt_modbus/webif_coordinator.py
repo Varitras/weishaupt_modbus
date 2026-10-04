@@ -38,6 +38,10 @@ FAILURES_TO_STOP = 3
 # start up to a second before a page's interval is over. Five cover that with
 # room to spare and read a page at most 5 s early, nothing next to minutes.
 DUE_SLACK_SECONDS = 5.0
+# Home Assistant reads a wait of zero as "no polling", and a page can fall
+# due just as a round asking another one ends: it gets the next round a
+# second later instead.
+SHORTEST_WAIT_SECONDS = 1.0
 STOPPED_ISSUE = "webif_stopped"
 # Page key: the option holding its interval, and the default in minutes.
 INTERVAL_OPTIONS = {
@@ -253,7 +257,10 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         if self._stopped_by is not None:
             return
         now = self._clock()
-        wait = min(self._due_in(page, now) for page in self._pages)
+        wait = max(
+            min(self._due_in(page, now) for page in self._pages),
+            SHORTEST_WAIT_SECONDS,
+        )
         if not finished:
             # The pages the round did not reach are due at once; the
             # struggling controller gets the shortest interval to recover.

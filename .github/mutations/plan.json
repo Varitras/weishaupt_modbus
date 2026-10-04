@@ -2095,8 +2095,8 @@
   {
     "label": "webif coordinator: rounds come on the shortest interval, whatever is due",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        wait = min(self._due_in(page, now) for page in self._pages)\n",
-    "new": "        wait = self._shortest_interval.total_seconds()\n",
+    "old": "            min(self._due_in(page, now) for page in self._pages),\n",
+    "new": "            self._shortest_interval.total_seconds(),\n",
     "tests": "refresh_by_hand_does_not_put_the_next_round_off or 7_minutes_beside_one_of_5"
   },
   {
@@ -2455,5 +2455,12 @@
     "old": "            return self._failed(page, type(error).__name__)\n",
     "new": "            self._failed(page, type(error).__name__)\n            return True\n",
     "tests": "round_that_stops_polling_asks_nothing_more"
+  },
+  {
+    "label": "webif coordinator: a wait of zero plans no round at all",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "SHORTEST_WAIT_SECONDS = 1.0\n",
+    "new": "SHORTEST_WAIT_SECONDS = 0.0\n",
+    "tests": "falling_due_as_the_round_ends"
   }
 ]
