@@ -2476,5 +2476,12 @@
     "old": "      \"reauth_confirm\": {\n        \"title\": \"Web interface login\",\n        \"description\": \"The web interface refused its login. Enter the current one; checking it takes about a minute.\",\n        \"data\": {\n          \"username\": \"User\",\n          \"password\": \"Password\"\n        },\n        \"data_description\": {\n          \"username\": \"The user on the web interface's login page.\",\n          \"password\": \"The password on the web interface's login page. It is stored in Home Assistant and sent to the heat pump only, as plain HTTP: the controller offers nothing else, so keep it on a network you trust.\"\n",
     "new": "      \"reauth_confirm\": {\n        \"title\": \"Web interface login\",\n        \"description\": \"The web interface refused its login. Enter the current one; checking it takes about a minute.\",\n        \"data\": {\n          \"username\": \"User\",\n          \"password\": \"Password\"\n        },\n        \"data_description\": {\n          \"username\": \"The user on the web interface's login page.\",\n          \"password\": \"The password on the web interface's login page.\"\n",
     "tests": "reads_the_same_in_every_form_that_asks_for_it"
+  },
+  {
+    "label": "webif client: a 4xx on the login page or the logout lets the round go on",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "    if answer.status >= HTTPStatus.BAD_REQUEST:\n",
+    "new": "    if answer.status >= HTTPStatus.INTERNAL_SERVER_ERROR:\n",
+    "tests": "error_status_on_the_login_page_ends_the_round or error_status_on_the_renewal_logout_ends_the_round"
   }
 ]
