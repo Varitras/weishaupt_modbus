@@ -26,6 +26,9 @@ from .weishaupt_modbus_api.hpconst import reverse_device_list
 
 # On a reported setpoint: "none" while the controller demands nothing.
 DEMAND_ATTRIBUTE = "demand"
+# What a reported setpoint shows while nothing is demanded: unknown left a
+# gap in the history for every hour without demand.
+NO_DEMAND_VALUE = 0.0
 
 
 def entity_category(item: ModbusItem) -> EntityCategory | None:
@@ -262,12 +265,18 @@ class MySensorEntity(MyEntity, SensorEntity):
         self._attr_native_value = self.translate_val(self._api_item.state)
         self.async_write_ha_state()
 
+    def translate_val(self, val: Any) -> float | str | None:
+        """As for any register, but a reported setpoint's no demand reads 0."""
+        if self._api_item.is_off and self._api_item.params.get("setpoint"):
+            return NO_DEMAND_VALUE
+        return super().translate_val(val)
+
     @property
     def extra_state_attributes(self) -> dict[str, str] | None:
         """For a reported setpoint: whether the controller demands anything.
 
-        Unknown alone does not tell "nothing demanded" from "no reading";
-        the controller does, with its no-demand word.
+        The 0 shown for no demand is no temperature; the controller says
+        so with its no-demand word, and automations can tell by this.
         """
         if not self._api_item.params.get("setpoint"):
             return None

@@ -762,11 +762,25 @@ def _flow_setpoint(state=None, is_off=False):
 
 
 def test_a_setpoint_sensor_says_whether_a_demand_is_active():
-    """Unknown alone does not tell "nothing demanded" from "no reading"; the
-    controller does, and the sensor passes it on as an attribute."""
+    """The 0 shown for no demand is no temperature; the controller says so,
+    and the sensor passes it on as an attribute."""
     assert _flow_setpoint(is_off=True).extra_state_attributes == {"demand": "none"}
     assert _flow_setpoint(state=425).extra_state_attributes == {"demand": "active"}
     assert _flow_setpoint().extra_state_attributes is None, "no reading, no claim"
+
+
+def test_a_setpoint_with_no_demand_reads_zero_not_unknown():
+    """Unknown left a gap in the history for every hour without demand.
+    A missing reading stays unknown."""
+    assert _flow_setpoint(is_off=True).native_value == 0
+    assert _flow_setpoint().native_value is None, "no reading stays unknown"
+
+    sensor = _flow_setpoint(state=425)
+    sensor.async_write_ha_state = lambda: None
+    sensor._api_item.state, sensor._api_item.is_off = None, True
+    sensor._handle_coordinator_update()  # what async_update_listeners triggers
+
+    assert sensor.native_value == 0
 
 
 def test_a_plain_temperature_sensor_carries_no_demand_attribute():

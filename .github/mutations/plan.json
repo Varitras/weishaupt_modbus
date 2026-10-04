@@ -728,6 +728,20 @@
     "tests": "whether_a_demand_is_active"
   },
   {
+    "label": "sensor: a reported setpoint with no demand reads 0, not unknown",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        if self._api_item.is_off and self._api_item.params.get(\"setpoint\"):\n            return NO_DEMAND_VALUE\n",
+    "new": "",
+    "tests": "no_demand_reads_zero_not_unknown"
+  },
+  {
+    "label": "sensor: only a reported setpoint's off state reads 0",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        if self._api_item.is_off and self._api_item.params.get(\"setpoint\"):\n",
+    "new": "        if self._api_item.params.get(\"setpoint\"):\n",
+    "tests": "no_demand_reads_zero_not_unknown"
+  },
+  {
     "label": "table: SG-Ready 1 and 2 read as on or off like DE1 and DE2",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
     "old": "    ModbusItem(address=35101, name=\"SG-Ready 1\", format=FORMATS.STATUS, type=TYPES.SENSOR, device=DEVICES.IO, resultlist=W2_STATUS, translation_key=\"sgr1\"),\n",

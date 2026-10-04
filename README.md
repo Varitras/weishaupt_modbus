@@ -149,7 +149,7 @@ turns it off and back on (restoring the value it held before, or the lowest
 allowed one).
 
 **Reported setpoints.** The setpoints the controller only reports - room,
-flow and DHW setpoint temperature - read unknown while the controller
+flow and DHW setpoint temperature - read 0 °C while the controller
 demands nothing, and say so: their `demand` attribute is `none` then and
 `active` while a setpoint is in force. (The controller reports "no demand"
 as the value 1, which used to show as 0.1 °C.)
