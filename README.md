@@ -253,10 +253,12 @@ only heat pumps that have none yet. Logging in, finding the pages and reading
 each once takes about a minute, and the dialog shows its progress meanwhile;
 pages the controller serves only half are searched once more before the dialog
 asks you to try again a little later, and the dialog logs out again
-afterwards. A page that lacks a title the sensors read, or shows a value in a
-unit they do not know, is named in the dialog with those titles: that
-controller is not supported yet. Values shown empty or twice are named the
-same way, with a request to try again.
+afterwards; a page of values that shows none of its titles counts as served
+half. A page that lacks a title the sensors read, or shows a value in a unit
+they do not know, is named in the dialog with those titles: that controller
+is not supported yet. Values shown empty or twice, and a menu entry shown
+twice, are searched once more as well and then named the same way, with a
+request to try again.
 
 To read only the web interface, for example from a second Home Assistant
 beside one that polls the heat pump over Modbus, disable the heat pump entry
