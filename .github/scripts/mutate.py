@@ -17,8 +17,9 @@ The pattern behind all four: if the test establishes the condition the
 production code is supposed to establish, it tests nothing.
 
 The harness itself is held to the same standard. "The tests noticed" is
-pytest exit code 1 and nothing else - a usage error, an internal error or an
-interrupted run are not evidence, and reading any non-zero exit as success
+pytest exit code 1 with a failed test in its count, and nothing else - a
+usage error, an internal error, an interrupted run, a run the timeout killed
+or a fixture that raised are not evidence, and reading any of them as success
 was this script telling itself what it wanted to hear.
 
 Usage
@@ -62,6 +63,7 @@ import json
 import os
 from pathlib import Path
 import queue
+import re
 import shutil
 import subprocess
 import symtable
@@ -87,6 +89,10 @@ PYTEST_INTERRUPTED = 2
 PYTEST_INTERNAL_ERROR = 3
 PYTEST_USAGE_ERROR = 4
 PYTEST_NO_TESTS = 5
+# Exit code 1 alone is not enough either: pytest-timeout ends a hung run with
+# it and no count at all, and a fixture that raises gives it with an error
+# count only. A failed test shows in the count line that ends the run.
+FAILED_COUNT = re.compile(r"^\d+ failed\b", re.MULTILINE)
 
 # A hung test run would otherwise hold a MUTATED source file indefinitely.
 TEST_TIMEOUT_SECONDS = 900
@@ -196,6 +202,13 @@ def run_tests(selector: str, paths=None, root: Path | None = None) -> bool:
         raise SystemExit(f"selector {selector!r} matched no tests")
 
     if result.returncode == PYTEST_TESTS_FAILED:
+        if FAILED_COUNT.search(result.stdout) is None:
+            raise SystemExit(
+                f"selector {selector!r}: pytest exited 1 without a failed test "
+                "- a run the timeout killed, or a fixture that raised - which "
+                "says nothing about the mutation. Last output:\n"
+                + (result.stdout or "(empty)").strip()[-2000:]
+            )
         return True
     if result.returncode == PYTEST_ALL_PASSED:
         return False

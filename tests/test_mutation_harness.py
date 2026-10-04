@@ -157,6 +157,29 @@ def test_a_passing_suite_counts_as_survived(monkeypatch):
     assert mutate.run_tests("something") is False
 
 
+@pytest.mark.parametrize(
+    "stdout",
+    [
+        "+++++++++++++++++++++++++++ Timeout +++++++++++++++++++++++++++\n",
+        (
+            "ERROR tests/test_x.py::test_y - RuntimeError: fixture\n"
+            "2 deselected, 1 error in 0.01s\n"
+        ),
+    ],
+    ids=["killed by the timeout", "error in a fixture"],
+)
+def test_a_run_without_a_failed_test_is_not_read_as_caught(monkeypatch, stdout):
+    """pytest-timeout ends a hung run with exit code 1 and no count at all,
+    and a fixture that raises exits 1 with an error count only: either was
+    read as caught, though no test had failed on what the case breaks."""
+    monkeypatch.setattr(
+        mutate.subprocess, "run", lambda *_args, **_kwargs: _Result(1, stdout)
+    )
+
+    with pytest.raises(SystemExit):
+        mutate.run_tests("something")
+
+
 @pytest.mark.parametrize("code", [2, 3, 4])
 def test_a_run_that_says_nothing_is_not_read_as_caught(monkeypatch, code):
     """Only exit code 1 means "the tests noticed". A usage error, an internal
@@ -310,13 +333,24 @@ def test_no_selector_clause_is_a_word_that_means_anything():
     )
 
 
-def _clauses_naming_the_harness(cases: list) -> list:
-    """Selector clauses that pick a test of this file, in a case that mutates
-    anything but the harness itself.
+# Tests of this file that fail whatever a shipped mutant does: the plan check
+# finds the case's own snippet gone, the copy check needs the .git a worker
+# copy lacks. A case selecting one reads as caught in any case, even a case
+# that mutates the harness itself.
+FAILS_ON_EVERY_MUTANT = frozenset(
+    {
+        "test_the_shipped_plan_still_matches_the_code",
+        "test_the_worker_copies_hold_the_tracked_files_each_on_its_own",
+    }
+)
 
-    Some of these fail whatever a shipped mutant does - the plan check finds
-    its snippet gone, the copy check needs the .git a worker copy lacks - so a
-    case selecting one would read as caught in any case.
+
+def _clauses_naming_the_harness(cases: list) -> list:
+    """Selector clauses that pick a test of this file the case may not select.
+
+    A case that mutates anything but the harness may select none of them; a
+    case that mutates the harness may select its tests, but not one that
+    fails on every mutant.
     """
     own = set(
         re.findall(
@@ -325,15 +359,21 @@ def _clauses_naming_the_harness(cases: list) -> list:
             re.MULTILINE,
         )
     )
+    assert own >= FAILS_ON_EVERY_MUTANT, "a renamed test slipped out of the check"
     harness = {path.relative_to(REPO).as_posix() for path in (SCRIPT, PLAN)}
+
+    def forbidden(case: dict) -> set[str]:
+        if case["path"] in harness:
+            return FAILS_ON_EVERY_MUTANT
+        return own
+
     return [
         f"{case['label']}: {clause!r}"
         for case in cases
-        if case["path"] not in harness
         for clause in (
             part.strip() for part in re.split(r"\s+(?:or|and)\s+", case["tests"])
         )
-        if any(clause in name for name in own)
+        if any(clause in name for name in forbidden(case))
     ]
 
 
@@ -353,11 +393,19 @@ def test_the_check_catches_a_clause_naming_a_harness_test():
         "tests": "probe_waits_while_the_controller_is_busy or worker_copies_hold_the_tracked",
     }
     of_the_harness = {**case, "path": ".github/mutations/plan.json"}
+    always_red = {**of_the_harness, "tests": "shipped_plan_still_matches_the_code"}
+    its_own_test = {**of_the_harness, "tests": "a_failing_suite_counts_as_caught"}
 
     assert _clauses_naming_the_harness([case]) == [
         "x: 'worker_copies_hold_the_tracked'"
     ]
-    assert _clauses_naming_the_harness([of_the_harness]) == []
+    assert _clauses_naming_the_harness([of_the_harness]) == [
+        "x: 'worker_copies_hold_the_tracked'"
+    ]
+    assert _clauses_naming_the_harness([always_red]) == [
+        "x: 'shipped_plan_still_matches_the_code'"
+    ]
+    assert _clauses_naming_the_harness([its_own_test]) == []
 
 
 def test_the_shipped_plan_still_matches_the_code():

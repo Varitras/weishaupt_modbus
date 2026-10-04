@@ -2497,5 +2497,19 @@
     "old": "            \"answer_seconds\": self.answer_seconds,\n",
     "new": "            \"answer_seconds\": None,\n",
     "tests": "answer_time_is_the_slowest_of_the_last_round_that_asked"
+  },
+  {
+    "label": "mutation plan: a harness case selects a test that fails on every mutant",
+    "path": ".github/mutations/plan.json",
+    "old": "\"tests\": \"no_selector_clause_names_a_test_of_the_harness_itself\"",
+    "new": "\"tests\": \"shipped_plan_still_matches_the_code\"",
+    "tests": "no_selector_clause_names_a_test_of"
+  },
+  {
+    "label": "mutate.py: a run without a failed test reads as caught",
+    "path": ".github/scripts/mutate.py",
+    "old": "        if FAILED_COUNT.search(result.stdout) is None:\n            raise SystemExit(\n                f\"selector {selector!r}: pytest exited 1 without a failed test \"\n                \"- a run the timeout killed, or a fixture that raised - which \"\n                \"says nothing about the mutation. Last output:\\n\"\n                + (result.stdout or \"(empty)\").strip()[-2000:]\n            )\n",
+    "new": "",
+    "tests": "without_a_failed_test_is_not_read_as_caught"
   }
 ]
