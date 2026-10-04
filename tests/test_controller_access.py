@@ -10,9 +10,12 @@ controller, and every test passed.
 The check is lexical and per function: the lock has to be taken in the
 function that sends, where a reader sees it. A nested function does not
 inherit it, since it may run after the lock is released. A request wrapped
-in another awaited call, a `wait_for` or a `gather`, counts all the same. The
-positive list of the web interface is held to the same place, as a refusal
-before the request.
+in another awaited call, a `wait_for` or a `gather`, counts all the same. A
+request that is not awaited where it is made - bound to a name, gathered
+from a list, handed to a task, taken as an alias - is refused outright: when
+it goes out, no lexical check can tell. The positive list of the web
+interface is held to the same place, as a refusal before the request, in
+the sending function itself and about the names the request is sent with.
 """
 
 import ast
@@ -64,6 +67,14 @@ WEB_REQUESTS = frozenset(
 # requests are checked here like any other.
 DEVICE_ATTRIBUTE = "device"
 DEVICE_METHODS = _awaitable_methods(WeishauptHeatPump)
+# The coordinators have a diagnostics() of their own under the library's name
+# for a request.
+OWN_NAMES = frozenset({"diagnostics"})
+# An HTTP verb is a request on a session (`self._session`,
+# `async_get_clientsession(hass)`) or on aiohttp itself. On anything else,
+# `get` and `options` are a dict's and a config entry's.
+SESSION = "session"
+HTTP_MODULE = "aiohttp"
 
 
 def _awaited_calls(tree):
@@ -149,8 +160,9 @@ def _web_requests(source):
     ]
 
 
-def _refuses_off_the_list(node):
-    """`if not _allowed(...):` with a raise in its body."""
+def _refuses_off_the_list(node, sent_with):
+    """`if not _allowed(method, path):` with a raise in its body, asking
+    about two names the request is sent with."""
     if not isinstance(node, ast.If):
         return False
     test = node.test
@@ -160,13 +172,32 @@ def _refuses_off_the_list(node):
         and isinstance(test.operand, ast.Call)
         and _name_of(test.operand.func) == POSITIVE_LIST
     )
-    return asks and any(isinstance(statement, ast.Raise) for statement in node.body)
+    if not asks:
+        return False
+    asked = test.operand.args
+    about_the_request = len(asked) == 2 and all(
+        isinstance(argument, ast.Name) and argument.id in sent_with
+        for argument in asked
+    )
+    return about_the_request and any(
+        isinstance(statement, ast.Raise) for statement in node.body
+    )
 
 
 def _refused_off_the_list_first(function, call):
-    return function is not None and any(
-        _refuses_off_the_list(node) and node.lineno < call.lineno
-        for node in ast.walk(function)
+    """As a statement of the sending function itself, not on one branch of
+    it, and before the request."""
+    if function is None:
+        return False
+    sent_with = {
+        node.id
+        for argument in call.args
+        for node in ast.walk(argument)
+        if isinstance(node, ast.Name)
+    }
+    return any(
+        _refuses_off_the_list(statement, sent_with) and statement.lineno < call.lineno
+        for statement in function.body
     )
 
 
@@ -176,6 +207,62 @@ def _unlisted_web_requests(source):
         for where, call, _, function in _requests(source)
         if call.func.attr in WEB_REQUESTS
         and not _refused_off_the_list_first(function, call)
+    ]
+
+
+def _is_session(node):
+    target = node.func if isinstance(node, ast.Call) else node
+    name = _name_of(target) or ""
+    return name.lower().endswith(SESSION) or name == HTTP_MODULE
+
+
+def _names_a_request(attribute):
+    """A request method where it is taken from what sends it: the library's
+    names on anything but the heat pump, an HTTP verb on a session."""
+    if attribute.attr in WEB_REQUESTS:
+        return _is_session(attribute.value)
+    if attribute.attr in OWN_NAMES:
+        return False
+    by_the_heat_pump = (
+        _name_of(attribute.value) == DEVICE_ATTRIBUTE
+        and attribute.attr in DEVICE_METHODS
+    )
+    return attribute.attr in MODBUS_REQUESTS and not by_the_heat_pump
+
+
+def _named_requests(source):
+    return [
+        f"{node.lineno}: {ast.unparse(node)}"
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Attribute) and _names_a_request(node)
+    ]
+
+
+def _awaited_nodes(tree):
+    """Every node of what is awaited or entered by `async with`."""
+    inside = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Await):
+            inside.update(map(id, ast.walk(node.value)))
+        if isinstance(node, ast.AsyncWith):
+            for item in node.items:
+                inside.update(map(id, ast.walk(item.context_expr)))
+    return inside
+
+
+def _requests_not_awaited_where_made(source):
+    """Requests made but not awaited there, and request methods taken without
+    a call: bound to a name, gathered from a list, handed to a task, an
+    alias. When those go out, no lexical check can tell."""
+    tree = ast.parse(source)
+    awaited = _awaited_nodes(tree)
+    called = {id(node.func) for node in ast.walk(tree) if isinstance(node, ast.Call)}
+    return [
+        f"{node.lineno}: {ast.unparse(node)}"
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Attribute)
+        and _names_a_request(node)
+        and not (id(node) in called and id(node) in awaited)
     ]
 
 
@@ -322,3 +409,107 @@ def test_a_lock_that_only_contains_the_name_is_another_lock():
     )
 
     assert _unlocked_requests(another) == ["3: self._session.request"]
+
+
+def test_a_request_has_to_be_awaited_where_it_is_made():
+    """Made under the lock and sent after it, gathered from a list made
+    earlier, handed to a task or taken as an alias: the scan could not tell
+    when such a request goes out, and passed every one of them."""
+    made_under_the_lock = (
+        "async def write(self, component, word):\n"
+        "    async with self._host_lock:\n"
+        "        writing = component.write('field', word)\n"
+        "    await writing\n"
+    )
+    gathered = (
+        "async def poll(self, components):\n"
+        "    updates = [component.async_update() for component in components]\n"
+        "    async with self._host_lock:\n"
+        "        await asyncio.gather(*updates)\n"
+    )
+    handed_to_a_task = (
+        "async def probe(self, unit):\n"
+        "    reading = asyncio.create_task(unit.read_input_registers(30001, 1))\n"
+        "    async with self._host_lock:\n"
+        "        await reading\n"
+    )
+    aliases = (
+        "async def ask(self, unit, url):\n"
+        "    read = unit.read_input_registers\n"
+        "    get = self._session.get\n"
+        "    async with self._host_lock:\n"
+        "        await read(30001, 1)\n"
+        "        await get(url)\n"
+    )
+
+    assert _requests_not_awaited_where_made(made_under_the_lock) == [
+        "3: component.write"
+    ]
+    assert _requests_not_awaited_where_made(gathered) == ["2: component.async_update"]
+    assert _requests_not_awaited_where_made(handed_to_a_task) == [
+        "2: unit.read_input_registers"
+    ]
+    assert sorted(_requests_not_awaited_where_made(aliases)) == [
+        "2: unit.read_input_registers",
+        "3: self._session.get",
+    ]
+
+
+def test_what_only_shares_a_request_s_name_is_no_request():
+    """Off a session, `get` and `options` are a dict's and a config entry's;
+    the coordinators have a diagnostics() of their own, and the heat pump's
+    methods take the lock inside."""
+    shared_names = (
+        "def read(self, entry, data, coordinator):\n"
+        "    interval = entry.options.get('interval', data.get('default'))\n"
+        "    return coordinator.diagnostics(), interval\n"
+    )
+    heat_pump = (
+        "async def poll(self):\n"
+        "    update = self.device.async_update\n"
+        "    await update()\n"
+    )
+
+    assert _requests_not_awaited_where_made(shared_names) == []
+    assert _requests_not_awaited_where_made(heat_pump) == []
+
+
+def test_every_request_is_awaited_where_it_is_made():
+    made_elsewhere = _in_package(_requests_not_awaited_where_made)
+
+    assert _in_package(_named_requests), "no request found - the scan looks nowhere"
+    assert not made_elsewhere, (
+        f"request(s) not awaited where they are made: {made_elsewhere}. Await "
+        "each request in the statement that makes it, under the lock."
+    )
+
+
+def test_the_positive_list_has_to_ask_about_the_request_itself():
+    """Asked on one branch only, or about another address than the one the
+    request goes to, the refusal passed for the check."""
+    on_one_branch = (
+        "async def _exchange(self, method, path):\n"
+        "    if method == 'POST':\n"
+        "        if not _allowed(method, path):\n"
+        "            raise ValueError(path)\n"
+        "    async with self._session.request(method, self._base + path) as answer:\n"
+        "        return answer\n"
+    )
+    about_another_address = (
+        "async def _exchange(self, method, path):\n"
+        "    if not _allowed(method, INDEX):\n"
+        "        raise ValueError(path)\n"
+        "    async with self._session.request(method, self._base + path) as answer:\n"
+        "        return answer\n"
+    )
+    about_the_request = (
+        "async def _exchange(self, method, path):\n"
+        "    if not _allowed(method, path):\n"
+        "        raise ValueError(path)\n"
+        "    async with self._session.request(method, self._base + path) as answer:\n"
+        "        return answer\n"
+    )
+
+    assert _unlisted_web_requests(on_one_branch) == ["5: self._session.request"]
+    assert _unlisted_web_requests(about_another_address) == ["4: self._session.request"]
+    assert _unlisted_web_requests(about_the_request) == []
