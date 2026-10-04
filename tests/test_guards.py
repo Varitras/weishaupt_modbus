@@ -41,6 +41,7 @@ GUARD_FILES = {
     "test_platform_entities.py": "every platform builds its entities through the shared helper",
     "test_requirements.py": "the manifest and requirements.txt name the same dependencies",
     "test_scan_tool.py": "the register scan for support requests never writes to the pump",
+    "test_capture_tool.py": "the title capture opens six pages only and writes nothing that points to the pump",
     "test_secret_scan.py": "the gitleaks allowlist does not hide a token on the same line",
     "test_guards.py": "the guards stay package-wide and stay present",
 }

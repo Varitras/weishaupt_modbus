@@ -20,7 +20,7 @@
             "missing_titles": "Die Seite {page} der Weboberfläche zeigt {titles} nicht. Dieser Regler wird noch nicht unterstützt.",
             "unclear_values": "Die Seite {page} der Weboberfläche zeigt {titles} ohne Wert oder mehrfach. Bitte erneut versuchen; bleibt es so, wird dieser Regler noch nicht unterstützt.",
             "unknown_units": "Die Seite {page} der Weboberfläche zeigt {titles} in einer Einheit, die die Integration nicht kennt. Dieser Regler wird noch nicht unterstützt.",
-            "missing_menu_entries": "Die Menüs der Weboberfläche zeigen {titles} nicht. Die Integration findet ihre Seiten über diese deutschen Namen: Ist am Regler Deutsch als Sprache eingestellt? Muss der Regler auf einer anderen Sprache bleiben, eröffnen Sie ein Issue, damit sie ergänzt werden kann.",
+            "missing_menu_entries": "Die Menüs der Weboberfläche zeigen {titles} nicht. Die Integration findet ihre Seiten über diese deutschen Namen: Ist am Regler Deutsch als Sprache eingestellt? Muss der Regler auf einer anderen Sprache bleiben, eröffnen Sie ein Issue, damit sie ergänzt werden kann, und hängen Sie die Datei an, die tools/webif_capture.py schreibt (siehe README).",
             "doubled_menu_entries": "Die Menüs der Weboberfläche zeigen {titles} mehrfach. Bitte erneut versuchen; bleibt es so, wird dieser Regler noch nicht unterstützt.",
             "unknown": "Ein unerwarteter Fehler ist aufgetreten; Details stehen im Log."
         },

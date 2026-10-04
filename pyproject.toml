@@ -254,6 +254,9 @@ split-on-trailing-comma = false
 # stdout on purpose (it is a command-line tool, not library code).
 "tests/**" = ["PTH", "D", "PLR2004", "T201"]
 ".github/scripts/*" = ["T201", "D", "INP001", "PLR2004", "S603", "PLW1510"]
+# Tools people run by hand from a copy of the repository: they talk on
+# stdout, and tools/ is no package.
+"tools/*" = ["T201", "INP001"]
 # ast.NodeVisitor dispatches on `visit_<NodeName>`; the aliases have to be mixedCase.
 "tests/complexity.py" = ["N815"]
 

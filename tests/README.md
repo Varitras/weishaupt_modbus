@@ -78,6 +78,7 @@ because the thing it prevents happened, here or in a sibling project.
 | `test_platform_entities.py` | Every platform builds its entities through the one shared helper |
 | `test_requirements.py` | `manifest.json` and `requirements.txt` name the same dependencies |
 | `test_scan_tool.py` | `tools/weishaupt_scan.bat`, run against a stand-in heat pump on the loopback address, sends only read requests (function codes 0x03, 0x04, 0x2B), keeps what it read when the link dies, reads every identification page and takes path and host as data; it keeps the CRLF, ASCII bytes cmd and Windows PowerShell 5.1 need (needs PowerShell 7, `pwsh`; fails without it) |
+| `test_capture_tool.py` | `tools/webif_capture.py`, run against the web interface stand-in on the loopback address, opens the six pages it names and nothing else (Reset stays shut), asks only what the client's positive list allows, finds a German controller's pages by title and lets the user pick them by number in another language, rests a minute after a page served half or no answer and then asks only for what is missing, sends no logout after no answer, never retries refused credentials, and writes a file without address, credentials, session or page addresses; its copies of the client's protocol and of the titles are held equal to the integration's |
 | `test_secret_scan.py` | The gitleaks allowlist for translation keys does not hide a token on the same line (needs the gitleaks binary; skips without it) |
 
 ## When a budget turns red

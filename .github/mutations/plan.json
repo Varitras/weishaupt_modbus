@@ -2714,5 +2714,110 @@
     "old": "            return self._failed_poll(type(err).__name__, err)\n",
     "new": "            return self._failed_poll(str(err), err)\n",
     "tests": "unexpected_error_counts_as_a_failed_poll"
+  },
+  {
+    "label": "capture: a German controller's pages are found by their titles",
+    "path": "tools/webif_capture.py",
+    "old": "        chosen[step.key] = german[0] if len(german) == 1 else _pick(step, offered, ask)\n",
+    "new": "        chosen[step.key] = _pick(step, offered, ask)\n",
+    "tests": "german_controller_is_read_without_a_question"
+  },
+  {
+    "label": "capture: a number outside the list is asked again",
+    "path": "tools/webif_capture.py",
+    "old": "        if answer.isascii() and answer.isdigit() and 1 <= int(answer) <= len(offered):\n",
+    "new": "        if answer.isascii() and answer.isdigit() and 0 <= int(answer) <= len(offered):\n",
+    "tests": "another_language_is_picked_by_number"
+  },
+  {
+    "label": "capture: a page that shows nothing is not taken",
+    "path": "tools/webif_capture.py",
+    "old": "    return bool(entries) and (\n",
+    "new": "    return True and (\n",
+    "tests": "page_served_half_is_asked_for_again_after_a_minute"
+  },
+  {
+    "label": "capture: a page with a blank value is not taken",
+    "path": "tools/webif_capture.py",
+    "old": "        not step.shows_values or all(entry.text for entry in entries)\n",
+    "new": "        True\n",
+    "tests": "page_served_half_is_asked_for_again_after_a_minute"
+  },
+  {
+    "label": "capture: a later attempt asks only for what is missing",
+    "path": "tools/webif_capture.py",
+    "old": "        if step.key in read:\n            continue\n",
+    "new": "",
+    "tests": "page_served_half_is_asked_for_again_after_a_minute"
+  },
+  {
+    "label": "capture: no logout after no answer",
+    "path": "tools/webif_capture.py",
+    "old": "        if not self._logged_in or self._struggled:\n",
+    "new": "        if not self._logged_in:\n",
+    "tests": "no_answer_ends_the_attempt_without_a_logout"
+  },
+  {
+    "label": "capture: no answer marks the session as struggling",
+    "path": "tools/webif_capture.py",
+    "old": "        self._struggled = True\n",
+    "new": "        self._struggled = False\n",
+    "tests": "no_answer_ends_the_attempt_without_a_logout"
+  },
+  {
+    "label": "capture: an error status is no page",
+    "path": "tools/webif_capture.py",
+    "old": "        if answer.status != HTTPStatus.OK:\n",
+    "new": "        if False:\n",
+    "tests": "no_answer_ends_the_attempt_without_a_logout"
+  },
+  {
+    "label": "capture: the run gives up after its last attempt",
+    "path": "tools/webif_capture.py",
+    "old": "    for attempt in range(1, attempts + 1):\n",
+    "new": "    for attempt in range(1, attempts + 2):\n",
+    "tests": "no_answer_ends_the_attempt_without_a_logout"
+  },
+  {
+    "label": "capture: refused credentials end the run",
+    "path": "tools/webif_capture.py",
+    "old": "            print(f\"Login refused: {error}.\")\n            return None\n",
+    "new": "            print(f\"Login refused: {error}.\")\n",
+    "tests": "refused_credentials_are_not_tried_again"
+  },
+  {
+    "label": "capture: a minute's rest between two attempts",
+    "path": "tools/webif_capture.py",
+    "old": "            sleep(RESUME_WAIT_SECONDS)\n",
+    "new": "            sleep(0)\n",
+    "tests": "page_served_half_is_asked_for_again_after_a_minute"
+  },
+  {
+    "label": "capture: a gap between any two requests",
+    "path": "tools/webif_capture.py",
+    "old": "            self._sleep(max(0.0, self._last + MIN_GAP_SECONDS - time.monotonic()))\n",
+    "new": "            self._sleep(max(0.0, self._last - time.monotonic()))\n",
+    "tests": "german_controller_is_read_without_a_question"
+  },
+  {
+    "label": "capture: the file names no page address",
+    "path": "tools/webif_capture.py",
+    "old": "                \"entries\": [[entry.title, entry.text] for entry in read[step.key]],\n",
+    "new": "                \"entries\": [[entry.title, entry.text, entry.href] for entry in read[step.key]],\n",
+    "tests": "report_holds_nothing_that_points_to_the_pump"
+  },
+  {
+    "label": "capture: a page address with any other query is refused",
+    "path": "tools/webif_capture.py",
+    "old": "        or pages.STACK_LINK.fullmatch(path) is not None\n",
+    "new": "        or pages.STACK_LINK.match(path) is not None\n",
+    "tests": "tool_asks_only_what_the_client_may"
+  },
+  {
+    "label": "capture: the only POST is the login",
+    "path": "tools/webif_capture.py",
+    "old": "        return path == LOGIN\n",
+    "new": "        return True\n",
+    "tests": "tool_asks_only_what_the_client_may"
   }
 ]
