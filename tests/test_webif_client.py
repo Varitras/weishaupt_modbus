@@ -534,8 +534,7 @@ async def test_a_round_running_at_close_logs_in_no_more(pump, session):
     pump.delays[PAGE] = SLOW
     pump.asked.clear()
     reading = asyncio.create_task(client.page(PAGE, whole))
-    while not pump.asked:
-        await asyncio.sleep(0.01)
+    await until(lambda: pump.asked)
 
     await client.close()
     assert await reading == WHOLE

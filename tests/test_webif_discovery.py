@@ -360,8 +360,7 @@ async def test_a_visit_cancelled_in_its_logout_lets_go_of_its_session(
     monkeypatch.setattr(config_flow, "async_create_clientsession", recorded)
     pump.delays[webif.LOGOUT] = 0.5
     visit = asyncio.create_task(read_web_interface(hass, pump.host, USER, PASSWORD))
-    while ("GET", webif.LOGOUT) not in pump.asked:
-        await asyncio.sleep(0.01)
+    await until(lambda: ("GET", webif.LOGOUT) in pump.asked)
 
     visit.cancel()
     with pytest.raises(asyncio.CancelledError):
