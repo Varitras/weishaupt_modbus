@@ -225,8 +225,47 @@ async def test_a_page_without_a_title_its_sensors_read_is_named(
 
     assert raised.value.page == "Info › Wärmepumpe"
     assert raised.value.titles == {missing}
-    assert pump.asked.count(("GET", PAGE_PATH)) == 2, "searched once more, no more"
+    assert pump.asked.count(("GET", PAGE_PATH)) == 1, "a second search cannot help"
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
+
+
+async def test_a_page_is_judged_by_its_last_answer(hass, pump, monkeypatch):
+    """The first answer came half, the second whole but without a title the
+    sensors read: judged by the first, the dialog searched once more for
+    nothing before it named the title."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    missing = "EVI Sauggastemperatur"
+    lacking = column(
+        "".join(
+            value(title, shown)
+            for title, shown in SHOWN[HEAT_PUMP_PAGE].items()
+            if title != missing
+        )
+    )
+    del pump.site[PAGES[HEAT_PUMP_PAGE]]
+    pump.pages = [MAIN_MENUS + column(""), lacking]
+
+    with pytest.raises(MissingTitles) as raised:
+        await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert raised.value.titles == {missing}
+    assert pump.asked.count(("GET", PAGE_PATH)) == 1
+
+
+async def test_a_controller_in_another_language_is_searched_only_once(
+    hass, pump, monkeypatch
+):
+    """Its menus come whole under other names on every visit: a second
+    search only added load before the dialog said so."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    pump.site[STACK + INFO] = MAIN_MENUS + column(
+        link([INFO, HEAT_PUMP_INFO], "Wärmepumpe")
+    )
+
+    with pytest.raises(MissingMenuEntries):
+        await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert pump.asked.count(("GET", PAGE_PATH)) == 1
 
 
 @pytest.mark.parametrize(
@@ -251,6 +290,7 @@ async def test_a_page_served_half_on_every_ask_is_not_called_unsupported(
         await read_web_interface(hass, pump.host, USER, PASSWORD)
 
     assert type(raised.value) is webif.Broken
+    assert pump.asked.count(("GET", PAGE_PATH)) == 2, "searched once more"
 
 
 async def test_a_menu_served_half_on_every_ask_is_not_called_another_language(
@@ -265,6 +305,7 @@ async def test_a_menu_served_half_on_every_ask_is_not_called_another_language(
         await read_web_interface(hass, pump.host, USER, PASSWORD)
 
     assert type(raised.value) is webif.Broken
+    assert pump.asked.count(("GET", PAGE_PATH)) == 2, "searched once more"
 
 
 @pytest.mark.parametrize(
@@ -289,6 +330,7 @@ async def test_values_shown_empty_or_twice_are_named(
 
     assert raised.value.page == "Info › Wärmepumpe"
     assert raised.value.titles == unclear
+    assert pump.asked.count(("GET", PAGE_PATH)) == 2, "searched once more"
 
 
 async def test_a_value_in_a_unit_its_sensor_does_not_read_is_named(
@@ -327,7 +369,7 @@ async def test_a_menu_served_half_twice_is_searched_once_more(hass, pump, monkey
     twice in a row; the dialog tries again before it shows an error."""
     monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
     whole_info = pump.site.pop(STACK + INFO)
-    half_info = MAIN_MENUS + column(link([INFO, HEAT_PUMP_INFO], "Wärmepumpe"))
+    half_info = MAIN_MENUS + column("")
     pump.pages = [half_info, half_info, whole_info]
 
     found = await read_web_interface(hass, pump.host, USER, PASSWORD)

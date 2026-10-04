@@ -2,7 +2,6 @@
 
 import asyncio
 from collections.abc import Mapping
-from contextlib import suppress
 import logging
 from pathlib import Path
 from typing import Any
@@ -177,10 +176,7 @@ async def read_web_interface(
         pacing=host_pacing(hass, host),
     )
     try:
-        # The controller now and then serves a page half, twice in a row.
-        with suppress(Broken):
-            return await _visit(client)
-        return await _visit(client)
+        return await _visit_twice(client)
     finally:
         # The dialog may close while the logout runs; the session goes anyway.
         # Closed during the login POST, the visit never sees the new session's
@@ -190,6 +186,21 @@ async def read_web_interface(
             await client.close()
         finally:
             session.detach()
+
+
+async def _visit_twice(client: Client) -> dict[str, str]:
+    """The visit, once more after a page served half or unclear.
+
+    The controller now and then serves a page half, twice in a row. Titles
+    or menu entries a page lacks are another model's or language's, and a
+    second search would only add load before saying so.
+    """
+    try:
+        return await _visit(client)
+    except Broken as error:
+        if isinstance(error, MissingTitles | MissingMenuEntries):
+            raise
+    return await _visit(client)
 
 
 async def _visit(client: Client) -> dict[str, str]:
