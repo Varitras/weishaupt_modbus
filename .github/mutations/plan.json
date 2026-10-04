@@ -2802,8 +2802,8 @@
   {
     "label": "capture: the file names no page address",
     "path": "tools/webif_capture.py",
-    "old": "                \"entries\": [[entry.title, entry.text] for entry in walk.read[step.key]],\n",
-    "new": "                \"entries\": [[entry.title, entry.text, entry.href] for entry in walk.read[step.key]],\n",
+    "old": "        return {\"entries\": [[entry.title, entry.text] for entry in entries]}\n",
+    "new": "        return {\"entries\": [[entry.title, entry.text, entry.href] for entry in entries]}\n",
     "tests": "report_holds_nothing_that_points_to_the_pump"
   },
   {
@@ -2952,5 +2952,12 @@
     "old": "                del walk.chosen[step.key]\n",
     "new": "                pass\n",
     "tests": "picked_page_of_the_wrong_shape_is_picked_anew"
+  },
+  {
+    "label": "capture: a menu keeps its titles only",
+    "path": "tools/webif_capture.py",
+    "old": "    if step.shows_values:\n        return {\"entries\"",
+    "new": "    if True:\n        return {\"entries\"",
+    "tests": "menu_keeps_its_titles_only"
   }
 ]

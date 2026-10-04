@@ -251,8 +251,10 @@ little and stops on its own when the answers go wrong.
    reads by their codes, else by their German titles, else you pick them by
    number and confirm each pick; Reset, Service and the time programs are
    never offered. When the controller serves a page half, it rests a minute
-   and goes on. The file it writes holds the titles and the values shown,
-   without the address, the credentials or any page address. Read it, then
+   and goes on. The file it writes holds the titles, and the values of the
+   three pages the integration reads; the tool adds no address, credentials
+   or page address. The values are what those pages show: check the file
+   for a serial number, an access code or a network address before you
    attach it to the issue.
 
 ### Adding it

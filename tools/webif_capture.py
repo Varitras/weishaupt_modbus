@@ -13,9 +13,11 @@ the controller it was built for, else by their German titles, else you pick
 them by number and confirm each pick by its title. Reset, Service and the time
 programs are never offered. It only reads.
 
-The file holds each page's titles and the values shown beside them, nothing
-else: no address, no user name, no password, no session, no page address.
-Read it before you attach it.
+The file holds the titles of each page, and the values of the three pages the
+integration reads. The tool adds no address, user name, password, session or
+page address; the values are what those pages show, so read the file and
+check it for a serial number, an access code or a network address before you
+attach it.
 
 The controller now and then serves a page half or not at all. That does not
 end the run: after a minute's rest the tool logs in again and asks only for
@@ -456,6 +458,13 @@ def _read_missing(session: Session, walk: _Walk, ask: Callable[[str], str]) -> N
         print(f"   {step.what}: {len(entries)} entries")
 
 
+def _kept(step: Step, entries: list[Any]) -> dict[str, Any]:
+    """What the file keeps of a page: values only where the integration reads them."""
+    if step.shows_values:
+        return {"entries": [[entry.title, entry.text] for entry in entries]}
+    return {"titles": [entry.title for entry in entries]}
+
+
 def _report(walk: _Walk) -> dict[str, Any]:
     return {
         "pages": [
@@ -463,7 +472,7 @@ def _report(walk: _Walk) -> dict[str, Any]:
                 "page": step.key,
                 "german": _path(step, lambda each: each.german),
                 "shown": _path(step, lambda each: walk.chosen[each.key].title),
-                "entries": [[entry.title, entry.text] for entry in walk.read[step.key]],
+                **_kept(step, walk.read[step.key]),
             }
             for step in STEPS
         ]

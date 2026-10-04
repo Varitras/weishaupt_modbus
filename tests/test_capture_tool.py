@@ -245,12 +245,8 @@ async def test_another_model_in_another_language_is_picked_by_number(socket_enab
         "statistics": ("Info › Statistik", "Information › Statistics"),
         "heating": ("Wärmepumpe › Heizen", "Heat pump › Heating"),
     }
-    assert pages["overview"]["entries"] == [["Information", ""], ["Heat pump", ""]]
-    assert pages["heat_pump_menu"]["entries"] == [
-        ["Heating", ""],
-        ["Service", ""],
-        ["Reset", ""],
-    ]
+    assert pages["overview"]["titles"] == ["Information", "Heat pump"]
+    assert pages["heat_pump_menu"]["titles"] == ["Heating", "Service", "Reset"]
     assert pages["heat_pump"]["entries"] == [
         ["Flow temperature", "35.2 °C"],
         ["Compressor", "Off"],
@@ -384,6 +380,23 @@ async def test_the_report_holds_nothing_that_points_to_the_pump(socket_enabled):
         "0A0B",
     ):
         assert personal not in text, personal
+
+
+async def test_a_menu_keeps_its_titles_only(socket_enabled):
+    """Only the three pages the integration reads need their values, for the
+    units; what a menu shows beside an entry went into a file meant for a
+    public issue all the same."""
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN)
+        info = STACK + KNOWN["info"]
+        pump.site[info] = pump.site[info].replace(
+            ">Statistik</h5>\n", ">Statistik</h5>\n192.0.2.10"
+        )
+        report, _, _ = await run_capture(pump)
+
+    assert "192.0.2.10" not in json.dumps(report)
+    assert by_page(report)["info"]["titles"] == ["Wärmepumpe", "Statistik"]
+    assert "entries" not in by_page(report)["info"]
 
 
 @pytest.mark.parametrize(
