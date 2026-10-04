@@ -573,13 +573,24 @@ async def test_a_logout_without_an_answer_does_not_fail_the_close(pump, session)
         "/pro_save.html",
     ],
 )
-async def test_an_address_off_the_positive_list_is_never_asked_for(pump, session, path):
-    """The access code form on every page saves by GET."""
-    client = connect(session, pump.host)
+async def test_an_address_off_the_positive_list_is_never_asked_for(
+    pump, session, caplog, path
+):
+    """The access code form on every page saves by GET. Refused, the address
+    leaves no trace of a request either: none counted, no gap taken, no line
+    in the log."""
+    caplog.set_level(logging.DEBUG, logger=webif.__name__)
+    pacing = webif.Pacing()
+    client = connect(session, pump.host, pacing=pacing)
+    await client.page(PAGE, whole)
+    before = (client.traffic.requests, pacing.last_request)
+    caplog.clear()
 
     with pytest.raises(ValueError, match="positive list"):
         await client.page(path, whole)
-    assert pump.asked == LOGIN
+    assert pump.asked == [*LOGIN, ("GET", PAGE)]
+    assert (client.traffic.requests, pacing.last_request) == before
+    assert not [record for record in caplog.records if record.name == webif.__name__]
 
 
 @pytest.mark.parametrize(
