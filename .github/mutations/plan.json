@@ -471,8 +471,8 @@
   {
     "label": "coordinator: the fourth failed poll must not keep the last values",
     "path": "custom_components/weishaupt_modbus/coordinator.py",
-    "old": "            if self.data is not None and self._failed_polls <= FAILED_POLLS_TOLERATED:\n",
-    "new": "            if self.data is not None:\n",
+    "old": "        if self.data is not None and self._failed_polls <= FAILED_POLLS_TOLERATED:\n",
+    "new": "        if self.data is not None:\n",
     "tests": "three_failed_polls_keep_the_last_values"
   },
   {
@@ -765,8 +765,8 @@
   {
     "label": "coordinator: a tolerated failed poll is not a warning",
     "path": "custom_components/weishaupt_modbus/coordinator.py",
-    "old": "                _LOGGER.debug(\n",
-    "new": "                _LOGGER.warning(\n",
+    "old": "            _LOGGER.debug(\n",
+    "new": "            _LOGGER.warning(\n",
     "tests": "outage_is_logged_once"
   },
   {
@@ -2693,5 +2693,26 @@
     "old": "        except Exception:\n            # As in the probe: a fault of this code, not of the web interface.\n            _LOGGER.exception(\"The web interface visit failed on an unexpected error\")\n            return None, {\"base\": \"unknown\"}, {}\n",
     "new": "",
     "tests": "visit_failing_on_a_fault_of_its_own_says_so"
+  },
+  {
+    "label": "coordinator: an unexpected error passes the grace polls",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        except Exception as err:\n            # A fault of this code or of a library, not of the link. Counted\n            # all the same: uncounted, it passed the grace polls, and Home\n            # Assistant logged its traceback every poll. Its kind only, as\n            # its text may hold the pump's address.\n            if not self._traceback_logged:\n                self._traceback_logged = True\n                _LOGGER.exception(\"A poll failed on an unexpected error\")\n            return self._failed_poll(type(err).__name__, err)\n",
+    "new": "",
+    "tests": "unexpected_error_counts_as_a_failed_poll"
+  },
+  {
+    "label": "coordinator: every unexpected error logs its traceback",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "                self._traceback_logged = True\n",
+    "new": "                pass\n",
+    "tests": "unexpected_error_in_a_poll_logs_its_traceback_once"
+  },
+  {
+    "label": "coordinator: an unexpected error's text reaches the notice",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "            return self._failed_poll(type(err).__name__, err)\n",
+    "new": "            return self._failed_poll(str(err), err)\n",
+    "tests": "unexpected_error_counts_as_a_failed_poll"
   }
 ]

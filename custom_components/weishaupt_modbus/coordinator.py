@@ -88,6 +88,7 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.device = device
         self.modbus_items = api_items
         self._failed_polls = 0
+        self._traceback_logged = False
 
     @property
     def failed_polls(self) -> int:
@@ -106,24 +107,37 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             await self.device.async_update()
         except (TimeoutError, ModbusError) as err:
-            self._failed_polls += 1
-            if self.data is not None and self._failed_polls <= FAILED_POLLS_TOLERATED:
-                # Debug only: the outage itself is logged once, by the base
-                # class, when UpdateFailed takes the entities unavailable.
-                _LOGGER.debug(
-                    "Poll failed (%d of %d tolerated), keeping the last values: %s",
-                    self._failed_polls,
-                    FAILED_POLLS_TOLERATED,
-                    err,
-                )
-                return self.data
-            raise UpdateFailed(
-                translation_domain=CONST.DOMAIN,
-                translation_key="communication_failed",
-                translation_placeholders={"error": str(err)},
-            ) from err
+            return self._failed_poll(str(err), err)
+        except Exception as err:
+            # A fault of this code or of a library, not of the link. Counted
+            # all the same: uncounted, it passed the grace polls, and Home
+            # Assistant logged its traceback every poll. Its kind only, as
+            # its text may hold the pump's address.
+            if not self._traceback_logged:
+                self._traceback_logged = True
+                _LOGGER.exception("A poll failed on an unexpected error")
+            return self._failed_poll(type(err).__name__, err)
         self._failed_polls = 0
         return self._results()
+
+    def _failed_poll(self, reason: str, err: Exception) -> dict[str, Any]:
+        """The last values while the grace polls last; UpdateFailed after."""
+        self._failed_polls += 1
+        if self.data is not None and self._failed_polls <= FAILED_POLLS_TOLERATED:
+            # Debug only: the outage itself is logged once, by the base
+            # class, when UpdateFailed takes the entities unavailable.
+            _LOGGER.debug(
+                "Poll failed (%d of %d tolerated), keeping the last values: %s",
+                self._failed_polls,
+                FAILED_POLLS_TOLERATED,
+                reason,
+            )
+            return self.data
+        raise UpdateFailed(
+            translation_domain=CONST.DOMAIN,
+            translation_key="communication_failed",
+            translation_placeholders={"error": reason},
+        ) from err
 
     def _results(self) -> dict[str, Any]:
         """The rows by translation key; a calculated sensor never gets a register value."""

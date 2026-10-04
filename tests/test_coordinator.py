@@ -7,6 +7,7 @@ Home Assistant core (the `hass` fixture) and a fake client.
 import ast
 import copy
 import inspect
+import logging
 import textwrap
 from types import SimpleNamespace
 
@@ -115,15 +116,19 @@ async def test_calculated_sensor_is_not_polled_and_reads_as_none(hass):
     assert calculated.state is None
 
 
-async def test_communication_failure_is_update_failed(hass):
+async def test_communication_failure_is_update_failed(hass, caplog):
     """The coordinator contract: transport trouble is UpdateFailed, so the
-    entities go unavailable instead of the update loop dying."""
+    entities go unavailable instead of the update loop dying. Its own text
+    says what went wrong, and it is no fault to log a traceback for."""
     entry = _entry(hass)
     client = FakeDevice([], fail=ModbusConnectionError("down"))
     coordinator = _modbus_coordinator(hass, entry, client, [])
 
-    with pytest.raises(UpdateFailed):
+    with pytest.raises(UpdateFailed) as raised:
         await coordinator._async_update_data()
+
+    assert raised.value.translation_placeholders == {"error": "down"}
+    assert not [record for record in caplog.records if record.exc_info]
 
 
 async def test_three_failed_polls_keep_the_last_values_the_fourth_does_not(hass):
@@ -152,6 +157,47 @@ async def test_three_failed_polls_keep_the_last_values_the_fourth_does_not(hass)
     assert (await coordinator._async_update_data())[item.translation_key] == 123, (
         "a good poll resets the count"
     )
+
+
+def _polled_once(hass):
+    """A coordinator that has its first values, on a device of one item."""
+    item = copy.deepcopy(
+        next(i for i in MODBUS_SYS_ITEMS if i.address == OUTSIDE_TEMPERATURE)
+    )
+    device = FakeDevice([item], data={OUTSIDE_TEMPERATURE: 123})
+    return _modbus_coordinator(hass, _entry(hass), device, [item]), device, item
+
+
+async def test_an_unexpected_error_counts_as_a_failed_poll(hass):
+    """An error that is no link's, a fault of the decoding say, passed the
+    grace polls: every entity went unavailable at once."""
+    coordinator, device, item = _polled_once(hass)
+    coordinator.data = await coordinator._async_update_data()
+    device.fail = RuntimeError("192.0.2.10 sent nothing to decode")
+
+    for _ in range(3):
+        assert (await coordinator._async_update_data())[item.translation_key] == 123
+    with pytest.raises(UpdateFailed) as raised:
+        await coordinator._async_update_data()
+
+    assert raised.value.translation_placeholders == {"error": "RuntimeError"}
+
+
+async def test_an_unexpected_error_in_a_poll_logs_its_traceback_once(hass, caplog):
+    """Home Assistant logged one on every poll, as an error."""
+    coordinator, device, _ = _polled_once(hass)
+    coordinator.data = await coordinator._async_update_data()
+    device.fail = RuntimeError("a fault of the decoding")
+
+    for _ in range(6):
+        await coordinator.async_refresh()
+
+    tracebacks = [
+        record
+        for record in caplog.records
+        if record.exc_info and record.levelno >= logging.ERROR
+    ]
+    assert len(tracebacks) == 1
 
 
 async def test_a_value_is_looked_up_by_translation_key(hass):
