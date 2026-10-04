@@ -3043,5 +3043,26 @@
     "old": "    if \"/\" in text:\n",
     "new": "    if False:\n",
     "tests": "web_address_is_refused_before_anything_is_asked"
+  },
+  {
+    "label": "webif coordinator: the hold is let go when a dialog ends early",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self._no_dialog_visit.clear()\n        try:\n            yield\n        finally:\n            self._no_dialog_visit.set()\n",
+    "new": "        self._no_dialog_visit.clear()\n        yield\n        self._no_dialog_visit.set()\n",
+    "tests": "dialog_that_ends_early_lets_the_rounds_go"
+  },
+  {
+    "label": "webif coordinator: the hold is let go at all",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            self._no_dialog_visit.set()\n",
+    "new": "            pass\n",
+    "tests": "waits_while_a_dialog_of_its_entry_visits"
+  },
+  {
+    "label": "config flow: the add dialog holds no pump's rounds",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        return await self._visit_web_interface(pump, user_input, next_step_id=\"webif\")\n",
+    "new": "        return await self._visit_web_interface(pump, user_input, next_step_id=\"webif\", entry=pump)\n",
+    "tests": "running_pump_gives_the_add_dialog_nothing_to_hold"
   }
 ]

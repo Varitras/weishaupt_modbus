@@ -517,6 +517,11 @@ async def test_an_unexpected_error_does_not_end_the_round(coordinator, client, c
     assert coordinator.data["statistics"] == {"JAZ Jahr": "4.16"}
 
 
+# A round waiting on a hold that is never let go would otherwise hang until
+# pytest's own limit cuts the whole run off.
+HOLD_LIMIT_SECONDS = 5
+
+
 async def settle():
     """Let every task run until it waits for something outside it."""
     for _ in range(10):
@@ -532,7 +537,33 @@ async def test_a_round_waits_while_a_dialog_of_its_entry_visits(coordinator, cli
         await settle()
         assert client.asked == []
 
-    await polling
+    async with asyncio.timeout(HOLD_LIMIT_SECONDS):
+        await polling
+    assert client.asked == [HEAT_PUMP.path, STATISTICS.path, HEATING.path]
+
+
+@pytest.mark.parametrize("ending", ["cancelled", "failed"])
+async def test_a_dialog_that_ends_early_lets_the_rounds_go(coordinator, client, ending):
+    """A dialog closed mid-visit cancels the visit, and a visit can fail:
+    either way the rounds must not wait on it for good, the sensors silently
+    keeping their last values until a reload."""
+    entered = asyncio.Event()
+
+    async def visit():
+        async with coordinator.dialog_visiting():
+            entered.set()
+            if ending == "failed":
+                raise Unreachable("GET /index.html: TimeoutError")
+            await asyncio.Event().wait()
+
+    dialog = asyncio.create_task(visit())
+    await entered.wait()
+    dialog.cancel()
+    with pytest.raises((asyncio.CancelledError, Unreachable)):
+        await dialog
+
+    async with asyncio.timeout(HOLD_LIMIT_SECONDS):
+        await coordinator._async_update_data()
     assert client.asked == [HEAT_PUMP.path, STATISTICS.path, HEATING.path]
 
 
@@ -554,7 +585,8 @@ async def test_a_running_round_waits_between_its_pages(coordinator, client):
     assert client.asked == [HEAT_PUMP.path]
 
     await visit.__aexit__(None, None, None)
-    await polling
+    async with asyncio.timeout(HOLD_LIMIT_SECONDS):
+        await polling
     assert client.asked == [HEAT_PUMP.path, STATISTICS.path, HEATING.path]
 
 

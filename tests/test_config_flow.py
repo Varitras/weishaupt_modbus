@@ -662,6 +662,24 @@ async def test_a_pumps_web_interface_is_added_with_the_pages_found(hass, web_int
     assert web_interface.visits == [(HOST, "tester", "testing")]
 
 
+async def test_a_running_pump_gives_the_add_dialog_nothing_to_hold(
+    hass, monkeypatch, web_interface
+):
+    """Only a web interface entry has rounds to hold. A running pump's runtime
+    data is the Modbus side's: holding it ended every add dialog in
+    "unknown", and no test ran the add dialog with a running pump."""
+    pump = _pump_entry(hass)
+    await _loaded(hass, monkeypatch, pump)
+    pump.runtime_data = SimpleNamespace(coordinator=object())
+    form = await _web_form(hass)
+
+    result = await hass.config_entries.flow.async_configure(
+        form["flow_id"], {CONF.PUMP_ENTRY: pump.entry_id, **WEB_LOGIN}
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+
 @pytest.mark.parametrize(
     ("failure", "error"),
     [
