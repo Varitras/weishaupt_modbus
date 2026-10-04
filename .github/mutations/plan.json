@@ -2490,5 +2490,12 @@
     "old": "        # Asked where the request goes out, so no other way out can skip it.\n        if not _allowed(method, path):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
     "new": "        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n                if not _allowed(method, path):\n                    raise ValueError(f\"{method} {path} is not on the positive list\")\n",
     "tests": "off_the_positive_list_is_never_asked_for"
+  },
+  {
+    "label": "webif coordinator: the download leaves the answer time out",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            \"answer_seconds\": self.answer_seconds,\n",
+    "new": "            \"answer_seconds\": None,\n",
+    "tests": "answer_time_is_the_slowest_of_the_last_round_that_asked"
   }
 ]

@@ -621,7 +621,8 @@ async def test_the_diagnostics_tell_a_refused_login(coordinator, client):
 async def test_the_answer_time_is_the_slowest_of_the_last_round_that_asked(
     coordinator, client, clock
 ):
-    """A round with nothing due asks nothing, and keeps the time shown."""
+    """A round with nothing due asks nothing, and keeps the time shown, in
+    the diagnostics download too."""
     client.slowest = 1.9
     await round_at(coordinator, clock, 0)
     assert coordinator.answer_seconds == 1.9
@@ -629,6 +630,7 @@ async def test_the_answer_time_is_the_slowest_of_the_last_round_that_asked(
     await round_at(coordinator, clock, 60)
 
     assert coordinator.answer_seconds == 1.9
+    assert coordinator.diagnostics()["answer_seconds"] == 1.9
 
 
 async def test_the_diagnostics_tell_how_old_each_reading_is(coordinator, client, clock):
