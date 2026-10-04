@@ -1696,15 +1696,15 @@
   {
     "label": "config flow: a menu served half twice ends the dialog's visit",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "    try:\n        return await _visit(client)\n    except Broken as error:\n        if isinstance(error, MissingTitles | MissingMenuEntries):\n            raise\n    return await _visit(client)\n",
+    "old": "    try:\n        return await _visit(client)\n    except Broken as error:\n        if type(error) not in SEARCHED_AGAIN:\n            raise\n    return await _visit(client)\n",
     "new": "    return await _visit(client)\n",
     "tests": "served_half_twice_is_searched_once_more or served_half_on_every_ask_is_not_called_unsupported"
   },
   {
     "label": "config flow: a refused login is tried twice",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "        return await _visit(client)\n    except Broken as error:\n",
-    "new": "        return await _visit(client)\n    except WebifError as error:\n",
+    "old": "    except Broken as error:\n        if type(error) not in SEARCHED_AGAIN:\n",
+    "new": "    except WebifError as error:\n        if isinstance(error, MissingTitles | MissingMenuEntries):\n",
     "tests": "refused_login_is_not_tried_twice"
   },
   {
@@ -2571,15 +2571,15 @@
   {
     "label": "config flow: a page lacking titles is searched once more",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "        if isinstance(error, MissingTitles | MissingMenuEntries):\n",
-    "new": "        if isinstance(error, MissingMenuEntries):\n",
+    "old": "SEARCHED_AGAIN = (Broken, UnclearValues, DoubledMenuEntries)\n",
+    "new": "SEARCHED_AGAIN = (Broken, UnclearValues, DoubledMenuEntries, MissingTitles)\n",
     "tests": "without_a_title_its_sensors_read_is_named"
   },
   {
     "label": "config flow: a controller in another language is searched once more",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "        if isinstance(error, MissingTitles | MissingMenuEntries):\n",
-    "new": "        if isinstance(error, MissingTitles):\n",
+    "old": "SEARCHED_AGAIN = (Broken, UnclearValues, DoubledMenuEntries)\n",
+    "new": "SEARCHED_AGAIN = (Broken, UnclearValues, DoubledMenuEntries, MissingMenuEntries)\n",
     "tests": "another_language_is_searched_only_once"
   },
   {
@@ -2861,5 +2861,26 @@
     "old": "            return self._failed_poll(str(err) or type(err).__name__, err)\n",
     "new": "            return self._failed_poll(str(err), err)\n",
     "tests": "poll_that_timed_out_names_its_kind"
+  },
+  {
+    "label": "config flow: values shown unclearly are not searched again",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "SEARCHED_AGAIN = (Broken, UnclearValues, DoubledMenuEntries)\n",
+    "new": "SEARCHED_AGAIN = (Broken, DoubledMenuEntries)\n",
+    "tests": "values_shown_empty_or_twice_are_named"
+  },
+  {
+    "label": "config flow: a menu entry shown twice is not searched again",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "SEARCHED_AGAIN = (Broken, UnclearValues, DoubledMenuEntries)\n",
+    "new": "SEARCHED_AGAIN = (Broken, UnclearValues)\n",
+    "tests": "menu_entry_shown_twice_on_every_visit_is_named"
+  },
+  {
+    "label": "config flow: an empty heating menu reads as lacking every title",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    shows_its_own_level = page.menu and bool(titles)\n",
+    "new": "    shows_its_own_level = page.menu\n",
+    "tests": "heating_menu_served_half_on_every_ask_is_not_called_unsupported"
   }
 ]

@@ -208,17 +208,24 @@ async def read_web_interface(
             session.detach()
 
 
+# What a second search may mend: a page served half, values or a menu entry
+# shown unclearly. Listed rather than excluded, so a kind of failure added
+# later costs the struggling controller no second search by default.
+SEARCHED_AGAIN = (Broken, UnclearValues, DoubledMenuEntries)
+
+
 async def _visit_twice(client: Client) -> dict[str, str]:
     """The visit, once more after a page served half or unclear.
 
     The controller now and then serves a page half, twice in a row. Titles
     or menu entries a page lacks are another model's or language's, and a
-    second search would only add load before saying so.
+    second search would only add load before saying so; so would one after
+    any failure not named in SEARCHED_AGAIN.
     """
     try:
         return await _visit(client)
     except Broken as error:
-        if isinstance(error, MissingTitles | MissingMenuEntries):
+        if type(error) not in SEARCHED_AGAIN:
             raise
     return await _visit(client)
 

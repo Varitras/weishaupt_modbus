@@ -384,6 +384,23 @@ async def test_a_value_in_a_unit_its_sensor_does_not_read_is_named(
 
     assert raised.value.page == "Info › Wärmepumpe"
     assert raised.value.titles == {"Hochdruck"}
+    assert pump.asked.count(("GET", PAGE_PATH)) == 1
+
+
+async def test_a_heating_menu_served_half_on_every_ask_is_not_called_unsupported(
+    hass, pump, monkeypatch
+):
+    """The heating settings are a menu read for its entries: an empty column
+    there is a page served half, which a second search may mend - not a menu
+    lacking every title its sensors read."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    pump.site[PAGES[HEATING_PAGE]] = column("")
+
+    with pytest.raises(webif.Broken) as raised:
+        await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert type(raised.value) is webif.Broken
+    assert pump.asked.count(("GET", PAGE_PATH)) == 2, "searched once more"
 
 
 async def test_no_value_and_off_are_no_unknown_unit(hass, pump, monkeypatch):
