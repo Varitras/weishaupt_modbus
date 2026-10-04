@@ -293,9 +293,12 @@ class Client:
         self._closed = True
         async with self._lock:
             # The server drops an abandoned session on its own; a logout that
-            # fails must not fail the unload.
-            with suppress(WebifError):
-                await self._logout()
+            # fails must not fail the unload, not even on a fault of this code.
+            try:
+                with suppress(WebifError):
+                    await self._logout()
+            except Exception:
+                _LOGGER.exception("Logging out failed on an unexpected error")
 
     async def _ensure_session(self) -> None:
         fresh = (

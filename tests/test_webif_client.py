@@ -563,6 +563,30 @@ async def test_a_logout_without_an_answer_does_not_fail_the_close(pump, session)
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
 
 
+async def test_a_logout_failing_on_a_fault_of_its_own_does_not_fail_the_close(
+    pump, session, caplog, monkeypatch
+):
+    """Only a failure of the web interface was let pass: a fault of this code
+    in the logout failed the unload, and the entry could not be loaded again
+    before Home Assistant restarted."""
+    client = connect(session, pump.host)
+    await client.page(PAGE, whole)
+
+    async def faulty():
+        raise RuntimeError("a fault of the client")
+
+    monkeypatch.setattr(client, "_logout", faulty)
+
+    await client.close()
+
+    tracebacks = [
+        record
+        for record in caplog.records
+        if record.exc_info and record.levelno >= logging.ERROR
+    ]
+    assert len(tracebacks) == 1
+
+
 @pytest.mark.parametrize(
     "path",
     [

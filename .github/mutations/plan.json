@@ -2665,5 +2665,12 @@
     "old": "                CONF.PUMP_TITLE: pump.title,\n",
     "new": "",
     "tests": "added_with_the_pages_found"
+  },
+  {
+    "label": "webif client: a logout failing on a fault of its own fails the unload",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "            try:\n                with suppress(WebifError):\n                    await self._logout()\n            except Exception:\n                _LOGGER.exception(\"Logging out failed on an unexpected error\")\n",
+    "new": "            with suppress(WebifError):\n                await self._logout()\n",
+    "tests": "fault_of_its_own_does_not_fail_the_close"
   }
 ]
