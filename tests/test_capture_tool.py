@@ -12,6 +12,7 @@ import importlib.util
 import json
 import pathlib
 import sys
+import time
 
 import pytest
 
@@ -375,6 +376,25 @@ async def test_no_answer_ends_the_attempt_without_a_logout(socket_enabled):
     assert report is None
     assert pump.asked == [*LOGIN, *asked(WALK[:5]), *LOGIN, *asked([STATISTICS_PAGE])]
     assert rests.count(A_MINUTE) == 1
+
+
+async def test_a_page_that_trickles_is_cut_off_at_the_time_limit(
+    socket_enabled, monkeypatch
+):
+    """The socket's time limit bounds each read, not the request: a server
+    sending a byte now and then kept one request open far past it."""
+    monkeypatch.setattr(capture_tool, "TIMEOUT_SECONDS", 0.5)
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN)
+        pump.trickles[HEAT_PUMP_PAGE] = 0.05
+        started = time.monotonic()
+        report, _, _ = await run_capture(pump, attempts=1)
+        took = time.monotonic() - started
+
+    assert report is None
+    # No answer: nothing more is asked, not even the logout.
+    assert pump.asked == [*LOGIN, *asked(WALK[:4])]
+    assert took < 3, took
 
 
 async def test_refused_credentials_are_not_tried_again(socket_enabled):

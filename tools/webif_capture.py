@@ -29,6 +29,7 @@ read with the integration's own page parser.
 
 import argparse
 from collections.abc import Callable, Iterable
+from contextlib import suppress
 from dataclasses import dataclass, field
 import getpass
 from http import HTTPStatus
@@ -37,7 +38,9 @@ import importlib.util
 import ipaddress
 import json
 import pathlib
+import socket
 import sys
+import threading
 import time
 from types import ModuleType
 from typing import Any
@@ -260,6 +263,14 @@ def _relative(location: str) -> str:
     return urllib.parse.urlunsplit(("", "", parts.path, parts.query, parts.fragment))
 
 
+def _cut(sockets: list[socket.socket], cut: threading.Event) -> None:
+    """End a request that has run out of time, from the timer's thread."""
+    cut.set()
+    for held in sockets:
+        with suppress(OSError):
+            held.shutdown(socket.SHUT_RDWR)
+
+
 def _session_cookie(headers: Iterable[str]) -> str | None:
     """The session id a Set-Cookie header carries, exactly as sent."""
     for header in headers:
@@ -341,15 +352,27 @@ class Session:
         if form is not None:
             headers["Content-Type"] = "application/x-www-form-urlencoded"
         connection = http.client.HTTPConnection(self._host, timeout=TIMEOUT_SECONDS)
+        # The socket's time limit bounds each read, not the request: a server
+        # sending a byte now and then would keep one request open for good.
+        sockets: list[socket.socket] = []
+        cut = threading.Event()
+        deadline = threading.Timer(TIMEOUT_SECONDS, _cut, (sockets, cut))
+        deadline.start()
         try:
+            connection.connect()
+            # Held here: http.client lets go of it once a closing answer begins.
+            sockets.append(connection.sock)
             connection.request(method, path, body=form, headers=headers)
             response = connection.getresponse()
             body = response.read(MAX_PAGE_BYTES + 1)
         except TRANSPORT_ERRORS as error:
             raise self._no_answer(f"no answer ({type(error).__name__})") from error
         finally:
+            deadline.cancel()
             connection.close()
             self._last = time.monotonic()
+        if cut.is_set():
+            raise self._no_answer(f"no whole answer within {TIMEOUT_SECONDS:.0f} s")
         if len(body) > MAX_PAGE_BYTES:
             raise self._no_answer(f"an answer of more than {MAX_PAGE_BYTES} bytes")
         return Answer(

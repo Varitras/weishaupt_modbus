@@ -2973,5 +2973,12 @@
     "old": "            del walk.read[twin]\n",
     "new": "",
     "tests": "page_showing_another_sections_values_is_read_again"
+  },
+  {
+    "label": "capture: a request is cut off at its time limit",
+    "path": "tools/webif_capture.py",
+    "old": "        deadline.start()\n",
+    "new": "",
+    "tests": "page_that_trickles_is_cut_off_at_the_time_limit"
   }
 ]

@@ -96,7 +96,8 @@ class StandInPump:
     in turn, the last one for good. `login_answer`, when set, builds the
     answer to every login instead. A path in `failing` is answered with its
     error status alone. A page in `stalls` sends its headers and its first
-    character at once, and the rest after that many seconds. With
+    character at once, and the rest after that many seconds; one in
+    `trickles` sends one character every that many seconds. With
     `watched_lock` set, `held` notes for every request whether that lock was
     held when it arrived.
     """
@@ -112,6 +113,7 @@ class StandInPump:
         self.failing = {}
         self.delays = {}
         self.stalls = {}
+        self.trickles = {}
         self.watched_lock = None
         self.held = []
         self.keeps_sessions = True
@@ -166,6 +168,8 @@ class StandInPump:
         text = self.site.get(request.raw_path)
         if text is None:
             text = self.pages.pop(0) if len(self.pages) > 1 else self.pages[0]
+        if request.raw_path in self.trickles:
+            return await self._trickled(request, text)
         if request.raw_path not in self.stalls:
             return web.Response(status=self.status, text=text)
         response = web.StreamResponse(status=self.status)
@@ -173,6 +177,14 @@ class StandInPump:
         await response.write(text[:1].encode())
         await asyncio.sleep(self.stalls[request.raw_path])
         await response.write(text[1:].encode())
+        return response
+
+    async def _trickled(self, request, text):
+        response = web.StreamResponse(status=self.status)
+        await response.prepare(request)
+        for character in text:
+            await response.write(character.encode())
+            await asyncio.sleep(self.trickles[request.raw_path])
         return response
 
 
