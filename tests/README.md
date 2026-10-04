@@ -56,6 +56,15 @@ When you add a behaviour worth keeping, add a mutation for it. When you move
 code, the `path` and `old` fields move with it - `test_mutation_harness.py`
 fails as soon as a snippet no longer matches.
 
+A case's `tests` field is a pytest `-k` expression: the tests expected to
+catch it. `test_mutation_harness.py` checks every clause names a real test
+and no test of the harness itself, reading a clause as part of a test
+function's name. pytest matches more than that - module and directory names,
+parametrize ids and markers, regardless of case: `-k harness` alone selects
+every test in `test_mutation_harness.py`. So write each clause as part of a
+test function's name, never as a word that also names a module, an id or a
+marker; then the two readings select the same tests.
+
 ## The guards
 
 Structural tests that fail on a shape rather than on a value. Each one exists
