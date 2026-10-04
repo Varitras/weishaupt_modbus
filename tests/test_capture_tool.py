@@ -30,6 +30,7 @@ from .webif_stand_in import (
     StandInPump,
     column,
     link,
+    see_other,
     serving,
     value,
 )
@@ -170,6 +171,8 @@ def by_page(report):
 async def test_a_german_controller_is_read_without_a_question(socket_enabled):
     async with serving(StandInPump()) as pump:
         pump.site = site(GERMAN)
+        # A slow answer: the gap counts from its end, not from the request.
+        pump.delays[HEAT_PUMP_PAGE] = 0.5
         report, questions, rests = await run_capture(pump)
 
     assert questions == []
@@ -184,7 +187,9 @@ async def test_a_german_controller_is_read_without_a_question(socket_enabled):
         "Wärmepumpe › Heizen",
     ]
     assert len(rests) == len(pump.asked) - 1
-    assert all(0 < rest <= webif.MIN_GAP_SECONDS for rest in rests), rests
+    assert all(
+        webif.MIN_GAP_SECONDS - 0.1 <= rest <= webif.MIN_GAP_SECONDS for rest in rests
+    ), rests
 
 
 async def test_known_codes_find_the_pages_in_any_language(socket_enabled):
@@ -395,6 +400,87 @@ async def test_a_page_that_trickles_is_cut_off_at_the_time_limit(
     # No answer: nothing more is asked, not even the logout.
     assert pump.asked == [*LOGIN, *asked(WALK[:4])]
     assert took < 3, took
+
+
+@pytest.mark.parametrize("answer", ["no database", "no session"])
+async def test_a_login_the_controller_cannot_serve_is_tried_again(
+    socket_enabled, answer
+):
+    """Its database out of reach (#nocon) or no session given: the controller
+    struggles, and the credentials may well be right."""
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN)
+        if answer == "no database":
+            pump.login_answer = lambda: see_other("/index.html#nocon")
+        else:
+            pump.sets_cookie = False
+        report, _, rests = await run_capture(pump, attempts=2)
+
+    assert report is None
+    assert pump.asked == [*LOGIN, *LOGIN]
+    assert rests.count(A_MINUTE) == 1
+
+
+async def test_a_wrong_password_redirected_with_the_address_is_refused(
+    socket_enabled,
+):
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN)
+        host = pump.host
+        pump.login_answer = lambda: see_other(f"http://{host}/index.html#wrongpassword")
+        report, _, rests = await run_capture(pump, attempts=3)
+
+    assert report is None
+    assert pump.asked == LOGIN
+    assert A_MINUTE not in rests
+
+
+async def test_an_error_status_on_the_login_page_sends_no_login(socket_enabled):
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN)
+        pump.failing[webif.INDEX] = 503
+        report, _, _ = await run_capture(pump, attempts=1)
+
+    assert report is None
+    assert pump.asked == [("GET", webif.INDEX)]
+
+
+async def test_an_answer_larger_than_any_page_is_no_answer(socket_enabled):
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN)
+        pump.site[webif.OVERVIEW] = "x" * (webif.MAX_PAGE_BYTES + 10)
+        report, _, _ = await run_capture(pump, attempts=1)
+
+    assert report is None
+    # No answer: nothing more is asked, not even the logout.
+    assert pump.asked == [*LOGIN, *asked(WALK[:1])]
+
+
+async def test_the_session_refuses_an_address_off_the_positive_list(socket_enabled):
+    """The parser lets no such address through today; the request still
+    refuses one where it goes out, as the client does."""
+    async with serving(StandInPump()) as pump:
+        session = capture_tool.Session(pump.host, USER, PASSWORD, lambda _rest: None)
+        with pytest.raises(ValueError, match="positive list"):
+            await asyncio.to_thread(
+                session._request, "GET", webif.OVERVIEW + "?access_code=1234"
+            )
+
+    assert pump.asked == []
+
+
+async def test_picks_are_kept_for_a_later_attempt(socket_enabled):
+    """A page that got no answer is asked for again the way it was picked."""
+    async with serving(StandInPump()) as pump:
+        pump.site = site(ENGLISH, OTHER_MODEL)
+        pump.failing_once[paths(OTHER_MODEL)[3]] = 503
+        report, questions, rests = await run_capture(
+            pump, answers=["1", "y", "2", "y", "1", "y", "2", "y", "1", "y"]
+        )
+
+    assert report is not None
+    assert rests.count(A_MINUTE) == 1
+    assert len(questions) == 10, "every pick asked once"
 
 
 async def test_refused_credentials_are_not_tried_again(socket_enabled):

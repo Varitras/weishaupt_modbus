@@ -2980,5 +2980,61 @@
     "old": "        deadline.start()\n",
     "new": "",
     "tests": "page_that_trickles_is_cut_off_at_the_time_limit"
+  },
+  {
+    "label": "capture: the request itself refuses an address off the positive list",
+    "path": "tools/webif_capture.py",
+    "old": "        if not _allowed(method, path):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "new": "",
+    "tests": "session_refuses_an_address_off_the_positive_list"
+  },
+  {
+    "label": "capture: a login without a session is not accepted",
+    "path": "tools/webif_capture.py",
+    "old": "            and bool(answer.cookie)\n",
+    "new": "",
+    "tests": "login_the_controller_cannot_serve_is_tried_again"
+  },
+  {
+    "label": "capture: a login the controller cannot serve is no refusal",
+    "path": "tools/webif_capture.py",
+    "old": "            raise self._no_answer(\n                f\"login: HTTP {answer.status} to {answer.location or '-'}\"\n            )\n",
+    "new": "            raise Refused(\"refused\")\n",
+    "tests": "login_the_controller_cannot_serve_is_tried_again"
+  },
+  {
+    "label": "capture: the gap is the client's five seconds",
+    "path": "tools/webif_capture.py",
+    "old": "            self._sleep(max(0.0, self._last + MIN_GAP_SECONDS - time.monotonic()))\n",
+    "new": "            self._sleep(max(0.0, self._last + 1.0 - time.monotonic()))\n",
+    "tests": "german_controller_is_read_without_a_question"
+  },
+  {
+    "label": "capture: an answer larger than any page is no answer",
+    "path": "tools/webif_capture.py",
+    "old": "        if len(body) > MAX_PAGE_BYTES:\n",
+    "new": "        if False:\n",
+    "tests": "answer_larger_than_any_page_is_no_answer"
+  },
+  {
+    "label": "capture: a redirect is compared without its address",
+    "path": "tools/webif_capture.py",
+    "old": "    return urllib.parse.urlunsplit((\"\", \"\", parts.path, parts.query, parts.fragment))\n",
+    "new": "    return location\n",
+    "tests": "wrong_password_redirected_with_the_address_is_refused"
+  },
+  {
+    "label": "capture: a pick is kept for a later attempt",
+    "path": "tools/webif_capture.py",
+    "old": "    if step.key in walk.chosen:\n        return walk.chosen[step.key]\n",
+    "new": "",
+    "tests": "picks_are_kept_for_a_later_attempt"
+  },
+  {
+    "label": "capture: an error status on the login page sends no login",
+    "path": "tools/webif_capture.py",
+    "old": "        if index.status >= HTTPStatus.BAD_REQUEST:\n",
+    "new": "        if False:\n",
+    "tests": "error_status_on_the_login_page_sends_no_login"
   }
 ]
