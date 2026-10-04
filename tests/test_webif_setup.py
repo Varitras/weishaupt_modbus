@@ -136,9 +136,11 @@ async def pump(socket_enabled, monkeypatch):
         yield served
 
 
-def _entries(hass, pump, password=PASSWORD, options=None):
+def _entries(hass, pump, password=PASSWORD, options=None, pump_title="pump"):
     """A pump entry and its web interface; the pump's Modbus side is not under
-    test here, so its entry stays disabled."""
+    test here, so its entry stays disabled. `pump_title` is the one the web
+    interface's title was made from; None for an entry made before it was
+    kept."""
     pump_entry = MockConfigEntry(
         domain=CONST.DOMAIN,
         data={
@@ -153,15 +155,18 @@ def _entries(hass, pump, password=PASSWORD, options=None):
         title="pump",
     )
     pump_entry.add_to_hass(hass)
+    data = {
+        CONF.KIND: CONST.WEB_INTERFACE,
+        CONF.PUMP_ENTRY: pump_entry.entry_id,
+        CONF.USERNAME: USER,
+        CONF.PASSWORD: password,
+        CONF.PAGES: PAGES,
+    }
+    if pump_title is not None:
+        data[CONF.PUMP_TITLE] = pump_title
     web = MockConfigEntry(
         domain=CONST.DOMAIN,
-        data={
-            CONF.KIND: CONST.WEB_INTERFACE,
-            CONF.PUMP_ENTRY: pump_entry.entry_id,
-            CONF.USERNAME: USER,
-            CONF.PASSWORD: password,
-            CONF.PAGES: PAGES,
-        },
+        data=data,
         options=options or {},
         version=11,
         title="pump web interface",
@@ -406,6 +411,59 @@ async def test_a_web_interface_named_after_its_pump_follows_a_new_name(hass, pum
     assert pump.asked == []
 
 
+async def test_a_web_interface_named_after_its_pump_follows_a_name_given_while_off(
+    hass, pump
+):
+    """Renamed while the web interface was switched off, the pump's new title
+    became the one it was named after, and its old title counted as one of
+    its own: it never followed again."""
+    web = await _start(hass, _entries(hass, pump))
+    pump_entry = hass.config_entries.async_get_entry(web.data[CONF.PUMP_ENTRY])
+    await hass.config_entries.async_set_disabled_by(
+        web.entry_id, ConfigEntryDisabler.USER
+    )
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    hass.config_entries.async_update_entry(pump_entry, title="cellar")
+    await hass.config_entries.async_set_disabled_by(web.entry_id, None)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert web.title == "cellar web interface"
+
+    hass.config_entries.async_update_entry(pump_entry, title="basement")
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert web.title == "basement web interface"
+
+
+async def test_a_web_interface_named_after_its_pump_follows_a_name_given_in_its_reload(
+    hass, pump, other_pump
+):
+    """A new address reloads the web interface; a name given in the same
+    moment came while it reloaded, and it kept the old one for good."""
+    web = await _start(hass, _entries(hass, pump))
+    pump_entry = hass.config_entries.async_get_entry(web.data[CONF.PUMP_ENTRY])
+
+    hass.config_entries.async_update_entry(
+        pump_entry, data={**pump_entry.data, CONF.HOST: other_pump.host}
+    )
+    hass.config_entries.async_update_entry(pump_entry, title="cellar")
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert web.title == "cellar web interface"
+
+
+async def test_a_web_interface_made_before_its_pump_title_was_kept_still_follows(
+    hass, pump
+):
+    """Without the title it was made from, it follows while it runs."""
+    web = await _start(hass, _entries(hass, pump, pump_title=None))
+    pump_entry = hass.config_entries.async_get_entry(web.data[CONF.PUMP_ENTRY])
+
+    hass.config_entries.async_update_entry(pump_entry, title="cellar")
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert web.title == "cellar web interface"
+
+
 async def test_a_web_interface_given_a_name_of_its_own_keeps_it(hass, pump, other_pump):
     web = _entries(hass, pump)
     hass.config_entries.async_update_entry(web, title="Weboberfläche Keller")
@@ -511,12 +569,19 @@ async def test_the_web_interface_waits_while_its_pump_is_asked(hass, pump):
 
 
 async def test_the_diagnostics_leave_out_the_login_and_the_page_addresses(hass, pump):
+    """And the pump title the entry's own was made from: free text, often a
+    room or a name."""
     entry = await _start(hass, _entries(hass, pump))
 
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
     data = diagnostics["entry"]["data"]
-    assert {data[CONF.USERNAME], data[CONF.PASSWORD], data[CONF.PAGES]} == {REDACTED}
+    assert {
+        data[CONF.USERNAME],
+        data[CONF.PASSWORD],
+        data[CONF.PAGES],
+        data[CONF.PUMP_TITLE],
+    } == {REDACTED}
     assert PAGES[HEATING_PAGE] not in str(diagnostics)
     coordinator = diagnostics["coordinator"]
     assert coordinator["pages"][STATISTICS_PAGE] == SHOWN[STATISTICS_PAGE]

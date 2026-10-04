@@ -193,25 +193,22 @@ async def _async_setup_web_interface(
     entry.async_on_unload(hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, log_out))
 
     started_with = pump.data
-    pump_title = pump.title
+    titled_at_setup = pump.title
     reloading = False
+    # Renamed while this entry was off or reloading, the pump told no one.
+    _retitle_after_pump(hass, entry, pump.title, titled_at_setup)
 
     @callback
     def follow_pump(change: ConfigEntryChange, changed: ConfigEntry) -> None:
         # The address, its lock and the sensor names come from the pump entry
         # as it was at this setup. A state change alone, such as disabling
         # the pump, changes none of them.
-        nonlocal reloading, pump_title
+        nonlocal reloading
         if reloading or changed.entry_id != pump.entry_id:
             return
         removed = change is ConfigEntryChange.REMOVED
-        # The title follows the pump's until the user gives it one of its own.
-        named_after_pump = entry.title == web_interface_title(pump_title)
-        if not removed and named_after_pump and changed.title != pump_title:
-            hass.config_entries.async_update_entry(
-                entry, title=web_interface_title(changed.title)
-            )
-        pump_title = changed.title
+        if not removed:
+            _retitle_after_pump(hass, entry, changed.title, titled_at_setup)
         if removed or changed.data != started_with:
             # Once: a running pump's own reload follows with a burst of
             # state changes, each of which would reload this entry again.
@@ -233,6 +230,26 @@ async def _async_setup_web_interface(
         hass, coordinator.async_refresh(), "weishaupt-webif first round"
     )
     return True
+
+
+@callback
+def _retitle_after_pump(
+    hass: HomeAssistant, entry: WebifConfigEntry, pump_title: str, named_after: str
+) -> None:
+    """Follow the pump's title while the entry has the one made from its last.
+
+    A title the user gave it stays. The pump title the entry's own was made
+    from is kept in the entry; one made before that was kept falls back to
+    `named_after`.
+    """
+    made_from = entry.data.get(CONF.PUMP_TITLE, named_after)
+    if made_from == pump_title or entry.title != web_interface_title(made_from):
+        return
+    hass.config_entries.async_update_entry(
+        entry,
+        title=web_interface_title(pump_title),
+        data={**entry.data, CONF.PUMP_TITLE: pump_title},
+    )
 
 
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:

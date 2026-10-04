@@ -1437,7 +1437,7 @@
   {
     "label": "diagnostics: the web interface's password and pages are shown",
     "path": "custom_components/weishaupt_modbus/diagnostics.py",
-    "old": "WEB_TO_REDACT = {CONF.USERNAME, CONF.PASSWORD, CONF.PAGES}\n",
+    "old": "WEB_TO_REDACT = {CONF.USERNAME, CONF.PASSWORD, CONF.PAGES, CONF.PUMP_TITLE}\n",
     "new": "WEB_TO_REDACT = {CONF.USERNAME}\n",
     "tests": "leave_out_the_login_and_the_page_addresses"
   },
@@ -2221,23 +2221,16 @@
   {
     "label": "setup: a web interface named after its pump keeps the old name",
     "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "        if not removed and named_after_pump and changed.title != pump_title:\n",
-    "new": "        if False:\n",
+    "old": "        if not removed:\n            _retitle_after_pump(hass, entry, changed.title, titled_at_setup)\n",
+    "new": "",
     "tests": "named_after_its_pump_takes_its_new_address or named_after_its_pump_follows_a_new_name"
   },
   {
     "label": "setup: a web interface named by its user takes the pump's name",
     "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "        if not removed and named_after_pump and changed.title != pump_title:\n",
-    "new": "        if not removed and changed.title != pump_title:\n",
+    "old": "    if made_from == pump_title or entry.title != web_interface_title(made_from):\n",
+    "new": "    if made_from == pump_title:\n",
     "tests": "given_a_name_of_its_own_keeps_it"
-  },
-  {
-    "label": "setup: a web interface compares with the pump's first name for good",
-    "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "        pump_title = changed.title\n",
-    "new": "",
-    "tests": "named_after_its_pump_follows_a_new_name"
   },
   {
     "label": "setup: the pump polls and writes under a lock of its own",
@@ -2637,5 +2630,40 @@
     "old": "    if isinstance(error, DoubledMenuEntries):\n        return \"doubled_menu_entries\"\n",
     "new": "",
     "tests": "menu_entry_shown_twice_is_named_in_the_form"
+  },
+  {
+    "label": "diagnostics: the pump title a web interface was named after is shown",
+    "path": "custom_components/weishaupt_modbus/diagnostics.py",
+    "old": "WEB_TO_REDACT = {CONF.USERNAME, CONF.PASSWORD, CONF.PAGES, CONF.PUMP_TITLE}\n",
+    "new": "WEB_TO_REDACT = {CONF.USERNAME, CONF.PASSWORD, CONF.PAGES}\n",
+    "tests": "leave_out_the_login_and_the_page_addresses"
+  },
+  {
+    "label": "setup: a name given while the web interface was off is missed",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    _retitle_after_pump(hass, entry, pump.title, titled_at_setup)\n",
+    "new": "",
+    "tests": "follows_a_name_given_while_off or follows_a_name_given_in_its_reload"
+  },
+  {
+    "label": "setup: the pump title followed is not kept",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        data={**entry.data, CONF.PUMP_TITLE: pump_title},\n",
+    "new": "",
+    "tests": "named_after_its_pump_follows_a_new_name"
+  },
+  {
+    "label": "setup: a web interface made before the pump title was kept follows no more",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    made_from = entry.data.get(CONF.PUMP_TITLE, named_after)\n",
+    "new": "    made_from = entry.data.get(CONF.PUMP_TITLE, pump_title)\n",
+    "tests": "made_before_its_pump_title_was_kept_still_follows"
+  },
+  {
+    "label": "config flow: a web interface is added without the pump title it was named after",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                CONF.PUMP_TITLE: pump.title,\n",
+    "new": "",
+    "tests": "added_with_the_pages_found"
   }
 ]

@@ -15,7 +15,8 @@ from .const import CONF
 TO_REDACT = {CONF.HOST, CONF.PREFIX, CONF.DEVICE_POSTFIX, CONF.KENNFELD_FILE}
 # The page addresses are menu codes of the controller firmware, the same on
 # another owner's controller; not secret, left out as of no use in an issue.
-WEB_TO_REDACT = {CONF.USERNAME, CONF.PASSWORD, CONF.PAGES}
+# The pump title is free text again.
+WEB_TO_REDACT = {CONF.USERNAME, CONF.PASSWORD, CONF.PAGES, CONF.PUMP_TITLE}
 
 
 async def async_get_config_entry_diagnostics(

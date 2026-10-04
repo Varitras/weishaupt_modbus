@@ -599,6 +599,7 @@ async def test_a_visit_failing_after_its_progress_shows_the_form_again(
 
 
 async def test_a_pumps_web_interface_is_added_with_the_pages_found(hass, web_interface):
+    """And with the pump title its own was made from, which it follows."""
     pump = _pump_entry(hass)
     form = await _web_form(hass)
 
@@ -612,6 +613,7 @@ async def test_a_pumps_web_interface_is_added_with_the_pages_found(hass, web_int
         CONF.PUMP_ENTRY: pump.entry_id,
         **WEB_LOGIN,
         CONF.PAGES: FOUND_PAGES,
+        CONF.PUMP_TITLE: pump.title,
     }
     assert result["result"].unique_id == f"{pump.entry_id}-{CONST.WEB_INTERFACE}"
     assert web_interface.visits == [(HOST, "tester", "testing")]

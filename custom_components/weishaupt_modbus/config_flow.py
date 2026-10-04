@@ -517,6 +517,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 CONF.USERNAME: login[CONF.USERNAME],
                 CONF.PASSWORD: login[CONF.PASSWORD],
                 CONF.PAGES: pages,
+                CONF.PUMP_TITLE: pump.title,
             },
         )
 

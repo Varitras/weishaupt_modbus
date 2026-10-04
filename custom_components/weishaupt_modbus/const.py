@@ -30,6 +30,8 @@ class ConfConstants:
     NAME_TOPIC_PREFIX: str = "Name-Topic-Prefix"
     KIND: str = "kind"
     PUMP_ENTRY: str = "pump_entry_id"
+    # The pump title a web interface entry's own was made from.
+    PUMP_TITLE: str = "pump_title"
     USERNAME: str = CONF_USERNAME
     PASSWORD: str = CONF_PASSWORD
     PAGES: str = "pages"
