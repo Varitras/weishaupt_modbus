@@ -5,6 +5,7 @@ Home Assistant core (the `hass` fixture) and a fake client.
 """
 
 import ast
+import asyncio
 import copy
 import inspect
 import logging
@@ -181,6 +182,19 @@ async def test_an_unexpected_error_counts_as_a_failed_poll(hass):
         await coordinator._async_update_data()
 
     assert raised.value.translation_placeholders == {"error": "RuntimeError"}
+
+
+async def test_a_cancelled_poll_goes_through_uncounted(hass):
+    """The entry unloading or Home Assistant stopping cancels a poll. The
+    catch for faults of this code must not take that for a failed poll."""
+    coordinator, device, _ = _polled_once(hass)
+    coordinator.data = await coordinator._async_update_data()
+    device.fail = asyncio.CancelledError()
+
+    with pytest.raises(asyncio.CancelledError):
+        await coordinator._async_update_data()
+
+    assert coordinator.failed_polls == 0
 
 
 async def test_an_unexpected_error_in_a_poll_logs_its_traceback_once(hass, caplog):

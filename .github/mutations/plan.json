@@ -2819,5 +2819,33 @@
     "old": "        return path == LOGIN\n",
     "new": "        return True\n",
     "tests": "tool_asks_only_what_the_client_may"
+  },
+  {
+    "label": "webif coordinator: a cancellation goes through the catch for faults",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        except Exception as error:\n",
+    "new": "        except BaseException as error:\n",
+    "tests": "cancelled_page_goes_through_uncounted"
+  },
+  {
+    "label": "coordinator: a cancellation goes through the catch for faults",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        except Exception as err:\n",
+    "new": "        except BaseException as err:\n",
+    "tests": "cancelled_poll_goes_through_uncounted"
+  },
+  {
+    "label": "config flow: a cancelled probe goes through the catch for faults",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    except Exception:\n        # A fault of this code:",
+    "new": "    except BaseException:\n        # A fault of this code:",
+    "tests": "cancelled_probe_goes_through"
+  },
+  {
+    "label": "config flow: a cancelled visit goes through the catch for faults",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        except Exception:\n            # As in the probe",
+    "new": "        except BaseException:\n            # As in the probe",
+    "tests": "cancelled_visit_goes_through"
   }
 ]

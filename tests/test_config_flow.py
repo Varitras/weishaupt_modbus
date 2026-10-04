@@ -332,6 +332,19 @@ async def test_a_probe_failing_on_a_fault_of_its_own_says_so(hass, monkeypatch, 
     assert len(tracebacks) == 2
 
 
+async def test_a_cancelled_probe_goes_through(hass, monkeypatch):
+    """A dialog closed while the probe runs cancels it; the catch for faults
+    of this code must not turn that into the form's "unknown"."""
+
+    async def cancelled(_hass, _data):
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(config_flow, "pump_answers", cancelled)
+
+    with pytest.raises(asyncio.CancelledError):
+        await config_flow._probe_error(hass, dict(PAGE_ONE))
+
+
 async def test_a_host_without_a_pump_is_reported(hass, mock_modbus):
     """A typo in the address used to create an entry that then retried
     forever; the flow now reads one register first."""
@@ -701,6 +714,18 @@ async def test_a_visit_failing_on_a_fault_of_its_own_says_so(
         for record in caplog.records
         if record.exc_info and record.levelno >= logging.ERROR
     ]
+
+
+async def test_a_cancelled_visit_goes_through():
+    """A visit cancelled with its dialog is no fault of this code: the catch
+    for those must not turn it into the form's "unknown"."""
+    visit = asyncio.ensure_future(asyncio.sleep(60))
+    visit.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await visit
+
+    with pytest.raises(asyncio.CancelledError):
+        config_flow.ConfigFlow()._visit_result(visit)
 
 
 async def test_a_menu_entry_shown_twice_is_named_in_the_form(hass, web_interface):

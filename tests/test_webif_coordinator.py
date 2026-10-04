@@ -4,6 +4,7 @@ Driven with a real Home Assistant core and a fake client that answers each
 page from a script; the client's own rules are tested in test_webif_client.
 """
 
+import asyncio
 from dataclasses import replace
 from datetime import timedelta
 import json
@@ -110,7 +111,7 @@ class FakeClient:
         self.asked.append(path)
         answers = self.script.get(path, [WHOLE[path]])
         answer = answers.pop(0) if len(answers) > 1 else answers[0]
-        if isinstance(answer, Exception):
+        if isinstance(answer, BaseException):
             raise answer
         if not complete(answer):
             raise Broken(path)
@@ -514,6 +515,20 @@ async def test_an_unexpected_error_does_not_end_the_round(coordinator, client, c
     assert client.asked == [HEAT_PUMP.path, STATISTICS.path, HEATING.path]
     assert coordinator.last_update_success
     assert coordinator.data["statistics"] == {"JAZ Jahr": "4.16"}
+
+
+async def test_a_cancelled_page_goes_through_uncounted(coordinator, client, clock):
+    """The entry unloading or Home Assistant stopping cancels a round. The
+    catch for faults of this code must not take that for a failed page."""
+    client.answer(HEAT_PUMP, asyncio.CancelledError())
+
+    # Asked of the update itself: Home Assistant's refresh passes a
+    # cancellation on only while its own task is being cancelled.
+    with pytest.raises(asyncio.CancelledError):
+        await coordinator._async_update_data()
+
+    assert client.asked == [HEAT_PUMP.path]
+    assert coordinator.diagnostics()["page_states"]["heat_pump"]["failures"] == 0
 
 
 async def test_an_unexpected_error_logs_its_traceback_once(
