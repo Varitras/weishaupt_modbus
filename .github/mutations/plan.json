@@ -2462,5 +2462,12 @@
     "old": "SHORTEST_WAIT_SECONDS = 1.0\n",
     "new": "SHORTEST_WAIT_SECONDS = 0.0\n",
     "tests": "falling_due_as_the_round_ends"
+  },
+  {
+    "label": "webif client: a cancelled request reads as a whole answer",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "            except asyncio.CancelledError:\n                # A dialog closed mid-visit: cancelled while the page came,\n                # the line read as a whole answer.\n                outcome += \", cancelled\"\n                raise\n",
+    "new": "",
+    "tests": "cancelled_while_its_page_comes"
   }
 ]

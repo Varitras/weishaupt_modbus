@@ -133,6 +133,41 @@ async def test_a_request_without_an_answer_is_logged_too(pump, session, caplog):
     assert re.fullmatch(rf"GET {re.escape(PAGE)}: TimeoutError, \d+\.\d s", lines[0])
 
 
+async def test_a_request_cancelled_while_its_page_comes_is_logged_so(
+    pump, session, caplog, monkeypatch
+):
+    """Closing the dialog mid-visit cancels its request: the line said
+    "HTTP 200", as if the page had come whole."""
+    caplog.set_level(logging.DEBUG, logger=webif.__name__)
+    client = connect(session, pump.host)
+    await client.page(PAGE, whole)
+    pump.stalls[PAGE] = SLOW
+    reading = asyncio.Event()
+    capped_body = webif._capped_body
+
+    async def read_noted(response):
+        reading.set()
+        return await capped_body(response)
+
+    monkeypatch.setattr(webif, "_capped_body", read_noted)
+    caplog.clear()
+    asking = asyncio.create_task(client.page(PAGE, whole))
+    await until(reading.is_set)
+    asking.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await asking
+    lines = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == webif.__name__
+    ]
+    assert len(lines) == 1
+    assert re.fullmatch(
+        rf"GET {re.escape(PAGE)}: HTTP 200, cancelled, \d+\.\d s", lines[0]
+    )
+
+
 async def test_an_answer_far_larger_than_any_page_is_logged_too(pump, session, caplog):
     """It ended the round without a line: the log showed the login and then
     nothing, as if the page had never been asked for."""

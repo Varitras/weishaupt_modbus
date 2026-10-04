@@ -95,7 +95,8 @@ class StandInPump:
     A page is answered from `site` by its address, otherwise from `pages`
     in turn, the last one for good. `login_answer`, when set, builds the
     answer to every login instead. A path in `failing` is answered with its
-    error status alone.
+    error status alone. A page in `stalls` sends its headers and its first
+    character at once, and the rest after that many seconds.
     """
 
     def __init__(self):
@@ -108,6 +109,7 @@ class StandInPump:
         self.status = 200
         self.failing = {}
         self.delays = {}
+        self.stalls = {}
         self.keeps_sessions = True
         self.sets_cookie = True
         self.login_answer = None
@@ -158,7 +160,14 @@ class StandInPump:
         text = self.site.get(request.raw_path)
         if text is None:
             text = self.pages.pop(0) if len(self.pages) > 1 else self.pages[0]
-        return web.Response(status=self.status, text=text)
+        if request.raw_path not in self.stalls:
+            return web.Response(status=self.status, text=text)
+        response = web.StreamResponse(status=self.status)
+        await response.prepare(request)
+        await response.write(text[:1].encode())
+        await asyncio.sleep(self.stalls[request.raw_path])
+        await response.write(text[1:].encode())
+        return response
 
 
 @asynccontextmanager

@@ -379,6 +379,11 @@ class Client:
                 # The kind only: aiohttp's own text names the pump's address.
                 outcome = type(error).__name__
                 raise Unreachable(f"{method} {path}: {outcome}") from error
+            except asyncio.CancelledError:
+                # A dialog closed mid-visit: cancelled while the page came,
+                # the line read as a whole answer.
+                outcome += ", cancelled"
+                raise
             finally:
                 finished = self._clock()
                 self._pacing.last_request = finished
