@@ -292,7 +292,8 @@ pump's devices.
   controller software versions and the outdoor unit variant.
 - **The polling itself** (diagnostic): the answer time, which is the slowest
   answer of the last round, and the counts of requests, logins, pages that
-  came incomplete and failed reads. The counts carry over restarts, so Home
+  came incomplete and failed reads. A failed read is one the web interface
+  failed; an error in the integration itself is not counted there. The counts carry over restarts, so Home
   Assistant's statistics show over weeks whether the web interface answers
   more slowly or serves more incomplete pages, which preceded its crashes.
   They stay shown when polling has stopped.
