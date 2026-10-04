@@ -269,15 +269,14 @@ interface of a heat pump*, pick the heat pump and enter the web interface's
 user and password. A heat pump has one web interface entry: the list offers
 only heat pumps that have none yet. Logging in, finding the pages and reading
 each once can take several minutes when the controller answers slowly, and
-the dialog shows its progress meanwhile;
-pages the controller serves only half are searched once more before the dialog
-asks you to try again a little later, and the dialog logs out again
-afterwards; a page of values that shows none of its titles counts as served
-half. A page that lacks a title the sensors read, or shows a value in a unit
-they do not know, is named in the dialog with those titles: that controller
-is not supported yet. Values shown empty or twice, and a menu entry shown
-twice, are searched once more as well and then named the same way, with a
-request to try again.
+the dialog shows its progress meanwhile; pages the controller serves only half
+are searched once more before the dialog asks you to try again a little later,
+and the dialog logs out again afterwards; a page of values that shows none of
+its titles counts as served half. A page that lacks a title the sensors read,
+or shows a value in a unit they do not know, is named in the dialog with those
+titles: that controller is not supported yet. Values shown empty or twice, and
+a menu entry shown twice, are searched once more as well and then named the
+same way, with a request to try again.
 
 To read only the web interface, for example from a second Home Assistant
 beside one that polls the heat pump over Modbus, disable the heat pump entry
@@ -333,8 +332,8 @@ here, not set.
 - One request at a time, at least 5 seconds apart, each limited to 20 seconds.
   The gap holds between everything that asks one heat pump's web interface,
   a dialog's visit and the running entry included. While *Reconfigure* or a
-  new login checks the web interface, the entry reads no page of its own, so
-  the dialog does not wait behind it.
+  new login checks the web interface, the entry starts no page of its own -
+  one it is reading finishes first - so the dialog hardly waits behind it.
 - Never at the same moment as a Modbus request from this integration to the
   same heat pump. Another integration on Home Assistant's connection to it,
   or a second Home Assistant polling it over Modbus as above, is not
