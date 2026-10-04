@@ -12,10 +12,11 @@ function that sends, where a reader sees it. A nested function does not
 inherit it, since it may run after the lock is released. A request wrapped
 in another awaited call, a `wait_for` or a `gather`, counts all the same. A
 request that is not awaited where it is made - bound to a name, gathered
-from a list, handed to a task, taken as an alias - is refused outright: when
-it goes out, no lexical check can tell. The positive list of the web
-interface is held to the same place, as a refusal before the request, in
-the sending function itself and about the names the request is sent with.
+from a list, handed to a task (also inside an await), taken as an alias - is
+refused outright: when it goes out, no lexical check can tell. The positive
+list of the web interface is held to the same place, as a refusal before the
+request, in the sending function itself and about the names the request is
+sent with.
 """
 
 import ast
@@ -24,6 +25,7 @@ import pathlib
 
 from modbus_connection import ModbusUnit
 from modbus_connection.model import Component, ComponentGroup
+import pytest
 
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.device import (
     WeishauptHeatPump,
@@ -68,8 +70,13 @@ WEB_REQUESTS = frozenset(
 DEVICE_ATTRIBUTE = "device"
 DEVICE_METHODS = _awaitable_methods(WeishauptHeatPump)
 # The coordinators have a diagnostics() of their own under the library's name
-# for a request.
+# for a request; on anything else the name is the library's.
 OWN_NAMES = frozenset({"diagnostics"})
+COORDINATOR = "coordinator"
+# These hand what they are given to a task of its own, which can go on after
+# the lock is let go: `shield` after a cancellation, `wait` after its time
+# limit. A request inside one is not awaited where it is made.
+TASK_WRAPPERS = frozenset({"shield", "create_task", "ensure_future", "wait"})
 # An HTTP verb is a request on a session (`self._session`,
 # `async_get_clientsession(hass)`) or on aiohttp itself. On anything else,
 # `get` and `options` are a dict's and a config entry's.
@@ -77,14 +84,25 @@ SESSION = "session"
 HTTP_MODULE = "aiohttp"
 
 
+def _awaited_parts(node):
+    """The nodes of an awaited expression, without what a task wrapper in it
+    is given."""
+    yield node
+    if isinstance(node, ast.Call) and _name_of(node.func) in TASK_WRAPPERS:
+        yield from _awaited_parts(node.func)
+        return
+    for child in ast.iter_child_nodes(node):
+        yield from _awaited_parts(child)
+
+
 def _awaited_calls(tree):
     """Every call in what is awaited or entered by `async with`, also one
-    wrapped in another call there (`wait_for`, `gather`, `shield`); whether
-    the function it is in holds the lock there, and that function."""
+    wrapped in another call there (`wait_for`, `gather`); whether the function
+    it is in holds the lock there, and that function."""
     found = {}
 
     def note(expression, held, function):
-        for call in ast.walk(expression):
+        for call in _awaited_parts(expression):
             if isinstance(call, ast.Call):
                 found.setdefault(call, (call, held, function))
 
@@ -221,7 +239,8 @@ def _names_a_request(attribute):
     names on anything but the heat pump, an HTTP verb on a session."""
     if attribute.attr in WEB_REQUESTS:
         return _is_session(attribute.value)
-    if attribute.attr in OWN_NAMES:
+    on_a_coordinator = (_name_of(attribute.value) or "").endswith(COORDINATOR)
+    if attribute.attr in OWN_NAMES and on_a_coordinator:
         return False
     by_the_heat_pump = (
         _name_of(attribute.value) == DEVICE_ATTRIBUTE
@@ -243,10 +262,10 @@ def _awaited_nodes(tree):
     inside = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Await):
-            inside.update(map(id, ast.walk(node.value)))
+            inside.update(map(id, _awaited_parts(node.value)))
         if isinstance(node, ast.AsyncWith):
             for item in node.items:
-                inside.update(map(id, ast.walk(item.context_expr)))
+                inside.update(map(id, _awaited_parts(item.context_expr)))
     return inside
 
 
@@ -455,6 +474,33 @@ def test_a_request_has_to_be_awaited_where_it_is_made():
     ]
 
 
+@pytest.mark.parametrize("wrapper", ["shield", "create_task", "ensure_future", "wait"])
+def test_a_request_handed_to_a_task_inside_an_await_is_not_awaited_there(wrapper):
+    """The task can go on after the lock is let go: `shield` after a
+    cancellation, `wait` after its time limit. Awaiting the wrapper passed for
+    awaiting the request."""
+    source = (
+        "async def probe(self, unit):\n"
+        "    async with self._host_lock:\n"
+        f"        await asyncio.{wrapper}(unit.read_input_registers(30001, 1))\n"
+    )
+
+    assert _requests_not_awaited_where_made(source) == ["3: unit.read_input_registers"]
+
+
+def test_diagnostics_is_a_request_on_anything_but_a_coordinator():
+    """The exemption for the coordinators' own diagnostics() let the
+    library's request of that name pass on a unit."""
+    on_a_unit = (
+        "async def ask(self, unit):\n"
+        "    asking = unit.diagnostics\n"
+        "    async with self._host_lock:\n"
+        "        await asking()\n"
+    )
+
+    assert _requests_not_awaited_where_made(on_a_unit) == ["2: unit.diagnostics"]
+
+
 def test_what_only_shares_a_request_s_name_is_no_request():
     """Off a session, `get` and `options` are a dict's and a config entry's;
     the coordinators have a diagnostics() of their own, and the heat pump's
@@ -476,8 +522,16 @@ def test_what_only_shares_a_request_s_name_is_no_request():
 
 def test_every_request_is_awaited_where_it_is_made():
     made_elsewhere = _in_package(_requests_not_awaited_where_made)
+    web_requests = set(_in_package(_web_requests))
 
     assert _in_package(_named_requests), "no request found - the scan looks nowhere"
+    # The two scans spell a place alike; one blind to web requests would
+    # pass every one of them.
+    assert web_requests, "no web request found - the scan looks nowhere"
+    assert web_requests <= set(_in_package(_named_requests)), (
+        f"web request(s) the scan for requests made elsewhere does not see: "
+        f"{sorted(web_requests - set(_in_package(_named_requests)))}"
+    )
     assert not made_elsewhere, (
         f"request(s) not awaited where they are made: {made_elsewhere}. Await "
         "each request in the statement that makes it, under the lock."
