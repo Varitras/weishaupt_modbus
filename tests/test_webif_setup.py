@@ -14,10 +14,7 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.weishaupt_modbus import webif_coordinator
-from custom_components.weishaupt_modbus.config_flow import (
-    ConfigFlow,
-    read_web_interface,
-)
+from custom_components.weishaupt_modbus.config_flow import ConfigFlow
 from custom_components.weishaupt_modbus.configentry import HOST_LOCKS, host_lock
 from custom_components.weishaupt_modbus.const import CONF, CONST, DEVICES
 from custom_components.weishaupt_modbus.diagnostics import (
@@ -34,6 +31,7 @@ from custom_components.weishaupt_modbus.webif_sensor import (
     TRAFFIC_SENSORS,
     WEBIF_SENSORS,
 )
+from custom_components.weishaupt_modbus.webif_visit import read_web_interface
 from homeassistant.config_entries import ConfigEntryDisabler, ConfigEntryState
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP, EntityCategory
 from homeassistant.core import State

@@ -5,13 +5,7 @@ import asyncio
 import aiohttp
 import pytest
 
-from custom_components.weishaupt_modbus import config_flow
-from custom_components.weishaupt_modbus.config_flow import (
-    MissingTitles,
-    UnclearValues,
-    UnknownUnits,
-    read_web_interface,
-)
+from custom_components.weishaupt_modbus import webif_visit
 from custom_components.weishaupt_modbus.configentry import HOST_LOCKS
 from custom_components.weishaupt_modbus.webif import client as webif
 from custom_components.weishaupt_modbus.webif.discovery import (
@@ -21,6 +15,12 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     DoubledMenuEntries,
     MissingMenuEntries,
     find_pages,
+)
+from custom_components.weishaupt_modbus.webif_visit import (
+    MissingTitles,
+    UnclearValues,
+    UnknownUnits,
+    read_web_interface,
 )
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
@@ -454,7 +454,7 @@ async def test_a_visit_cancelled_in_its_logout_lets_go_of_its_session(
         made.append(async_create_clientsession(*args, **kwargs))
         return made[-1]
 
-    monkeypatch.setattr(config_flow, "async_create_clientsession", recorded)
+    monkeypatch.setattr(webif_visit, "async_create_clientsession", recorded)
     pump.delays[webif.LOGOUT] = 0.5
     visit = asyncio.create_task(read_web_interface(hass, pump.host, USER, PASSWORD))
     await until(lambda: ("GET", webif.LOGOUT) in pump.asked)

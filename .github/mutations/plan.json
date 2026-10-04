@@ -1331,14 +1331,14 @@
   },
   {
     "label": "config flow: a refused login reads as a broken page",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "        return \"invalid_auth\"\n",
     "new": "        return \"cannot_read\"\n",
     "tests": "visit_that_fails_says_why"
   },
   {
     "label": "config flow: no connection reads as a broken page",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "    if isinstance(error, Unreachable):\n        return \"cannot_connect\"\n",
     "new": "    if isinstance(error, Unreachable):\n        return \"cannot_read\"\n",
     "tests": "visit_that_fails_says_why"
@@ -1373,7 +1373,7 @@
   },
   {
     "label": "config flow: the dialog's visit stays logged in",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "            await client.close()\n",
     "new": "            pass\n",
     "tests": "dialog_finds_the_pages_and_logs_out"
@@ -1618,7 +1618,7 @@
   },
   {
     "label": "config flow: the dialog's session keeps cookies",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "        hass, auto_cleanup=False, cookie_jar=aiohttp.DummyCookieJar()\n",
     "new": "        hass, auto_cleanup=False, cookie_jar=aiohttp.CookieJar(unsafe=True)\n",
     "tests": "dialog_finds_the_pages_and_logs_out_again"
@@ -1695,14 +1695,14 @@
   },
   {
     "label": "config flow: a menu served half twice ends the dialog's visit",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "    try:\n        return await _visit(client)\n    except Broken as error:\n        if type(error) not in SEARCHED_AGAIN:\n            raise\n    return await _visit(client)\n",
     "new": "    return await _visit(client)\n",
     "tests": "served_half_twice_is_searched_once_more or served_half_on_every_ask_is_not_called_unsupported"
   },
   {
     "label": "config flow: a refused login is tried twice",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "    except Broken as error:\n        if type(error) not in SEARCHED_AGAIN:\n",
     "new": "    except WebifError as error:\n        if isinstance(error, MissingTitles | MissingMenuEntries):\n",
     "tests": "refused_login_is_not_tried_twice"
@@ -1730,7 +1730,7 @@
   },
   {
     "label": "config flow: the dialog keeps a gap of its own",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "        pacing=host_pacing(hass, host),\n",
     "new": "        pacing=type(host_pacing(hass, host))(),\n",
     "tests": "dialog_and_the_running_entry_keep_the_gap"
@@ -1751,21 +1751,21 @@
   },
   {
     "label": "config flow: the dialog does not read the pages it found",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "        await _read_whole(client, page)\n",
     "new": "        pass\n",
     "tests": "reads_each_page_it_found_once or without_a_title_its_sensors_read"
   },
   {
     "label": "config flow: a page without the titles its sensors read is not named",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "        return MissingTitles(PAGE_MENUS[page.key], missing)\n",
     "new": "        return None\n",
     "tests": "without_a_title_its_sensors_read"
   },
   {
     "label": "config flow: the form does not say which page lacks which titles",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "    return {\"page\": error.page, \"titles\": \", \".join(sorted(error.titles))}\n",
     "new": "    return {}\n",
     "tests": "cannot_use"
@@ -1779,7 +1779,7 @@
   },
   {
     "label": "config flow: a visit cancelled in its logout keeps its session",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "        try:\n            await client.close()\n        finally:\n            session.detach()\n",
     "new": "        await client.close()\n        session.detach()\n",
     "tests": "cancelled_in_its_logout"
@@ -1877,7 +1877,7 @@
   },
   {
     "label": "config flow: a controller in another language is told to try again",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "    if isinstance(error, MissingMenuEntries):\n        return \"missing_menu_entries\"\n",
     "new": "",
     "tests": "another_language_is_told_so"
@@ -2115,14 +2115,14 @@
   },
   {
     "label": "config flow: a page served half reads as another model",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "    if not titles & page.required and not shows_its_own_level:\n        return None\n",
     "new": "",
     "tests": "page_served_half_on_every_ask_is_not_called_unsupported"
   },
   {
     "label": "config flow: values empty or twice go unnamed",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "    return UnclearValues(PAGE_MENUS[page.key], page.unclear(text))\n",
     "new": "    return None\n",
     "tests": "values_shown_empty_or_twice_are_named"
@@ -2143,7 +2143,7 @@
   },
   {
     "label": "config flow: a value in an unknown unit passes the dialog",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "    if unknown := shown_in_unknown_units(page.key, page.read(text)):\n        raise UnknownUnits(PAGE_MENUS[page.key], unknown)\n",
     "new": "",
     "tests": "unit_its_sensor_does_not_read_is_named"
@@ -2157,14 +2157,14 @@
   },
   {
     "label": "config flow: values empty or twice say only try again",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "    if isinstance(error, UnclearValues):\n        return \"unclear_values\"\n",
     "new": "",
     "tests": "cannot_use_is_named_in_the_form"
   },
   {
     "label": "config flow: an unknown unit says only try again",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "    if isinstance(error, UnknownUnits):\n        return \"unknown_units\"\n",
     "new": "",
     "tests": "cannot_use_is_named_in_the_form"
@@ -2241,9 +2241,9 @@
   },
   {
     "label": "config flow: the dialog asks under a lock of its own",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "        host_lock=host_lock(hass, host),\n        pacing=host_pacing(hass, host),\n",
-    "new": "        host_lock=asyncio.Lock(),\n        pacing=host_pacing(hass, host),\n",
+    "new": "        host_lock=host_lock(hass, f\"{host} dialog\"),\n        pacing=host_pacing(hass, host),\n",
     "tests": "dialog_waits_while_its_pump_is_asked"
   },
   {
@@ -2570,42 +2570,42 @@
   },
   {
     "label": "config flow: a page lacking titles is searched once more",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "SEARCHED_AGAIN = (Broken, UnclearValues, DoubledMenuEntries)\n",
     "new": "SEARCHED_AGAIN = (Broken, UnclearValues, DoubledMenuEntries, MissingTitles)\n",
     "tests": "without_a_title_its_sensors_read_is_named"
   },
   {
     "label": "config flow: a controller in another language is searched once more",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "SEARCHED_AGAIN = (Broken, UnclearValues, DoubledMenuEntries)\n",
     "new": "SEARCHED_AGAIN = (Broken, UnclearValues, DoubledMenuEntries, MissingMenuEntries)\n",
     "tests": "another_language_is_searched_only_once"
   },
   {
     "label": "config flow: a page is judged by its first answer",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "        lacking = _lacking(page, shown[-1] if shown else \"\")\n",
     "new": "        lacking = _lacking(page, shown[0] if shown else \"\")\n",
     "tests": "page_is_judged_by_its_last_answer"
   },
   {
     "label": "config flow: unclear values are not searched once more",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "class UnclearValues(Broken):\n",
     "new": "class UnclearValues(WebifError):\n",
     "tests": "values_shown_empty_or_twice_are_named"
   },
   {
     "label": "config flow: a menu with other entries reads as served half",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "    shows_its_own_level = page.menu and bool(titles)\n",
     "new": "    shows_its_own_level = False\n",
     "tests": "heating_menu_with_other_entries_is_named"
   },
   {
     "label": "config flow: a page of another section's values reads as another model",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "    shows_its_own_level = page.menu and bool(titles)\n",
     "new": "    shows_its_own_level = bool(titles)\n",
     "tests": "page_served_half_on_every_ask_is_not_called_unsupported"
@@ -2626,7 +2626,7 @@
   },
   {
     "label": "config flow: a menu entry shown twice is not named in the form",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "    if isinstance(error, DoubledMenuEntries):\n        return \"doubled_menu_entries\"\n",
     "new": "",
     "tests": "menu_entry_shown_twice_is_named_in_the_form"
@@ -2864,21 +2864,21 @@
   },
   {
     "label": "config flow: values shown unclearly are not searched again",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "SEARCHED_AGAIN = (Broken, UnclearValues, DoubledMenuEntries)\n",
     "new": "SEARCHED_AGAIN = (Broken, DoubledMenuEntries)\n",
     "tests": "values_shown_empty_or_twice_are_named"
   },
   {
     "label": "config flow: a menu entry shown twice is not searched again",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "SEARCHED_AGAIN = (Broken, UnclearValues, DoubledMenuEntries)\n",
     "new": "SEARCHED_AGAIN = (Broken, UnclearValues)\n",
     "tests": "menu_entry_shown_twice_on_every_visit_is_named"
   },
   {
     "label": "config flow: an empty heating menu reads as lacking every title",
-    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "    shows_its_own_level = page.menu and bool(titles)\n",
     "new": "    shows_its_own_level = page.menu\n",
     "tests": "heating_menu_served_half_on_every_ask_is_not_called_unsupported"
@@ -2920,7 +2920,7 @@
   },
   {
     "label": "config flow: only a loaded entry has rounds to hold",
-    "path": "custom_components/weishaupt_modbus/configentry.py",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "    if entry is None or entry.state is not ConfigEntryState.LOADED:\n",
     "new": "    if entry is None:\n",
     "tests": "reconfigured_with_a_new_login_and_pages"

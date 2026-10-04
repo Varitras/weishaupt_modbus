@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Coroutine, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.config_entries import ConfigEntry, ConfigEntryState
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.util.hass_dict import HassKey
 
@@ -62,20 +62,6 @@ HOST_PACINGS: HassKey[dict[str, Pacing]] = HassKey(f"{CONST.DOMAIN}_host_pacings
 def host_pacing(hass: HomeAssistant, host: str) -> Pacing:
     """The gap every web interface client of the controller at host keeps."""
     return hass.data.setdefault(HOST_PACINGS, {}).setdefault(host, Pacing())
-
-
-async def holding_its_rounds[T](
-    entry: ConfigEntry | None, visit: Coroutine[Any, Any, T]
-) -> T:
-    """A dialog's visit, with the rounds of the running entry it is for held.
-
-    Both keep the gap together, and a dialog that works out reloads the
-    entry anyway.
-    """
-    if entry is None or entry.state is not ConfigEntryState.LOADED:
-        return await visit
-    async with entry.runtime_data.coordinator.dialog_visiting():
-        return await visit
 
 
 def is_web_interface(entry: ConfigEntry) -> bool:

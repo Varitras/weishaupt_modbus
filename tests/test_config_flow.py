@@ -21,11 +21,6 @@ import voluptuous as vol
 
 import custom_components.weishaupt_modbus as integration
 from custom_components.weishaupt_modbus import config_flow
-from custom_components.weishaupt_modbus.config_flow import (
-    MissingTitles,
-    UnclearValues,
-    UnknownUnits,
-)
 from custom_components.weishaupt_modbus.configentry import HOST_LOCKS
 from custom_components.weishaupt_modbus.const import CONF, CONST
 from custom_components.weishaupt_modbus.webif.client import (
@@ -36,6 +31,11 @@ from custom_components.weishaupt_modbus.webif.client import (
 from custom_components.weishaupt_modbus.webif.discovery import (
     DoubledMenuEntries,
     MissingMenuEntries,
+)
+from custom_components.weishaupt_modbus.webif_visit import (
+    MissingTitles,
+    UnclearValues,
+    UnknownUnits,
 )
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.helpers import config_validation as cv
