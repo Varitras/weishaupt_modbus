@@ -325,7 +325,9 @@ here, not set.
 
 - One request at a time, at least 5 seconds apart, each limited to 20 seconds.
   The gap holds between everything that asks one heat pump's web interface,
-  a dialog's visit and the running entry included.
+  a dialog's visit and the running entry included. While *Reconfigure* or a
+  new login checks the web interface, the entry reads no page of its own, so
+  the dialog does not wait behind it.
 - Never at the same moment as a Modbus request from this integration to the
   same heat pump. Another integration on Home Assistant's connection to it,
   or a second Home Assistant polling it over Modbus as above, is not

@@ -2896,5 +2896,33 @@
     "old": "                data_updates={**self._visit_login, CONF.PAGES: pages},\n",
     "new": "                data={CONF.KIND: CONST.WEB_INTERFACE, CONF.PUMP_ENTRY: entry.data[CONF.PUMP_ENTRY], **self._visit_login, CONF.PAGES: pages},\n",
     "tests": "refused_login_is_replaced_by_a_new_one or reconfigured_with_a_new_login_and_pages"
+  },
+  {
+    "label": "webif coordinator: a dialog's visit holds the rounds",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            await self._no_dialog_visit.wait()\n",
+    "new": "",
+    "tests": "waits_while_a_dialog_of_its_entry_visits"
+  },
+  {
+    "label": "webif coordinator: a running round waits between its pages",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        for page in self._due():\n            await self._no_dialog_visit.wait()\n",
+    "new": "        await self._no_dialog_visit.wait()\n        for page in self._due():\n",
+    "tests": "running_round_waits_between_its_pages"
+  },
+  {
+    "label": "config flow: a new login holds the running entry's rounds",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        self._visit = self.hass.async_create_task(holding_its_rounds(entry, visit))\n",
+    "new": "        self._visit = self.hass.async_create_task(holding_its_rounds(None, visit))\n",
+    "tests": "holds_its_rounds_while_its_dialog_visits"
+  },
+  {
+    "label": "config flow: only a loaded entry has rounds to hold",
+    "path": "custom_components/weishaupt_modbus/configentry.py",
+    "old": "    if entry is None or entry.state is not ConfigEntryState.LOADED:\n",
+    "new": "    if entry is None:\n",
+    "tests": "reconfigured_with_a_new_login_and_pages"
   }
 ]

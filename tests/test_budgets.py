@@ -31,9 +31,12 @@ PACKAGE = (
 # register table.
 LINE_LIMIT = 900
 
-# The register table: its rows, the status value lists and the parameter sets.
 LINE_BUDGETS = {
+    # The register table: its rows, the status value lists and the parameter sets.
     "weishaupt_modbus_api/hpconst.py": 1090,
+    # The pump's and the web interface's dialogs together (2026-10-04); the web
+    # interface's visit is the part to move into a module of its own.
+    "config_flow.py": 905,
 }
 
 # SonarSource's own default. Above it, a function is one somebody has to

@@ -25,7 +25,13 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .configentry import host_lock, host_pacing, is_web_interface, web_interface_title
+from .configentry import (
+    holding_its_rounds,
+    host_lock,
+    host_pacing,
+    is_web_interface,
+    web_interface_title,
+)
 from .const import CONF, CONST
 from .kennfeld import get_filepath
 from .migrate_helpers import entry_unique_id
@@ -577,18 +583,21 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         login: dict[str, Any],
         *,
         next_step_id: str,
+        entry: config_entries.ConfigEntry | None = None,
     ) -> config_entries.ConfigFlowResult:
-        """Start the short visit; the dialog shows its progress meanwhile."""
+        """Start the short visit; the dialog shows its progress meanwhile.
+
+        `entry` is the web interface entry a new login is for, if any.
+        """
         self._visit_login = login
         self._after_visit = next_step_id
-        self._visit = self.hass.async_create_task(
-            read_web_interface(
-                self.hass,
-                pump.data[CONF.HOST],
-                login[CONF.USERNAME],
-                login[CONF.PASSWORD],
-            )
+        visit = read_web_interface(
+            self.hass,
+            pump.data[CONF.HOST],
+            login[CONF.USERNAME],
+            login[CONF.PASSWORD],
         )
+        self._visit = self.hass.async_create_task(holding_its_rounds(entry, visit))
         return await self.async_step_webif_visit()
 
     async def async_step_webif_visit(
@@ -670,7 +679,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         pump = self.hass.config_entries.async_get_entry(entry.data[CONF.PUMP_ENTRY])
         if pump is None:
             return self.async_abort(reason="pump_removed")
-        return await self._visit_web_interface(pump, user_input, next_step_id=step_id)
+        return await self._visit_web_interface(
+            pump, user_input, next_step_id=step_id, entry=entry
+        )
 
     def _login_form(
         self,

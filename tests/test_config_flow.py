@@ -5,6 +5,7 @@ integration.
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 import pathlib
@@ -910,6 +911,44 @@ async def test_a_web_interface_whose_pump_was_removed_says_so(
     assert web_interface.visits == []
 
 
+class _HeldRounds:
+    """A running entry's coordinator, as far as a dialog holds its rounds."""
+
+    def __init__(self):
+        self.held = False
+
+    @contextlib.asynccontextmanager
+    async def dialog_visiting(self):
+        self.held = True
+        try:
+            yield
+        finally:
+            self.held = False
+
+
+@pytest.mark.parametrize("start", ["start_reauth_flow", "start_reconfigure_flow"])
+async def test_a_running_entry_holds_its_rounds_while_its_dialog_visits(
+    hass, monkeypatch, web_interface, start
+):
+    """Both share the gap between requests: live, the entry's rounds made a
+    reconfigure take 134 s instead of about 90 (2026-10-04)."""
+    entry = _web_entry(hass, _pump_entry(hass))
+    await _loaded(hass, monkeypatch, entry)
+    rounds = entry.runtime_data.coordinator
+    web_interface.held = asyncio.Event()
+
+    form = await getattr(entry, start)(hass)
+    await hass.config_entries.flow.async_configure(
+        form["flow_id"], {CONF.USERNAME: "tester", CONF.PASSWORD: "renewed"}
+    )
+    await until(lambda: web_interface.visits)
+    assert rounds.held
+
+    web_interface.held.set()
+    await hass.async_block_till_done()
+    assert not rounds.held
+
+
 async def test_a_web_interface_entry_is_reconfigured_with_a_new_login_and_pages(
     hass, web_interface
 ):
@@ -1002,11 +1041,13 @@ async def test_no_form_a_failed_visit_shows_again_offers_the_password(
 
 
 async def _loaded(hass, monkeypatch, entry):
-    """The entry set up by the scripted setup, and an unload to match: a
-    reload would otherwise stop at runtime data the script never made."""
+    """The web interface entry set up by the scripted setup, with the part of
+    its coordinator a dialog holds, and an unload to match: a reload would
+    otherwise stop at runtime data the script never made."""
     monkeypatch.setattr(integration, "async_unload_entry", AsyncMock(return_value=True))
     await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
+    entry.runtime_data = SimpleNamespace(coordinator=_HeldRounds())
     return integration.async_setup_entry.await_count
 
 

@@ -517,6 +517,47 @@ async def test_an_unexpected_error_does_not_end_the_round(coordinator, client, c
     assert coordinator.data["statistics"] == {"JAZ Jahr": "4.16"}
 
 
+async def settle():
+    """Let every task run until it waits for something outside it."""
+    for _ in range(10):
+        await asyncio.sleep(0)
+
+
+async def test_a_round_waits_while_a_dialog_of_its_entry_visits(coordinator, client):
+    """Live, 2026-10-04: the entry's rounds took 6 of the 18 requests of a
+    reconfigure, each behind the gap between requests both share, and the
+    dialog waited 134 s. After a visit that works out the entry reloads."""
+    async with coordinator.dialog_visiting():
+        polling = asyncio.create_task(coordinator._async_update_data())
+        await settle()
+        assert client.asked == []
+
+    await polling
+    assert client.asked == [HEAT_PUMP.path, STATISTICS.path, HEATING.path]
+
+
+async def test_a_running_round_waits_between_its_pages(coordinator, client):
+    """A dialog that starts while a round runs gets the gap from the next page
+    on, not after the whole round."""
+    visit = coordinator.dialog_visiting()
+    ask = client.page
+
+    async def ask_then_visit(path, complete):
+        text = await ask(path, complete)
+        if path == HEAT_PUMP.path:
+            await visit.__aenter__()
+        return text
+
+    client.page = ask_then_visit
+    polling = asyncio.create_task(coordinator._async_update_data())
+    await settle()
+    assert client.asked == [HEAT_PUMP.path]
+
+    await visit.__aexit__(None, None, None)
+    await polling
+    assert client.asked == [HEAT_PUMP.path, STATISTICS.path, HEATING.path]
+
+
 async def test_a_cancelled_page_goes_through_uncounted(coordinator, client, clock):
     """The entry unloading or Home Assistant stopping cancels a round. The
     catch for faults of this code must not take that for a failed page."""

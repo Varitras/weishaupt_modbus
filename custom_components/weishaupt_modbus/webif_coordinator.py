@@ -8,8 +8,10 @@ the second in a row takes them away, and the third stops all polling until
 the entry is reloaded.
 """
 
+import asyncio
 from collections import Counter
-from collections.abc import Callable, Mapping
+from collections.abc import AsyncIterator, Callable, Mapping
+from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
 from datetime import timedelta
 import logging
@@ -184,11 +186,27 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         self._stopped_by: tuple[str, str] | None = None
         self._refused: LoginRefused | None = None
         self._traceback_logged = False
+        self._no_dialog_visit = asyncio.Event()
+        self._no_dialog_visit.set()
         self._issue = f"{STOPPED_ISSUE}_{config_entry.entry_id}"
         # The slowest answer of the last round that asked anything.
         self.answer_seconds: float | None = None
         # Reloading the entry is how polling resumes after a stop.
         ir.async_delete_issue(hass, CONST.DOMAIN, self._issue)
+
+    @asynccontextmanager
+    async def dialog_visiting(self) -> AsyncIterator[None]:
+        """Hold the rounds from the next page on while a dialog of this entry visits.
+
+        Both share the gap between requests: live, the rounds took 6 of the
+        18 requests of a reconfigure, and the dialog waited 134 s instead of
+        about 90. After a visit that works out the entry reloads anyway.
+        """
+        self._no_dialog_visit.clear()
+        try:
+            yield
+        finally:
+            self._no_dialog_visit.set()
 
     async def async_shutdown(self) -> None:
         """Stop, and take a stop notice along: the entry it names is unloading."""
@@ -246,6 +264,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
     async def _round(self) -> bool:
         """Ask every due page; False when the round had to end early."""
         for page in self._due():
+            await self._no_dialog_visit.wait()
             if not await self._fetch(page):
                 return False
         return True
