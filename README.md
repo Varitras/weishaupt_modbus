@@ -115,9 +115,9 @@ needs (it accepts a single client).
 A poll that fails keeps the last values; the entities go unavailable on the
 fourth failed poll in a row and come back with the next good one. An error in
 the integration itself counts as a failed poll too; its traceback is logged
-the first time after each load. A device
-that answers but refuses the system registers 30001-30006 is not treated as
-a heat pump with missing modules: that poll fails.
+the first time after each load. A device that answers but refuses the system
+registers 30001-30006 is not treated as a heat pump with missing modules:
+that poll fails.
 
 A write goes out immediately and only if the value differs from what the
 controller holds.
@@ -298,10 +298,11 @@ pump's devices.
 - **The polling itself** (diagnostic): the answer time, which is the slowest
   answer of the last round, and the counts of requests, logins, pages that
   came incomplete and failed reads. A failed read is one the web interface
-  failed; an error in the integration itself is not counted there. The counts carry over restarts, so Home
-  Assistant's statistics show over weeks whether the web interface answers
-  more slowly or serves more incomplete pages, which preceded its crashes.
-  They stay shown when polling has stopped.
+  failed; an error in the integration itself is not counted there. The
+  counts carry over restarts, so Home Assistant's statistics show over weeks
+  whether the web interface answers more slowly or serves more incomplete
+  pages, which preceded its crashes. They stay shown when polling has
+  stopped.
 
 The *Name topic prefix* option of the heat pump entry names these sensors
 like their Modbus siblings, with `WP_` or `ST_` in front.
