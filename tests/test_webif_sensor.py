@@ -42,7 +42,7 @@ def _sensor(key, data):
         ("hochdruck", "24.4 °C", None),
         ("hochdruck", None, None),
         ("ist_leistung", "4.9 KW", 4.9),
-        ("solltemperatur", "--", None),
+        ("druckgastemperatur", "--", None),
         ("schaltspiele_verdichter", "13994", 13994.0),
         ("jaz_jahr", "4.16", 4.16),
         ("stellung_umschaltventil", "Warmwasser", "Warmwasser"),
@@ -74,6 +74,22 @@ def test_aus_reads_0_only_for_an_idle_power_or_speed(key, expected):
     to Home Assistant's statistics, which then count the next reading in full
     again; on the power limit it more likely means no limit."""
     assert reading(_description(key), "Aus") == expected
+
+
+@pytest.mark.parametrize(
+    ("key", "expected"),
+    [
+        ("solltemperatur", 0.0),
+        ("druckgastemperatur", None),
+        ("schaltdifferenz_dynamisch", None),
+        ("stellung_umschaltventil", None),
+    ],
+)
+def test_no_value_reads_0_only_for_the_setpoint_temperature(key, expected):
+    """The page shows the setpoint as "--" while nothing is demanded; read as
+    unknown it left a gap in the history, as the Modbus setpoints did.
+    Elsewhere "--" is no value, not a 0."""
+    assert reading(_description(key), "--") == expected
 
 
 def test_an_energy_shows_the_three_decimals_the_controller_gives():

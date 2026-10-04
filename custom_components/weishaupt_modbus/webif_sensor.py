@@ -58,6 +58,9 @@ class WebifSensorDescription(SensorEntityDescription):
     `off_is_zero` marks a power or speed, which the controller shows as "Aus"
     when idle; anywhere else "Aus" reads unknown, since a 0 on a rising total
     resets it in Home Assistant's statistics.
+    `no_value_is_zero` marks the setpoint temperature, which the controller
+    shows as "--" while nothing is demanded; unknown left a gap in the
+    history. Anywhere else "--" is no value.
     """
 
     page: str
@@ -65,6 +68,7 @@ class WebifSensorDescription(SensorEntityDescription):
     shown_unit: str | None
     topic: str = DEVICES.WP
     off_is_zero: bool = False
+    no_value_is_zero: bool = False
 
 
 def _sensor(
@@ -84,7 +88,7 @@ def _sensor(
     )
 
 
-def _temperature(key: str, title: str) -> WebifSensorDescription:
+def _temperature(key: str, title: str, **attributes: Any) -> WebifSensorDescription:
     return _sensor(
         key,
         title,
@@ -93,6 +97,7 @@ def _temperature(key: str, title: str) -> WebifSensorDescription:
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,
+        **attributes,
     )
 
 
@@ -197,7 +202,7 @@ def _performance(key: str, title: str) -> WebifSensorDescription:
 
 # Info > Wärmepumpe: the 31 values Modbus does not carry.
 HEAT_PUMP_SENSORS = (
-    _temperature("solltemperatur", "Solltemperatur"),
+    _temperature("solltemperatur", "Solltemperatur", no_value_is_zero=True),
     _difference("schaltdifferenz_dynamisch", "Schaltdifferenz dynamisch"),
     _percentage("drehzahl_pumpe_m1", "Drehzahl Pumpe M1", off_is_zero=True),
     _sensor(
@@ -330,6 +335,8 @@ ANSWER_TIME = SensorEntityDescription(
 
 def reading(description: WebifSensorDescription, shown: str | None) -> Any:
     """The value as Home Assistant shows it; None for no value or a wrong unit."""
+    if shown == pages.NO_VALUE and description.no_value_is_zero:
+        return 0.0
     if shown is None or shown == pages.NO_VALUE:
         return None
     if description.shown_unit is None:

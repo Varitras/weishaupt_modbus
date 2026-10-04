@@ -1477,6 +1477,27 @@
     "tests": "aus_reads_0_only"
   },
   {
+    "label": "webif sensor: the setpoint's no value is unknown instead of 0",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    if shown == pages.NO_VALUE and description.no_value_is_zero:\n        return 0.0\n",
+    "new": "",
+    "tests": "no_value_reads_0_only"
+  },
+  {
+    "label": "webif sensor: no value reads 0 on every sensor",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    if shown == pages.NO_VALUE and description.no_value_is_zero:\n",
+    "new": "    if shown == pages.NO_VALUE:\n",
+    "tests": "no_value_reads_0_only"
+  },
+  {
+    "label": "webif sensor: the setpoint temperature reads -- as unknown",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    _temperature(\"solltemperatur\", \"Solltemperatur\", no_value_is_zero=True),\n",
+    "new": "    _temperature(\"solltemperatur\", \"Solltemperatur\"),\n",
+    "tests": "no_value_reads_0_only"
+  },
+  {
     "label": "webif sensor: an idle power reads unknown",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
     "old": "        KILOWATT,\n        off_is_zero=True,\n",
