@@ -85,6 +85,49 @@ def test_the_original_comes_back_byte_for_byte(tmp_path, monkeypatch):
     assert path.read_bytes() == original
 
 
+def _refusal(tmp_path, monkeypatch, name, text, old, new):
+    (tmp_path / name).write_text(text, encoding="utf-8")
+    monkeypatch.setattr(mutate, "REPO", tmp_path)
+    case = {"label": "the case", "path": name, "old": old, "new": new}
+    with pytest.raises(SystemExit) as excinfo:
+        mutate.check_mutants([case])
+    return str(excinfo.value)
+
+
+def test_a_mutation_that_does_not_compile_is_refused(tmp_path, monkeypatch):
+    """Its tests fail on the SyntaxError, whatever they assert. Code moved
+    into a deeper block once left three snippets cutting a line in half."""
+    refusal = _refusal(
+        tmp_path, monkeypatch, "module.py", "value = 1\n", "value = 1\n", "value = (\n"
+    )
+
+    assert "the case" in refusal
+
+
+def test_a_mutation_naming_something_undefined_is_refused(tmp_path, monkeypatch):
+    """A case wrote `cookie` for `self._cookie`, and the NameError, not the
+    assertion it was written for, failed its test."""
+    refusal = _refusal(
+        tmp_path,
+        monkeypatch,
+        "module.py",
+        "def read():\n    return 1\n",
+        "    return 1\n",
+        "    return cookie\n",
+    )
+
+    assert "the case" in refusal
+    assert "cookie" in refusal
+
+
+def test_a_data_file_mutation_that_breaks_its_format_is_refused(tmp_path, monkeypatch):
+    refusal = _refusal(
+        tmp_path, monkeypatch, "strings.json", '{"title": "Pump"}\n', '"}', '"'
+    )
+
+    assert "the case" in refusal
+
+
 def test_a_selector_matching_no_tests_is_an_error(monkeypatch):
     """pytest exits 5 for "no tests ran", which is non-zero - a typo in the
     selector would otherwise certify every mutation as caught."""
@@ -112,6 +155,29 @@ def test_a_passing_suite_counts_as_survived(monkeypatch):
     )
 
     assert mutate.run_tests("something") is False
+
+
+@pytest.mark.parametrize(
+    "stdout",
+    [
+        "+++++++++++++++++++++++++++ Timeout +++++++++++++++++++++++++++\n",
+        (
+            "ERROR tests/test_x.py::test_y - RuntimeError: fixture\n"
+            "2 deselected, 1 error in 0.01s\n"
+        ),
+    ],
+    ids=["killed by the timeout", "error in a fixture"],
+)
+def test_a_run_without_a_failed_test_is_not_read_as_caught(monkeypatch, stdout):
+    """pytest-timeout ends a hung run with exit code 1 and no count at all,
+    and a fixture that raises exits 1 with an error count only: either was
+    read as caught, though no test had failed on what the case breaks."""
+    monkeypatch.setattr(
+        mutate.subprocess, "run", lambda *_args, **_kwargs: _Result(1, stdout)
+    )
+
+    with pytest.raises(SystemExit):
+        mutate.run_tests("something")
 
 
 @pytest.mark.parametrize("code", [2, 3, 4])
@@ -180,6 +246,22 @@ def test_the_file_is_restored_even_when_the_run_explodes(tmp_path, monkeypatch):
         mutate.main()
 
     assert target.read_text(encoding="utf-8") == original
+
+
+def test_the_worker_copies_hold_the_tracked_files_each_on_its_own(tmp_path):
+    """The later copies come from the first, not from the repository; a link
+    instead of a copy would let two workers' mutations meet."""
+    trees = mutate.build_worktrees(3, tmp_path, [])
+    tracked = sorted(path.relative_to(REPO) for path in mutate._tracked_files())
+
+    for tree in trees:
+        held = sorted(
+            path.relative_to(tree) for path in tree.rglob("*") if path.is_file()
+        )
+        assert held == tracked
+    (trees[1] / "pyproject.toml").write_text("mutated", encoding="utf-8")
+    assert (trees[0] / "pyproject.toml").read_text(encoding="utf-8") != "mutated"
+    assert (trees[2] / "pyproject.toml").read_text(encoding="utf-8") != "mutated"
 
 
 def test_an_empty_plan_is_refused(tmp_path, monkeypatch):
@@ -251,6 +333,81 @@ def test_no_selector_clause_is_a_word_that_means_anything():
     )
 
 
+# Tests of this file that fail whatever a shipped mutant does: the plan check
+# finds the case's own snippet gone, the copy check needs the .git a worker
+# copy lacks. A case selecting one reads as caught in any case, even a case
+# that mutates the harness itself.
+FAILS_ON_EVERY_MUTANT = frozenset(
+    {
+        "test_the_shipped_plan_still_matches_the_code",
+        "test_the_worker_copies_hold_the_tracked_files_each_on_its_own",
+    }
+)
+
+
+def _clauses_naming_the_harness(cases: list) -> list:
+    """Selector clauses that pick a test of this file the case may not select.
+
+    A case that mutates anything but the harness may select none of them; a
+    case that mutates the harness may select its tests, but not one that
+    fails on every mutant.
+    """
+    own = set(
+        re.findall(
+            r"^\s*(?:async )?def (test_\w+)",
+            Path(__file__).read_text(encoding="utf-8"),
+            re.MULTILINE,
+        )
+    )
+    assert own >= FAILS_ON_EVERY_MUTANT, "a renamed test slipped out of the check"
+    harness = {path.relative_to(REPO).as_posix() for path in (SCRIPT, PLAN)}
+
+    def forbidden(case: dict) -> set[str]:
+        if case["path"] in harness:
+            return FAILS_ON_EVERY_MUTANT
+        return own
+
+    return [
+        f"{case['label']}: {clause!r}"
+        for case in cases
+        for clause in (
+            part.strip() for part in re.split(r"\s+(?:or|and)\s+", case["tests"])
+        )
+        if any(clause in name for name in forbidden(case))
+    ]
+
+
+def test_no_selector_clause_names_a_test_of_the_harness_itself():
+    naming = _clauses_naming_the_harness(_plan())
+
+    assert not naming, (
+        f"selector clause(s) picking a harness test: {naming}. Those fail on "
+        "every mutant; name the test the mutation is about."
+    )
+
+
+def test_the_check_catches_a_clause_naming_a_harness_test():
+    case = {
+        "label": "x",
+        "path": "custom_components/weishaupt_modbus/config_flow.py",
+        "tests": "probe_waits_while_the_controller_is_busy or worker_copies_hold_the_tracked",
+    }
+    of_the_harness = {**case, "path": ".github/mutations/plan.json"}
+    always_red = {**of_the_harness, "tests": "shipped_plan_still_matches_the_code"}
+    its_own_test = {**of_the_harness, "tests": "a_failing_suite_counts_as_caught"}
+
+    assert _clauses_naming_the_harness([case]) == [
+        "x: 'worker_copies_hold_the_tracked'"
+    ]
+    assert _clauses_naming_the_harness([of_the_harness]) == [
+        "x: 'worker_copies_hold_the_tracked'"
+    ]
+    assert _clauses_naming_the_harness([always_red]) == [
+        "x: 'shipped_plan_still_matches_the_code'"
+    ]
+    assert _clauses_naming_the_harness([its_own_test]) == []
+
+
 def test_the_shipped_plan_still_matches_the_code():
     """The plan is only useful while its snippets exist. Left to rot it would
     fail at the worst moment - when someone finally runs it."""
@@ -260,6 +417,10 @@ def test_the_shipped_plan_still_matches_the_code():
             f"{case['label']}: the snippet no longer matches {case['path']} "
             "exactly once - update the plan"
         )
+
+
+def test_every_shipped_mutant_runs_as_written():
+    mutate.check_mutants(_plan())
 
 
 def test_the_shipped_plan_is_not_empty():

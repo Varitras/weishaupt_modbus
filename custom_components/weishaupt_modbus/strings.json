@@ -2,13 +2,30 @@
   "config": {
     "abort": {
       "already_configured": "This heat pump is already configured",
-      "reconfigure_successful": "Configuration updated"
+      "reconfigure_successful": "Configuration updated",
+      "reauth_successful": "The new login was accepted",
+      "no_pump": "Set up the heat pump first; its web interface is added to it.",
+      "pump_removed": "Its heat pump entry was removed. Delete this web interface entry and add it again with the heat pump.",
+      "already_in_progress": "Another dialog is already setting this up.",
+      "every_pump_has_web_interface": "Every heat pump already has its web interface.",
+      "web_interface_exists": "This heat pump already has its web interface."
     },
     "error": {
       "cannot_connect": "Failed to connect",
       "invalid_host": "Enter the address of the heat pump (name or IP, no spaces)",
       "postfix_in_use": "Another heat pump already uses this device postfix",
-      "postfix_required": "A second heat pump needs a device postfix"
+      "postfix_required": "A second heat pump needs a device postfix",
+      "invalid_auth": "The web interface refused the user and password",
+      "cannot_read": "The web interface sent its pages only in part, several times in a row; try again in a few minutes",
+      "missing_titles": "The web interface's page {page} does not show {titles}. This controller is not supported yet.",
+      "unclear_values": "The web interface's page {page} shows {titles} without a value or more than once. Try again; if it stays so, this controller is not supported yet.",
+      "unknown_units": "The web interface's page {page} shows {titles} in a unit the integration does not know. This controller is not supported yet.",
+      "missing_menu_entries": "The web interface's menus do not show {titles}. The integration finds its pages by these German names: is the controller's language set to German? If the controller has to stay on another language, open an issue so that it can be added, and attach the file tools/webif_capture.py writes (see the README).",
+      "doubled_menu_entries": "The web interface's menus show {titles} more than once. Try again; if it stays so, this controller is not supported yet.",
+      "unknown": "An unexpected error occurred; the log holds the details."
+    },
+    "progress": {
+      "webif_visit": "Logging in to the web interface, searching its pages and reading each once. This can take several minutes when the controller answers slowly or a page has to be asked for again; please be patient."
     },
     "step": {
       "user": {
@@ -18,12 +35,12 @@
           "Heizkreis 3": "3rd heating circuit",
           "Heizkreis 4": "4th heating circuit",
           "Heizkreis 5": "5th heating circuit",
-          "Host": "Host",
+          "host": "Host",
           "Kennfeld-File": "Operation map file",
           "Name-Device-Prefix": "Name Device Prefix",
           "Name-Topic-Prefix": "Name Topic Prefix",
-          "Port": "Port",
-          "Prefix": "Prefix"
+          "port": "Port",
+          "prefix": "Prefix"
         },
         "data_description": {
           "Device-Postfix": "Leave empty for the first heat pump; every further one needs a postfix of its own. Cannot be changed later.",
@@ -31,12 +48,16 @@
           "Heizkreis 3": "Adds the entities of this heating circuit.",
           "Heizkreis 4": "Adds the entities of this heating circuit.",
           "Heizkreis 5": "Adds the entities of this heating circuit.",
-          "Host": "Name or IP address of the heat pump.",
+          "host": "Name or IP address of the heat pump.",
           "Kennfeld-File": "Power map of your model, used to estimate the heat output.",
           "Name-Device-Prefix": "Puts the prefix in front of the name of every register entity.",
           "Name-Topic-Prefix": "Puts the device's short name (WP, WW, ...) in front of the name of every register entity.",
-          "Port": "Modbus TCP port set on the heat pump, usually 502.",
-          "Prefix": "Part of every entity's unique id. Keep the default unless you carry over the history of another integration. Cannot be changed later."
+          "port": "Modbus TCP port set on the heat pump, usually 502.",
+          "prefix": "Part of every entity's unique id. Keep the default unless you carry over the history of another integration. Cannot be changed later."
+        },
+        "menu_options": {
+          "pump": "Heat pump (Modbus)",
+          "webif": "Web interface of a heat pump"
         }
       },
       "reconfigure": {
@@ -46,22 +67,60 @@
           "Heizkreis 3": "3rd heating circuit",
           "Heizkreis 4": "4th heating circuit",
           "Heizkreis 5": "5th heating circuit",
-          "Host": "Host",
+          "host": "Host",
           "Kennfeld-File": "Operation map file",
           "Name-Device-Prefix": "Name Device Prefix",
           "Name-Topic-Prefix": "Name Topic Prefix",
-          "Port": "Port"
+          "port": "Port"
         },
         "data_description": {
           "Heizkreis 2": "Adds the entities of this heating circuit.",
           "Heizkreis 3": "Adds the entities of this heating circuit.",
           "Heizkreis 4": "Adds the entities of this heating circuit.",
           "Heizkreis 5": "Adds the entities of this heating circuit.",
-          "Host": "Name or IP address of the heat pump.",
+          "host": "Name or IP address of the heat pump.",
           "Kennfeld-File": "Power map of your model, used to estimate the heat output.",
           "Name-Device-Prefix": "Puts the prefix in front of the name of every register entity.",
           "Name-Topic-Prefix": "Puts the device's short name (WP, WW, ...) in front of the name of every register entity.",
-          "Port": "Modbus TCP port set on the heat pump, usually 502."
+          "port": "Modbus TCP port set on the heat pump, usually 502."
+        }
+      },
+      "webif": {
+        "title": "Web interface",
+        "description": "Reads more values from the heat pump's local web interface (experimental). Logging in, finding the pages and reading them can take several minutes; please be patient.",
+        "data": {
+          "pump_entry_id": "Heat pump",
+          "username": "User",
+          "password": "Password"
+        },
+        "data_description": {
+          "pump_entry_id": "The heat pump the web interface belongs to; its address is used.",
+          "username": "The user on the web interface's login page.",
+          "password": "The password on the web interface's login page. It is stored in Home Assistant and sent to the heat pump only, as plain HTTP: the controller offers nothing else, so keep it on a network you trust."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Web interface login",
+        "description": "The web interface refused its login. Enter the current one; checking it can take several minutes, please be patient.",
+        "data": {
+          "username": "User",
+          "password": "Password"
+        },
+        "data_description": {
+          "username": "The user on the web interface's login page.",
+          "password": "The password on the web interface's login page. It is stored in Home Assistant and sent to the heat pump only, as plain HTTP: the controller offers nothing else, so keep it on a network you trust."
+        }
+      },
+      "reconfigure_webif": {
+        "title": "Reconfigure the web interface",
+        "description": "A new login for the web interface, and its pages are searched again. Checking can take several minutes; please be patient.",
+        "data": {
+          "username": "User",
+          "password": "Password"
+        },
+        "data_description": {
+          "username": "The user on the web interface's login page.",
+          "password": "The password on the web interface's login page. It is stored in Home Assistant and sent to the heat pump only, as plain HTTP: the controller offers nothing else, so keep it on a network you trust."
         }
       }
     }
@@ -102,6 +161,9 @@
     },
     "dev_warmwasser": {
       "name": "WH Hot water{postfix}"
+    },
+    "dev_webif": {
+      "name": "WH Web interface{postfix}"
     }
   },
   "entity": {
@@ -1737,6 +1799,162 @@
       },
       "eeprom_writes_today": {
         "name": "EEPROM writes (today)"
+      },
+      "webif_solltemperatur": {
+        "name": "{prefix}Heat pump setpoint temperature"
+      },
+      "webif_schaltdifferenz_dynamisch": {
+        "name": "{prefix}Dynamic switching difference"
+      },
+      "webif_drehzahl_pumpe_m1": {
+        "name": "{prefix}Pump M1 speed"
+      },
+      "webif_volumenstrom": {
+        "name": "{prefix}Flow rate"
+      },
+      "webif_stellung_umschaltventil": {
+        "name": "{prefix}Diverter valve position"
+      },
+      "webif_soll_leistung": {
+        "name": "{prefix}Target output"
+      },
+      "webif_ist_leistung": {
+        "name": "{prefix}Actual output"
+      },
+      "webif_expansionsventil_ag_eintritt": {
+        "name": "{prefix}Outdoor unit expansion valve inlet"
+      },
+      "webif_waermetauscher_ag_austritt": {
+        "name": "{prefix}Outdoor unit heat exchanger outlet"
+      },
+      "webif_evi_sauggastemperatur": {
+        "name": "{prefix}EVI suction gas temperature"
+      },
+      "webif_kaeltemittel_ig_austritt": {
+        "name": "{prefix}Indoor unit refrigerant outlet"
+      },
+      "webif_oelsumpftemperatur": {
+        "name": "{prefix}Oil sump temperature"
+      },
+      "webif_druckgastemperatur": {
+        "name": "{prefix}Discharge gas temperature"
+      },
+      "webif_niederdruck": {
+        "name": "{prefix}Low pressure"
+      },
+      "webif_hochdruck": {
+        "name": "{prefix}High pressure"
+      },
+      "webif_mitteldruck": {
+        "name": "{prefix}Intermediate pressure"
+      },
+      "webif_kondensationstemperatur": {
+        "name": "{prefix}Condensing temperature"
+      },
+      "webif_saettigungstemperatur_evi": {
+        "name": "{prefix}EVI saturation temperature"
+      },
+      "webif_ueberhitzung_heizen": {
+        "name": "{prefix}Superheat heating"
+      },
+      "webif_ueberhitzung_verdichter": {
+        "name": "{prefix}Superheat compressor"
+      },
+      "webif_ueberhitzung_evi": {
+        "name": "{prefix}Superheat EVI"
+      },
+      "webif_oeffnungsgrad_exv_heizen": {
+        "name": "{prefix}EXV opening heating"
+      },
+      "webif_oeffnungsgrad_exv_kuehlen": {
+        "name": "{prefix}EXV opening cooling"
+      },
+      "webif_oeffnungsgrad_evi": {
+        "name": "{prefix}EVI valve opening"
+      },
+      "webif_verdichter_drehzahl": {
+        "name": "{prefix}Compressor speed"
+      },
+      "webif_betriebsstunden_verdichter": {
+        "name": "{prefix}Compressor operating hours"
+      },
+      "webif_schaltspiele_verdichter": {
+        "name": "{prefix}Compressor starts"
+      },
+      "webif_schaltspiele_abtauen": {
+        "name": "{prefix}Defrost cycles"
+      },
+      "webif_version_wwp_sg": {
+        "name": "{prefix}WWP-SG version"
+      },
+      "webif_version_wwp_ec_wbb": {
+        "name": "{prefix}WWP-EC WBB version"
+      },
+      "webif_aussengeraet_variante": {
+        "name": "{prefix}Outdoor unit variant"
+      },
+      "webif_th_energie_heizen_tag": {
+        "name": "{prefix}Heating energy today"
+      },
+      "webif_th_energie_ww_tag": {
+        "name": "{prefix}Hot water energy today"
+      },
+      "webif_th_energie_gesamt_tag": {
+        "name": "{prefix}Total energy today"
+      },
+      "webif_el_energie_tag": {
+        "name": "{prefix}Electr. energy today"
+      },
+      "webif_th_energie_heizen_monat": {
+        "name": "{prefix}Heating energy month"
+      },
+      "webif_th_energie_ww_monat": {
+        "name": "{prefix}Hot water energy month"
+      },
+      "webif_th_energie_gesamt_monat": {
+        "name": "{prefix}Total energy month"
+      },
+      "webif_el_energie_monat": {
+        "name": "{prefix}Electr. energy month"
+      },
+      "webif_th_energie_heizen_jahr": {
+        "name": "{prefix}Heating energy year"
+      },
+      "webif_th_energie_ww_jahr": {
+        "name": "{prefix}Hot water energy year"
+      },
+      "webif_th_energie_gesamt_jahr": {
+        "name": "{prefix}Total energy year"
+      },
+      "webif_el_energie_jahr": {
+        "name": "{prefix}Electr. energy year"
+      },
+      "webif_jaz_jahr": {
+        "name": "{prefix}Annual performance factor"
+      },
+      "webif_jaz_gesamt": {
+        "name": "{prefix}Total performance factor"
+      },
+      "webif_leistungsbegrenzung_heizen": {
+        "name": "{prefix}Heating power limit"
+      },
+      "webif_schaltdifferenz_heizen": {
+        "name": "{prefix}Heating switching difference"
+      },
+      "webif_answer_time": {
+        "name": "Answer time"
+      },
+      "webif_requests": {
+        "name": "Requests"
+      },
+      "webif_logins": {
+        "name": "Logins"
+      },
+      "webif_incomplete_pages": {
+        "name": "Incomplete pages"
+      },
+      "webif_failed_reads": {
+        "name": "Failed reads"
       }
     }
   },
@@ -1757,6 +1975,18 @@
           "write_warning_per_day": "Logs a warning once a day when this many writes went out. The EEPROM is rated for 100 000 writes.",
           "write_limit_per_day": "Further writes are refused until the next day. Must not be below the warning threshold."
         }
+      },
+      "webif": {
+        "data": {
+          "heat_pump_interval_minutes": "Interval of the heat pump page (minutes)",
+          "statistics_interval_minutes": "Interval of the statistics (minutes)",
+          "heating_interval_minutes": "Interval of the heating settings (minutes)"
+        },
+        "data_description": {
+          "heat_pump_interval_minutes": "How often the heat pump page is read, 1 to 60 minutes. A change reloads the entry.",
+          "statistics_interval_minutes": "How often the energy statistics are read, 1 to 60 minutes.",
+          "heating_interval_minutes": "How often the heating power limit and switching difference are read, 1 to 60 minutes."
+        }
       }
     }
   },
@@ -1775,6 +2005,21 @@
     },
     "communication_failed": {
       "message": "Modbus communication failure: {error}"
+    },
+    "webif_stopped": {
+      "message": "Web interface polling stopped after repeated failures of {page}: {error}"
+    },
+    "webif_pump_removed": {
+      "message": "Its heat pump entry was removed. Delete this entry and add the web interface again with the heat pump."
+    },
+    "webif_login_refused": {
+      "message": "The web interface refused the user and password."
+    }
+  },
+  "issues": {
+    "webif_stopped": {
+      "title": "Web interface polling stopped",
+      "description": "The page {page} failed several times in a row ({error}), so polling of the heat pump's web interface stopped to spare the controller. Modbus is not affected. Check the web interface in a browser and watch the heat pump, then reload the web interface entry to resume polling."
     }
   }
 }

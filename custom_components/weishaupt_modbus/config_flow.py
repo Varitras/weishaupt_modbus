@@ -1,5 +1,8 @@
 """Config flow."""
 
+import asyncio
+from collections.abc import Coroutine, Mapping
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -8,12 +11,26 @@ import voluptuous as vol
 
 from homeassistant import config_entries, exceptions
 from homeassistant.components.modbus import async_get_temporary_unit
+from homeassistant.const import UnitOfTime
 from homeassistant.core import HomeAssistant, callback
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
 
+from .configentry import host_lock, is_web_interface, web_interface_title
 from .const import CONF, CONST
 from .kennfeld import get_filepath
 from .migrate_helpers import entry_unique_id
+from .webif.client import LoginRefused, Unreachable, WebifError
+from .webif.discovery import DoubledMenuEntries, MissingMenuEntries
+from .webif_coordinator import INTERVAL_OPTIONS
+from .webif_visit import MissingTitles, UnclearValues, UnknownUnits, read_web_interface
 from .weishaupt_modbus_api.const import (
     DEFAULT_PORT,
     DEFAULT_WRITE_LIMIT_PER_DAY,
@@ -21,6 +38,8 @@ from .weishaupt_modbus_api.const import (
     EEPROM_WRITE_RATING,
     MODBUS_UNIT_ID,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _kennfeld_files(folder: Path) -> list[str]:
@@ -52,11 +71,30 @@ async def pump_answers(hass: HomeAssistant, data: dict[str, Any]) -> bool:
         host=data[CONF.HOST], port=int(data.get(CONF.PORT, DEFAULT_PORT))
     )
     try:
-        async with async_get_temporary_unit(hass, params, MODBUS_UNIT_ID) as unit:
+        # The web interface may be asking the same controller right now.
+        async with (
+            host_lock(hass, data[CONF.HOST]),
+            async_get_temporary_unit(hass, params, MODBUS_UNIT_ID) as unit,
+        ):
             await unit.read_input_registers(PROBE_REGISTER, 1)
     except ModbusError, OSError, TimeoutError:
         return False
     return True
+
+
+async def _probe_error(hass: HomeAssistant, data: dict[str, Any]) -> str | None:
+    """The form's error for the probe of the heat pump; None when it answers."""
+    try:
+        answers = await pump_answers(hass, data)
+    except Exception:
+        # A fault of this code: Home Assistant would end the dialog in a bare
+        # "Unknown error", with no form to try again in and a log line that
+        # does not say it was the probe.
+        _LOGGER.exception("The heat pump probe failed on an unexpected error")
+        return "unknown"
+    if not answers:
+        return "cannot_connect"
+    return None
 
 
 def namespace_error(
@@ -69,8 +107,8 @@ def namespace_error(
 
     Entity and device ids are built from prefix and postfix only, so two
     entries with the same postfix collide entity for entity - the second
-    pump loads with nothing. Once another entry exists the postfix has to
-    be set, and set to something no other entry uses.
+    pump loads with nothing. Once another pump exists the postfix has to
+    be set, and set to something no other pump uses.
 
     ``pending`` are the postfixes other flows are probing with right now:
     two dialogs submitted together both passed this check before either
@@ -79,7 +117,7 @@ def namespace_error(
     others = [
         entry
         for entry in hass.config_entries.async_entries(CONST.DOMAIN)
-        if entry.entry_id != entry_id
+        if entry.entry_id != entry_id and not is_web_interface(entry)
     ]
     taken = {str(entry.data.get(CONF.DEVICE_POSTFIX, "")).strip() for entry in others}
     taken |= pending or set()
@@ -91,6 +129,51 @@ def namespace_error(
     if postfix in taken:
         return "postfix_in_use"
     return None
+
+
+def web_interface_error(error: WebifError) -> str:
+    """The form's error for a visit that failed."""
+    if isinstance(error, LoginRefused):
+        return "invalid_auth"
+    if isinstance(error, Unreachable):
+        return "cannot_connect"
+    if isinstance(error, MissingTitles):
+        return "missing_titles"
+    if isinstance(error, UnclearValues):
+        return "unclear_values"
+    if isinstance(error, UnknownUnits):
+        return "unknown_units"
+    if isinstance(error, MissingMenuEntries):
+        return "missing_menu_entries"
+    if isinstance(error, DoubledMenuEntries):
+        return "doubled_menu_entries"
+    return "cannot_read"
+
+
+def web_interface_error_placeholders(error: WebifError) -> dict[str, str]:
+    """The placeholders of the form's error for a visit that failed."""
+    if isinstance(error, MissingTitles | UnclearValues | UnknownUnits):
+        return {"page": error.page, "titles": ", ".join(sorted(error.titles))}
+    if isinstance(error, MissingMenuEntries | DoubledMenuEntries):
+        return {"titles": ", ".join(sorted(error.titles))}
+    return {}
+
+
+async def holding_its_rounds[T](
+    entry: config_entries.ConfigEntry | None, visit: Coroutine[Any, Any, T]
+) -> T:
+    """A dialog's visit, with the rounds of the running entry it is for held.
+
+    Both keep the gap together, and a dialog that works out reloads the
+    entry anyway.
+    """
+    if entry is None or entry.state is not config_entries.ConfigEntryState.LOADED:
+        return await visit
+    async with entry.runtime_data.coordinator.dialog_visiting():
+        return await visit
+
+
+PASSWORD_FIELD = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
 
 
 def validate_input(data: dict[str, Any]) -> None:
@@ -115,12 +198,17 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
         """Return the options flow for this entry."""
+        if is_web_interface(config_entry):
+            return WebifOptionsFlow()
         return OptionsFlow()
 
     def __init__(self) -> None:
         """Initialize the flow."""
         self._stored_data: dict[str, Any] = {}
         self._reconfigure_entry: config_entries.ConfigEntry | None = None
+        self._visit: asyncio.Task[dict[str, str]] | None = None
+        self._visit_login: dict[str, Any] = {}
+        self._after_visit = ""
 
     def _postfixes_of_other_flows(self) -> set[str]:
         """The postfixes every other open flow of this integration has reserved."""
@@ -161,8 +249,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         )
         if reason:
             return {"base": reason}
-        if not await pump_answers(self.hass, user_input):
-            return {"base": "cannot_connect"}
+        if error := await _probe_error(self.hass, user_input):
+            return {"base": error}
         # Once more after the probe: an entry may have appeared meanwhile, or
         # a reconfigure may have moved an existing one onto this endpoint.
         # Creating the entry then replaces it, taking its entities with it.
@@ -170,10 +258,44 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         reason = namespace_error(self.hass, user_input)
         return {"base": reason} if reason else {}
 
+    def _pumps(self) -> dict[str, config_entries.ConfigEntry]:
+        """The pump entries a web interface can belong to, by entry id."""
+        return {
+            entry.entry_id: entry
+            for entry in self.hass.config_entries.async_entries(CONST.DOMAIN)
+            if not is_web_interface(entry)
+        }
+
+    def _pumps_without_web_interface(self) -> dict[str, config_entries.ConfigEntry]:
+        """The pumps the dialog offers: each has one web interface at most."""
+        taken = {
+            entry.data[CONF.PUMP_ENTRY]
+            for entry in self.hass.config_entries.async_entries(CONST.DOMAIN)
+            if is_web_interface(entry)
+        }
+        return {
+            entry_id: pump
+            for entry_id, pump in self._pumps().items()
+            if entry_id not in taken
+        }
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Step 1: Core configuration setup."""
+        """A pump, or the web interface of a pump already set up."""
+        if user_input is None and self._pumps():
+            return self.async_show_menu(step_id="user", menu_options=["pump", "webif"])
+        return await self._pump_form(user_input)
+
+    async def async_step_pump(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """The pump's form, picked from the menu; it answers as the user step."""
+        return await self._pump_form(user_input)
+
+    async def _pump_form(
+        self, user_input: dict[str, Any] | None
+    ) -> config_entries.ConfigFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
             errors = await self._objection(user_input)
@@ -239,12 +361,218 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
             step_id="user", data_schema=schema_page1, errors=errors
         )
 
+    async def async_step_webif(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """A pump's web interface: which pump, and the login."""
+        pumps = self._pumps()
+        if (visit := self._visit) is not None:
+            return self._webif_visited(pumps, visit)
+        if not pumps:
+            return self.async_abort(reason="no_pump")
+        offered = self._pumps_without_web_interface()
+        if not offered:
+            return self.async_abort(reason="every_pump_has_web_interface")
+        if user_input is None:
+            return self._webif_form(offered, {})
+        pump = pumps.get(user_input[CONF.PUMP_ENTRY])
+        if pump is None:
+            return self.async_abort(reason="no_pump")
+        await self.async_set_unique_id(f"{pump.entry_id}-{CONST.WEB_INTERFACE}")
+        if pump.entry_id not in offered:
+            return self.async_abort(reason="web_interface_exists")
+        return await self._visit_web_interface(pump, user_input, next_step_id="webif")
+
+    def _webif_visited(
+        self,
+        pumps: dict[str, config_entries.ConfigEntry],
+        visit: asyncio.Task[dict[str, str]],
+    ) -> config_entries.ConfigFlowResult:
+        """The new entry with the pages the visit found, or the form again."""
+        pages, errors, placeholders = self._visit_result(visit)
+        login = self._visit_login
+        pump = pumps.get(login[CONF.PUMP_ENTRY])
+        if pump is None:
+            return self.async_abort(reason="no_pump")
+        if pages is None:
+            return self._webif_form(
+                self._pumps_without_web_interface(), errors, placeholders
+            )
+        return self.async_create_entry(
+            title=web_interface_title(pump.title),
+            data={
+                CONF.KIND: CONST.WEB_INTERFACE,
+                CONF.PUMP_ENTRY: pump.entry_id,
+                CONF.USERNAME: login[CONF.USERNAME],
+                CONF.PASSWORD: login[CONF.PASSWORD],
+                CONF.PAGES: pages,
+                CONF.PUMP_TITLE: pump.title,
+            },
+        )
+
+    def _webif_form(
+        self,
+        pumps: dict[str, config_entries.ConfigEntry],
+        errors: dict[str, str],
+        placeholders: dict[str, str] | None = None,
+    ) -> config_entries.ConfigFlowResult:
+        schema = vol.Schema(
+            {
+                vol.Required(CONF.PUMP_ENTRY): vol.In(
+                    {entry_id: entry.title for entry_id, entry in pumps.items()}
+                ),
+                vol.Required(CONF.USERNAME): str,
+                vol.Required(CONF.PASSWORD): PASSWORD_FIELD,
+            }
+        )
+        # After a failed visit the pump and the user come back; the password not.
+        typed = {
+            key: self._visit_login[key]
+            for key in (CONF.PUMP_ENTRY, CONF.USERNAME)
+            if key in self._visit_login
+        }
+        return self.async_show_form(
+            step_id="webif",
+            data_schema=self.add_suggested_values_to_schema(schema, typed),
+            errors=errors,
+            description_placeholders=placeholders,
+        )
+
+    async def _visit_web_interface(
+        self,
+        pump: config_entries.ConfigEntry,
+        login: dict[str, Any],
+        *,
+        next_step_id: str,
+        entry: config_entries.ConfigEntry | None = None,
+    ) -> config_entries.ConfigFlowResult:
+        """Start the short visit; the dialog shows its progress meanwhile.
+
+        `entry` is the web interface entry a new login is for, if any.
+        """
+        self._visit_login = login
+        self._after_visit = next_step_id
+        visit = read_web_interface(
+            self.hass,
+            pump.data[CONF.HOST],
+            login[CONF.USERNAME],
+            login[CONF.PASSWORD],
+        )
+        self._visit = self.hass.async_create_task(holding_its_rounds(entry, visit))
+        return await self.async_step_webif_visit()
+
+    async def async_step_webif_visit(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """The visit runs; Home Assistant calls this again once it is done."""
+        if self._visit is not None and not self._visit.done():
+            return self.async_show_progress(
+                step_id="webif_visit",
+                progress_action="webif_visit",
+                progress_task=self._visit,
+            )
+        return self.async_show_progress_done(next_step_id=self._after_visit)
+
+    def _visit_result(
+        self, visit: asyncio.Task[dict[str, str]]
+    ) -> tuple[dict[str, str] | None, dict[str, str], dict[str, str]]:
+        """The pages the finished visit found, or the form's error and its placeholders."""
+        self._visit = None
+        try:
+            return visit.result(), {}, {}
+        except WebifError as error:
+            _LOGGER.debug("Web interface visit failed: %s", error)
+            errors = {"base": web_interface_error(error)}
+            return None, errors, web_interface_error_placeholders(error)
+        except Exception:
+            # As in the probe: a fault of this code, not of the web interface.
+            _LOGGER.exception("The web interface visit failed on an unexpected error")
+            return None, {"base": "unknown"}, {}
+
+    async def async_step_reauth(
+        self, entry_data: Mapping[str, Any]
+    ) -> config_entries.ConfigFlowResult:
+        """The web interface refused the login it had."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """A new login for the web interface it refused."""
+        return await self._web_interface_login(
+            self._get_reauth_entry(),
+            user_input,
+            step_id="reauth_confirm",
+            reason="reauth_successful",
+        )
+
+    async def async_step_reconfigure_webif(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """A new login for the web interface, and its pages searched again."""
+        return await self._web_interface_login(
+            self._get_reconfigure_entry(),
+            user_input,
+            step_id="reconfigure_webif",
+            reason="reconfigure_successful",
+        )
+
+    async def _web_interface_login(
+        self,
+        entry: config_entries.ConfigEntry,
+        user_input: dict[str, Any] | None,
+        *,
+        step_id: str,
+        reason: str,
+    ) -> config_entries.ConfigFlowResult:
+        """Check the login on a short visit; the pages it finds replace the old."""
+        if (visit := self._visit) is not None:
+            pages, errors, placeholders = self._visit_result(visit)
+            if pages is None:
+                return self._login_form(entry, step_id, errors, placeholders)
+            return self.async_update_reload_and_abort(
+                entry,
+                data_updates={**self._visit_login, CONF.PAGES: pages},
+                reason=reason,
+            )
+        if user_input is None:
+            return self._login_form(entry, step_id, {})
+        pump = self.hass.config_entries.async_get_entry(entry.data[CONF.PUMP_ENTRY])
+        if pump is None:
+            return self.async_abort(reason="pump_removed")
+        return await self._visit_web_interface(
+            pump, user_input, next_step_id=step_id, entry=entry
+        )
+
+    def _login_form(
+        self,
+        entry: config_entries.ConfigEntry,
+        step_id: str,
+        errors: dict[str, str],
+        placeholders: dict[str, str] | None = None,
+    ) -> config_entries.ConfigFlowResult:
+        user = self._visit_login.get(CONF.USERNAME, entry.data[CONF.USERNAME])
+        schema = vol.Schema(
+            {
+                vol.Required(CONF.USERNAME, default=user): str,
+                vol.Required(CONF.PASSWORD): PASSWORD_FIELD,
+            }
+        )
+        return self.async_show_form(
+            step_id=step_id,
+            data_schema=schema,
+            errors=errors,
+            description_placeholders=placeholders,
+        )
+
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Trigger a reconfiguration flow."""
         errors: dict[str, str] = {}
         self._reconfigure_entry = self._get_reconfigure_entry()
+        if is_web_interface(self._reconfigure_entry):
+            return await self.async_step_reconfigure_webif()
 
         # Pre-seed internal state dictionary with the current saved entry data
         if not self._stored_data:
@@ -256,8 +584,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
             except InvalidHost:
                 errors["base"] = "invalid_host"
         if user_input is not None and not errors:
-            if not await pump_answers(self.hass, user_input):
-                errors["base"] = "cannot_connect"
+            if error := await _probe_error(self.hass, user_input):
+                errors["base"] = error
         if user_input is not None and not errors:
             self._stored_data.update(user_input)
             new_unique_id = entry_unique_id(self._stored_data)
@@ -391,6 +719,47 @@ class OptionsFlow(config_entries.OptionsFlow):
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
+
+
+class WebifOptionsFlow(config_entries.OptionsFlowWithReload):
+    """How often each of the web interface's pages is read.
+
+    A change reloads the entry; there is no update listener for it.
+    """
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Open on the web interface's own page."""
+        return await self.async_step_webif(user_input)
+
+    async def async_step_webif(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """The intervals, in minutes."""
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+        options = self.config_entry.options
+        # A plain range this short draws a slider that hides its value.
+        minutes = vol.All(
+            NumberSelector(
+                NumberSelectorConfig(
+                    min=CONST.WEBIF_INTERVAL_MIN_MINUTES,
+                    max=CONST.WEBIF_INTERVAL_MAX_MINUTES,
+                    step=1,
+                    mode=NumberSelectorMode.SLIDER,
+                    unit_of_measurement=UnitOfTime.MINUTES,
+                )
+            ),
+            vol.Coerce(int),
+        )
+        schema = vol.Schema(
+            {
+                vol.Required(option, default=options.get(option, default)): minutes
+                for option, default in INTERVAL_OPTIONS.values()
+            }
+        )
+        return self.async_show_form(step_id="webif", data_schema=schema)
 
 
 class InvalidHost(exceptions.HomeAssistantError):

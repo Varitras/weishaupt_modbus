@@ -1,6 +1,5 @@
 """The Update Coordinator for the ModbusItems."""
 
-import asyncio
 from datetime import timedelta
 import logging
 from typing import Any
@@ -23,9 +22,6 @@ from .weishaupt_modbus_api.write_budget import WriteBudget
 
 _LOGGER = logging.getLogger(__name__)
 
-# The library gives up on the first block the link cannot serve, so a whole
-# refresh takes at most one request timeout longer than a healthy one.
-UPDATE_TIMEOUT_SECONDS = 60
 # A short outage keeps the last values; only a longer one takes every entity
 # to unavailable. Counted from the first failed poll after a good one, so
 # entities go unavailable on the fourth failed poll in a row - and never
@@ -92,6 +88,7 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.device = device
         self.modbus_items = api_items
         self._failed_polls = 0
+        self._traceback_logged = False
 
     @property
     def failed_polls(self) -> int:
@@ -108,27 +105,40 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_update_data(self) -> dict[str, Any]:
         """Read every band; a link problem is a failed refresh."""
         try:
-            async with asyncio.timeout(UPDATE_TIMEOUT_SECONDS):
-                await self.device.async_update()
+            await self.device.async_update()
         except (TimeoutError, ModbusError) as err:
-            self._failed_polls += 1
-            if self.data is not None and self._failed_polls <= FAILED_POLLS_TOLERATED:
-                # Debug only: the outage itself is logged once, by the base
-                # class, when UpdateFailed takes the entities unavailable.
-                _LOGGER.debug(
-                    "Poll failed (%d of %d tolerated), keeping the last values: %s",
-                    self._failed_polls,
-                    FAILED_POLLS_TOLERATED,
-                    err,
-                )
-                return self.data
-            raise UpdateFailed(
-                translation_domain=CONST.DOMAIN,
-                translation_key="communication_failed",
-                translation_placeholders={"error": str(err)},
-            ) from err
+            # A band's time limit raises a bare TimeoutError, without a text.
+            return self._failed_poll(str(err) or type(err).__name__, err)
+        except Exception as err:
+            # A fault of this code or of a library, not of the link. Counted
+            # all the same: uncounted, it passed the grace polls, and Home
+            # Assistant logged its traceback every poll. Its kind only, as
+            # its text may hold the pump's address.
+            if not self._traceback_logged:
+                self._traceback_logged = True
+                _LOGGER.exception("A poll failed on an unexpected error")
+            return self._failed_poll(type(err).__name__, err)
         self._failed_polls = 0
         return self._results()
+
+    def _failed_poll(self, reason: str, err: Exception) -> dict[str, Any]:
+        """The last values while the grace polls last; UpdateFailed after."""
+        self._failed_polls += 1
+        if self.data is not None and self._failed_polls <= FAILED_POLLS_TOLERATED:
+            # Debug only: the outage itself is logged once, by the base
+            # class, when UpdateFailed takes the entities unavailable.
+            _LOGGER.debug(
+                "Poll failed (%d of %d tolerated), keeping the last values: %s",
+                self._failed_polls,
+                FAILED_POLLS_TOLERATED,
+                reason,
+            )
+            return self.data
+        raise UpdateFailed(
+            translation_domain=CONST.DOMAIN,
+            translation_key="communication_failed",
+            translation_placeholders={"error": reason},
+        ) from err
 
     def _results(self) -> dict[str, Any]:
         """The rows by translation key; a calculated sensor never gets a register value."""

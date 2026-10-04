@@ -2,13 +2,30 @@
     "config": {
         "abort": {
             "already_configured": "Diese Wärmepumpe ist bereits eingerichtet",
-            "reconfigure_successful": "Konfiguration aktualisiert"
+            "reconfigure_successful": "Konfiguration aktualisiert",
+            "reauth_successful": "Die neue Anmeldung wurde angenommen",
+            "no_pump": "Richten Sie zuerst die Wärmepumpe ein; die Weboberfläche wird ihr hinzugefügt.",
+            "pump_removed": "Ihr Wärmepumpen-Eintrag wurde gelöscht. Löschen Sie diesen Eintrag der Weboberfläche und fügen Sie ihn mit der Wärmepumpe neu hinzu.",
+            "already_in_progress": "Ein anderer Dialog richtet das bereits ein.",
+            "every_pump_has_web_interface": "Jede Wärmepumpe hat ihre Weboberfläche schon.",
+            "web_interface_exists": "Diese Wärmepumpe hat ihre Weboberfläche schon."
         },
         "error": {
             "cannot_connect": "Verbindung fehlgeschlagen",
             "invalid_host": "Adresse der Wärmepumpe eingeben (Name oder IP, ohne Leerzeichen)",
             "postfix_in_use": "Dieses Geräte-Postfix wird schon von einer anderen Wärmepumpe verwendet",
-            "postfix_required": "Eine zweite Wärmepumpe braucht ein Geräte-Postfix"
+            "postfix_required": "Eine zweite Wärmepumpe braucht ein Geräte-Postfix",
+            "invalid_auth": "Die Weboberfläche hat Benutzer und Passwort abgelehnt",
+            "cannot_read": "Die Weboberfläche hat ihre Seiten mehrmals hintereinander nur teilweise geschickt; bitte in ein paar Minuten erneut versuchen",
+            "missing_titles": "Die Seite {page} der Weboberfläche zeigt {titles} nicht. Dieser Regler wird noch nicht unterstützt.",
+            "unclear_values": "Die Seite {page} der Weboberfläche zeigt {titles} ohne Wert oder mehrfach. Bitte erneut versuchen; bleibt es so, wird dieser Regler noch nicht unterstützt.",
+            "unknown_units": "Die Seite {page} der Weboberfläche zeigt {titles} in einer Einheit, die die Integration nicht kennt. Dieser Regler wird noch nicht unterstützt.",
+            "missing_menu_entries": "Die Menüs der Weboberfläche zeigen {titles} nicht. Die Integration findet ihre Seiten über diese deutschen Namen: Ist am Regler Deutsch als Sprache eingestellt? Muss der Regler auf einer anderen Sprache bleiben, eröffnen Sie ein Issue, damit sie ergänzt werden kann, und hängen Sie die Datei an, die tools/webif_capture.py schreibt (siehe README).",
+            "doubled_menu_entries": "Die Menüs der Weboberfläche zeigen {titles} mehrfach. Bitte erneut versuchen; bleibt es so, wird dieser Regler noch nicht unterstützt.",
+            "unknown": "Ein unerwarteter Fehler ist aufgetreten; Details stehen im Log."
+        },
+        "progress": {
+            "webif_visit": "Anmeldung an der Weboberfläche, Suche nach ihren Seiten und einmaliges Lesen jeder Seite. Das kann mehrere Minuten dauern, wenn der Regler langsam antwortet oder eine Seite erneut abgefragt werden muss; bitte haben Sie etwas Geduld."
         },
         "step": {
             "user": {
@@ -18,12 +35,12 @@
                     "Heizkreis 3": "3. Heizkreis",
                     "Heizkreis 4": "4. Heizkreis",
                     "Heizkreis 5": "5. Heizkreis",
-                    "Host": "Host/IP-Adresse",
+                    "host": "Host/IP-Adresse",
                     "Kennfeld-File": "Kennfeld Dateiname",
                     "Name-Device-Prefix": "Name Geräte-Prefix",
                     "Name-Topic-Prefix": "Name Topic-Prefix",
-                    "Port": "Port",
-                    "Prefix": "Prefix"
+                    "port": "Port",
+                    "prefix": "Prefix"
                 },
                 "data_description": {
                     "Device-Postfix": "Für die erste Wärmepumpe leer lassen, jede weitere braucht ein eigenes Postfix. Später nicht mehr änderbar.",
@@ -31,12 +48,16 @@
                     "Heizkreis 3": "Legt die Entitäten dieses Heizkreises an.",
                     "Heizkreis 4": "Legt die Entitäten dieses Heizkreises an.",
                     "Heizkreis 5": "Legt die Entitäten dieses Heizkreises an.",
-                    "Host": "Name oder IP-Adresse der Wärmepumpe.",
+                    "host": "Name oder IP-Adresse der Wärmepumpe.",
                     "Kennfeld-File": "Kennfeld Ihres Modells, daraus wird die Wärmeleistung geschätzt.",
                     "Name-Device-Prefix": "Stellt dem Namen jeder Register-Entität das Prefix voran.",
                     "Name-Topic-Prefix": "Stellt dem Namen jeder Register-Entität das Gerätekürzel (WP, WW, ...) voran.",
-                    "Port": "Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502.",
-                    "Prefix": "Teil der Unique-ID jeder Entität. Nur ändern, um die Historie einer anderen Integration zu übernehmen. Später nicht mehr änderbar."
+                    "port": "Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502.",
+                    "prefix": "Teil der Unique-ID jeder Entität. Nur ändern, um die Historie einer anderen Integration zu übernehmen. Später nicht mehr änderbar."
+                },
+                "menu_options": {
+                    "pump": "Wärmepumpe (Modbus)",
+                    "webif": "Weboberfläche einer Wärmepumpe"
                 }
             },
             "reconfigure": {
@@ -46,22 +67,60 @@
                     "Heizkreis 3": "3. Heizkreis",
                     "Heizkreis 4": "4. Heizkreis",
                     "Heizkreis 5": "5. Heizkreis",
-                    "Host": "Host/IP-Adresse",
+                    "host": "Host/IP-Adresse",
                     "Kennfeld-File": "Kennfeld Dateiname",
                     "Name-Device-Prefix": "Name Geräte-Prefix",
                     "Name-Topic-Prefix": "Name Topic-Prefix",
-                    "Port": "Port"
+                    "port": "Port"
                 },
                 "data_description": {
                     "Heizkreis 2": "Legt die Entitäten dieses Heizkreises an.",
                     "Heizkreis 3": "Legt die Entitäten dieses Heizkreises an.",
                     "Heizkreis 4": "Legt die Entitäten dieses Heizkreises an.",
                     "Heizkreis 5": "Legt die Entitäten dieses Heizkreises an.",
-                    "Host": "Name oder IP-Adresse der Wärmepumpe.",
+                    "host": "Name oder IP-Adresse der Wärmepumpe.",
                     "Kennfeld-File": "Kennfeld Ihres Modells, daraus wird die Wärmeleistung geschätzt.",
                     "Name-Device-Prefix": "Stellt dem Namen jeder Register-Entität das Prefix voran.",
                     "Name-Topic-Prefix": "Stellt dem Namen jeder Register-Entität das Gerätekürzel (WP, WW, ...) voran.",
-                    "Port": "Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502."
+                    "port": "Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502."
+                }
+            },
+            "webif": {
+                "title": "Weboberfläche",
+                "description": "Liest weitere Werte aus der lokalen Weboberfläche der Wärmepumpe (experimentell). Anmelden sowie das Suchen und Lesen der Seiten können mehrere Minuten dauern; bitte haben Sie etwas Geduld.",
+                "data": {
+                    "pump_entry_id": "Wärmepumpe",
+                    "username": "Benutzer",
+                    "password": "Passwort"
+                },
+                "data_description": {
+                    "pump_entry_id": "Die Wärmepumpe, zu der die Weboberfläche gehört; ihre Adresse wird verwendet.",
+                    "username": "Der Benutzer der Anmeldeseite der Weboberfläche.",
+                    "password": "Das Passwort der Anmeldeseite der Weboberfläche. Es wird in Home Assistant gespeichert und nur an die Wärmepumpe gesendet, unverschlüsselt per HTTP: Der Regler bietet nichts anderes an, betreiben Sie ihn deshalb in einem Netz, dem Sie vertrauen."
+                }
+            },
+            "reauth_confirm": {
+                "title": "Anmeldung an der Weboberfläche",
+                "description": "Die Weboberfläche hat ihre Anmeldung abgelehnt. Geben Sie die aktuelle ein; die Prüfung kann mehrere Minuten dauern, bitte haben Sie etwas Geduld.",
+                "data": {
+                    "username": "Benutzer",
+                    "password": "Passwort"
+                },
+                "data_description": {
+                    "username": "Der Benutzer der Anmeldeseite der Weboberfläche.",
+                    "password": "Das Passwort der Anmeldeseite der Weboberfläche. Es wird in Home Assistant gespeichert und nur an die Wärmepumpe gesendet, unverschlüsselt per HTTP: Der Regler bietet nichts anderes an, betreiben Sie ihn deshalb in einem Netz, dem Sie vertrauen."
+                }
+            },
+            "reconfigure_webif": {
+                "title": "Weboberfläche neu einrichten",
+                "description": "Eine neue Anmeldung für die Weboberfläche, und ihre Seiten werden neu gesucht. Die Prüfung kann mehrere Minuten dauern; bitte haben Sie etwas Geduld.",
+                "data": {
+                    "username": "Benutzer",
+                    "password": "Passwort"
+                },
+                "data_description": {
+                    "username": "Der Benutzer der Anmeldeseite der Weboberfläche.",
+                    "password": "Das Passwort der Anmeldeseite der Weboberfläche. Es wird in Home Assistant gespeichert und nur an die Wärmepumpe gesendet, unverschlüsselt per HTTP: Der Regler bietet nichts anderes an, betreiben Sie ihn deshalb in einem Netz, dem Sie vertrauen."
                 }
             }
         }
@@ -102,6 +161,9 @@
         },
         "dev_ein_aus": {
             "name": "WH Eingänge/Ausgänge{postfix}"
+        },
+        "dev_webif": {
+            "name": "WH Weboberfläche{postfix}"
         }
     },
     "entity": {
@@ -1737,6 +1799,162 @@
             },
             "eeprom_writes_today": {
                 "name": "EEPROM-Schreibzugriffe (heute)"
+            },
+            "webif_solltemperatur": {
+                "name": "{prefix}Solltemperatur Wärmepumpe"
+            },
+            "webif_schaltdifferenz_dynamisch": {
+                "name": "{prefix}Schaltdifferenz dynamisch"
+            },
+            "webif_drehzahl_pumpe_m1": {
+                "name": "{prefix}Drehzahl Pumpe M1"
+            },
+            "webif_volumenstrom": {
+                "name": "{prefix}Volumenstrom"
+            },
+            "webif_stellung_umschaltventil": {
+                "name": "{prefix}Stellung Umschaltventil"
+            },
+            "webif_soll_leistung": {
+                "name": "{prefix}Soll-Leistung"
+            },
+            "webif_ist_leistung": {
+                "name": "{prefix}Ist-Leistung"
+            },
+            "webif_expansionsventil_ag_eintritt": {
+                "name": "{prefix}Expansionsventil Außengerät Eintritt"
+            },
+            "webif_waermetauscher_ag_austritt": {
+                "name": "{prefix}Wärmetauscher Außengerät Austritt"
+            },
+            "webif_evi_sauggastemperatur": {
+                "name": "{prefix}EVI-Sauggastemperatur"
+            },
+            "webif_kaeltemittel_ig_austritt": {
+                "name": "{prefix}Kältemittel Innengerät Austritt"
+            },
+            "webif_oelsumpftemperatur": {
+                "name": "{prefix}Ölsumpftemperatur"
+            },
+            "webif_druckgastemperatur": {
+                "name": "{prefix}Druckgastemperatur"
+            },
+            "webif_niederdruck": {
+                "name": "{prefix}Niederdruck"
+            },
+            "webif_hochdruck": {
+                "name": "{prefix}Hochdruck"
+            },
+            "webif_mitteldruck": {
+                "name": "{prefix}Mitteldruck"
+            },
+            "webif_kondensationstemperatur": {
+                "name": "{prefix}Kondensationstemperatur"
+            },
+            "webif_saettigungstemperatur_evi": {
+                "name": "{prefix}Sättigungstemperatur EVI"
+            },
+            "webif_ueberhitzung_heizen": {
+                "name": "{prefix}Überhitzung Heizen"
+            },
+            "webif_ueberhitzung_verdichter": {
+                "name": "{prefix}Überhitzung Verdichter"
+            },
+            "webif_ueberhitzung_evi": {
+                "name": "{prefix}Überhitzung EVI"
+            },
+            "webif_oeffnungsgrad_exv_heizen": {
+                "name": "{prefix}Öffnungsgrad EXV Heizen"
+            },
+            "webif_oeffnungsgrad_exv_kuehlen": {
+                "name": "{prefix}Öffnungsgrad EXV Kühlen"
+            },
+            "webif_oeffnungsgrad_evi": {
+                "name": "{prefix}Öffnungsgrad EVI"
+            },
+            "webif_verdichter_drehzahl": {
+                "name": "{prefix}Drehzahl Verdichter"
+            },
+            "webif_betriebsstunden_verdichter": {
+                "name": "{prefix}Betriebsstunden Verdichter"
+            },
+            "webif_schaltspiele_verdichter": {
+                "name": "{prefix}Schaltspiele Verdichter"
+            },
+            "webif_schaltspiele_abtauen": {
+                "name": "{prefix}Schaltspiele Abtauen"
+            },
+            "webif_version_wwp_sg": {
+                "name": "{prefix}Version WWP-SG"
+            },
+            "webif_version_wwp_ec_wbb": {
+                "name": "{prefix}Version WWP-EC WBB"
+            },
+            "webif_aussengeraet_variante": {
+                "name": "{prefix}Außengerät Variante"
+            },
+            "webif_th_energie_heizen_tag": {
+                "name": "{prefix}Heizen Energie heute"
+            },
+            "webif_th_energie_ww_tag": {
+                "name": "{prefix}Warmwasser Energie heute"
+            },
+            "webif_th_energie_gesamt_tag": {
+                "name": "{prefix}Gesamt Energie heute"
+            },
+            "webif_el_energie_tag": {
+                "name": "{prefix}Elektr. Energie heute"
+            },
+            "webif_th_energie_heizen_monat": {
+                "name": "{prefix}Heizen Energie Monat"
+            },
+            "webif_th_energie_ww_monat": {
+                "name": "{prefix}Warmwasser Energie Monat"
+            },
+            "webif_th_energie_gesamt_monat": {
+                "name": "{prefix}Gesamt Energie Monat"
+            },
+            "webif_el_energie_monat": {
+                "name": "{prefix}Elektr. Energie Monat"
+            },
+            "webif_th_energie_heizen_jahr": {
+                "name": "{prefix}Heizen Energie Jahr"
+            },
+            "webif_th_energie_ww_jahr": {
+                "name": "{prefix}Warmwasser Energie Jahr"
+            },
+            "webif_th_energie_gesamt_jahr": {
+                "name": "{prefix}Gesamt Energie Jahr"
+            },
+            "webif_el_energie_jahr": {
+                "name": "{prefix}Elektr. Energie Jahr"
+            },
+            "webif_jaz_jahr": {
+                "name": "{prefix}Jahresarbeitszahl"
+            },
+            "webif_jaz_gesamt": {
+                "name": "{prefix}Arbeitszahl gesamt"
+            },
+            "webif_leistungsbegrenzung_heizen": {
+                "name": "{prefix}Leistungsbegrenzung Heizen"
+            },
+            "webif_schaltdifferenz_heizen": {
+                "name": "{prefix}Schaltdifferenz Heizen"
+            },
+            "webif_answer_time": {
+                "name": "Antwortzeit"
+            },
+            "webif_requests": {
+                "name": "Anfragen"
+            },
+            "webif_logins": {
+                "name": "Anmeldungen"
+            },
+            "webif_incomplete_pages": {
+                "name": "Unvollständige Seiten"
+            },
+            "webif_failed_reads": {
+                "name": "Fehlgeschlagene Abrufe"
             }
         }
     },
@@ -1757,6 +1975,18 @@
                     "write_warning_per_day": "Protokolliert einmal am Tag eine Warnung, sobald so viele Schreibzugriffe erfolgt sind. Das EEPROM ist für 100 000 Schreibzugriffe ausgelegt.",
                     "write_limit_per_day": "Weitere Schreibzugriffe werden bis zum nächsten Tag abgelehnt. Darf nicht unter der Warnschwelle liegen."
                 }
+            },
+            "webif": {
+                "data": {
+                    "heat_pump_interval_minutes": "Intervall der Wärmepumpen-Seite (Minuten)",
+                    "statistics_interval_minutes": "Intervall der Statistik (Minuten)",
+                    "heating_interval_minutes": "Intervall der Heiz-Einstellungen (Minuten)"
+                },
+                "data_description": {
+                    "heat_pump_interval_minutes": "Wie oft die Wärmepumpen-Seite gelesen wird, 1 bis 60 Minuten. Eine Änderung lädt den Eintrag neu.",
+                    "statistics_interval_minutes": "Wie oft die Energiestatistik gelesen wird, 1 bis 60 Minuten.",
+                    "heating_interval_minutes": "Wie oft Leistungsbegrenzung und Schaltdifferenz Heizen gelesen werden, 1 bis 60 Minuten."
+                }
             }
         }
     },
@@ -1775,6 +2005,21 @@
         },
         "communication_failed": {
             "message": "Modbus-Kommunikationsfehler: {error}"
+        },
+        "webif_stopped": {
+            "message": "Abruf der Weboberfläche nach wiederholten Fehlschlägen von {page} gestoppt: {error}"
+        },
+        "webif_pump_removed": {
+            "message": "Ihr Wärmepumpen-Eintrag wurde gelöscht. Löschen Sie diesen Eintrag und fügen Sie die Weboberfläche mit der Wärmepumpe neu hinzu."
+        },
+        "webif_login_refused": {
+            "message": "Die Weboberfläche hat Benutzer und Passwort abgelehnt."
+        }
+    },
+    "issues": {
+        "webif_stopped": {
+            "title": "Abruf der Weboberfläche gestoppt",
+            "description": "Die Seite {page} schlug mehrmals in Folge fehl ({error}). Um den Regler zu schonen, wurde der Abruf der Weboberfläche gestoppt. Modbus ist davon nicht betroffen. Prüfen Sie die Weboberfläche im Browser und beobachten Sie die Wärmepumpe; laden Sie danach den Eintrag der Weboberfläche neu, um den Abruf fortzusetzen."
         }
     }
 }

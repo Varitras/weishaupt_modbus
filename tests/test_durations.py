@@ -11,7 +11,10 @@ import subprocess
 import sys
 import tomllib
 
+import pytest
+
 from .durations import SLOW_TEST_SECONDS, over_budget
+from .locking import until
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 
@@ -116,3 +119,11 @@ def test_the_budget_is_wired_into_the_session_and_not_just_written_down():
     )
     assert "SLOWER THAN THE BUDGET ALLOWS" in result.stdout
     assert A_FAST_TEST.rsplit("::", maxsplit=1)[-1] in result.stdout
+
+
+async def test_a_wait_for_something_that_never_comes_ends_with_its_reason():
+    """With the shared lock wired wrong, a lock test waited for a waiter that
+    never came: the run spun until the cut-off above, and the failure said
+    nothing about why."""
+    with pytest.raises(AssertionError, match="never came"):
+        await until(lambda: False, seconds=0.01)

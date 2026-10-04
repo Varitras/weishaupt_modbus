@@ -4,7 +4,13 @@ from dataclasses import dataclass
 from datetime import timedelta
 from enum import StrEnum
 
-from homeassistant.const import CONF_HOST, CONF_PORT, CONF_PREFIX
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_PASSWORD,
+    CONF_PORT,
+    CONF_PREFIX,
+    CONF_USERNAME,
+)
 
 
 @dataclass(frozen=True)
@@ -22,6 +28,13 @@ class ConfConstants:
     HK5: str = "Heizkreis 5"
     NAME_DEVICE_PREFIX: str = "Name-Device-Prefix"
     NAME_TOPIC_PREFIX: str = "Name-Topic-Prefix"
+    KIND: str = "kind"
+    PUMP_ENTRY: str = "pump_entry_id"
+    # The pump title a web interface entry's own was made from.
+    PUMP_TITLE: str = "pump_title"
+    USERNAME: str = CONF_USERNAME
+    PASSWORD: str = CONF_PASSWORD
+    PAGES: str = "pages"
 
 
 CONF = ConfConstants()
@@ -43,6 +56,16 @@ class MainConstants:
     OPTION_WRITE_LIMIT_PER_DAY: str = "write_limit_per_day"
     DEF_KENNFELDFILE: str = "weishaupt_wbb_kennfeld.json"
     DEF_PREFIX: str = "weishaupt_wbb"
+    WEB_INTERFACE: str = "web_interface"
+    # Each web interface page's interval in minutes; a minute is the floor the
+    # user set. The statistics and the heating settings change slowly.
+    OPTION_WEBIF_HEAT_PUMP_INTERVAL: str = "heat_pump_interval_minutes"
+    OPTION_WEBIF_STATISTICS_INTERVAL: str = "statistics_interval_minutes"
+    OPTION_WEBIF_HEATING_INTERVAL: str = "heating_interval_minutes"
+    WEBIF_INTERVAL_MINUTES: int = 5
+    WEBIF_SLOW_INTERVAL_MINUTES: int = 15
+    WEBIF_INTERVAL_MIN_MINUTES: int = 1
+    WEBIF_INTERVAL_MAX_MINUTES: int = 60
 
 
 CONST = MainConstants()
@@ -84,6 +107,7 @@ class DeviceConstants:
     ST: str = "dev_statistik"
     UK: str = "dev_unknown"
     IO: str = "dev_ein_aus"
+    WEBIF: str = "dev_webif"
 
 
 DEVICES = DeviceConstants()

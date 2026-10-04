@@ -1,7 +1,8 @@
 """Every message the integration can show has a text, in every language.
 
 The config flow's aborts and errors, and the errors a service call or a
-failed poll raises.
+failed poll raises. Every dialog field has a help beside its label, the same
+in every form that asks for it.
 
 A reason or error key without a text renders as the raw key in the dialog.
 `unknown` sat in all four files for a year without the flow ever producing
@@ -16,6 +17,26 @@ import re
 
 import pytest
 
+from custom_components.weishaupt_modbus.config_flow import (
+    web_interface_error,
+    web_interface_error_placeholders,
+)
+from custom_components.weishaupt_modbus.const import CONF
+from custom_components.weishaupt_modbus.webif.client import (
+    Broken,
+    LoginRefused,
+    Unreachable,
+)
+from custom_components.weishaupt_modbus.webif.discovery import (
+    DoubledMenuEntries,
+    MissingMenuEntries,
+)
+from custom_components.weishaupt_modbus.webif_visit import (
+    MissingTitles,
+    UnclearValues,
+    UnknownUnits,
+)
+
 INTEGRATION = pathlib.Path(__file__).resolve().parents[1] / "custom_components"
 FLOW = next(INTEGRATION.glob("*/config_flow.py"))
 TRANSLATION_FILES = (
@@ -24,18 +45,39 @@ TRANSLATION_FILES = (
     "translations/de.json",
     "translations/nl.json",
 )
+# The reasons Home Assistant's own helpers abort a flow with, on its behalf:
+# a second dialog for the same unique id showed the raw key.
+HELPER_REASONS = {
+    "async_set_unique_id": "already_in_progress",
+    "_abort_if_unique_id_configured": "already_configured",
+}
 
 
 def _flow_messages() -> set[str]:
     """Every abort reason and error key the flow hands to the frontend.
 
     Read out of the source rather than listed here: a list beside the flow is
-    one more place to forget. The three shapes it uses are
-    `async_abort(reason=...)`, an assignment into the `errors` dict, and a
-    returned key (`namespace_error`).
+    one more place to forget.
     """
+    return _messages_in(FLOW.read_text(encoding="utf-8"))
+
+
+def _messages_in(source: str) -> set[str]:
+    """The keys in the shapes the flow uses: `async_abort(reason=...)`, an
+    assignment into the `errors` dict, a returned key (`namespace_error`), and
+    the "base" entry of an errors dict written out; and the reasons of Home
+    Assistant's helpers it calls."""
     messages = set()
-    for node in ast.walk(ast.parse(FLOW.read_text(encoding="utf-8"))):
+    helper_reasons = set()
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Attribute) and node.attr in HELPER_REASONS:
+            helper_reasons.add(HELPER_REASONS[node.attr])
+        if isinstance(node, ast.Dict):
+            messages.update(
+                value
+                for key, value in zip(node.keys, node.values, strict=True)
+                if isinstance(key, ast.Constant) and key.value == "base"
+            )
         if (
             (isinstance(node, ast.keyword) and node.arg == "reason")
             or (
@@ -45,7 +87,7 @@ def _flow_messages() -> set[str]:
             or isinstance(node, ast.Return)
         ):
             messages.add(node.value)
-    return {
+    return helper_reasons | {
         node.value
         for node in messages
         if isinstance(node, ast.Constant) and isinstance(node.value, str)
@@ -61,6 +103,21 @@ def _texts_of(name: str) -> set[str]:
         for kind in ("abort", "error")
         for key in translation.get(flow, {}).get(kind, {})
     }
+
+
+def test_the_scan_reads_every_shape_the_flow_hands_a_key_in():
+    """A key that only a dict literal carried, as the visit's "unknown" does,
+    went unseen: without a text it would have shown as the raw key."""
+    source = (
+        "def flow(self, errors):\n"
+        '    self.async_abort(reason="aborted")\n'
+        '    errors["base"] = "assigned"\n'
+        '    return "returned"\n'
+        "def visit():\n"
+        '    return None, {"base": "in_a_literal"}, {}\n'
+    )
+
+    assert _messages_in(source) == {"aborted", "assigned", "returned", "in_a_literal"}
 
 
 @pytest.mark.parametrize("name", TRANSLATION_FILES)
@@ -91,9 +148,59 @@ def test_every_dialog_field_explains_itself(name):
     assert not _fields_without_help(name)
 
 
+def _fields_told_differently(name: str) -> list[str]:
+    """Fields several forms ask for whose label or help is not the same in each."""
+    translation = json.loads((FLOW.parent / name).read_text(encoding="utf-8"))
+    differing = []
+    for flow in ("config", "options"):
+        for part in ("data", "data_description"):
+            told: dict[str, set[str]] = {}
+            for step in translation.get(flow, {}).get("step", {}).values():
+                for field, text in step.get(part, {}).items():
+                    told.setdefault(field, set()).add(text)
+            differing += [
+                f"{flow}.{part}.{field}"
+                for field, texts in sorted(told.items())
+                if len(texts) > 1
+            ]
+    return differing
+
+
+@pytest.mark.parametrize("name", TRANSLATION_FILES)
+def test_every_password_help_says_it_goes_as_plain_http(name):
+    """The guard below holds the helps alike; it would pass them all alike
+    without the note, and the web interface takes the password unencrypted."""
+    translation = json.loads((FLOW.parent / name).read_text(encoding="utf-8"))
+    helps = [
+        step["data_description"][CONF.PASSWORD]
+        for flow in ("config", "options")
+        for step in translation.get(flow, {}).get("step", {}).values()
+        if CONF.PASSWORD in step.get("data_description", {})
+    ]
+
+    assert helps, "no password help found - the scan looks nowhere"
+    assert all("HTTP" in text for text in helps), helps
+
+
+@pytest.mark.parametrize("name", TRANSLATION_FILES)
+def test_a_field_reads_the_same_in_every_form_that_asks_for_it(name):
+    """The password goes as plain HTTP whichever form takes it, yet only the
+    form that added the web interface said so: what a field's help has to
+    tell was written into one form and missed in the others."""
+    assert not _fields_told_differently(name)
+
+
 # What reaches the user as an error message: a service call's refusal or
-# failure, and the reason a poll failed.
-USER_FACING_ERRORS = {"HomeAssistantError", "ServiceValidationError", "UpdateFailed"}
+# failure, the reason a poll failed, and why an entry did not start - shown
+# on the entry, where a fixed English sentence once said its pump was gone.
+USER_FACING_ERRORS = {
+    "HomeAssistantError",
+    "ServiceValidationError",
+    "UpdateFailed",
+    "ConfigEntryError",
+    "ConfigEntryNotReady",
+    "ConfigEntryAuthFailed",
+}
 
 
 def _called_name(func: ast.expr) -> str | None:
@@ -150,6 +257,51 @@ def test_every_translated_error_has_its_text_and_placeholders(name):
         assert used == given, f"{name}: {key} uses {used}, the code gives {given}"
 
 
+# One of each way a dialog's visit can fail, as the form gets it.
+VISIT_FAILURES = (
+    LoginRefused("HTTP 303 to /index.html#wrongpassword"),
+    Unreachable("GET /index.html: TimeoutError"),
+    Broken("/settings_export.html"),
+    MissingTitles("Info › Wärmepumpe", frozenset({"Hochdruck"})),
+    UnclearValues("Info › Wärmepumpe", frozenset({"Hochdruck"})),
+    UnknownUnits("Info › Wärmepumpe", frozenset({"Hochdruck"})),
+    MissingMenuEntries({"Statistik"}),
+    DoubledMenuEntries({"Wärmepumpe"}),
+)
+
+
+def _keys_returned_by(function: str) -> set[str]:
+    tree = ast.parse(FLOW.read_text(encoding="utf-8"))
+    body = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef) and node.name == function
+    )
+    return {
+        node.value.value
+        for node in ast.walk(body)
+        if isinstance(node, ast.Return) and isinstance(node.value, ast.Constant)
+    }
+
+
+@pytest.mark.parametrize("name", TRANSLATION_FILES)
+def test_every_visit_error_names_what_the_code_fills_in(name):
+    """A translation that dropped {titles} named nothing, and the placeholder
+    check covered the raised errors only, not the dialog's."""
+    errors = json.loads((FLOW.parent / name).read_text(encoding="utf-8"))["config"][
+        "error"
+    ]
+
+    assert {web_interface_error(failure) for failure in VISIT_FAILURES} == (
+        _keys_returned_by("web_interface_error")
+    ), "a visit error without a failure above to check it by"
+    for failure in VISIT_FAILURES:
+        key = web_interface_error(failure)
+        used = set(re.findall(r"\{(\w+)\}", errors[key]))
+        given = set(web_interface_error_placeholders(failure))
+        assert used == given, f"{name}: {key} uses {used}, the code gives {given}"
+
+
 def test_every_icon_belongs_to_an_entity_that_exists():
     icons = json.loads((FLOW.parent / "icons.json").read_text(encoding="utf-8"))
     strings = json.loads((FLOW.parent / "strings.json").read_text(encoding="utf-8"))
@@ -170,3 +322,4 @@ def test_the_reader_finds_the_messages_it_is_pointed_at():
     assert "already_configured" in messages, "an async_abort reason"
     assert "cannot_connect" in messages, "an errors[...] assignment"
     assert "postfix_required" in messages, "a returned key"
+    assert "already_in_progress" in messages, "a reason of a helper it calls"

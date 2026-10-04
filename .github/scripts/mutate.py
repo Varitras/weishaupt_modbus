@@ -17,8 +17,9 @@ The pattern behind all four: if the test establishes the condition the
 production code is supposed to establish, it tests nothing.
 
 The harness itself is held to the same standard. "The tests noticed" is
-pytest exit code 1 and nothing else - a usage error, an internal error or an
-interrupted run are not evidence, and reading any non-zero exit as success
+pytest exit code 1 with a failed test in its count, and nothing else - a
+usage error, an internal error, an interrupted run, a run the timeout killed
+or a fixture that raised are not evidence, and reading any of them as success
 was this script telling itself what it wanted to hear.
 
 Usage
@@ -28,7 +29,10 @@ Describe each mutation in a JSON file - a list of objects with:
     path     file to mutate, relative to the repository root
     old      snippet to replace (must appear exactly once; an absent
              snippet is reported as an error, never skipped silently)
-    new      replacement, usually "" or a disabling variant
+    new      replacement, usually "" or a disabling variant; the result has
+             to compile (or parse, for JSON, TOML and YAML) and read no name
+             the file leaves undefined - checked for the whole plan before
+             the first test runs
     tests    -k expression selecting the test(s) that must fail
 
 Then:
@@ -40,7 +44,7 @@ non-zero if any mutation SURVIVED - that is, the suite stayed green while the
 code was broken, which means the test does not test it.
 
 Cases run several at a time, each in its own copy of the repository under the
-system temp directory (`--jobs`, default: cores - 2, capped at 8). Copies
+system temp directory (`--jobs`, default: cores - 2, capped at 24). Copies
 rather than locking, because the thing being shared is a file this script
 deliberately breaks. `--jobs 1` skips the copying and works in the repository
 itself, which is what to fall back to if a parallel run ever reports
@@ -53,17 +57,26 @@ produce the same output.
 from __future__ import annotations
 
 import argparse
+import builtins
 from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 from pathlib import Path
 import queue
+import re
 import shutil
 import subprocess
+import symtable
 import sys
 import tempfile
+import tomllib
+
+import yaml
 
 REPO = Path(__file__).resolve().parents[2]
+# What a module reads without defining it: the builtins, its own file, and
+# where Python 3.14 keeps the annotations of a conditional module statement.
+MODULE_NAMES = frozenset(dir(builtins)) | {"__file__", "__conditional_annotations__"}
 
 
 # pytest's exit codes. Only ONE of them means "the tests noticed": 1. The
@@ -76,6 +89,10 @@ PYTEST_INTERRUPTED = 2
 PYTEST_INTERNAL_ERROR = 3
 PYTEST_USAGE_ERROR = 4
 PYTEST_NO_TESTS = 5
+# Exit code 1 alone is not enough either: pytest-timeout ends a hung run with
+# it and no count at all, and a fixture that raises gives it with an error
+# count only. A failed test shows in the count line that ends the run.
+FAILED_COUNT = re.compile(r"^\d+ failed\b", re.MULTILINE)
 
 # A hung test run would otherwise hold a MUTATED source file indefinitely.
 TEST_TIMEOUT_SECONDS = 900
@@ -185,6 +202,13 @@ def run_tests(selector: str, paths=None, root: Path | None = None) -> bool:
         raise SystemExit(f"selector {selector!r} matched no tests")
 
     if result.returncode == PYTEST_TESTS_FAILED:
+        if FAILED_COUNT.search(result.stdout) is None:
+            raise SystemExit(
+                f"selector {selector!r}: pytest exited 1 without a failed test "
+                "- a run the timeout killed, or a fixture that raised - which "
+                "says nothing about the mutation. Last output:\n"
+                + (result.stdout or "(empty)").strip()[-2000:]
+            )
         return True
     if result.returncode == PYTEST_ALL_PASSED:
         return False
@@ -235,12 +259,87 @@ def apply_mutation(case: dict, root: Path | None = None) -> tuple[Path, bytes]:
     return target, original
 
 
+def _label(case: dict) -> str:
+    """The case's name in the output; the plan format leaves it optional."""
+    return case.get("label", case["path"])
+
+
+def check_mutants(cases: list) -> None:
+    """Refuse the plan if a mutant does not run as written.
+
+    A mutant that does not compile, names something undefined or no longer
+    parses in its file's format fails its tests by that error alone, and
+    "caught" would prove nothing. A case once wrote `cookie` for
+    `self._cookie`; code moved into a deeper block left three snippets
+    cutting a line in half.
+    """
+    broken = []
+    for case in cases:
+        source = (REPO / case["path"]).read_text(encoding="utf-8")
+        mutated = source.replace(case["old"], case["new"], 1)
+        try:
+            _parse(case["path"], mutated)
+        except (SyntaxError, ValueError, yaml.YAMLError) as error:
+            broken.append(f"{_label(case)}: {error}")
+            continue
+        if not case["path"].endswith(".py"):
+            continue
+        # Only what the mutation brings in: what the original already reads
+        # is not the case's doing, and covers what the scan cannot follow.
+        introduced = _undefined_names(mutated, case["path"]) - _undefined_names(
+            source, case["path"]
+        )
+        if introduced:
+            broken.append(f"{_label(case)}: undefined {', '.join(sorted(introduced))}")
+    if broken:
+        raise SystemExit(
+            "These mutations do not run as written, so their tests would "
+            "fail on that alone:\n  " + "\n  ".join(broken)
+        )
+
+
+def _parse(path: str, text: str) -> None:
+    """Raise if `text` is not valid in the format of the file at `path`."""
+    match Path(path).suffix:
+        case ".py":
+            compile(text, path, "exec")
+        case ".json":
+            json.loads(text)
+        case ".toml":
+            tomllib.loads(text)
+        case ".yaml" | ".yml":
+            yaml.safe_load(text)
+
+
+def _undefined_names(text: str, path: str) -> set:
+    """The global names a module reads that nothing in it defines.
+
+    The standard library's symbol tables rather than Ruff's F821: the test
+    jobs that run the mutations do not install Ruff.
+    """
+    top = symtable.symtable(text, path, "exec")
+    defined = set(MODULE_NAMES)
+    read = set()
+    tables = [top]
+    while tables:
+        table = tables.pop()
+        tables.extend(table.get_children())
+        for symbol in table.get_symbols():
+            binds_module_name = table is top or symbol.is_declared_global()
+            if binds_module_name and (symbol.is_assigned() or symbol.is_imported()):
+                defined.add(symbol.get_name())
+            if symbol.is_referenced() and (table is top or symbol.is_global()):
+                read.add(symbol.get_name())
+    return read - defined
+
+
 # Every worker is a full pytest process with Home Assistant imported, so what
-# runs out first is memory, not cores. The measurement below stops at six, and
-# above it nobody has shown a gain - while cores-2 on a 64-core build machine
+# a big machine runs out of first is memory, about 0.15 GB a worker. Measured
+# on 32 cores with 203 cases (2026-10-03): 8 workers 40 s, 16 24 s, 24 21 s,
+# 30 19 s. Past 24 the gain is small, while cores-2 on a 64-core build machine
 # would start 62 interpreters at once and each a copy of the tree. --jobs
 # overrides this for anyone who has measured otherwise.
-MAX_DEFAULT_JOBS = 8
+MAX_DEFAULT_JOBS = 24
 
 
 def default_jobs() -> int:
@@ -287,21 +386,26 @@ def build_worktrees(count: int, into: Path, cases: list) -> list:
     and that placement is doing real work: on WSL2 the repository lives on
     /mnt/c, whose filesystem calls cross into Windows and cost roughly twice
     what the Linux-native temp directory does. Measured on one mutation, 4.7s
-    against 2.4s. A copy is 1.7 MB, so even eight of them are noise.
+    against 2.4s. For the same reason only the first copy is read from the
+    repository and the others are copied from it: from /mnt/c every file is
+    a round trip into Windows, 0.9 s a copy and 14 s before the first of
+    sixteen workers could start (2026-10-03).
     """
-    trees = []
-    for index in range(count):
+    first = into / "worker0"
+    _copy_tracked_tree(first)
+    # A tree missing a file the plan mutates would report every one of its
+    # cases as an unrelated pytest error. Cheaper to say so here, once,
+    # naming the file - the alternative is reading a wall of exit-code 4.
+    for case in cases:
+        if not (first / case["path"]).exists():
+            raise SystemExit(
+                f"the worker copy has no {case['path']}, which the plan "
+                "mutates: the copies hold only the files git tracks."
+            )
+    trees = [first]
+    for index in range(1, count):
         tree = into / f"worker{index}"
-        _copy_tracked_tree(tree)
-        # A tree missing a file the plan mutates would report every one of its
-        # cases as an unrelated pytest error. Cheaper to say so here, once,
-        # naming the file - the alternative is reading a wall of exit-code 4.
-        for case in cases:
-            if not (tree / case["path"]).exists():
-                raise SystemExit(
-                    f"the worker copy has no {case['path']}, which the plan "
-                    "mutates. Check WORKTREE_EXCLUDES."
-                )
+        shutil.copytree(first, tree)
         trees.append(tree)
     return trees
 
@@ -392,6 +496,7 @@ def main() -> int:
         # a plan that lost its cases - a bad filter, a truncated file - would
         # report the suite as fully guarded while proving nothing at all.
         raise SystemExit(f"{args.plan} describes no mutations")
+    check_mutants(cases)
     survived = []
 
     locations = collect_test_locations()
@@ -415,7 +520,7 @@ def main() -> int:
         results = run_in_parallel(cases, targets, jobs)
 
     for case, caught in zip(cases, results, strict=True):
-        label = case.get("label", case["path"])
+        label = _label(case)
         print(f"{'caught  ' if caught else 'SURVIVED'} {label}")
         if not caught:
             survived.append(label)

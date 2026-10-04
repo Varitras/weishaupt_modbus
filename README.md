@@ -8,9 +8,10 @@ setpoints and operating modes the controller lets you write.
 This is a fork of [OStrama/weishaupt_modbus](https://github.com/OStrama/weishaupt_modbus).
 It differs from upstream on purpose:
 
-- **Modbus only.** The experimental web-interface scraping is removed, together
-  with its settings and entities. An entry that still carries web-interface
-  settings is cleaned up on first start.
+- **Modbus first.** Upstream's web-interface scraping is removed, together
+  with its settings and entities; an entry that still carries them is cleaned
+  up on first start. A new, separate and deliberately gentle reader of the
+  web interface is experimental (see [Web interface (experimental)](#web-interface-experimental)).
 - **One connection to the controller, shared.** Since 2.0 the integration
   borrows its Modbus unit from Home Assistant's own `modbus` integration
   instead of opening a socket of its own (see [Upgrading from 1.x](#upgrading-from-1x)).
@@ -112,9 +113,11 @@ integration using the same address shares one link, which the controller
 needs (it accepts a single client).
 
 A poll that fails keeps the last values; the entities go unavailable on the
-fourth failed poll in a row and come back with the next good one. A device
-that answers but refuses the system registers 30001-30006 is not treated as
-a heat pump with missing modules: that poll fails.
+fourth failed poll in a row and come back with the next good one. An error in
+the integration itself counts as a failed poll too; its traceback is logged
+the first time after each load. A device that answers but refuses the system
+registers 30001-30006 is not treated as a heat pump with missing modules:
+that poll fails.
 
 A write goes out immediately and only if the value differs from what the
 controller holds.
@@ -146,7 +149,7 @@ turns it off and back on (restoring the value it held before, or the lowest
 allowed one).
 
 **Reported setpoints.** The setpoints the controller only reports - room,
-flow and DHW setpoint temperature - read unknown while the controller
+flow and DHW setpoint temperature - read 0 °C while the controller
 demands nothing, and say so: their `demand` attribute is `none` then and
 `active` while a setpoint is in force. (The controller reports "no demand"
 as the value 1, which used to show as 0.1 °C.)
@@ -205,6 +208,165 @@ create `www/` itself, restart Home Assistant once so it serves the folder.
 Everything under `www/` can be fetched without logging in. A picture that
 carries script or links to the web is refused.
 
+## Web interface (experimental)
+
+The heat pump's controller also serves a local web interface, *WEM Lokal*.
+It shows values Modbus does not carry: the refrigerant circuit (pressures,
+temperatures, superheat, valve openings), compressor speed and counters,
+target and actual output, the flow rate, energy statistics to three decimals
+including the yearly totals, and the heating power limit. The integration
+reads them in a second entry beside the heat pump. It only reads; nothing is
+written.
+
+This part is experimental. The controller's web server is slow and now and
+then answers with an incomplete page, and heavy polling has disturbed
+controllers before (upstream issue #159). The integration therefore asks
+little and stops on its own when the answers go wrong.
+
+### Switching it on
+
+1. Switch the web server on at the heat pump's display. It sits in the OEM
+   level, which opens from the same password entry as the installer level
+   (*Fachmann-Ebene*); the PIN decides which level opens. On a WBB, PIN 11
+   opens the installer level and PIN 21 the OEM level. In the OEM level, set
+   *Settings → Webserver* to on, and change nothing else there: that level
+   also holds the settings the heat pump runs by. Menu names can differ with
+   the controller and its firmware.
+2. Open `http://<address of the heat pump>/` in a browser. On the first
+   visit the page asks you to set a user name and a password; there are no
+   default credentials. These two go into the integration.
+3. Keep the controller's language on **German** (*Settings → Language* on
+   the display, see the heat pump's manual). The web interface shows its
+   texts in the language set there, and the integration finds its pages and
+   values by their German titles. With another language the dialog names
+   the menu entries it could not find and asks about the language. If your
+   controller has to stay on another language, open an
+   [issue](https://github.com/Varitras/weishaupt_modbus/issues) so that
+   language can be added: the integration needs its menu and value titles.
+   [`tools/webif_capture.py`](tools/webif_capture.py) collects them.
+   Download the repository (*Code → Download ZIP*), unpack it and run
+   `python tools/webif_capture.py <address of the heat pump>` on a computer
+   in the same network (Python 3.10 or newer). It asks for the user and the
+   password and opens six pages: it finds the menu entries the integration
+   reads by their codes, else by their German titles, else you pick them by
+   number and confirm each pick; Reset, Service and the time programs are
+   never offered. When the controller serves a page half or does not
+   answer, it rests a minute and goes on, ten times at most: a run takes
+   about a minute, one the controller keeps failing up to about three
+   quarters of an hour before the tool gives up. The file it writes holds
+   the titles, and the values of the three pages the integration reads; the
+   tool adds no address, credentials or page address. The values are what
+   those pages show: check the file for a serial number, an access code or
+   a network address before you attach it to the issue.
+
+### Adding it
+
+The web interface belongs to a heat pump entry, so set the heat pump up
+first: the dialog offers *Web interface of a heat pump* only once a heat pump
+entry exists, and goes straight to the heat pump before that. Then
+*Settings → Devices & services → Add integration → Weishaupt WBB → Web
+interface of a heat pump*, pick the heat pump and enter the web interface's
+user and password. A heat pump has one web interface entry: the list offers
+only heat pumps that have none yet. Logging in, finding the pages and reading
+each once can take several minutes when the controller answers slowly, and
+the dialog shows its progress meanwhile; pages the controller serves only half
+are searched once more before the dialog asks you to try again a little later,
+and the dialog logs out again afterwards; a page of values that shows none of
+its titles counts as served half. A page that lacks a title the sensors read,
+or shows a value in a unit they do not know, is named in the dialog with those
+titles: that controller is not supported yet. Values shown empty or twice, and
+a menu entry shown twice, are searched once more as well and then named the
+same way, with a request to try again.
+
+To read only the web interface, for example from a second Home Assistant
+beside one that polls the heat pump over Modbus, disable the heat pump entry
+afterwards: *⋮ → Disable* on the entry itself. Disabling only its devices
+leaves the entry connecting over Modbus at every start. The web interface
+keeps working without it, and the heat pump's Modbus connection stays with
+the other Home Assistant.
+
+The entry takes the heat pump's address and follows it when the heat pump
+entry is reconfigured; when the heat pump entry is deleted, it stops. Its
+options set how often each page is read, 1 to 60 minutes: the heat pump
+page every 5 minutes by default, the statistics and the heating settings
+every 15. *Reconfigure* takes a new
+user and password and searches the pages again; a refused login asks for a
+new one by itself.
+
+### What it reads
+
+47 sensors with the pump's values, and five about the polling itself, on a
+device of their own, *WH Web interface* (with the heat pump's postfix). Home
+Assistant gives every device to one entry, so they cannot join the heat
+pump's devices.
+
+- **Readings**: setpoint temperature, dynamic switching difference, pump M1
+  speed, flow rate, diverter valve position, target and actual output, eight
+  refrigerant circuit temperatures, low, intermediate and high pressure,
+  three superheat values, three valve openings, compressor speed, operating
+  hours, starts and defrost cycles.
+- **Statistics**: the thermal and electrical energy of today, this month and
+  this year to three decimals, and the performance factors of the year and
+  overall.
+- **Diagnostic**: the heating power limit and switching difference, the two
+  controller software versions and the outdoor unit variant.
+- **The polling itself** (diagnostic): the answer time, which is the slowest
+  answer of the last round, and the counts of requests, logins, pages that
+  came incomplete and failed reads. A failed read is one the web interface
+  failed; an error in the integration itself is not counted there. The
+  counts carry over restarts, so Home Assistant's statistics show over weeks
+  whether the web interface answers more slowly or serves more incomplete
+  pages, which preceded its crashes. They stay shown when polling has
+  stopped.
+
+The *Name topic prefix* option of the heat pump entry names these sensors
+like their Modbus siblings, with `WP_` or `ST_` in front.
+
+A value counts only in the unit the page shows for it; anything else reads as
+unknown. The page shows an idle power or speed as `Aus`, which reads as 0
+there and as unknown on any other value. It shows the setpoint temperature
+as `--` while nothing is demanded, which reads as 0 °C like the Modbus
+setpoints; any other `--` reads as unknown. The heating power limit can be
+read here, not set.
+
+### How gently it asks
+
+- One request at a time, at least 5 seconds apart, each limited to 20 seconds.
+  The gap holds between everything that asks one heat pump's web interface,
+  a dialog's visit and the running entry included. While *Reconfigure* or a
+  new login checks the web interface, the entry starts no page of its own -
+  one it is reading finishes first - so the dialog hardly waits behind it.
+- Never at the same moment as a Modbus request from this integration to the
+  same heat pump. Another integration on Home Assistant's connection to it,
+  or a second Home Assistant polling it over Modbus as above, is not
+  coordinated with it.
+- It stays logged in. It logs in again when the controller has dropped the
+  session, renews the session once a day, and logs out when the entry is
+  unloaded or Home Assistant stops.
+- The first round, a login and the three pages, takes 20 seconds or more.
+  It runs after the entry has started, so Home Assistant's start does not
+  wait for it; the sensors show unavailable until it is done.
+- A page that arrived whole but wrong is asked for once more. After a
+  timeout, a broken connection, an error status or a session dropped right
+  after the login, nothing more is asked in that round.
+- A page that fails keeps its values once; the second failure in a row makes
+  them unavailable; the third stops polling and raises a repair notice.
+  A failed page is asked for again only after its own interval. Check the
+  web interface in a browser, then reload the entry to resume. An error in
+  the integration itself counts as a failure too: the notice names only its
+  kind, and its traceback is logged the first time after each load.
+- A refused login stops polling at once, an update requested by hand
+  included, and asks for the login again. Any other failed login, such as
+  the controller reporting its database out of reach, counts like a failed
+  page.
+
+The user and password are stored in Home Assistant's configuration and sent
+to the heat pump only, as plain HTTP: the controller offers nothing else, so
+keep it on a network you trust. The diagnostics download leaves them out, and
+the page addresses the entry stores; after a stop, the reason it gives can
+name the address that failed, never the heat pump's. Of each page it holds
+only the values the sensors show.
+
 ## Actions
 
 The integration registers no actions of its own. Values are written with
@@ -232,13 +394,16 @@ already set.
   takes that connection away.
 - The yearly energy registers (36104 and the other `… Jahr` rows) answer but
   stay at 0 on every controller seen so far, even after years of operation -
-  the yearly total exists only on the display and in the WEM portal. The
-  yearly performance factor therefore has no value.
+  the yearly total exists only on the display, in the WEM portal and in the
+  web interface (see [Web interface (experimental)](#web-interface-experimental)).
+  The yearly performance factor over Modbus therefore has no value.
 - The heat output is calculated from the power map, not measured. The
   electrical power is measured by the heat pump, but undocumented and
   checked on one model only.
 - Prefix and device postfix cannot be changed after setup.
 - Heat pumps with the separate Weishaupt Modbus module are not supported.
+- The web interface is read only with the controller's language set to
+  German.
 
 ## Troubleshooting
 
@@ -271,7 +436,9 @@ entry has loaded, not while setup retries. The log is not cleaned the same
 way: a connection error names the heat pump's address, and a map that
 fails to load names its path. Replace IP addresses and host names, your
 user name in paths and any names of people or rooms before you attach it
-to a public issue.
+to a public issue. For the web interface the log lists every request with
+its answer and how long it took, page addresses included; the user name,
+the password and the session id never appear in it.
 
 **A heat pump model nobody has tested.** Entities stay unavailable or show
 odd values. [`tools/weishaupt_scan.bat`](tools/weishaupt_scan.bat) reads
@@ -328,7 +495,9 @@ recorded statistics - the history is the register's and stays.
 
 1. *Settings → Devices & services → Weishaupt WBB*, open the entry's menu and
    choose *Delete*. This removes its devices and entities; what the
-   recorder already stored stays in its database.
+   recorder already stored stays in its database. A heat pump's web
+   interface is an entry of its own: delete it as well, on its own it only
+   stops.
 2. Delete `www/local/weishaupt_modbus_powermap*.svg` from your configuration
    directory if you no longer want the preview picture.
 3. To remove the integration itself, uninstall it in HACS (or delete

@@ -152,21 +152,19 @@ ignore = [
   # rather than fixed. A global ignore silences the rule everywhere, so each
   # line here is a rule the gate does NOT enforce; a line comes out again
   # once `ruff check --select <code>` is clean.
-  "BLE001",   # blind `except Exception`
-  "D401",     # docstrings not in imperative mood
   "PERF401",  # loops that could be comprehensions
   "PLR0917",  # item constructors with more than five positional arguments
-  "SLF001",   # private-member reads across the item/client boundary
-  "TRY300",   # returns inside try blocks
-  "ASYNC109", # Async function definition with a `timeout` parameter Use `asyncio.timeout` instead
   "ASYNC110", # Use `asyncio.Event` instead of awaiting `asyncio.sleep` in a `while` loop
-  "D202",     # No blank lines allowed after function docstring
+
+  # Not enforced for good, by choice rather than as findings: docstrings here
+  # say what a thing is rather than order it about, D203 and D213 lose to
+  # D211 and D212, which apply instead, and line length is the formatter's.
+  "D401",     # docstrings not in imperative mood
   "D203",     # 1 blank line required before class docstring
   "D213",     # Multi-line docstring summary should start at the second line
-  "D406",     # Section name should end with a newline
-  "D407",     # Section name underlining
   "E501",     # line too long
 
+  # From Home Assistant's own configuration, which this list started from.
   "PLC1901", # {existing} can be simplified to {replacement} as an empty string is falsey; too many false positives
   "PLR0911", # Too many return statements ({returns} > {max_returns})
   "PLR0912", # Too many branches ({branches} > {max_branches})
@@ -257,6 +255,9 @@ split-on-trailing-comma = false
 # stdout on purpose (it is a command-line tool, not library code).
 "tests/**" = ["PTH", "D", "PLR2004", "T201"]
 ".github/scripts/*" = ["T201", "D", "INP001", "PLR2004", "S603", "PLW1510"]
+# Tools people run by hand from a copy of the repository: they talk on
+# stdout, and tools/ is no package.
+"tools/*" = ["T201", "INP001"]
 # ast.NodeVisitor dispatches on `visit_<NodeName>`; the aliases have to be mixedCase.
 "tests/complexity.py" = ["N815"]
 
@@ -282,6 +283,13 @@ files = [
   "custom_components/weishaupt_modbus/entities.py",
   "custom_components/weishaupt_modbus/items.py",
   "custom_components/weishaupt_modbus/const.py",
+  "custom_components/weishaupt_modbus/webif/__init__.py",
+  "custom_components/weishaupt_modbus/webif/client.py",
+  "custom_components/weishaupt_modbus/webif/discovery.py",
+  "custom_components/weishaupt_modbus/webif_coordinator.py",
+  "custom_components/weishaupt_modbus/webif_sensor.py",
+  "custom_components/weishaupt_modbus/webif_visit.py",
+  "custom_components/weishaupt_modbus/webif/pages.py",
   "custom_components/weishaupt_modbus/entity_helpers.py",
   # Named so mypy resolves the MODULE: kennfeld.py sits next to a kennfeld/
   # data directory, and a followed import lands on the directory instead,

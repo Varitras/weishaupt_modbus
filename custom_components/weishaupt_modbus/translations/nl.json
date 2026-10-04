@@ -2,13 +2,30 @@
   "config" : {
     "abort" : {
       "already_configured" : "Deze warmtepomp is al geconfigureerd",
-      "reconfigure_successful" : "Configuratie bijgewerkt"
+      "reconfigure_successful" : "Configuratie bijgewerkt",
+      "reauth_successful" : "De nieuwe aanmelding is geaccepteerd",
+      "no_pump" : "Stel eerst de warmtepomp in; de webinterface wordt daaraan toegevoegd.",
+      "pump_removed" : "De bijbehorende warmtepompvermelding is verwijderd. Verwijder deze webinterfacevermelding en voeg hem opnieuw toe met de warmtepomp.",
+      "already_in_progress" : "Een ander venster stelt dit al in.",
+      "every_pump_has_web_interface" : "Elke warmtepomp heeft zijn webinterface al.",
+      "web_interface_exists" : "Deze warmtepomp heeft zijn webinterface al."
     },
     "error" : {
       "cannot_connect" : "Connectie gefaald",
       "invalid_host" : "Voer het adres van de warmtepomp in (naam of IP, zonder spaties)",
       "postfix_in_use" : "Een andere warmtepomp gebruikt deze apparaat-postfix al",
-      "postfix_required" : "Een tweede warmtepomp heeft een apparaat-postfix nodig"
+      "postfix_required" : "Een tweede warmtepomp heeft een apparaat-postfix nodig",
+      "invalid_auth" : "De webinterface heeft gebruiker en wachtwoord geweigerd",
+      "cannot_read" : "De webinterface stuurde de pagina's meerdere keren achter elkaar slechts gedeeltelijk; probeer het over een paar minuten opnieuw",
+      "missing_titles" : "De pagina {page} van de webinterface toont {titles} niet. Deze regelaar wordt nog niet ondersteund.",
+      "unclear_values" : "De pagina {page} van de webinterface toont {titles} zonder waarde of meer dan eens. Probeer het opnieuw; blijft het zo, dan wordt deze regelaar nog niet ondersteund.",
+      "unknown_units" : "De pagina {page} van de webinterface toont {titles} in een eenheid die de integratie niet kent. Deze regelaar wordt nog niet ondersteund.",
+      "missing_menu_entries" : "De menu's van de webinterface tonen {titles} niet. De integratie vindt haar pagina's via deze Duitse namen: staat de taal van de regelaar op Duits? Moet de regelaar op een andere taal blijven, open dan een issue zodat die kan worden toegevoegd, en voeg het bestand toe dat tools/webif_capture.py schrijft (zie de README).",
+      "doubled_menu_entries" : "De menu's van de webinterface tonen {titles} meer dan eens. Probeer het opnieuw; blijft het zo, dan wordt deze regelaar nog niet ondersteund.",
+      "unknown" : "Er is een onverwachte fout opgetreden; het logboek bevat de details."
+    },
+    "progress" : {
+      "webif_visit" : "Aanmelden bij de webinterface, de pagina's zoeken en elke pagina eenmaal lezen. Dit kan enkele minuten duren als de regelaar traag antwoordt of een pagina opnieuw moet worden opgevraagd; even geduld alstublieft."
     },
     "step" : {
       "user" : {
@@ -18,12 +35,12 @@
           "Heizkreis 3" : "3de verwarmingskring",
           "Heizkreis 4" : "4de verwarmingskring",
           "Heizkreis 5" : "5de verwarmingskring",
-          "Host" : "Host",
+          "host" : "Host",
           "Kennfeld-File" : "Bestandsnaam werkingsschema",
           "Name-Device-Prefix" : "Naam apparaat-prefix",
           "Name-Topic-Prefix" : "Naam topic-prefix",
-          "Port" : "Poort",
-          "Prefix" : "Prefix"
+          "port" : "Poort",
+          "prefix" : "Prefix"
         },
         "data_description" : {
           "Device-Postfix" : "Leeg laten voor de eerste warmtepomp; elke volgende heeft een eigen postfix nodig. Later niet meer te wijzigen.",
@@ -31,12 +48,16 @@
           "Heizkreis 3" : "Voegt de entiteiten van deze verwarmingskring toe.",
           "Heizkreis 4" : "Voegt de entiteiten van deze verwarmingskring toe.",
           "Heizkreis 5" : "Voegt de entiteiten van deze verwarmingskring toe.",
-          "Host" : "Naam of IP-adres van de warmtepomp.",
+          "host" : "Naam of IP-adres van de warmtepomp.",
           "Kennfeld-File" : "Werkingsschema van uw model, gebruikt om het verwarmingsvermogen te schatten.",
           "Name-Device-Prefix" : "Zet de prefix voor de naam van elke registerentiteit.",
           "Name-Topic-Prefix" : "Zet de korte apparaatnaam (WP, WW, ...) voor de naam van elke registerentiteit.",
-          "Port" : "Modbus-TCP-poort zoals ingesteld op de warmtepomp, meestal 502.",
-          "Prefix" : "Deel van de unieke ID van elke entiteit. Alleen wijzigen om de geschiedenis van een andere integratie over te nemen. Later niet meer te wijzigen."
+          "port" : "Modbus-TCP-poort zoals ingesteld op de warmtepomp, meestal 502.",
+          "prefix" : "Deel van de unieke ID van elke entiteit. Alleen wijzigen om de geschiedenis van een andere integratie over te nemen. Later niet meer te wijzigen."
+        },
+        "menu_options" : {
+          "pump" : "Warmtepomp (Modbus)",
+          "webif" : "Webinterface van een warmtepomp"
         }
       },
       "reconfigure" : {
@@ -46,22 +67,60 @@
           "Heizkreis 3" : "3de verwarmingskring",
           "Heizkreis 4" : "4de verwarmingskring",
           "Heizkreis 5" : "5de verwarmingskring",
-          "Host" : "Host",
+          "host" : "Host",
           "Kennfeld-File" : "Bestandsnaam werkingsschema",
           "Name-Device-Prefix" : "Naam apparaat-prefix",
           "Name-Topic-Prefix" : "Naam topic-prefix",
-          "Port" : "Poort"
+          "port" : "Poort"
         },
         "data_description" : {
           "Heizkreis 2" : "Voegt de entiteiten van deze verwarmingskring toe.",
           "Heizkreis 3" : "Voegt de entiteiten van deze verwarmingskring toe.",
           "Heizkreis 4" : "Voegt de entiteiten van deze verwarmingskring toe.",
           "Heizkreis 5" : "Voegt de entiteiten van deze verwarmingskring toe.",
-          "Host" : "Naam of IP-adres van de warmtepomp.",
+          "host" : "Naam of IP-adres van de warmtepomp.",
           "Kennfeld-File" : "Werkingsschema van uw model, gebruikt om het verwarmingsvermogen te schatten.",
           "Name-Device-Prefix" : "Zet de prefix voor de naam van elke registerentiteit.",
           "Name-Topic-Prefix" : "Zet de korte apparaatnaam (WP, WW, ...) voor de naam van elke registerentiteit.",
-          "Port" : "Modbus-TCP-poort zoals ingesteld op de warmtepomp, meestal 502."
+          "port" : "Modbus-TCP-poort zoals ingesteld op de warmtepomp, meestal 502."
+        }
+      },
+      "webif" : {
+        "title" : "Webinterface",
+        "description" : "Leest meer waarden uit de lokale webinterface van de warmtepomp (experimenteel). Aanmelden en de pagina's zoeken en lezen kan enkele minuten duren; even geduld alstublieft.",
+        "data" : {
+          "pump_entry_id" : "Warmtepomp",
+          "username" : "Gebruiker",
+          "password" : "Wachtwoord"
+        },
+        "data_description" : {
+          "pump_entry_id" : "De warmtepomp waartoe de webinterface hoort; het adres daarvan wordt gebruikt.",
+          "username" : "De gebruiker op de aanmeldpagina van de webinterface.",
+          "password" : "Het wachtwoord op de aanmeldpagina van de webinterface. Het wordt in Home Assistant opgeslagen en alleen naar de warmtepomp gestuurd, onversleuteld via HTTP: de regelaar biedt niets anders, houd hem dus in een netwerk dat u vertrouwt."
+        }
+      },
+      "reauth_confirm" : {
+        "title" : "Aanmelding bij de webinterface",
+        "description" : "De webinterface heeft de aanmelding geweigerd. Voer de huidige in; de controle kan enkele minuten duren, even geduld alstublieft.",
+        "data" : {
+          "username" : "Gebruiker",
+          "password" : "Wachtwoord"
+        },
+        "data_description" : {
+          "username" : "De gebruiker op de aanmeldpagina van de webinterface.",
+          "password" : "Het wachtwoord op de aanmeldpagina van de webinterface. Het wordt in Home Assistant opgeslagen en alleen naar de warmtepomp gestuurd, onversleuteld via HTTP: de regelaar biedt niets anders, houd hem dus in een netwerk dat u vertrouwt."
+        }
+      },
+      "reconfigure_webif" : {
+        "title" : "Webinterface opnieuw configureren",
+        "description" : "Een nieuwe aanmelding voor de webinterface, en de pagina's worden opnieuw gezocht. De controle kan enkele minuten duren; even geduld alstublieft.",
+        "data" : {
+          "username" : "Gebruiker",
+          "password" : "Wachtwoord"
+        },
+        "data_description" : {
+          "username" : "De gebruiker op de aanmeldpagina van de webinterface.",
+          "password" : "Het wachtwoord op de aanmeldpagina van de webinterface. Het wordt in Home Assistant opgeslagen en alleen naar de warmtepomp gestuurd, onversleuteld via HTTP: de regelaar biedt niets anders, houd hem dus in een netwerk dat u vertrouwt."
         }
       }
     }
@@ -102,6 +161,9 @@
     },
     "dev_ein_aus" : {
       "name" : "Ingangen/Uitgangen{postfix}"
+    },
+    "dev_webif" : {
+      "name" : "WH Webinterface{postfix}"
     }
   },
   "entity" : {
@@ -1737,6 +1799,162 @@
       },
       "eeprom_writes_today" : {
         "name" : "EEPROM-schrijfacties (vandaag)"
+      },
+      "webif_solltemperatur" : {
+        "name" : "{prefix}Insteltemperatuur warmtepomp"
+      },
+      "webif_schaltdifferenz_dynamisch" : {
+        "name" : "{prefix}Dynamisch schakelverschil"
+      },
+      "webif_drehzahl_pumpe_m1" : {
+        "name" : "{prefix}Toerental pomp M1"
+      },
+      "webif_volumenstrom" : {
+        "name" : "{prefix}Debiet"
+      },
+      "webif_stellung_umschaltventil" : {
+        "name" : "{prefix}Stand omschakelklep"
+      },
+      "webif_soll_leistung" : {
+        "name" : "{prefix}Gewenst vermogen"
+      },
+      "webif_ist_leistung" : {
+        "name" : "{prefix}Werkelijk vermogen"
+      },
+      "webif_expansionsventil_ag_eintritt" : {
+        "name" : "{prefix}Expansieventiel buitenunit inlaat"
+      },
+      "webif_waermetauscher_ag_austritt" : {
+        "name" : "{prefix}Warmtewisselaar buitenunit uitlaat"
+      },
+      "webif_evi_sauggastemperatur" : {
+        "name" : "{prefix}EVI-zuiggastemperatuur"
+      },
+      "webif_kaeltemittel_ig_austritt" : {
+        "name" : "{prefix}Koudemiddel binnenunit uitlaat"
+      },
+      "webif_oelsumpftemperatur" : {
+        "name" : "{prefix}Oliecartertemperatuur"
+      },
+      "webif_druckgastemperatur" : {
+        "name" : "{prefix}Persgastemperatuur"
+      },
+      "webif_niederdruck" : {
+        "name" : "{prefix}Lage druk"
+      },
+      "webif_hochdruck" : {
+        "name" : "{prefix}Hoge druk"
+      },
+      "webif_mitteldruck" : {
+        "name" : "{prefix}Middendruk"
+      },
+      "webif_kondensationstemperatur" : {
+        "name" : "{prefix}Condensatietemperatuur"
+      },
+      "webif_saettigungstemperatur_evi" : {
+        "name" : "{prefix}EVI-verzadigingstemperatuur"
+      },
+      "webif_ueberhitzung_heizen" : {
+        "name" : "{prefix}Oververhitting verwarmen"
+      },
+      "webif_ueberhitzung_verdichter" : {
+        "name" : "{prefix}Oververhitting compressor"
+      },
+      "webif_ueberhitzung_evi" : {
+        "name" : "{prefix}Oververhitting EVI"
+      },
+      "webif_oeffnungsgrad_exv_heizen" : {
+        "name" : "{prefix}Opening EXV verwarmen"
+      },
+      "webif_oeffnungsgrad_exv_kuehlen" : {
+        "name" : "{prefix}Opening EXV koelen"
+      },
+      "webif_oeffnungsgrad_evi" : {
+        "name" : "{prefix}Opening EVI"
+      },
+      "webif_verdichter_drehzahl" : {
+        "name" : "{prefix}Toerental compressor"
+      },
+      "webif_betriebsstunden_verdichter" : {
+        "name" : "{prefix}Bedrijfsuren compressor"
+      },
+      "webif_schaltspiele_verdichter" : {
+        "name" : "{prefix}Schakelcycli compressor"
+      },
+      "webif_schaltspiele_abtauen" : {
+        "name" : "{prefix}Ontdooicycli"
+      },
+      "webif_version_wwp_sg" : {
+        "name" : "{prefix}Versie WWP-SG"
+      },
+      "webif_version_wwp_ec_wbb" : {
+        "name" : "{prefix}Versie WWP-EC WBB"
+      },
+      "webif_aussengeraet_variante" : {
+        "name" : "{prefix}Variant buitenunit"
+      },
+      "webif_th_energie_heizen_tag" : {
+        "name" : "{prefix}Verwarmingsenergie vandaag"
+      },
+      "webif_th_energie_ww_tag" : {
+        "name" : "{prefix}Warm water energie vandaag"
+      },
+      "webif_th_energie_gesamt_tag" : {
+        "name" : "{prefix}Totale Energie vandaag"
+      },
+      "webif_el_energie_tag" : {
+        "name" : "{prefix}Elektr. Energie vandaag"
+      },
+      "webif_th_energie_heizen_monat" : {
+        "name" : "{prefix}Verwarmingsenergie maand"
+      },
+      "webif_th_energie_ww_monat" : {
+        "name" : "{prefix}Warm water energie deze maand"
+      },
+      "webif_th_energie_gesamt_monat" : {
+        "name" : "{prefix}Totale Energie maand"
+      },
+      "webif_el_energie_monat" : {
+        "name" : "{prefix}Elektr. Energie maand"
+      },
+      "webif_th_energie_heizen_jahr" : {
+        "name" : "{prefix}Verwarmingsenergie jaar"
+      },
+      "webif_th_energie_ww_jahr" : {
+        "name" : "{prefix}Warm water energie dit jaar"
+      },
+      "webif_th_energie_gesamt_jahr" : {
+        "name" : "{prefix}Totale Energie jaar"
+      },
+      "webif_el_energie_jahr" : {
+        "name" : "{prefix}Elektr. Energie jaar"
+      },
+      "webif_jaz_jahr" : {
+        "name" : "{prefix}Jaarlijkse prestatiefactor"
+      },
+      "webif_jaz_gesamt" : {
+        "name" : "{prefix}Totale prestatiefactor"
+      },
+      "webif_leistungsbegrenzung_heizen" : {
+        "name" : "{prefix}Vermogensbegrenzing verwarmen"
+      },
+      "webif_schaltdifferenz_heizen" : {
+        "name" : "{prefix}Schakelverschil verwarmen"
+      },
+      "webif_answer_time" : {
+        "name" : "Antwoordtijd"
+      },
+      "webif_requests" : {
+        "name" : "Verzoeken"
+      },
+      "webif_logins" : {
+        "name" : "Aanmeldingen"
+      },
+      "webif_incomplete_pages" : {
+        "name" : "Onvolledige pagina's"
+      },
+      "webif_failed_reads" : {
+        "name" : "Mislukte opvragingen"
       }
     }
   },
@@ -1757,6 +1975,18 @@
           "write_warning_per_day" : "Logt eenmaal per dag een waarschuwing zodra zoveel schrijfacties zijn uitgevoerd. De EEPROM is ontworpen voor 100 000 schrijfacties.",
           "write_limit_per_day" : "Verdere schrijfacties worden tot de volgende dag geweigerd. Mag niet onder de waarschuwingsdrempel liggen."
         }
+      },
+      "webif" : {
+        "data" : {
+          "heat_pump_interval_minutes" : "Interval van de warmtepomppagina (minuten)",
+          "statistics_interval_minutes" : "Interval van de statistiek (minuten)",
+          "heating_interval_minutes" : "Interval van de verwarmingsinstellingen (minuten)"
+        },
+        "data_description" : {
+          "heat_pump_interval_minutes" : "Hoe vaak de warmtepomppagina wordt gelezen, 1 tot 60 minuten. Een wijziging laadt de vermelding opnieuw.",
+          "statistics_interval_minutes" : "Hoe vaak de energiestatistiek wordt gelezen, 1 tot 60 minuten.",
+          "heating_interval_minutes" : "Hoe vaak de vermogensbegrenzing en het schakelverschil voor verwarmen worden gelezen, 1 tot 60 minuten."
+        }
       }
     }
   },
@@ -1775,6 +2005,21 @@
     },
     "communication_failed" : {
       "message" : "Modbus-communicatiefout: {error}"
+    },
+    "webif_stopped" : {
+      "message" : "Opvragen van de webinterface gestopt na herhaalde fouten van {page}: {error}"
+    },
+    "webif_pump_removed" : {
+      "message" : "De bijbehorende warmtepompvermelding is verwijderd. Verwijder deze vermelding en voeg de webinterface opnieuw toe met de warmtepomp."
+    },
+    "webif_login_refused" : {
+      "message" : "De webinterface heeft gebruiker en wachtwoord geweigerd."
+    }
+  },
+  "issues" : {
+    "webif_stopped" : {
+      "title" : "Opvragen van de webinterface gestopt",
+      "description" : "De pagina {page} mislukte meerdere keren achter elkaar ({error}). Om de regelaar te sparen is het opvragen van de webinterface van de warmtepomp gestopt. Modbus blijft gewoon werken. Controleer de webinterface in een browser en houd de warmtepomp in de gaten; laad daarna de webinterface-vermelding opnieuw om het opvragen te hervatten."
     }
   }
 }

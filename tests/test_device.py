@@ -17,10 +17,19 @@ from modbus_connection import (
 )
 from modbus_connection.mock import MockModbusConnection
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.weishaupt_modbus.const import DEVICES, FORMATS, TYPES
+from custom_components.weishaupt_modbus.configentry import host_lock
+from custom_components.weishaupt_modbus.const import (
+    CONF,
+    CONST,
+    DEVICES,
+    FORMATS,
+    TYPES,
+)
+from custom_components.weishaupt_modbus.coordinator import WeishauptModbusCoordinator
 from custom_components.weishaupt_modbus.items import ModbusItem
-from custom_components.weishaupt_modbus.weishaupt_modbus_api import hpconst
+from custom_components.weishaupt_modbus.weishaupt_modbus_api import device, hpconst
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.device import (
     BANDS,
     HOLDING_REGISTERS,
@@ -34,6 +43,8 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.exceptions import (
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.write_budget import (
     WriteBudget,
 )
+
+from .locking import WatchedLock, until
 
 OUTSIDE_TEMPERATURE = 30001
 CONSTANT_LOWERING = 41111  # TEMPERATURE setpoint whose 0x8000 means off
@@ -55,16 +66,18 @@ def unit():
 
 @pytest.fixture
 def pump(unit):
-    return WeishauptHeatPump(unit, _all_items(), WriteBudget(warn_at=0, limit=0))
+    return WeishauptHeatPump(
+        unit, _all_items(), WriteBudget(warn_at=0, limit=0), asyncio.Lock()
+    )
 
 
 def _documented_registers() -> set[int]:
     """Every address the manufacturer documents, from the checked-in list.
 
     Read from a file rather than derived from BANDS: a guard whose oracle
-    is the thing it guards passes whatever BANDS happens to say (audit
-    2026-09-03). Changing a band now means changing this file too, and
-    that means going back to the data-point list.
+    is the thing it guards passes whatever BANDS happens to say. Changing a
+    band now means changing this file too, and that means going back to the
+    data-point list.
     """
     path = pathlib.Path(__file__).with_name("documented_registers.json")
     return set(json.loads(path.read_text(encoding="utf-8"))["addresses"])
@@ -353,6 +366,120 @@ async def test_a_dead_link_is_raised_not_swallowed(pump, unit):
         await pump.async_update()
 
 
+# --- the controller, shared with the web interface ----------------------------
+
+
+def _recorded(read, calls, lock):
+    """`read`, noting whether `lock` is held each time a request goes out."""
+
+    async def recording(*args, **kwargs):
+        calls.append(lock.locked())
+        return await read(*args, **kwargs)
+
+    return recording
+
+
+async def test_a_poll_waits_while_the_web_interface_holds_the_controller(
+    unit, monkeypatch
+):
+    """Waiting for the lock is not holding it: a band read made under it and
+    sent after it was let go passed."""
+    host_lock = WatchedLock()
+    pump = WeishauptHeatPump(
+        unit, _all_items(), WriteBudget(warn_at=0, limit=0), host_lock
+    )
+    reads = []
+    for name in ("read_input_registers", "read_holding_registers"):
+        monkeypatch.setattr(
+            unit, name, _recorded(getattr(unit, name), reads, host_lock)
+        )
+
+    async with host_lock:
+        polling = asyncio.create_task(pump.async_update())
+        await until(lambda: host_lock.waited or reads)
+        assert reads == []
+    await polling
+
+    assert reads
+    assert all(reads), "a band read went out without the lock"
+
+
+async def test_a_write_waits_while_the_web_interface_holds_the_controller(
+    unit, monkeypatch
+):
+    host_lock = WatchedLock()
+    pump = WeishauptHeatPump(
+        unit, _all_items(), WriteBudget(warn_at=0, limit=0), host_lock
+    )
+    writes = []
+    monkeypatch.setattr(
+        unit, "write_register", _recorded(unit.write_register, writes, host_lock)
+    )
+
+    async with host_lock:
+        writing = asyncio.create_task(pump.write(_row(pump, PV_SETPOINT), 1))
+        await until(lambda: host_lock.waited or writes)
+        assert writes == []
+
+    assert await writing is True
+    assert writes == [True], "the write went out without the lock"
+
+
+SHORT_LIMIT_SECONDS = 0.5
+
+
+async def test_waiting_for_the_web_interface_does_not_time_the_poll_out(
+    hass, unit, monkeypatch
+):
+    """The poll's time limit counted the wait for the web interface too: a
+    few slow web answers could time a healthy poll out."""
+    monkeypatch.setattr(device, "BAND_TIMEOUT_SECONDS", SHORT_LIMIT_SECONDS)
+    host_lock = WatchedLock()
+    items = _all_items()
+    pump = WeishauptHeatPump(unit, items, WriteBudget(warn_at=0, limit=0), host_lock)
+    entry = MockConfigEntry(domain=CONST.DOMAIN, data={CONF.HOST: "127.0.0.1"})
+    entry.add_to_hass(hass)
+    coordinator = WeishauptModbusCoordinator(
+        hass=hass, device=pump, api_items=items, config_entry=entry
+    )
+
+    async with host_lock:
+        polling = asyncio.create_task(coordinator._async_update_data())
+        await until(lambda: host_lock.waited)
+        await asyncio.sleep(2 * SHORT_LIMIT_SECONDS)
+
+    assert await polling
+
+
+async def test_a_band_read_that_never_answers_is_cut_off(unit, monkeypatch):
+    """The time limit moved inside the lock; it still has to end a read the
+    link never answers, or the poll would hang for good."""
+    monkeypatch.setattr(device, "BAND_TIMEOUT_SECONDS", SHORT_LIMIT_SECONDS)
+    never = asyncio.Event()
+
+    async def silent(*_args, **_kwargs):
+        await never.wait()
+
+    monkeypatch.setattr(unit, "read_input_registers", silent)
+    pump = WeishauptHeatPump(
+        unit, _all_items(), WriteBudget(warn_at=0, limit=0), asyncio.Lock()
+    )
+
+    reading = asyncio.create_task(pump.async_update())
+    _, pending = await asyncio.wait({reading}, timeout=10 * SHORT_LIMIT_SECONDS)
+    for task in pending:
+        task.cancel()
+
+    assert not pending, "the read was never cut off"
+    assert isinstance(reading.exception(), TimeoutError)
+
+
+async def test_the_entries_of_one_pump_share_its_lock(hass):
+    """The web interface entry is a second entry for the same controller."""
+    assert host_lock(hass, "pump") is host_lock(hass, "pump")
+    assert host_lock(hass, "pump") is not host_lock(hass, "another pump")
+
+
 # --- writes -------------------------------------------------------------------
 
 
@@ -444,7 +571,9 @@ def test_a_calculated_sensor_is_not_a_register(unit):
     calc = ModbusItem(
         33103, "calc", FORMATS.NUMBER, TYPES.SENSOR_CALC, DEVICES.WP, "calc"
     )
-    pump = WeishauptHeatPump(unit, [calc], WriteBudget(warn_at=0, limit=0))
+    pump = WeishauptHeatPump(
+        unit, [calc], WriteBudget(warn_at=0, limit=0), asyncio.Lock()
+    )
 
     assert pump.items == []
 
@@ -479,22 +608,28 @@ async def test_a_confirmed_write_outlives_a_poll_that_read_before_it(pump, unit)
     unit.load_raw({"holding": {CONSTANT_LOWERING: 185}})
     await pump.async_update()
     entered, release = asyncio.Event(), asyncio.Event()
-    last_band = list(pump._components)[-1]
-    read_last_band = pump._components[last_band].async_update
+    bands = list(pump._components)
+    later_band = bands[bands.index(band_of(CONSTANT_LOWERING)) + 1]
+    read_later_band = pump._components[later_band].async_update
 
     async def held_read():
         entered.set()
         await release.wait()
-        await read_last_band()
+        await read_later_band()
 
-    pump._components[last_band].async_update = held_read
+    pump._components[later_band].async_update = held_read
     polling = asyncio.create_task(pump.async_update())
     await asyncio.wait_for(entered.wait(), timeout=5)
 
-    assert await pump.write_off(row) is True
+    # The block in flight holds the controller: the write queues behind it
+    # and goes before the poll's next block.
+    switching_off = asyncio.create_task(pump.write_off(row))
+    await asyncio.sleep(0)
+    assert not switching_off.done()
     release.set()
     await polling
 
+    assert await switching_off is True
     assert (row.state, row.is_off) == (None, True), "the poll revived a stale value"
     assert await unit.read_holding_registers(CONSTANT_LOWERING, 1) == [0x8000]
 

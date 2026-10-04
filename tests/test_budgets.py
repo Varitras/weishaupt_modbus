@@ -31,8 +31,8 @@ PACKAGE = (
 # register table.
 LINE_LIMIT = 900
 
-# The register table: its rows, the status value lists and the parameter sets.
 LINE_BUDGETS = {
+    # The register table: its rows, the status value lists and the parameter sets.
     "weishaupt_modbus_api/hpconst.py": 1090,
 }
 

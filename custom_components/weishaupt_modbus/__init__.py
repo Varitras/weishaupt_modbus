@@ -3,22 +3,45 @@
 import copy
 import logging
 import re
+from typing import cast
 
+import aiohttp
 from modbus_connection import ModbusTcpParams
 
 from homeassistant.components.modbus import async_get_unit
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import (
+    SIGNAL_CONFIG_ENTRY_CHANGED,
+    ConfigEntry,
+    ConfigEntryChange,
+)
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP
+from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.exceptions import ConfigEntryError
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.typing import UNDEFINED
 from homeassistant.util import slugify
 
-from .configentry import MyConfigEntry, MyData
+from .config_flow import ConfigFlow
+from .configentry import (
+    MyConfigEntry,
+    MyData,
+    WebifConfigEntry,
+    WebifData,
+    host_lock,
+    host_pacing,
+    is_web_interface,
+    web_interface_title,
+)
 from .const import CONF, CONST
 from .coordinator import WeishauptModbusCoordinator, check_configured, write_budget
 from .items import ModbusItem
 from .kennfeld import PowerMap
 from .migrate_helpers import entry_unique_id, unique_id_from_parts
+from .webif.client import Client
+from .webif_coordinator import WebifCoordinator, polled_pages
+from .webif_sensor import REQUIRED_TITLES
 from .weishaupt_modbus_api.const import DEFAULT_PORT, MODBUS_UNIT_ID
 from .weishaupt_modbus_api.device import WeishauptHeatPump
 from .weishaupt_modbus_api.hpconst import DEVICELISTS
@@ -88,10 +111,14 @@ PLATFORMS: list[str] = [
     "sensor",
     "switch",
 ]
+# The web interface only reads; its values are sensors.
+WEBIF_PLATFORMS: list[str] = ["sensor"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     """Set up entry."""
+    if is_web_interface(entry):
+        return await _async_setup_web_interface(hass, cast(WebifConfigEntry, entry))
     # Independent copies per config entry: the rows carry runtime state. A
     # circuit the entry does not enable is neither polled nor an entity.
     itemlist: list[ModbusItem] = [
@@ -107,7 +134,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
         host=entry.data[CONF.HOST], port=int(entry.data.get(CONF.PORT, DEFAULT_PORT))
     )
     unit = async_get_unit(hass, entry, params, MODBUS_UNIT_ID)
-    pump = WeishauptHeatPump(unit, itemlist, write_budget(entry))
+    pump = WeishauptHeatPump(
+        unit, itemlist, write_budget(entry), host_lock(hass, entry.data[CONF.HOST])
+    )
 
     modbus_coordinator = WeishauptModbusCoordinator(
         hass=hass, device=pump, api_items=itemlist, config_entry=entry
@@ -131,6 +160,98 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     return True
 
 
+async def _async_setup_web_interface(
+    hass: HomeAssistant, entry: WebifConfigEntry
+) -> bool:
+    """Poll a pump's web interface, in a session of its own, under the pump's lock.
+
+    Its options reload it by themselves; it has no update listener.
+    """
+    pump = hass.config_entries.async_get_entry(entry.data[CONF.PUMP_ENTRY])
+    if pump is None:
+        raise ConfigEntryError(
+            translation_domain=CONST.DOMAIN, translation_key="webif_pump_removed"
+        )
+    host = pump.data[CONF.HOST]
+    # Created in the entry's setup, so Home Assistant detaches it on unload.
+    session = async_create_clientsession(hass, cookie_jar=aiohttp.DummyCookieJar())
+    client = Client(
+        session,
+        host,
+        entry.data[CONF.USERNAME],
+        entry.data[CONF.PASSWORD],
+        host_lock=host_lock(hass, host),
+        pacing=host_pacing(hass, host),
+    )
+
+    async def log_out(_: Event) -> None:
+        await client.close()
+
+    # Home Assistant stops without unloading its entries; without a logout
+    # the session stays open on the controller until it expires. Not a
+    # one-time listener: that one removes itself, and the unload again.
+    entry.async_on_unload(hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, log_out))
+
+    started_with = pump.data
+    titled_at_setup = pump.title
+    reloading = False
+    # Renamed while this entry was off or reloading, the pump told no one.
+    _retitle_after_pump(hass, entry, pump.title, titled_at_setup)
+
+    @callback
+    def follow_pump(change: ConfigEntryChange, changed: ConfigEntry) -> None:
+        # The address, its lock and the sensor names come from the pump entry
+        # as it was at this setup. A state change alone, such as disabling
+        # the pump, changes none of them.
+        nonlocal reloading
+        if reloading or changed.entry_id != pump.entry_id:
+            return
+        removed = change is ConfigEntryChange.REMOVED
+        if not removed:
+            _retitle_after_pump(hass, entry, changed.title, titled_at_setup)
+        if removed or changed.data != started_with:
+            # Once: a running pump's own reload follows with a burst of
+            # state changes, each of which would reload this entry again.
+            reloading = True
+            hass.config_entries.async_schedule_reload(entry.entry_id)
+
+    entry.async_on_unload(
+        async_dispatcher_connect(hass, SIGNAL_CONFIG_ENTRY_CHANGED, follow_pump)
+    )
+    polled = polled_pages(entry.data[CONF.PAGES], entry.options, REQUIRED_TITLES)
+    coordinator = WebifCoordinator(hass, entry, client, polled)
+    entry.runtime_data = WebifData(
+        coordinator=coordinator, client=client, pump_data=started_with
+    )
+    await hass.config_entries.async_forward_entry_setups(entry, WEBIF_PLATFORMS)
+    # Live, the first round took 25 to 45 s, and Home Assistant's start waited
+    # for all of it; the sensors show unavailable until it is done.
+    entry.async_create_background_task(
+        hass, coordinator.async_refresh(), "weishaupt-webif first round"
+    )
+    return True
+
+
+@callback
+def _retitle_after_pump(
+    hass: HomeAssistant, entry: WebifConfigEntry, pump_title: str, named_after: str
+) -> None:
+    """Follow the pump's title while the entry has the one made from its last.
+
+    A title the user gave it stays. The pump title the entry's own was made
+    from is kept in the entry; one made before that was kept falls back to
+    `named_after`.
+    """
+    made_from = entry.data.get(CONF.PUMP_TITLE, named_after)
+    if made_from == pump_title or entry.title != web_interface_title(made_from):
+        return
+    hass.config_entries.async_update_entry(
+        entry,
+        title=web_interface_title(pump_title),
+        data={**entry.data, CONF.PUMP_TITLE: pump_title},
+    )
+
+
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Update listener."""
     await hass.config_entries.async_reload(
@@ -140,6 +261,15 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) -> bool:
     """Migrate old entry."""
+    if is_web_interface(config_entry):
+        # It came with version 11 and has nothing to carry over; the pump
+        # steps below would ask it for a host it does not have.
+        hass.config_entries.async_update_entry(
+            config_entry,
+            version=ConfigFlow.VERSION,
+            minor_version=ConfigFlow.MINOR_VERSION,
+        )
+        return True
 
     new_data = {**config_entry.data}
     _LOGGER.warning(
@@ -256,5 +386,16 @@ def _entity_id_with_new_label(entity_id: str, labels: tuple) -> str | None:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload the platforms; the unit is released with the entry's unload hooks."""
+    """Unload the platforms; the unit is released with the entry's unload hooks.
+
+    A web interface stops polling and logs out first.
+    """
+    if is_web_interface(entry):
+        web: WebifData = entry.runtime_data
+        unloaded = await hass.config_entries.async_unload_platforms(
+            entry, WEBIF_PLATFORMS
+        )
+        await web.coordinator.async_shutdown()
+        await web.client.close()
+        return unloaded
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

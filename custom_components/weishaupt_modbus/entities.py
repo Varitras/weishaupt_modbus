@@ -1,6 +1,6 @@
 """Entity classes used in this integration."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from functools import partial
 from typing import Any
 
@@ -26,6 +26,9 @@ from .weishaupt_modbus_api.hpconst import reverse_device_list
 
 # On a reported setpoint: "none" while the controller demands nothing.
 DEMAND_ATTRIBUTE = "demand"
+# What a reported setpoint shows while nothing is demanded: unknown left a
+# gap in the history for every hour without demand.
+NO_DEMAND_VALUE = 0.0
 
 
 def entity_category(item: ModbusItem) -> EntityCategory | None:
@@ -38,6 +41,28 @@ def entity_category(item: ModbusItem) -> EntityCategory | None:
     if reports_a_setting or undocumented:
         return EntityCategory.DIAGNOSTIC
     return None
+
+
+def name_prefix(entry_data: Mapping[str, Any], device: str) -> str:
+    """What the entity names of a device start with, by the entry's naming options."""
+    topic = ""
+    if entry_data[CONF.NAME_TOPIC_PREFIX]:
+        topic = f"{reverse_device_list.get(device, 'UK')}_"
+    pump = ""
+    if entry_data[CONF.NAME_DEVICE_PREFIX]:
+        pump = entry_data[CONF.PREFIX] + "_"
+    return topic + pump
+
+
+def device_info(entry_data: Mapping[str, Any], device: str) -> DeviceInfo:
+    """A device of the pump or of its web interface; a second pump's carry its postfix."""
+    postfix = device_postfix(entry_data)
+    return DeviceInfo(
+        identifiers={(CONST.DOMAIN, device + postfix)},
+        translation_key=device,
+        translation_placeholders={"postfix": postfix},
+        manufacturer="Weishaupt",
+    )
 
 
 def to_register_value(value: float, divider: int) -> int:
@@ -71,31 +96,11 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
         self._config_entry = config_entry
         self._api_item: ModbusItem = api_item
 
-        dev_postfix = device_postfix(self._config_entry.data)
-        dev_prefix = self._config_entry.data[CONF.PREFIX]
-
-        if self._config_entry.data[CONF.NAME_DEVICE_PREFIX]:
-            name_device_prefix = dev_prefix + "_"
-        else:
-            name_device_prefix = ""
-
-        if self._config_entry.data[CONF.NAME_TOPIC_PREFIX]:
-            device_key = self._api_item.device
-            name_topic_prefix = f"{reverse_device_list.get(device_key, 'UK')}_"
-        else:
-            name_topic_prefix = ""
-
-        name_prefix = name_topic_prefix + name_device_prefix
-
-        self._attr_device_info = DeviceInfo(
-            identifiers={(CONST.DOMAIN, self._api_item.device + dev_postfix)},
-            translation_key=self._api_item.device,
-            translation_placeholders={"postfix": dev_postfix},
-            manufacturer="Weishaupt",
-        )
-
+        self._attr_device_info = device_info(config_entry.data, api_item.device)
         self._attr_translation_key = self._api_item.translation_key
-        self._attr_translation_placeholders = {"prefix": name_prefix}
+        self._attr_translation_placeholders = {
+            "prefix": name_prefix(config_entry.data, api_item.device)
+        }
 
         self._attr_unique_id = create_unique_id(self._config_entry, self._api_item)
         self._attr_entity_category = entity_category(self._api_item)
@@ -260,12 +265,18 @@ class MySensorEntity(MyEntity, SensorEntity):
         self._attr_native_value = self.translate_val(self._api_item.state)
         self.async_write_ha_state()
 
+    def translate_val(self, val: Any) -> float | str | None:
+        """As for any register, but a reported setpoint's no demand reads 0."""
+        if self._api_item.is_off and self._api_item.params.get("setpoint"):
+            return NO_DEMAND_VALUE
+        return super().translate_val(val)
+
     @property
     def extra_state_attributes(self) -> dict[str, str] | None:
         """For a reported setpoint: whether the controller demands anything.
 
-        Unknown alone does not tell "nothing demanded" from "no reading";
-        the controller does, with its no-demand word.
+        The 0 shown for no demand is no temperature; the controller says
+        so with its no-demand word, and automations can tell by this.
         """
         if not self._api_item.params.get("setpoint"):
             return None

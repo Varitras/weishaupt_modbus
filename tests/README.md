@@ -38,6 +38,7 @@ instance each and are deselected by default:
 pytest tests/ -q            # fast: everything but e2e
 pytest tests/ -q -m e2e     # only the slow ones
 pytest tests/ -q -m ""      # all - what CI and check.sh run
+pytest tests/ -q -m "" -n auto   # the same, spread over the cores
 ```
 
 ## Why a mutation run
@@ -55,6 +56,15 @@ When you add a behaviour worth keeping, add a mutation for it. When you move
 code, the `path` and `old` fields move with it - `test_mutation_harness.py`
 fails as soon as a snippet no longer matches.
 
+A case's `tests` field is a pytest `-k` expression: the tests expected to
+catch it. `test_mutation_harness.py` checks every clause names a real test
+and no test of the harness itself, reading a clause as part of a test
+function's name. pytest matches more than that - module and directory names,
+parametrize ids and markers, regardless of case: `-k harness` alone selects
+every test in `test_mutation_harness.py`. So write each clause as part of a
+test function's name, never as a word that also names a module, an id or a
+marker; then the two readings select the same tests.
+
 ## The guards
 
 Structural tests that fail on a shape rather than on a value. Each one exists
@@ -63,12 +73,13 @@ because the thing it prevents happened, here or in a sibling project.
 | Guard | Holds |
 |---|---|
 | `test_budgets.py` | No module or function grows past its frozen budget |
-| `test_flow_messages.py` | Every abort reason and error key the config flow can show has a text in `strings.json` and all three translations, and none outlives its use |
+| `test_flow_messages.py` | Every abort reason and error key the config flow can show has a text in `strings.json` and all three translations, and none outlives its use; every dialog field has a help beside its label, the same in every form that asks for it (the plain-HTTP note on the password was once in one form only) |
 | `test_ci_matrix.py` | The CI matrix tests the Home Assistant releases it claims to: the declared minimum, and the newest final release (never a beta) |
 | `test_comment_narration.py` | No comment merely restates the code it sits on (heuristic; a genuine why-comment passes) |
+| `test_controller_access.py` | Every request to the controller - each Modbus read and write, each web request, also one wrapped in `wait_for` or `gather` - takes the host lock in the function that sends it (the pump dialog's probe once did not), and the function that sends a web request refuses anything off the positive list first, in its own body and about the method and address it sends, so only GET and the login POST go out. A request not awaited where it is made - bound to a name, gathered from a list, handed to a task (also inside an await: `shield`, `create_task`, `ensure_future`, `wait`), taken as an alias - is refused, since no lexical check can tell when it goes out; `diagnostics` counts as the coordinators' own only on a coordinator, and every web request has to be in sight of that scan. The lock tests check the other half at run time: every request arrives while the lock is held |
 | `test_durations.py` | No single test quietly starts taking minutes (budget in `durations.py`, enforced from `conftest.py`), and a run that stops making progress is cut off rather than only measured |
 | `test_guards.py` | No guard binds itself to one source file; every guard is listed; `check.sh` matches CI |
-| `test_imports.py` | Every module imports outside the author's own tree - the `from config.custom_components...` line that shipped on main cannot ship again |
+| `test_imports.py` | Every module imports outside the author's own tree - the `from config.custom_components...` line that shipped on main cannot ship again; nothing in `webif/` imports Home Assistant, by name or through the integration around it |
 | `test_item_register.py` | Every register definition is complete (a name in every translation file, result list, address range, unique key), no translation outlives its item, and every item keeps the name its unique id is built from (`legacy_unique_ids.json`) |
 | `test_kennfeld.py` | The power map: interpolation, the per-entry preview, static SVGs, a broken custom grid disables only the heat power; and no module in the package imports numpy, scipy or pygal at import time |
 | `test_mutation_harness.py` | The mutation run fails loudly rather than printing "all caught" without having checked |
@@ -76,6 +87,7 @@ because the thing it prevents happened, here or in a sibling project.
 | `test_platform_entities.py` | Every platform builds its entities through the one shared helper |
 | `test_requirements.py` | `manifest.json` and `requirements.txt` name the same dependencies |
 | `test_scan_tool.py` | `tools/weishaupt_scan.bat`, run against a stand-in heat pump on the loopback address, sends only read requests (function codes 0x03, 0x04, 0x2B), keeps what it read when the link dies, reads every identification page and takes path and host as data; it keeps the CRLF, ASCII bytes cmd and Windows PowerShell 5.1 need (needs PowerShell 7, `pwsh`; fails without it) |
+| `test_capture_tool.py` | `tools/webif_capture.py`, run against the web interface stand-in on the loopback address, opens the six pages it names and nothing else (Reset stays shut), asks only what the client's positive list allows, finds a German controller's pages by title and lets the user pick them by number in another language, rests a minute after a page served half or no answer and then asks only for what is missing, sends no logout after no answer, never retries refused credentials, and writes a file without address, credentials, session or page addresses; its copies of the client's protocol and of the titles are held equal to the integration's |
 | `test_secret_scan.py` | The gitleaks allowlist for translation keys does not hide a token on the same line (needs the gitleaks binary; skips without it) |
 
 ## When a budget turns red
@@ -138,3 +150,17 @@ the parts that only exist once Home Assistant is driving the integration (both
 marked `e2e`). The `mock_modbus` fixture in `conftest.py` stands in for the
 connection Home Assistant's `modbus` integration shares - a fresh in-memory
 connection per (re)load, the way the hub rebuilds the real one.
+
+The web interface has its tests by layer too: `test_webif_pages.py` reads
+synthetic pages, `test_webif_client.py` and `test_webif_discovery.py` talk
+to the stand-in in `webif_stand_in.py` on the loopback address,
+`test_webif_coordinator.py` drives the polling with a fake client, and
+`test_webif_sensor.py` and `test_webif_setup.py` cover the sensors and the
+entry (the latter marked `e2e`). No recorded page is in the repository: those
+carry a serial number, an access code and addresses. `test_webif_recordings.py`
+checks the sensor catalogue against recordings of a real controller that stay
+on the machine that made them; it is skipped unless pointed at them:
+
+```
+WEISHAUPT_WEBIF_RECORDINGS=<capture folder of the probe tool> pytest tests/test_webif_recordings.py -m ""
+```

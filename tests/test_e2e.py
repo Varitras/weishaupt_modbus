@@ -20,6 +20,7 @@ from pytest_homeassistant_custom_component.components.diagnostics import (
     get_diagnostics_for_config_entry,
 )
 
+from custom_components.weishaupt_modbus.configentry import host_lock
 from custom_components.weishaupt_modbus.const import CONF, CONST
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.const import DEFAULT_PORT
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.device import (
@@ -92,6 +93,17 @@ async def _setup(hass, entry):
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     return entry
+
+
+async def test_the_pump_polls_and_writes_under_the_lock_its_web_interface_shares(
+    hass,
+):
+    """Handed a lock of its own, the pump would poll and write beside a
+    request of its web interface, and nothing showed it."""
+    entry = await _setup(hass, _entry(hass))
+
+    device = entry.runtime_data.coordinator.device
+    assert device._host_lock is host_lock(hass, entry.data[CONF.HOST])
 
 
 async def test_setup_creates_a_sensor_from_the_first_refresh(hass):
@@ -186,6 +198,27 @@ async def test_a_second_poll_reaches_every_platform(hass, pump):
     assert hass.states.get(entity_ids["sensor"]).state == "45.6"
     assert hass.states.get(entity_ids["select"]).state == "sys_operationmode_summer"
     assert hass.states.get(entity_ids["number"]).state == "23.0"
+
+
+FLOW_SETPOINT = 31104
+FLOW_SETPOINT_UNIQUE_ID = "weishaupt_wbbVorlaufsolltemperatur"
+
+
+@pytest.mark.parametrize("no_demand", [1, 0x8000])
+async def test_a_flow_setpoint_with_no_demand_reads_zero_in_home_assistant(
+    hass, pump, no_demand
+):
+    """Live, the controller reported 1 on 31104 all summer. The unit test
+    holds the entity alone; this holds the state Home Assistant shows."""
+    pump.load_raw({"input": {FLOW_SETPOINT: no_demand}})
+    await _setup(hass, _entry(hass))
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "sensor", CONST.DOMAIN, FLOW_SETPOINT_UNIQUE_ID
+    )
+
+    state = hass.states.get(entity_id)
+    assert float(state.state) == 0
+    assert state.attributes["demand"] == "none"
 
 
 SG_READY_BOOST = 42105
@@ -825,6 +858,9 @@ async def test_a_warning_above_the_limit_is_refused(hass):
             CONST.OPTION_WRITE_LIMIT_PER_DAY: 60,
         },
     )
+    # The options reload the entry; left running, that reload ended inside
+    # Home Assistant's stop at teardown, now and then (a lingering timer).
+    await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
 
@@ -918,8 +954,8 @@ HEATING_CIRCUIT_2_ROOM_TEMPERATURE = 31202
 
 
 async def test_a_disabled_heating_circuit_is_neither_polled_nor_an_entity(hass, pump):
-    """Audit P2-03: circuits 2-5 were read on every poll and registered as
-    entities showing unknown, whatever the entry said."""
+    """Circuits 2-5 were read on every poll and registered as entities
+    showing unknown, whatever the entry said."""
     await _setup(hass, _entry(hass))
 
     registry = er.async_get(hass)

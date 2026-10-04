@@ -51,6 +51,10 @@ BANDS: tuple[Band, ...] = (
 HOLDING_REGISTERS = range(40000, 50000)
 # Outside temperature to operating status: every Weishaupt serves these.
 SYSTEM_BAND: Band = (30001, 30006)
+# Ends a band read that hangs. The library gives up on the first block the
+# link cannot serve, so a healthy read never comes near it. Timed inside the
+# controller's lock: waiting for the web interface is not the link failing.
+BAND_TIMEOUT_SECONDS = 60
 
 
 def band_of(address: int) -> Band:
@@ -82,11 +86,19 @@ class WeishauptHeatPump:
     """Reads the table's registers in one block per band; writes one at a time."""
 
     def __init__(
-        self, unit: ModbusUnit, items: list[ModbusItem], write_budget: WriteBudget
+        self,
+        unit: ModbusUnit,
+        items: list[ModbusItem],
+        write_budget: WriteBudget,
+        host_lock: asyncio.Lock,
     ) -> None:
         """Group the register rows by band and build a component per band."""
         self.items = [item for item in items if item.type != TYPES.SENSOR_CALC]
         self.write_budget = write_budget
+        # The controller also serves the web interface, and the two never ask
+        # it at once. Held per block and per write, not per poll, so a write
+        # still lands between the blocks of a poll.
+        self._host_lock = host_lock
         # The budget decision and the write it guards are one operation: two
         # automations firing together both saw one allowance left and both
         # wrote. The backend's own lock serialises the wire, not this.
@@ -128,7 +140,8 @@ class WeishauptHeatPump:
         self._written_while_polling.clear()
         for band, component in self._components.items():
             try:
-                await component.async_update()
+                async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):
+                    await component.async_update()
             except ModbusExceptionError as err:
                 # Any code: the controller answers a refused block with a
                 # malformed exception frame whose code is not meaningful.
@@ -225,7 +238,8 @@ class WeishauptHeatPump:
                 f"register {item.address} not written"
             )
         component = self._components[band_of(item.address)]
-        await component.write(_field_name(item), word)
+        async with self._host_lock:
+            await component.write(_field_name(item), word)
         if self.write_budget.record_write():
             _LOGGER.warning(
                 "%d register writes today. The EEPROM is rated for %d writes "
