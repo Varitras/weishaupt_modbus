@@ -24,6 +24,7 @@ from custom_components.weishaupt_modbus.config_flow import (
     web_interface_error,
     web_interface_error_placeholders,
 )
+from custom_components.weishaupt_modbus.const import CONF
 from custom_components.weishaupt_modbus.webif.client import (
     Broken,
     LoginRefused,
@@ -161,6 +162,22 @@ def _fields_told_differently(name: str) -> list[str]:
                 if len(texts) > 1
             ]
     return differing
+
+
+@pytest.mark.parametrize("name", TRANSLATION_FILES)
+def test_every_password_help_says_it_goes_as_plain_http(name):
+    """The guard below holds the helps alike; it would pass them all alike
+    without the note, and the web interface takes the password unencrypted."""
+    translation = json.loads((FLOW.parent / name).read_text(encoding="utf-8"))
+    helps = [
+        step["data_description"][CONF.PASSWORD]
+        for flow in ("config", "options")
+        for step in translation.get(flow, {}).get("step", {}).values()
+        if CONF.PASSWORD in step.get("data_description", {})
+    ]
+
+    assert helps, "no password help found - the scan looks nowhere"
+    assert all("HTTP" in text for text in helps), helps
 
 
 @pytest.mark.parametrize("name", TRANSLATION_FILES)
