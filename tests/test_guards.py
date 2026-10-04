@@ -51,6 +51,8 @@ GUARD_FILES = {
 SINGLE_FILE_EXEMPTIONS: set = {
     # the translation keys the secret-scan allowlist must fit live in the one table
     ("test_secret_scan.py", "hpconst"),
+    # Home Assistant takes a config flow from config_flow.py and nowhere else
+    ("test_flow_messages.py", "config_flow"),
 }
 
 
@@ -63,14 +65,42 @@ def _a_source_file_of_this_package(target) -> set:
     the mutation harness builds a throwaway `root / "module.py"` in a temp
     directory to test itself, which looks identical and binds to nothing.
     """
-    if not (isinstance(target, ast.BinOp) and isinstance(target.op, ast.Div)):
+    name = _named_file(target)
+    if name is None or not name.endswith(".py") or "*" in name:
         return set()
-    name = target.right
-    if not (isinstance(name, ast.Constant) and str(name.value).endswith(".py")):
+    if not any(PACKAGE.rglob(name)):
         return set()
-    if not any(PACKAGE.rglob(str(name.value))):
-        return set()
-    return {str(name.value).removesuffix(".py")}
+    return {name.removesuffix(".py")}
+
+
+def _named_file(target) -> str | None:
+    """The file name a path expression ends in: `<path> / "x.py"`, or the
+    one file a pattern names, `next(<path>.glob("*/x.py"))`."""
+    if isinstance(target, ast.BinOp) and isinstance(target.op, ast.Div):
+        name = target.right
+    elif _is_the_first_of_a_glob(target):
+        name = target.args[0].args[0]
+    else:
+        return None
+    if not (isinstance(name, ast.Constant) and isinstance(name.value, str)):
+        return None
+    return name.value.rsplit("/", 1)[-1]
+
+
+def _is_the_first_of_a_glob(target) -> bool:
+    if not (isinstance(target, ast.Call) and _name_of_function(target) == "next"):
+        return False
+    pattern = target.args[0] if target.args else None
+    return (
+        isinstance(pattern, ast.Call)
+        and isinstance(pattern.func, ast.Attribute)
+        and pattern.func.attr in ("glob", "rglob")
+        and bool(pattern.args)
+    )
+
+
+def _name_of_function(call) -> str | None:
+    return call.func.id if isinstance(call.func, ast.Name) else None
 
 
 def _tests_that_read_one_source_file(source: str):
@@ -158,6 +188,13 @@ def test_the_scan_catches_the_shapes_it_was_written_for():
 
     a_throwaway = 'text = (root / "module.py").read_text(encoding="utf-8")'
     assert _tests_that_read_one_source_file(a_throwaway) == set()
+
+    # The spelling the flow-message guard uses went unseen.
+    by_glob = (
+        'FLOW = next(INTEGRATION.glob("*/config_flow.py"))\n'
+        'source = FLOW.read_text(encoding="utf-8")\n'
+    )
+    assert _tests_that_read_one_source_file(by_glob) == {"config_flow"}
 
 
 def test_every_guard_file_is_listed_and_present():
