@@ -200,6 +200,27 @@ async def test_a_second_poll_reaches_every_platform(hass, pump):
     assert hass.states.get(entity_ids["number"]).state == "23.0"
 
 
+FLOW_SETPOINT = 31104
+FLOW_SETPOINT_UNIQUE_ID = "weishaupt_wbbVorlaufsolltemperatur"
+
+
+@pytest.mark.parametrize("no_demand", [1, 0x8000])
+async def test_a_flow_setpoint_with_no_demand_reads_zero_in_home_assistant(
+    hass, pump, no_demand
+):
+    """Live, the controller reported 1 on 31104 all summer. The unit test
+    holds the entity alone; this holds the state Home Assistant shows."""
+    pump.load_raw({"input": {FLOW_SETPOINT: no_demand}})
+    await _setup(hass, _entry(hass))
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "sensor", CONST.DOMAIN, FLOW_SETPOINT_UNIQUE_ID
+    )
+
+    state = hass.states.get(entity_id)
+    assert float(state.state) == 0
+    assert state.attributes["demand"] == "none"
+
+
 SG_READY_BOOST = 42105
 SG_READY_BOOST_UNIQUE_ID = "weishaupt_wbbSG Ready Anhebung"
 
