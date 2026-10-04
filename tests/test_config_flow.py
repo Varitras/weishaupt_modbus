@@ -503,6 +503,7 @@ def _web_entry(hass, pump):
             CONF.PUMP_ENTRY: pump.entry_id,
             **WEB_LOGIN,
             CONF.PAGES: FOUND_PAGES,
+            CONF.PUMP_TITLE: pump.title,
         },
         version=11,
         unique_id=f"{pump.entry_id}-{CONST.WEB_INTERFACE}",
@@ -886,6 +887,8 @@ async def test_a_refused_login_is_replaced_by_a_new_one(hass, web_interface):
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reauth_successful"
     assert {key: entry.data[key] for key in renewed} == renewed
+    # What the entry's title was made from, so it can follow the pump's.
+    assert entry.data[CONF.PUMP_TITLE] == pump.title
     assert web_interface.visits == [(HOST, "tester", "renewed")]
 
 
@@ -912,7 +915,8 @@ async def test_a_web_interface_entry_is_reconfigured_with_a_new_login_and_pages(
 ):
     """User wish, 2026-10-02: a new login and the pages searched again,
     without removing the entry and its sensors."""
-    entry = _web_entry(hass, _pump_entry(hass))
+    pump = _pump_entry(hass)
+    entry = _web_entry(hass, pump)
     moved = {
         **FOUND_PAGES,
         "statistics": "/settings_export.html?stack=0C000C28000000000000000A0B020003000401",
@@ -931,6 +935,7 @@ async def test_a_web_interface_entry_is_reconfigured_with_a_new_login_and_pages(
     assert result["reason"] == "reconfigure_successful"
     assert {key: entry.data[key] for key in renewed} == renewed
     assert entry.data[CONF.PAGES] == moved
+    assert entry.data[CONF.PUMP_TITLE] == pump.title
     assert web_interface.visits == [(HOST, "other", "renewed")]
 
 

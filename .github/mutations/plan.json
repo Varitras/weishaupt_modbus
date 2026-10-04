@@ -2889,5 +2889,12 @@
     "old": "    if answer.status >= HTTPStatus.BAD_REQUEST:\n        raise Unreachable(f\"{path}: HTTP {answer.status}\")\n",
     "new": "    if answer.status > HTTPStatus.BAD_REQUEST:\n        raise Unreachable(f\"{path}: HTTP {answer.status}\")\n",
     "tests": "error_status_on_the_login_page_ends_the_round or error_status_on_the_renewal_logout_ends_the_round"
+  },
+  {
+    "label": "config flow: a new login keeps what the entry's title was made from",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                data_updates={**self._visit_login, CONF.PAGES: pages},\n",
+    "new": "                data={CONF.KIND: CONST.WEB_INTERFACE, CONF.PUMP_ENTRY: entry.data[CONF.PUMP_ENTRY], **self._visit_login, CONF.PAGES: pages},\n",
+    "tests": "refused_login_is_replaced_by_a_new_one or reconfigured_with_a_new_login_and_pages"
   }
 ]
