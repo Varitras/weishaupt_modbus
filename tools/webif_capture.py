@@ -8,9 +8,10 @@ writes to an issue: the titles in it are what the integration has to learn.
 
 It asks for the web interface's user and password and opens six pages, no
 more: the overview, the information menu, the heat pump's main menu, and the
-three pages the integration reads. You pick those entries by their number;
-on a German controller it finds them by itself. It only reads, and it never
-opens any other entry - the heat pump's main menu also lists Reset.
+three pages the integration reads. It finds those entries by their codes on
+the controller it was built for, else by their German titles, else you pick
+them by number and confirm each pick by its title. Reset, Service and the time
+programs are never offered. It only reads.
 
 The file holds each page's titles and the values shown beside them, nothing
 else: no address, no user name, no password, no session, no page address.
@@ -26,7 +27,7 @@ read with the integration's own page parser.
 
 import argparse
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import getpass
 from http import HTTPStatus
 import http.client
@@ -85,6 +86,26 @@ INFO = "Info"
 HEAT_PUMP = "Wärmepumpe"
 STATISTICS = "Statistik"
 HEATING = "Heizen"
+# A stack segment starts with the code of its menu entry: the main menu in the
+# first two hex digits, the entry in the next six. The rest carries the
+# device, the menu depth and at times a shown value.
+ITEM_CODE = slice(0, 8)
+# Never opened, not even to look: Reset, Service and the time programs, by
+# their codes on the controller this was built for. Another model's codes
+# are not known, which is why a pick is confirmed.
+NEVER_OPENED = frozenset(
+    {
+        "64004500",
+        "32004A00",
+        "46006500",
+        "C300AC15",
+        "58009500",
+        "64001100",
+        "32004000",
+        "46004000",
+    }
+)
+YES = ("y", "yes")
 
 # Restarting a stopped capture by hand, a minute's rest was what the
 # controller needed.
@@ -119,23 +140,26 @@ class Step:
     """A page to read.
 
     The page it is an entry of ("" for the overview), its title there on a
-    German controller, what it is, and how it is read.
+    German controller and its code on the controller this was built for, what
+    it is, and how it is read.
     """
 
     key: str
     parent: str
     german: str
+    code: str
     what: str
     menu: bool
     shows_values: bool
 
 
 STEPS = (
-    Step("overview", "", "", "the overview", menu=True, shows_values=False),
+    Step("overview", "", "", "", "the overview", menu=True, shows_values=False),
     Step(
         "info",
         "overview",
         INFO,
+        "0C000001",
         "the menu of information pages",
         menu=True,
         shows_values=False,
@@ -144,6 +168,7 @@ STEPS = (
         "heat_pump_menu",
         "overview",
         HEAT_PUMP,
+        "64000001",
         "the heat pump's main menu",
         menu=True,
         shows_values=False,
@@ -152,6 +177,7 @@ STEPS = (
         "heat_pump",
         "info",
         HEAT_PUMP,
+        "0C000C22",
         "the heat pump's information page",
         menu=False,
         shows_values=True,
@@ -160,6 +186,7 @@ STEPS = (
         "statistics",
         "info",
         STATISTICS,
+        "0C000C28",
         "the statistics",
         menu=False,
         shows_values=True,
@@ -168,12 +195,26 @@ STEPS = (
         "heating",
         "heat_pump_menu",
         HEATING,
+        "64001800",
         "the heat pump's heating settings",
         menu=True,
         shows_values=True,
     ),
 )
 STEP_BY_KEY = {step.key: step for step in STEPS}
+
+
+@dataclass
+class _Walk:
+    """What a run has learnt so far; it carries over from attempt to attempt.
+
+    The pages read whole, the entry each step reads, and which of those the
+    user picked.
+    """
+
+    read: dict[str, list[Any]] = field(default_factory=dict)
+    chosen: dict[str, Any] = field(default_factory=dict)
+    picked: set[str] = field(default_factory=set)
 
 
 @dataclass(frozen=True)
@@ -326,34 +367,59 @@ def _path(step: Step, title: Callable[[Step], str]) -> str:
     return MENU_SEPARATOR.join(titles)
 
 
+def _number(answer: str, count: int) -> int | None:
+    """The list position an answer names, or None for anything else."""
+    answer = answer.strip()
+    if answer.isascii() and answer.isdigit() and 1 <= int(answer) <= count:
+        return int(answer) - 1
+    return None
+
+
 def _pick(step: Step, offered: list[Any], ask: Callable[[str], str]) -> Any:
-    """The entry the user names by its number."""
+    """The entry the user names by its number and confirms by its title."""
     print(f"\nWhich of these is {step.what}?")
     for number, entry in enumerate(offered, start=1):
         print(f"  {number}. {entry.title}")
     while True:
-        answer = ask(f"Number of {step.what} (German: {step.german}): ").strip()
-        if answer.isascii() and answer.isdigit() and 1 <= int(answer) <= len(offered):
-            return offered[int(answer) - 1]
-        print(f"   A number from 1 to {len(offered)}, please.")
+        answer = ask(f"Number of {step.what} (German: {step.german}): ")
+        position = _number(answer, len(offered))
+        if position is None:
+            print(f"   A number from 1 to {len(offered)}, please.")
+            continue
+        entry = offered[position]
+        if ask(f"Open '{entry.title}'? [y/N] ").strip().lower() in YES:
+            return entry
 
 
-def _entry(
-    step: Step,
-    read: dict[str, list[Any]],
-    chosen: dict[str, Any],
-    ask: Callable[[str], str],
-) -> Any:
+def _item(href: str) -> str:
+    """The code of the menu entry a page address leads to."""
+    return href.split(pages.STACK_QUERY, 1)[1].rsplit(",", maxsplit=1)[-1][ITEM_CODE]
+
+
+def _entry(step: Step, walk: _Walk, ask: Callable[[str], str]) -> Any:
     """The entry of its parent page the step reads.
 
-    Found by its German title, else picked by the user - once: a later
-    attempt goes the same way.
+    Found by its code on the controller this was built for, else by its German
+    title, else picked by the user; an entry the tool never opens is never
+    offered. Found once: a later attempt goes the same way, unless a picked
+    page came in a shape that does not fit.
     """
-    if step.key not in chosen:
-        offered = [entry for entry in read[step.parent] if entry.href is not None]
-        german = [entry for entry in offered if entry.title == step.german]
-        chosen[step.key] = german[0] if len(german) == 1 else _pick(step, offered, ask)
-    return chosen[step.key]
+    if step.key in walk.chosen:
+        return walk.chosen[step.key]
+    offered = [
+        entry
+        for entry in walk.read[step.parent]
+        if entry.href is not None and _item(entry.href) not in NEVER_OPENED
+    ]
+    by_code = [entry for entry in offered if _item(entry.href) == step.code]
+    by_title = [entry for entry in offered if entry.title == step.german]
+    found = by_code if len(by_code) == 1 else by_title
+    if len(found) == 1:
+        walk.chosen[step.key] = found[0]
+    else:
+        walk.chosen[step.key] = _pick(step, offered, ask)
+        walk.picked.add(step.key)
+    return walk.chosen[step.key]
 
 
 def _entries(step: Step, text: str, path: str) -> list[Any]:
@@ -372,32 +438,32 @@ def _whole(step: Step, entries: list[Any]) -> bool:
     )
 
 
-def _read_missing(
-    session: Session,
-    read: dict[str, list[Any]],
-    chosen: dict[str, Any],
-    ask: Callable[[str], str],
-) -> None:
+def _read_missing(session: Session, walk: _Walk, ask: Callable[[str], str]) -> None:
     """Read every page not yet read whole, in the order of the menus."""
     for step in STEPS:
-        if step.key in read:
+        if step.key in walk.read:
             continue
-        path = _entry(step, read, chosen, ask).href if step.parent else OVERVIEW
+        path = _entry(step, walk, ask).href if step.parent else OVERVIEW
         entries = _entries(step, session.page(path, step.key), path)
         if not _whole(step, entries):
+            if step.key in walk.picked:
+                # More likely a wrong pick than a hiccup: kept, it would be
+                # asked for the same way in every attempt.
+                walk.picked.discard(step.key)
+                del walk.chosen[step.key]
             raise Half(f"{step.what} came half")
-        read[step.key] = entries
+        walk.read[step.key] = entries
         print(f"   {step.what}: {len(entries)} entries")
 
 
-def _report(read: dict[str, list[Any]], chosen: dict[str, Any]) -> dict[str, Any]:
+def _report(walk: _Walk) -> dict[str, Any]:
     return {
         "pages": [
             {
                 "page": step.key,
                 "german": _path(step, lambda each: each.german),
-                "shown": _path(step, lambda each: chosen[each.key].title),
-                "entries": [[entry.title, entry.text] for entry in read[step.key]],
+                "shown": _path(step, lambda each: walk.chosen[each.key].title),
+                "entries": [[entry.title, entry.text] for entry in walk.read[step.key]],
             }
             for step in STEPS
         ]
@@ -414,20 +480,19 @@ def capture(
     sleep: Callable[[float], Any] = time.sleep,
 ) -> dict[str, Any] | None:
     """The six pages' titles and values, or None when they could not be had."""
-    read: dict[str, list[Any]] = {}
-    chosen: dict[str, Any] = {}
+    walk = _Walk()
     for attempt in range(1, attempts + 1):
         session = Session(host, user, password, sleep)
         try:
             session.login()
-            _read_missing(session, read, chosen, ask)
+            _read_missing(session, walk, ask)
         except Refused as error:
             print(f"Login refused: {error}.")
             return None
         except Stopped as error:
             print(f"Attempt {attempt} of {attempts} stopped: {error}.")
         else:
-            return _report(read, chosen)
+            return _report(walk)
         finally:
             session.logout()
         if attempt < attempts:

@@ -247,11 +247,13 @@ little and stops on its own when the answers go wrong.
    Download the repository (*Code → Download ZIP*), unpack it and run
    `python tools/webif_capture.py <address of the heat pump>` on a computer
    in the same network (Python 3.10 or newer). It asks for the user and the
-   password, lets you pick the menu entries the integration reads by their
-   number, and opens those six pages and nothing else; when the controller
-   serves a page half, it rests a minute and goes on. The file it writes
-   holds the titles and the values shown, without the address, the
-   credentials or any page address. Read it, then attach it to the issue.
+   password and opens six pages: it finds the menu entries the integration
+   reads by their codes, else by their German titles, else you pick them by
+   number and confirm each pick; Reset, Service and the time programs are
+   never offered. When the controller serves a page half, it rests a minute
+   and goes on. The file it writes holds the titles and the values shown,
+   without the address, the credentials or any page address. Read it, then
+   attach it to the issue.
 
 ### Adding it
 

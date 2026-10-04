@@ -23,10 +23,8 @@ from .webif_stand_in import (
     INFO,
     PASSWORD,
     PUMP_MENU,
-    RESET,
     SESSION_ID,
     STACK,
-    STATISTICS_INFO,
     USER,
     StandInPump,
     column,
@@ -43,19 +41,45 @@ capture_tool = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = capture_tool
 _SPEC.loader.exec_module(capture_tool)
 
-HEAT_PUMP_PAGE = STACK + f"{INFO},{HEAT_PUMP_INFO}"
-STATISTICS_PAGE = STACK + f"{INFO},{STATISTICS_INFO}"
-HEATING_PAGE = STACK + f"{PUMP_MENU},{HEATING}"
+# The six pages' segments on the controller the tool knows, with the
+# stand-in's device token (0A0B): their codes find them in any language.
+KNOWN = {
+    "info": INFO,
+    "pump": PUMP_MENU,
+    "heat_pump": HEAT_PUMP_INFO,
+    "statistics": "0C000C28000000000000000A0B020003000401",
+    "heating": HEATING,
+}
+# Another model's: no code the tool knows, so the titles or the user decide.
+OTHER_MODEL = {
+    "info": "0D000001000000000080000A0B010002000301",
+    "pump": "6A000001000000000080000A0B010002000301",
+    "heat_pump": "0D000D22000000000000000A0B020003000401",
+    "statistics": "0D000D28000000000000000A0B020003000401",
+    "heating": "6A001800000000000080000A0B020003000401",
+}
+SERVICE = "64001100000000000080000A0B020003000401"
+RESET = "64004500000000000080000A0B020011000401"
+COOLING = "64001900000000000080000A0B020003000401"
+UNKNOWN_HEATING = "64009900000000000080000A0B020003000401"
 SWITCHING_DIFFERENCE = "64001805000000002D40000A0B030011010401"
 POWER_LIMIT = "64001807000000003C40000A0B030011010401"
-WALK = [
-    webif.OVERVIEW,
-    STACK + INFO,
-    STACK + PUMP_MENU,
-    HEAT_PUMP_PAGE,
-    STATISTICS_PAGE,
-    HEATING_PAGE,
-]
+
+
+def paths(codes):
+    """The six pages' addresses, in the order the tool reads them."""
+    return [
+        webif.OVERVIEW,
+        STACK + codes["info"],
+        STACK + codes["pump"],
+        STACK + f"{codes['info']},{codes['heat_pump']}",
+        STACK + f"{codes['info']},{codes['statistics']}",
+        STACK + f"{codes['pump']},{codes['heating']}",
+    ]
+
+
+WALK = paths(KNOWN)
+HEAT_PUMP_PAGE, STATISTICS_PAGE = WALK[3], WALK[4]
 LOGIN = [("GET", webif.INDEX), ("POST", webif.LOGIN)]
 LOGOUT = [("GET", webif.LOGOUT)]
 A_MINUTE = 60
@@ -79,32 +103,39 @@ def asked(paths):
     return [("GET", path) for path in paths]
 
 
-def site(titles):
-    """The six pages, with the menu titles of one language."""
-    main = column(link([INFO], titles["info"]) + link([PUMP_MENU], titles["pump"]))
+def site(titles, codes=KNOWN):
+    """The six pages, with the menu titles of one language and the codes of
+    one model; the heat pump menu also lists Service and Reset."""
+    overview, info, pump, heat_pump, statistics, heating = paths(codes)
+    main = column(
+        link([codes["info"]], titles["info"]) + link([codes["pump"]], titles["pump"])
+    )
     return {
-        webif.OVERVIEW: main,
-        STACK + INFO: main
+        overview: main,
+        info: main
         + column(
-            link([INFO, HEAT_PUMP_INFO], titles["heat_pump"])
-            + link([INFO, STATISTICS_INFO], titles["statistics"])
+            link([codes["info"], codes["heat_pump"]], titles["heat_pump"])
+            + link([codes["info"], codes["statistics"]], titles["statistics"])
         ),
-        STACK + PUMP_MENU: main
+        pump: main
         + column(
-            link([PUMP_MENU, HEATING], titles["heating"])
-            + link([PUMP_MENU, RESET], "Reset")
+            link([codes["pump"], codes["heating"]], titles["heating"])
+            + link([codes["pump"], SERVICE], "Service")
+            + link([codes["pump"], RESET], "Reset")
         ),
-        HEAT_PUMP_PAGE: column(
+        heat_pump: column(
             value("Flow temperature", "35.2 °C") + value("Compressor", "Off")
         ),
-        STATISTICS_PAGE: column(value("Heat quantity heating", "5356.310 KWh")),
-        HEATING_PAGE: column(
+        statistics: column(value("Heat quantity heating", "5356.310 KWh")),
+        heating: column(
             link(
-                [PUMP_MENU, HEATING, SWITCHING_DIFFERENCE],
+                [codes["pump"], codes["heating"], SWITCHING_DIFFERENCE],
                 "Switching difference",
                 "4.5 K",
             )
-            + link([PUMP_MENU, HEATING, POWER_LIMIT], "Power limit", "60 %")
+            + link(
+                [codes["pump"], codes["heating"], POWER_LIMIT], "Power limit", "60 %"
+            )
         ),
     }
 
@@ -155,20 +186,56 @@ async def test_a_german_controller_is_read_without_a_question(socket_enabled):
     assert all(0 < rest <= webif.MIN_GAP_SECONDS for rest in rests), rests
 
 
-async def test_another_language_is_picked_by_number(socket_enabled):
+async def test_known_codes_find_the_pages_in_any_language(socket_enabled):
+    """A pick is where a mistyped number opens a wrong page: the codes of the
+    controller this was built for leave nothing to pick."""
     async with serving(StandInPump()) as pump:
         pump.site = site(ENGLISH)
+        report, questions, _ = await run_capture(pump)
+
+    assert questions == []
+    assert pump.asked == [*LOGIN, *asked(WALK), *LOGOUT]
+    assert by_page(report)["heating"]["shown"] == "Heat pump › Heating"
+
+
+async def test_another_model_in_german_is_read_by_its_titles(socket_enabled):
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN, OTHER_MODEL)
+        _, questions, _ = await run_capture(pump)
+
+    assert questions == []
+    assert pump.asked == [*LOGIN, *asked(paths(OTHER_MODEL)), *LOGOUT]
+
+
+async def test_another_model_in_another_language_is_picked_by_number(socket_enabled):
+    async with serving(StandInPump()) as pump:
+        pump.site = site(ENGLISH, OTHER_MODEL)
         report, questions, _ = await run_capture(
-            pump, answers=["0", "two", "1", "2", "1", "2", "1"]
+            pump,
+            answers=["0", "two", "1", "y", "2", "y", "1", "y", "2", "y", "1", "y"],
         )
 
-    assert pump.asked == [*LOGIN, *asked(WALK), *LOGOUT]
-    # Each question names what it asks for on a German controller; the first
-    # two answers were no number of the list and were asked again.
-    german = ["Info", "Info", "Info", "Wärmepumpe", "Wärmepumpe", "Statistik", "Heizen"]
-    assert len(questions) == len(german)
-    for question, title in zip(questions, german, strict=True):
-        assert f"German: {title}" in question, question
+    assert pump.asked == [*LOGIN, *asked(paths(OTHER_MODEL)), *LOGOUT]
+    # Each number question names what it asks for on a German controller, each
+    # pick is confirmed by its title; the first two answers were no number of
+    # the list and were asked again.
+    expected = [
+        "German: Info",
+        "German: Info",
+        "German: Info",
+        "'Information'",
+        "German: Wärmepumpe",
+        "'Heat pump'",
+        "German: Wärmepumpe",
+        "'Heat pump'",
+        "German: Statistik",
+        "'Statistics'",
+        "German: Heizen",
+        "'Heating'",
+    ]
+    assert len(questions) == len(expected)
+    for question, text in zip(questions, expected, strict=True):
+        assert text in question, question
     pages = by_page(report)
     assert {key: (page["german"], page["shown"]) for key, page in pages.items()} == {
         "overview": ("", ""),
@@ -179,12 +246,62 @@ async def test_another_language_is_picked_by_number(socket_enabled):
         "heating": ("Wärmepumpe › Heizen", "Heat pump › Heating"),
     }
     assert pages["overview"]["entries"] == [["Information", ""], ["Heat pump", ""]]
-    assert pages["heat_pump_menu"]["entries"] == [["Heating", ""], ["Reset", ""]]
+    assert pages["heat_pump_menu"]["entries"] == [
+        ["Heating", ""],
+        ["Service", ""],
+        ["Reset", ""],
+    ]
     assert pages["heat_pump"]["entries"] == [
         ["Flow temperature", "35.2 °C"],
         ["Compressor", "Off"],
     ]
     assert pages["heating"]["entries"] == [
+        ["Switching difference", "4.5 K"],
+        ["Power limit", "60 %"],
+    ]
+
+
+async def test_reset_and_service_are_never_offered(socket_enabled, capsys):
+    """Their codes are known: whatever the language, no number opens them."""
+    codes = {**KNOWN, "heating": UNKNOWN_HEATING}
+    async with serving(StandInPump()) as pump:
+        pump.site = site(ENGLISH, codes)
+        _, questions, _ = await run_capture(pump, answers=["2", "1", "y"])
+
+    offered = [line.strip() for line in capsys.readouterr().out.splitlines()]
+    assert "1. Heating" in offered
+    assert not any(line.endswith((". Service", ". Reset")) for line in offered)
+    assert len(questions) == 3, "2 is no number of the list"
+    assert not any(SERVICE in path or RESET in path for _, path in pump.asked)
+
+
+async def test_a_pick_is_opened_only_once_confirmed(socket_enabled):
+    codes = {**KNOWN, "heating": UNKNOWN_HEATING}
+    async with serving(StandInPump()) as pump:
+        pump.site = site(ENGLISH, codes)
+        _, questions, _ = await run_capture(pump, answers=["1", "n", "1", "y"])
+
+    assert len(questions) == 4
+    assert pump.asked.count(("GET", paths(codes)[5])) == 1
+
+
+async def test_a_picked_page_of_the_wrong_shape_is_picked_anew(socket_enabled):
+    """A wrong pick came back the same way in every one of the ten attempts,
+    ten minutes of asking a page that could never fit."""
+    codes = {**KNOWN, "heating": UNKNOWN_HEATING}
+    cooling = STACK + f"{KNOWN['pump']},{COOLING}"
+    async with serving(StandInPump()) as pump:
+        pump.site = site(ENGLISH, codes)
+        pump.site[STACK + KNOWN["pump"]] += column(
+            link([KNOWN["pump"], COOLING], "Cooling")
+        )
+        pump.site[cooling] = column("")
+        report, questions, rests = await run_capture(pump, answers=["2", "y", "1", "y"])
+
+    assert len(questions) == 4
+    assert rests.count(A_MINUTE) == 1
+    assert pump.asked.count(("GET", cooling)) == 1
+    assert by_page(report)["heating"]["entries"] == [
         ["Switching difference", "4.5 K"],
         ["Power limit", "60 %"],
     ]

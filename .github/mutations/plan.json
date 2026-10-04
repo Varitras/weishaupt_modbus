@@ -2718,16 +2718,16 @@
   {
     "label": "capture: a German controller's pages are found by their titles",
     "path": "tools/webif_capture.py",
-    "old": "        chosen[step.key] = german[0] if len(german) == 1 else _pick(step, offered, ask)\n",
-    "new": "        chosen[step.key] = _pick(step, offered, ask)\n",
-    "tests": "german_controller_is_read_without_a_question"
+    "old": "    found = by_code if len(by_code) == 1 else by_title\n",
+    "new": "    found = by_code\n",
+    "tests": "another_model_in_german_is_read_by_its_titles"
   },
   {
     "label": "capture: a number outside the list is asked again",
     "path": "tools/webif_capture.py",
-    "old": "        if answer.isascii() and answer.isdigit() and 1 <= int(answer) <= len(offered):\n",
-    "new": "        if answer.isascii() and answer.isdigit() and 0 <= int(answer) <= len(offered):\n",
-    "tests": "another_language_is_picked_by_number"
+    "old": "    if answer.isascii() and answer.isdigit() and 1 <= int(answer) <= count:\n",
+    "new": "    if answer.isascii() and answer.isdigit() and 0 <= int(answer) <= count:\n",
+    "tests": "another_model_in_another_language_is_picked_by_number"
   },
   {
     "label": "capture: a page that shows nothing is not taken",
@@ -2746,7 +2746,7 @@
   {
     "label": "capture: a later attempt asks only for what is missing",
     "path": "tools/webif_capture.py",
-    "old": "        if step.key in read:\n            continue\n",
+    "old": "        if step.key in walk.read:\n            continue\n",
     "new": "",
     "tests": "page_served_half_is_asked_for_again_after_a_minute"
   },
@@ -2802,8 +2802,8 @@
   {
     "label": "capture: the file names no page address",
     "path": "tools/webif_capture.py",
-    "old": "                \"entries\": [[entry.title, entry.text] for entry in read[step.key]],\n",
-    "new": "                \"entries\": [[entry.title, entry.text, entry.href] for entry in read[step.key]],\n",
+    "old": "                \"entries\": [[entry.title, entry.text] for entry in walk.read[step.key]],\n",
+    "new": "                \"entries\": [[entry.title, entry.text, entry.href] for entry in walk.read[step.key]],\n",
     "tests": "report_holds_nothing_that_points_to_the_pump"
   },
   {
@@ -2924,5 +2924,33 @@
     "old": "    if entry is None or entry.state is not ConfigEntryState.LOADED:\n",
     "new": "    if entry is None:\n",
     "tests": "reconfigured_with_a_new_login_and_pages"
+  },
+  {
+    "label": "capture: the known codes find the pages in any language",
+    "path": "tools/webif_capture.py",
+    "old": "    found = by_code if len(by_code) == 1 else by_title\n",
+    "new": "    found = by_title\n",
+    "tests": "known_codes_find_the_pages_in_any_language"
+  },
+  {
+    "label": "capture: an entry never opened is never offered",
+    "path": "tools/webif_capture.py",
+    "old": "        if entry.href is not None and _item(entry.href) not in NEVER_OPENED\n",
+    "new": "        if entry.href is not None\n",
+    "tests": "reset_and_service_are_never_offered"
+  },
+  {
+    "label": "capture: a pick is opened only once confirmed",
+    "path": "tools/webif_capture.py",
+    "old": "YES = (\"y\", \"yes\")\n",
+    "new": "YES = (\"y\", \"yes\", \"n\")\n",
+    "tests": "pick_is_opened_only_once_confirmed"
+  },
+  {
+    "label": "capture: a picked page of the wrong shape is picked anew",
+    "path": "tools/webif_capture.py",
+    "old": "                del walk.chosen[step.key]\n",
+    "new": "                pass\n",
+    "tests": "picked_page_of_the_wrong_shape_is_picked_anew"
   }
 ]
