@@ -95,7 +95,8 @@ async def _probe_error(hass: HomeAssistant, data: dict[str, Any]) -> str | None:
         answers = await pump_answers(hass, data)
     except Exception:
         # A fault of this code: Home Assistant would end the dialog in a bare
-        # "Unknown error" and log nothing to go by.
+        # "Unknown error", with no form to try again in and a log line that
+        # does not say it was the probe.
         _LOGGER.exception("The heat pump probe failed on an unexpected error")
         return "unknown"
     if not answers:

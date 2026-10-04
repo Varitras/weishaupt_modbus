@@ -2676,7 +2676,7 @@
   {
     "label": "config flow: a probe failing on a fault of its own ends the dialog",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "    try:\n        answers = await pump_answers(hass, data)\n    except Exception:\n        # A fault of this code: Home Assistant would end the dialog in a bare\n        # \"Unknown error\" and log nothing to go by.\n        _LOGGER.exception(\"The heat pump probe failed on an unexpected error\")\n        return \"unknown\"\n",
+    "old": "    try:\n        answers = await pump_answers(hass, data)\n    except Exception:\n        # A fault of this code: Home Assistant would end the dialog in a bare\n        # \"Unknown error\", with no form to try again in and a log line that\n        # does not say it was the probe.\n        _LOGGER.exception(\"The heat pump probe failed on an unexpected error\")\n        return \"unknown\"\n",
     "new": "    answers = await pump_answers(hass, data)\n",
     "tests": "probe_failing_on_a_fault_of_its_own_says_so"
   },
