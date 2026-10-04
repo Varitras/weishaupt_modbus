@@ -229,6 +229,23 @@ async def test_a_page_without_a_title_its_sensors_read_is_named(
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
 
 
+async def test_a_heating_menu_with_other_entries_is_named(hass, pump, monkeypatch):
+    """Another model's heating menu showed entries of its own level, none of
+    them one the sensors read, and the dialog said it had come only in part:
+    try again, which could never help."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    other_entry = "64001802000000001E40000A0B030011010401"
+    pump.site[PAGES[HEATING_PAGE]] = column(
+        link([PUMP_MENU, HEATING, other_entry], "Heizgrenze", "15.0 °C")
+    )
+
+    with pytest.raises(MissingTitles) as raised:
+        await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert raised.value.page == "Wärmepumpe › Heizen"
+    assert raised.value.titles == set(SHOWN[HEATING_PAGE])
+
+
 async def test_a_page_is_judged_by_its_last_answer(hass, pump, monkeypatch):
     """The first answer came half, the second whole but without a title the
     sensors read: judged by the first, the dialog searched once more for

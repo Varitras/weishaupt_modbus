@@ -236,12 +236,15 @@ async def _read_whole(client: Client, page: Page) -> None:
 def _lacking(page: Page, text: str) -> Broken | None:
     """What keeps a page that came from being whole.
 
-    None for a page that came only half, with none of its titles: the
-    controller's empty column, its main menus nested, another section's
-    values. Asking again a little later mends that.
+    None for a page that came only half: a page of values with none of its
+    titles (the controller's empty column, its main menus nested, another
+    section's values), or a menu with nothing at its own level. Asking again
+    a little later mends that. A menu with other entries at its own level is
+    another model's, as in the search.
     """
     titles = {title for title, _ in page.read(text)}
-    if not titles & page.required:
+    shows_its_own_level = page.menu and bool(titles)
+    if not titles & page.required and not shows_its_own_level:
         return None
     if missing := page.missing(text):
         return MissingTitles(PAGE_MENUS[page.key], missing)

@@ -2116,7 +2116,7 @@
   {
     "label": "config flow: a page served half reads as another model",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "    if not titles & page.required:\n        return None\n",
+    "old": "    if not titles & page.required and not shows_its_own_level:\n        return None\n",
     "new": "",
     "tests": "page_served_half_on_every_ask_is_not_called_unsupported"
   },
@@ -2602,5 +2602,19 @@
     "old": "class UnclearValues(Broken):\n",
     "new": "class UnclearValues(WebifError):\n",
     "tests": "values_shown_empty_or_twice_are_named"
+  },
+  {
+    "label": "config flow: a menu with other entries reads as served half",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    shows_its_own_level = page.menu and bool(titles)\n",
+    "new": "    shows_its_own_level = False\n",
+    "tests": "heating_menu_with_other_entries_is_named"
+  },
+  {
+    "label": "config flow: a page of another section's values reads as another model",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    shows_its_own_level = page.menu and bool(titles)\n",
+    "new": "    shows_its_own_level = bool(titles)\n",
+    "tests": "page_served_half_on_every_ask_is_not_called_unsupported"
   }
 ]
