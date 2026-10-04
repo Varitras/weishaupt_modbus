@@ -304,6 +304,34 @@ def test_the_power_map_choice_offers_only_map_files(tmp_path):
     assert config_flow._kennfeld_files(tmp_path) == ["weishaupt_wbb_kennfeld.json"]
 
 
+async def test_a_probe_failing_on_a_fault_of_its_own_says_so(hass, monkeypatch, caplog):
+    """A fault of this code in the probe ended both dialogs in Home Assistant's
+    bare "Unknown error", with no form to try again in."""
+
+    async def faulty(_hass, _data):
+        raise RuntimeError("a fault of the probe")
+
+    monkeypatch.setattr(config_flow, "pump_answers", faulty)
+    started = await _start(hass)
+    added = await hass.config_entries.flow.async_configure(
+        started["flow_id"], dict(PAGE_ONE)
+    )
+    entry = MockConfigEntry(domain=CONST.DOMAIN, data=PAGE_ONE, version=11)
+    entry.add_to_hass(hass)
+    moved = await _reconfigure(
+        hass, entry, {**RECONFIGURE_PAGE, CONF.HOST: "192.0.2.99"}
+    )
+
+    assert added["errors"] == {"base": "unknown"}
+    assert moved["errors"] == {"base": "unknown"}
+    tracebacks = [
+        record
+        for record in caplog.records
+        if record.exc_info and record.levelno >= logging.ERROR
+    ]
+    assert len(tracebacks) == 2
+
+
 async def test_a_host_without_a_pump_is_reported(hass, mock_modbus):
     """A typo in the address used to create an entry that then retried
     forever; the flow now reads one register first."""
@@ -653,6 +681,26 @@ async def test_a_controller_in_another_language_is_told_so(hass, web_interface):
 
     assert result["errors"] == {"base": "missing_menu_entries"}
     assert result["description_placeholders"] == {"titles": "Heizen, Statistik"}
+
+
+async def test_a_visit_failing_on_a_fault_of_its_own_says_so(
+    hass, web_interface, caplog
+):
+    """It ended the dialog in Home Assistant's bare "Unknown error"."""
+    pump = _pump_entry(hass)
+    web_interface.outcome = RuntimeError("a fault of the visit")
+    form = await _web_form(hass)
+
+    result = await hass.config_entries.flow.async_configure(
+        form["flow_id"], {CONF.PUMP_ENTRY: pump.entry_id, **WEB_LOGIN}
+    )
+
+    assert result["errors"] == {"base": "unknown"}
+    assert [
+        record
+        for record in caplog.records
+        if record.exc_info and record.levelno >= logging.ERROR
+    ]
 
 
 async def test_a_menu_entry_shown_twice_is_named_in_the_form(hass, web_interface):

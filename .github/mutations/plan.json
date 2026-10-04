@@ -821,8 +821,8 @@
   {
     "label": "reconfigure: an address without a pump is refused",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "                errors[\"base\"] = \"cannot_connect\"\n",
-    "new": "                pass\n",
+    "old": "            if error := await _probe_error(self.hass, user_input):\n                errors[\"base\"] = error\n",
+    "new": "            if error := await _probe_error(self.hass, user_input):\n                pass\n",
     "tests": "reconfigure_to_a_host_without_a_pump_is_reported"
   },
   {
@@ -1339,8 +1339,8 @@
   {
     "label": "config flow: no connection reads as a broken page",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "        return \"cannot_connect\"\n",
-    "new": "        return \"cannot_read\"\n",
+    "old": "    if isinstance(error, Unreachable):\n        return \"cannot_connect\"\n",
+    "new": "    if isinstance(error, Unreachable):\n        return \"cannot_read\"\n",
     "tests": "visit_that_fails_says_why"
   },
   {
@@ -2672,5 +2672,26 @@
     "old": "            try:\n                with suppress(WebifError):\n                    await self._logout()\n            except Exception:\n                _LOGGER.exception(\"Logging out failed on an unexpected error\")\n",
     "new": "            with suppress(WebifError):\n                await self._logout()\n",
     "tests": "fault_of_its_own_does_not_fail_the_close"
+  },
+  {
+    "label": "config flow: a probe failing on a fault of its own ends the dialog",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    try:\n        answers = await pump_answers(hass, data)\n    except Exception:\n        # A fault of this code: Home Assistant would end the dialog in a bare\n        # \"Unknown error\" and log nothing to go by.\n        _LOGGER.exception(\"The heat pump probe failed on an unexpected error\")\n        return \"unknown\"\n",
+    "new": "    answers = await pump_answers(hass, data)\n",
+    "tests": "probe_failing_on_a_fault_of_its_own_says_so"
+  },
+  {
+    "label": "config flow: a pump that does not answer passes the probe",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    if not answers:\n        return \"cannot_connect\"\n",
+    "new": "",
+    "tests": "a_host_without_a_pump_is_reported"
+  },
+  {
+    "label": "config flow: a visit failing on a fault of its own ends the dialog",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        except Exception:\n            # As in the probe: a fault of this code, not of the web interface.\n            _LOGGER.exception(\"The web interface visit failed on an unexpected error\")\n            return None, {\"base\": \"unknown\"}, {}\n",
+    "new": "",
+    "tests": "visit_failing_on_a_fault_of_its_own_says_so"
   }
 ]

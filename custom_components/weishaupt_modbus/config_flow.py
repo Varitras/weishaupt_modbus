@@ -89,6 +89,20 @@ async def pump_answers(hass: HomeAssistant, data: dict[str, Any]) -> bool:
     return True
 
 
+async def _probe_error(hass: HomeAssistant, data: dict[str, Any]) -> str | None:
+    """The form's error for the probe of the heat pump; None when it answers."""
+    try:
+        answers = await pump_answers(hass, data)
+    except Exception:
+        # A fault of this code: Home Assistant would end the dialog in a bare
+        # "Unknown error" and log nothing to go by.
+        _LOGGER.exception("The heat pump probe failed on an unexpected error")
+        return "unknown"
+    if not answers:
+        return "cannot_connect"
+    return None
+
+
 def namespace_error(
     hass: HomeAssistant,
     data: dict[str, Any],
@@ -360,8 +374,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         )
         if reason:
             return {"base": reason}
-        if not await pump_answers(self.hass, user_input):
-            return {"base": "cannot_connect"}
+        if error := await _probe_error(self.hass, user_input):
+            return {"base": error}
         # Once more after the probe: an entry may have appeared meanwhile, or
         # a reconfigure may have moved an existing one onto this endpoint.
         # Creating the entry then replaces it, taking its entities with it.
@@ -592,6 +606,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
             _LOGGER.debug("Web interface visit failed: %s", error)
             errors = {"base": web_interface_error(error)}
             return None, errors, web_interface_error_placeholders(error)
+        except Exception:
+            # As in the probe: a fault of this code, not of the web interface.
+            _LOGGER.exception("The web interface visit failed on an unexpected error")
+            return None, {"base": "unknown"}, {}
 
     async def async_step_reauth(
         self, entry_data: Mapping[str, Any]
@@ -686,8 +704,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
             except InvalidHost:
                 errors["base"] = "invalid_host"
         if user_input is not None and not errors:
-            if not await pump_answers(self.hass, user_input):
-                errors["base"] = "cannot_connect"
+            if error := await _probe_error(self.hass, user_input):
+                errors["base"] = error
         if user_input is not None and not errors:
             self._stored_data.update(user_input)
             new_unique_id = entry_unique_id(self._stored_data)

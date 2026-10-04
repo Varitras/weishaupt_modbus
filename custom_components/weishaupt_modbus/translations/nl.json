@@ -21,7 +21,8 @@
       "unclear_values" : "De pagina {page} van de webinterface toont {titles} zonder waarde of meer dan eens. Probeer het opnieuw; blijft het zo, dan wordt deze regelaar nog niet ondersteund.",
       "unknown_units" : "De pagina {page} van de webinterface toont {titles} in een eenheid die de integratie niet kent. Deze regelaar wordt nog niet ondersteund.",
       "missing_menu_entries" : "De menu's van de webinterface tonen {titles} niet. De integratie vindt haar pagina's via deze Duitse namen: staat de taal van de regelaar op Duits?",
-      "doubled_menu_entries" : "De menu's van de webinterface tonen {titles} meer dan eens. Probeer het opnieuw; blijft het zo, dan wordt deze regelaar nog niet ondersteund."
+      "doubled_menu_entries" : "De menu's van de webinterface tonen {titles} meer dan eens. Probeer het opnieuw; blijft het zo, dan wordt deze regelaar nog niet ondersteund.",
+      "unknown" : "Er is een onverwachte fout opgetreden; het logboek bevat de details."
     },
     "progress" : {
       "webif_visit" : "Aanmelden bij de webinterface, de pagina's zoeken en elke pagina eenmaal lezen. Dit duurt ongeveer een minuut, iets langer als een pagina opnieuw moet worden opgevraagd."
