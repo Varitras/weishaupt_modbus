@@ -106,7 +106,7 @@
         },
         "data_description": {
           "username": "The user on the web interface's login page.",
-          "password": "The password on the web interface's login page."
+          "password": "The password on the web interface's login page. It is stored in Home Assistant and sent to the heat pump only, as plain HTTP: the controller offers nothing else, so keep it on a network you trust."
         }
       },
       "reconfigure_webif": {
@@ -118,7 +118,7 @@
         },
         "data_description": {
           "username": "The user on the web interface's login page.",
-          "password": "The password on the web interface's login page."
+          "password": "The password on the web interface's login page. It is stored in Home Assistant and sent to the heat pump only, as plain HTTP: the controller offers nothing else, so keep it on a network you trust."
         }
       }
     }

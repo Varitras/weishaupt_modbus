@@ -106,7 +106,7 @@
                 },
                 "data_description": {
                     "username": "Der Benutzer der Anmeldeseite der Weboberfläche.",
-                    "password": "Das Passwort der Anmeldeseite der Weboberfläche."
+                    "password": "Das Passwort der Anmeldeseite der Weboberfläche. Es wird in Home Assistant gespeichert und nur an die Wärmepumpe gesendet, unverschlüsselt per HTTP: Der Regler bietet nichts anderes an, betreiben Sie ihn deshalb in einem Netz, dem Sie vertrauen."
                 }
             },
             "reconfigure_webif": {
@@ -118,7 +118,7 @@
                 },
                 "data_description": {
                     "username": "Der Benutzer der Anmeldeseite der Weboberfläche.",
-                    "password": "Das Passwort der Anmeldeseite der Weboberfläche."
+                    "password": "Das Passwort der Anmeldeseite der Weboberfläche. Es wird in Home Assistant gespeichert und nur an die Wärmepumpe gesendet, unverschlüsselt per HTTP: Der Regler bietet nichts anderes an, betreiben Sie ihn deshalb in einem Netz, dem Sie vertrauen."
                 }
             }
         }

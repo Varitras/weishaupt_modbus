@@ -1,7 +1,8 @@
 """Every message the integration can show has a text, in every language.
 
 The config flow's aborts and errors, and the errors a service call or a
-failed poll raises.
+failed poll raises. Every dialog field has a help beside its label, the same
+in every form that asks for it.
 
 A reason or error key without a text renders as the raw key in the dialog.
 `unknown` sat in all four files for a year without the flow ever producing
@@ -113,6 +114,32 @@ def test_every_dialog_field_explains_itself(name):
     """A field with only a label left the user guessing: what the prefix is
     for, and that it can never be changed, was only in the README."""
     assert not _fields_without_help(name)
+
+
+def _fields_told_differently(name: str) -> list[str]:
+    """Fields several forms ask for whose label or help is not the same in each."""
+    translation = json.loads((FLOW.parent / name).read_text(encoding="utf-8"))
+    differing = []
+    for flow in ("config", "options"):
+        for part in ("data", "data_description"):
+            told: dict[str, set[str]] = {}
+            for step in translation.get(flow, {}).get("step", {}).values():
+                for field, text in step.get(part, {}).items():
+                    told.setdefault(field, set()).add(text)
+            differing += [
+                f"{flow}.{part}.{field}"
+                for field, texts in sorted(told.items())
+                if len(texts) > 1
+            ]
+    return differing
+
+
+@pytest.mark.parametrize("name", TRANSLATION_FILES)
+def test_a_field_reads_the_same_in_every_form_that_asks_for_it(name):
+    """The password goes as plain HTTP whichever form takes it, yet only the
+    form that added the web interface said so: what a field's help has to
+    tell was written into one form and missed in the others."""
+    assert not _fields_told_differently(name)
 
 
 # What reaches the user as an error message: a service call's refusal or

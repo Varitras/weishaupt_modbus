@@ -106,7 +106,7 @@
         },
         "data_description" : {
           "username" : "De gebruiker op de aanmeldpagina van de webinterface.",
-          "password" : "Het wachtwoord op de aanmeldpagina van de webinterface."
+          "password" : "Het wachtwoord op de aanmeldpagina van de webinterface. Het wordt in Home Assistant opgeslagen en alleen naar de warmtepomp gestuurd, onversleuteld via HTTP: de regelaar biedt niets anders, houd hem dus in een netwerk dat u vertrouwt."
         }
       },
       "reconfigure_webif" : {
@@ -118,7 +118,7 @@
         },
         "data_description" : {
           "username" : "De gebruiker op de aanmeldpagina van de webinterface.",
-          "password" : "Het wachtwoord op de aanmeldpagina van de webinterface."
+          "password" : "Het wachtwoord op de aanmeldpagina van de webinterface. Het wordt in Home Assistant opgeslagen en alleen naar de warmtepomp gestuurd, onversleuteld via HTTP: de regelaar biedt niets anders, houd hem dus in een netwerk dat u vertrouwt."
         }
       }
     }
