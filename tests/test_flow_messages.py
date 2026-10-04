@@ -54,16 +54,27 @@ def _flow_messages() -> set[str]:
     """Every abort reason and error key the flow hands to the frontend.
 
     Read out of the source rather than listed here: a list beside the flow is
-    one more place to forget. The three shapes it uses are
-    `async_abort(reason=...)`, an assignment into the `errors` dict, and a
-    returned key (`namespace_error`); and the reasons of Home Assistant's
-    helpers it calls.
+    one more place to forget.
     """
+    return _messages_in(FLOW.read_text(encoding="utf-8"))
+
+
+def _messages_in(source: str) -> set[str]:
+    """The keys in the shapes the flow uses: `async_abort(reason=...)`, an
+    assignment into the `errors` dict, a returned key (`namespace_error`), and
+    the "base" entry of an errors dict written out; and the reasons of Home
+    Assistant's helpers it calls."""
     messages = set()
     helper_reasons = set()
-    for node in ast.walk(ast.parse(FLOW.read_text(encoding="utf-8"))):
+    for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.Attribute) and node.attr in HELPER_REASONS:
             helper_reasons.add(HELPER_REASONS[node.attr])
+        if isinstance(node, ast.Dict):
+            messages.update(
+                value
+                for key, value in zip(node.keys, node.values, strict=True)
+                if isinstance(key, ast.Constant) and key.value == "base"
+            )
         if (
             (isinstance(node, ast.keyword) and node.arg == "reason")
             or (
@@ -89,6 +100,21 @@ def _texts_of(name: str) -> set[str]:
         for kind in ("abort", "error")
         for key in translation.get(flow, {}).get(kind, {})
     }
+
+
+def test_the_scan_reads_every_shape_the_flow_hands_a_key_in():
+    """A key that only a dict literal carried, as the visit's "unknown" does,
+    went unseen: without a text it would have shown as the raw key."""
+    source = (
+        "def flow(self, errors):\n"
+        '    self.async_abort(reason="aborted")\n'
+        '    errors["base"] = "assigned"\n'
+        '    return "returned"\n'
+        "def visit():\n"
+        '    return None, {"base": "in_a_literal"}, {}\n'
+    )
+
+    assert _messages_in(source) == {"aborted", "assigned", "returned", "in_a_literal"}
 
 
 @pytest.mark.parametrize("name", TRANSLATION_FILES)
