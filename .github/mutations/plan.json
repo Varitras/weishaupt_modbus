@@ -2109,8 +2109,8 @@
   {
     "label": "webif discovery: a menu served half reads as another language",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        if not shown or not missing:\n            raise\n",
-    "new": "        if not missing:\n            raise\n",
+    "old": "        if not shown:\n            raise\n",
+    "new": "",
     "tests": "menu_served_half_on_every_ask_is_not_called_another_language"
   },
   {
@@ -2207,8 +2207,8 @@
   {
     "label": "webif discovery: a wanted entry shown twice reads as another language",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        if not shown or not missing:\n            raise\n",
-    "new": "        if not shown:\n            raise\n",
+    "old": "        doubled = {title for title in wanted if counts[title] > 1}\n        raise DoubledMenuEntries(doubled) from error\n",
+    "new": "        raise MissingMenuEntries(wanted) from error\n",
     "tests": "menu_entry_shown_twice_is_not_taken_at_random"
   },
   {
@@ -2616,5 +2616,26 @@
     "old": "    shows_its_own_level = page.menu and bool(titles)\n",
     "new": "    shows_its_own_level = bool(titles)\n",
     "tests": "page_served_half_on_every_ask_is_not_called_unsupported"
+  },
+  {
+    "label": "webif discovery: a menu entry shown twice goes unnamed",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        raise DoubledMenuEntries(doubled) from error\n",
+    "new": "        raise\n",
+    "tests": "menu_entry_shown_twice_on_every_visit_is_named"
+  },
+  {
+    "label": "webif discovery: every wanted entry reads as doubled",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        doubled = {title for title in wanted if counts[title] > 1}\n",
+    "new": "        doubled = {title for title in wanted if counts[title] >= 1}\n",
+    "tests": "menu_entry_shown_twice_is_not_taken_at_random"
+  },
+  {
+    "label": "config flow: a menu entry shown twice is not named in the form",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    if isinstance(error, DoubledMenuEntries):\n        return \"doubled_menu_entries\"\n",
+    "new": "",
+    "tests": "menu_entry_shown_twice_is_named_in_the_form"
   }
 ]

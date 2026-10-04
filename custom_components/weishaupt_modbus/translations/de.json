@@ -20,7 +20,8 @@
             "missing_titles": "Die Seite {page} der Weboberfläche zeigt {titles} nicht. Dieser Regler wird noch nicht unterstützt.",
             "unclear_values": "Die Seite {page} der Weboberfläche zeigt {titles} ohne Wert oder mehrfach. Bitte erneut versuchen; bleibt es so, wird dieser Regler noch nicht unterstützt.",
             "unknown_units": "Die Seite {page} der Weboberfläche zeigt {titles} in einer Einheit, die die Integration nicht kennt. Dieser Regler wird noch nicht unterstützt.",
-            "missing_menu_entries": "Die Menüs der Weboberfläche zeigen {titles} nicht. Die Integration findet ihre Seiten über diese deutschen Namen: Ist am Regler Deutsch als Sprache eingestellt?"
+            "missing_menu_entries": "Die Menüs der Weboberfläche zeigen {titles} nicht. Die Integration findet ihre Seiten über diese deutschen Namen: Ist am Regler Deutsch als Sprache eingestellt?",
+            "doubled_menu_entries": "Die Menüs der Weboberfläche zeigen {titles} mehrfach. Bitte erneut versuchen; bleibt es so, wird dieser Regler noch nicht unterstützt."
         },
         "progress": {
             "webif_visit": "Anmeldung an der Weboberfläche, Suche nach ihren Seiten und einmaliges Lesen jeder Seite. Das dauert etwa eine Minute, etwas länger, wenn eine Seite erneut abgefragt werden muss."

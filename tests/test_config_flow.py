@@ -32,7 +32,10 @@ from custom_components.weishaupt_modbus.webif.client import (
     LoginRefused,
     Unreachable,
 )
-from custom_components.weishaupt_modbus.webif.discovery import MissingMenuEntries
+from custom_components.weishaupt_modbus.webif.discovery import (
+    DoubledMenuEntries,
+    MissingMenuEntries,
+)
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.helpers import config_validation as cv
 
@@ -648,6 +651,20 @@ async def test_a_controller_in_another_language_is_told_so(hass, web_interface):
 
     assert result["errors"] == {"base": "missing_menu_entries"}
     assert result["description_placeholders"] == {"titles": "Heizen, Statistik"}
+
+
+async def test_a_menu_entry_shown_twice_is_named_in_the_form(hass, web_interface):
+    """It said the pages had come only in part, without naming the entry."""
+    pump = _pump_entry(hass)
+    web_interface.outcome = DoubledMenuEntries({"Wärmepumpe"})
+    form = await _web_form(hass)
+
+    result = await hass.config_entries.flow.async_configure(
+        form["flow_id"], {CONF.PUMP_ENTRY: pump.entry_id, **WEB_LOGIN}
+    )
+
+    assert result["errors"] == {"base": "doubled_menu_entries"}
+    assert result["description_placeholders"] == {"titles": "Wärmepumpe"}
 
 
 async def test_a_failed_visit_leaves_a_debug_line(hass, web_interface, caplog):

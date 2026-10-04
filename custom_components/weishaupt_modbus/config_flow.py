@@ -30,7 +30,12 @@ from .const import CONF, CONST
 from .kennfeld import get_filepath
 from .migrate_helpers import entry_unique_id
 from .webif.client import Broken, Client, LoginRefused, Unreachable, WebifError
-from .webif.discovery import PAGE_MENUS, MissingMenuEntries, find_pages
+from .webif.discovery import (
+    PAGE_MENUS,
+    DoubledMenuEntries,
+    MissingMenuEntries,
+    find_pages,
+)
 from .webif_coordinator import INTERVAL_OPTIONS, Page, polled_pages
 from .webif_sensor import REQUIRED_TITLES, shown_in_unknown_units
 from .weishaupt_modbus_api.const import (
@@ -265,6 +270,8 @@ def web_interface_error(error: WebifError) -> str:
         return "unknown_units"
     if isinstance(error, MissingMenuEntries):
         return "missing_menu_entries"
+    if isinstance(error, DoubledMenuEntries):
+        return "doubled_menu_entries"
     return "cannot_read"
 
 
@@ -272,7 +279,7 @@ def web_interface_error_placeholders(error: WebifError) -> dict[str, str]:
     """The placeholders of the form's error for a visit that failed."""
     if isinstance(error, MissingTitles | UnclearValues | UnknownUnits):
         return {"page": error.page, "titles": ", ".join(sorted(error.titles))}
-    if isinstance(error, MissingMenuEntries):
+    if isinstance(error, MissingMenuEntries | DoubledMenuEntries):
         return {"titles": ", ".join(sorted(error.titles))}
     return {}
 

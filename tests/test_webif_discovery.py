@@ -18,6 +18,7 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     HEAT_PUMP_PAGE,
     HEATING_PAGE,
     STATISTICS_PAGE,
+    DoubledMenuEntries,
     MissingMenuEntries,
     find_pages,
 )
@@ -116,19 +117,22 @@ async def test_an_overview_without_the_heat_pump_menu_is_broken(pump, client):
         await find_pages(client)
 
 
+INFO_WITH_A_DOUBLE = MAIN_MENUS + column(
+    link([INFO, HEAT_PUMP_INFO], "Wärmepumpe")
+    + link([INFO, STATISTICS_INFO], "Statistik")
+    + link([INFO, "0C000C24000000000000000A0B020003000401"], "Wärmepumpe")
+)
+
+
 async def test_a_menu_entry_shown_twice_is_not_taken_at_random(pump, client):
     """The last of two links of the same title was stored in the entry for
-    good, whichever page it led to."""
-    pump.site[STACK + INFO] = MAIN_MENUS + column(
-        link([INFO, HEAT_PUMP_INFO], "Wärmepumpe")
-        + link([INFO, STATISTICS_INFO], "Statistik")
-        + link([INFO, "0C000C24000000000000000A0B020003000401"], "Wärmepumpe")
-    )
+    good, whichever page it led to; refused, the entry went unnamed."""
+    pump.site[STACK + INFO] = INFO_WITH_A_DOUBLE
 
-    with pytest.raises(webif.Broken) as raised:
+    with pytest.raises(DoubledMenuEntries) as raised:
         await find_pages(client)
 
-    assert type(raised.value) is webif.Broken
+    assert raised.value.titles == {"Wärmepumpe"}
 
 
 async def test_a_menu_served_half_once_is_read_from_its_second_answer(pump, client):
@@ -267,6 +271,21 @@ async def test_a_page_is_judged_by_its_last_answer(hass, pump, monkeypatch):
 
     assert raised.value.titles == {missing}
     assert pump.asked.count(("GET", PAGE_PATH)) == 1
+
+
+async def test_a_menu_entry_shown_twice_on_every_visit_is_named(
+    hass, pump, monkeypatch
+):
+    """Now and then a hiccup, which a second search mends; on every visit,
+    the dialog said the pages had come only in part."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    pump.site[STACK + INFO] = INFO_WITH_A_DOUBLE
+
+    with pytest.raises(DoubledMenuEntries) as raised:
+        await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert raised.value.titles == {"Wärmepumpe"}
+    assert pump.asked.count(("GET", PAGE_PATH)) == 2, "searched once more"
 
 
 async def test_a_controller_in_another_language_is_searched_only_once(

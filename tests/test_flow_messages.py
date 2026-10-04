@@ -29,7 +29,10 @@ from custom_components.weishaupt_modbus.webif.client import (
     LoginRefused,
     Unreachable,
 )
-from custom_components.weishaupt_modbus.webif.discovery import MissingMenuEntries
+from custom_components.weishaupt_modbus.webif.discovery import (
+    DoubledMenuEntries,
+    MissingMenuEntries,
+)
 
 INTEGRATION = pathlib.Path(__file__).resolve().parents[1] / "custom_components"
 FLOW = next(INTEGRATION.glob("*/config_flow.py"))
@@ -218,6 +221,7 @@ VISIT_FAILURES = (
     UnclearValues("Info › Wärmepumpe", frozenset({"Hochdruck"})),
     UnknownUnits("Info › Wärmepumpe", frozenset({"Hochdruck"})),
     MissingMenuEntries({"Statistik"}),
+    DoubledMenuEntries({"Wärmepumpe"}),
 )
 
 

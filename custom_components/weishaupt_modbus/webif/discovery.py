@@ -41,6 +41,20 @@ class MissingMenuEntries(Broken):
         self.titles = titles
 
 
+class DoubledMenuEntries(Broken):
+    """A menu showed an entry the pages are found by twice, also when asked again.
+
+    `titles` are the doubled ones: which of two links leads to the page cannot
+    be told. Now and then a hiccup, which asking again mends; on a model that
+    shows the menu so, never.
+    """
+
+    def __init__(self, titles: set[str]) -> None:
+        """Name the doubled entries."""
+        super().__init__(f"menus with {', '.join(sorted(titles))} twice")
+        self.titles = titles
+
+
 async def find_pages(client: Client) -> dict[str, str]:
     """The address of each page to poll, by page key.
 
@@ -78,14 +92,17 @@ async def _entries(
     try:
         await client.page(path, complete)
     except Broken as error:
-        missing = wanted - {title for title, _ in shown}
-        # A menu showing nothing of its own level came half, and one showing
-        # all it should with a title twice came wrong: asking again a little
-        # later may mend either. One showing other entries is in another
+        counts = Counter(title for title, _ in shown)
+        missing = wanted - set(counts)
+        # A menu showing nothing of its own level came half: asking again a
+        # little later may mend it. One showing other entries is in another
         # language or of another model.
-        if not shown or not missing:
+        if not shown:
             raise
-        raise MissingMenuEntries(missing) from error
+        if missing:
+            raise MissingMenuEntries(missing) from error
+        doubled = {title for title in wanted if counts[title] > 1}
+        raise DoubledMenuEntries(doubled) from error
     return dict(shown)
 
 

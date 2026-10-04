@@ -20,7 +20,8 @@
       "missing_titles": "The web interface's page {page} does not show {titles}. This controller is not supported yet.",
       "unclear_values": "The web interface's page {page} shows {titles} without a value or more than once. Try again; if it stays so, this controller is not supported yet.",
       "unknown_units": "The web interface's page {page} shows {titles} in a unit the integration does not know. This controller is not supported yet.",
-      "missing_menu_entries": "The web interface's menus do not show {titles}. The integration finds its pages by these German names: is the controller's language set to German?"
+      "missing_menu_entries": "The web interface's menus do not show {titles}. The integration finds its pages by these German names: is the controller's language set to German?",
+      "doubled_menu_entries": "The web interface's menus show {titles} more than once. Try again; if it stays so, this controller is not supported yet."
     },
     "progress": {
       "webif_visit": "Logging in to the web interface, searching its pages and reading each once. This takes about a minute, a little longer when a page has to be asked for again."
