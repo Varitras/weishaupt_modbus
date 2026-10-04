@@ -25,7 +25,7 @@
       "unknown" : "Er is een onverwachte fout opgetreden; het logboek bevat de details."
     },
     "progress" : {
-      "webif_visit" : "Aanmelden bij de webinterface, de pagina's zoeken en elke pagina eenmaal lezen. Dit duurt ongeveer een minuut, iets langer als een pagina opnieuw moet worden opgevraagd."
+      "webif_visit" : "Aanmelden bij de webinterface, de pagina's zoeken en elke pagina eenmaal lezen. Dit kan enkele minuten duren als de regelaar traag antwoordt of een pagina opnieuw moet worden opgevraagd; even geduld alstublieft."
     },
     "step" : {
       "user" : {
@@ -87,7 +87,7 @@
       },
       "webif" : {
         "title" : "Webinterface",
-        "description" : "Leest meer waarden uit de lokale webinterface van de warmtepomp (experimenteel). Aanmelden en de pagina's zoeken en lezen duurt ongeveer een minuut.",
+        "description" : "Leest meer waarden uit de lokale webinterface van de warmtepomp (experimenteel). Aanmelden en de pagina's zoeken en lezen kan enkele minuten duren; even geduld alstublieft.",
         "data" : {
           "pump_entry_id" : "Warmtepomp",
           "username" : "Gebruiker",
@@ -101,7 +101,7 @@
       },
       "reauth_confirm" : {
         "title" : "Aanmelding bij de webinterface",
-        "description" : "De webinterface heeft de aanmelding geweigerd. Voer de huidige in; de controle duurt ongeveer een minuut.",
+        "description" : "De webinterface heeft de aanmelding geweigerd. Voer de huidige in; de controle kan enkele minuten duren, even geduld alstublieft.",
         "data" : {
           "username" : "Gebruiker",
           "password" : "Wachtwoord"
@@ -113,7 +113,7 @@
       },
       "reconfigure_webif" : {
         "title" : "Webinterface opnieuw configureren",
-        "description" : "Een nieuwe aanmelding voor de webinterface, en de pagina's worden opnieuw gezocht. De controle duurt ongeveer een minuut.",
+        "description" : "Een nieuwe aanmelding voor de webinterface, en de pagina's worden opnieuw gezocht. De controle kan enkele minuten duren; even geduld alstublieft.",
         "data" : {
           "username" : "Gebruiker",
           "password" : "Wachtwoord"

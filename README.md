@@ -262,7 +262,8 @@ entry exists, and goes straight to the heat pump before that. Then
 interface of a heat pump*, pick the heat pump and enter the web interface's
 user and password. A heat pump has one web interface entry: the list offers
 only heat pumps that have none yet. Logging in, finding the pages and reading
-each once takes about a minute, and the dialog shows its progress meanwhile;
+each once can take several minutes when the controller answers slowly, and
+the dialog shows its progress meanwhile;
 pages the controller serves only half are searched once more before the dialog
 asks you to try again a little later, and the dialog logs out again
 afterwards; a page of values that shows none of its titles counts as served

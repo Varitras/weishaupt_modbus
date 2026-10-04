@@ -25,7 +25,7 @@
       "unknown": "An unexpected error occurred; the log holds the details."
     },
     "progress": {
-      "webif_visit": "Logging in to the web interface, searching its pages and reading each once. This takes about a minute, a little longer when a page has to be asked for again."
+      "webif_visit": "Logging in to the web interface, searching its pages and reading each once. This can take several minutes when the controller answers slowly or a page has to be asked for again; please be patient."
     },
     "step": {
       "user": {
@@ -87,7 +87,7 @@
       },
       "webif": {
         "title": "Web interface",
-        "description": "Reads more values from the heat pump's local web interface (experimental). Logging in, finding the pages and reading them takes about a minute.",
+        "description": "Reads more values from the heat pump's local web interface (experimental). Logging in, finding the pages and reading them can take several minutes; please be patient.",
         "data": {
           "pump_entry_id": "Heat pump",
           "username": "User",
@@ -101,7 +101,7 @@
       },
       "reauth_confirm": {
         "title": "Web interface login",
-        "description": "The web interface refused its login. Enter the current one; checking it takes about a minute.",
+        "description": "The web interface refused its login. Enter the current one; checking it can take several minutes, please be patient.",
         "data": {
           "username": "User",
           "password": "Password"
@@ -113,7 +113,7 @@
       },
       "reconfigure_webif": {
         "title": "Reconfigure the web interface",
-        "description": "A new login for the web interface, and its pages are searched again. Checking takes about a minute.",
+        "description": "A new login for the web interface, and its pages are searched again. Checking can take several minutes; please be patient.",
         "data": {
           "username": "User",
           "password": "Password"

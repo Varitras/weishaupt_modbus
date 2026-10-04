@@ -25,7 +25,7 @@
             "unknown": "Ein unerwarteter Fehler ist aufgetreten; Details stehen im Log."
         },
         "progress": {
-            "webif_visit": "Anmeldung an der Weboberfläche, Suche nach ihren Seiten und einmaliges Lesen jeder Seite. Das dauert etwa eine Minute, etwas länger, wenn eine Seite erneut abgefragt werden muss."
+            "webif_visit": "Anmeldung an der Weboberfläche, Suche nach ihren Seiten und einmaliges Lesen jeder Seite. Das kann mehrere Minuten dauern, wenn der Regler langsam antwortet oder eine Seite erneut abgefragt werden muss; bitte haben Sie etwas Geduld."
         },
         "step": {
             "user": {
@@ -87,7 +87,7 @@
             },
             "webif": {
                 "title": "Weboberfläche",
-                "description": "Liest weitere Werte aus der lokalen Weboberfläche der Wärmepumpe (experimentell). Anmelden sowie das Suchen und Lesen der Seiten dauern etwa eine Minute.",
+                "description": "Liest weitere Werte aus der lokalen Weboberfläche der Wärmepumpe (experimentell). Anmelden sowie das Suchen und Lesen der Seiten können mehrere Minuten dauern; bitte haben Sie etwas Geduld.",
                 "data": {
                     "pump_entry_id": "Wärmepumpe",
                     "username": "Benutzer",
@@ -101,7 +101,7 @@
             },
             "reauth_confirm": {
                 "title": "Anmeldung an der Weboberfläche",
-                "description": "Die Weboberfläche hat ihre Anmeldung abgelehnt. Geben Sie die aktuelle ein; die Prüfung dauert etwa eine Minute.",
+                "description": "Die Weboberfläche hat ihre Anmeldung abgelehnt. Geben Sie die aktuelle ein; die Prüfung kann mehrere Minuten dauern, bitte haben Sie etwas Geduld.",
                 "data": {
                     "username": "Benutzer",
                     "password": "Passwort"
@@ -113,7 +113,7 @@
             },
             "reconfigure_webif": {
                 "title": "Weboberfläche neu einrichten",
-                "description": "Eine neue Anmeldung für die Weboberfläche, und ihre Seiten werden neu gesucht. Die Prüfung dauert etwa eine Minute.",
+                "description": "Eine neue Anmeldung für die Weboberfläche, und ihre Seiten werden neu gesucht. Die Prüfung kann mehrere Minuten dauern; bitte haben Sie etwas Geduld.",
                 "data": {
                     "username": "Benutzer",
                     "password": "Passwort"
