@@ -1087,7 +1087,7 @@
   {
     "label": "webif client: aiohttp asks a dropped page again by itself",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        session._retry_connection = False\n",
+    "old": "        session._retry_connection = False  # noqa: SLF001\n",
     "new": "",
     "tests": "dropped_connection_is_not_asked_again"
   },

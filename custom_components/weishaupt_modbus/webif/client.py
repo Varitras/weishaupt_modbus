@@ -229,7 +229,7 @@ class Client:
         # before the answer: at once, outside the gap, to a controller that
         # has just struggled. There is no public switch; aiohttp's own test
         # client turns it off the same way.
-        session._retry_connection = False
+        session._retry_connection = False  # noqa: SLF001
         self._session = session
         self._base = base_url(host)
         self._credentials = {LOGIN_USER_FIELD: user, LOGIN_PASSWORD_FIELD: password}
