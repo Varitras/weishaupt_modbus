@@ -2847,5 +2847,12 @@
     "old": "        except Exception:\n            # As in the probe",
     "new": "        except BaseException:\n            # As in the probe",
     "tests": "cancelled_visit_goes_through"
+  },
+  {
+    "label": "client: a logout the pump does not serve is no fault of this code",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "                with suppress(WebifError):\n",
+    "new": "                with suppress():\n",
+    "tests": "logout_the_pump_does_not_serve_ends_the_close_quietly"
   }
 ]

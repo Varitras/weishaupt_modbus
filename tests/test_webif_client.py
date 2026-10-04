@@ -553,14 +553,23 @@ async def test_a_closed_client_says_so_and_asks_nothing(pump, session):
     assert pump.asked == []
 
 
-async def test_a_logout_without_an_answer_does_not_fail_the_close(pump, session):
+@pytest.mark.parametrize("failure", ["no answer", "error status"])
+async def test_a_logout_the_pump_does_not_serve_ends_the_close_quietly(
+    pump, session, caplog, failure
+):
+    """A struggling web interface is no fault of this code: neither a failed
+    unload nor a traceback in the log."""
     client = connect(session, pump.host)
     await client.page(PAGE, whole)
-    pump.delays[webif.LOGOUT] = SLOW
+    if failure == "no answer":
+        pump.delays[webif.LOGOUT] = SLOW
+    else:
+        pump.failing[webif.LOGOUT] = 503
 
     with short_timeout(client):
         await client.close()
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
+    assert not [record for record in caplog.records if record.levelno >= logging.ERROR]
 
 
 async def test_a_logout_failing_on_a_fault_of_its_own_does_not_fail_the_close(
