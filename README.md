@@ -220,10 +220,8 @@ written.
 
 This part is experimental. The controller's web server is slow and now and
 then answers with an incomplete page, and heavy polling has disturbed
-controllers before (upstream issue
-[#159](https://github.com/OStrama/weishaupt_modbus/issues/159)). The
-integration therefore asks little and stops on its own when the answers go
-wrong.
+controllers before (upstream issue #159). The integration therefore asks
+little and stops on its own when the answers go wrong.
 
 ### Switching it on
 
@@ -241,7 +239,10 @@ wrong.
    the display, see the heat pump's manual). The web interface shows its
    texts in the language set there, and the integration finds its pages and
    values by their German titles. With another language the dialog names
-   the menu entries it could not find and asks about the language.
+   the menu entries it could not find and asks about the language. If your
+   controller has to stay on another language, open an
+   [issue](https://github.com/Varitras/weishaupt_modbus/issues) so that
+   language can be added: the integration needs its menu and value titles.
 
 ### Adding it
 
