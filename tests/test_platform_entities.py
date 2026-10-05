@@ -88,8 +88,8 @@ def _sets_parallel_updates(source: str) -> bool:
 
 
 def test_every_platform_says_how_many_updates_may_run_at_once():
-    """Without it Home Assistant guesses per platform; the controller takes
-    one client, so a write platform must not be left to the guess."""
+    """Without it Home Assistant guesses per platform, and a write platform
+    must not be left to the guess."""
     missing = [
         name
         for name, source in _platform_sources().items()

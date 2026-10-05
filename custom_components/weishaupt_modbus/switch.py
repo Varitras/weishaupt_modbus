@@ -10,7 +10,7 @@ from .const import TYPES
 from .entity_helpers import build_entity_list
 
 # Per platform; the device's write lock is what serialises writes across
-# all of them, since the controller serves a single client.
+# all of them.
 PARALLEL_UPDATES = 1
 
 

@@ -109,8 +109,7 @@ change reloads the integration.
 The integration polls the heat pump at the poll interval and reads every
 register of the enabled devices in one pass. It asks Home Assistant's
 `modbus` integration for the connection, so every entry and every other
-integration using the same address shares one link, which the controller
-needs (it accepts a single client).
+integration using the same address shares one link.
 
 A poll that fails keeps the last values; the entities go unavailable on the
 fourth failed poll in a row and come back with the next good one. An error in
@@ -389,9 +388,6 @@ already set.
 
 ## Known limitations
 
-- The controller accepts a single Modbus TCP client. A hub from the YAML
-  `modbus:` configuration, or another tool, pointed at the same heat pump
-  takes that connection away.
 - The yearly energy registers (36104 and the other `… Jahr` rows) answer but
   stay at 0 on every controller seen so far, even after years of operation -
   the yearly total exists only on the display, in the WEM portal and in the
@@ -409,15 +405,13 @@ already set.
 
 **Setup says "Failed to connect".** Check that Modbus TCP is on (see
 [Prerequisites](#prerequisites)), that its network and netmask admit the
-Home Assistant host, that the port matches, and that no other client holds
-the heat pump's single connection.
+Home Assistant host, and that the port matches.
 
 **All entities are unavailable.** Four polls in a row failed. The heat pump
-is off the network, or another client took the connection; the entities come
-back with the next good poll. The log shows one error when they go; their
-return is logged at info level, which Home Assistant's default log level
-hides. Shorter drop-outs, which keep the last values, show only in the debug
-log.
+is off the network or does not answer; the entities come back with the next
+good poll. The log shows one error when they go; their return is logged at
+info level, which Home Assistant's default log level hides. Shorter
+drop-outs, which keep the last values, show only in the debug log.
 
 **A write is refused.** The value is outside the range the controller
 currently allows, or the daily write limit from the [Options](#options) is
@@ -451,16 +445,14 @@ it runs.
 
 ## Upgrading from 1.x
 
-The Weishaupt controller accepts a single Modbus TCP connection. Up to 1.x the
-integration opened that connection itself, with its own reconnect logic and
-block planner. Since 2.0 it asks Home Assistant's `modbus` integration for a
-*unit* on the connection to the controller's address. Home Assistant keeps one
-connection per endpoint and serialises everything that goes over it, so two
-entries of this integration - or another integration asking for the same
-endpoint - queue up behind one link instead of fighting over it. A hub from
-the YAML `modbus:` configuration is *not* part of that: it opens a client of
-its own, so pointing one at the same controller still costs the second
-connection the controller does not have. The wire is handled by the
+Up to 1.x the integration opened its connection to the controller itself,
+with its own reconnect logic and block planner. Since 2.0 it asks Home
+Assistant's `modbus` integration for a *unit* on the connection to the
+controller's address. Home Assistant keeps one connection per endpoint and
+serialises everything that goes over it, so two entries of this integration,
+or another integration asking for the same endpoint, queue up behind one
+link. A hub from the YAML `modbus:` configuration is *not* part of that: it
+opens a client of its own. The wire is handled by the
 [modbus-connection](https://github.com/home-assistant-libs/modbus-connection)
 library (tmodbus backend), which Home Assistant installs with its `modbus`
 integration.
