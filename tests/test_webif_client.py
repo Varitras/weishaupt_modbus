@@ -6,6 +6,7 @@ from itertools import pairwise
 import logging
 import re
 import socket
+import time
 
 import aiohttp
 from aiohttp import web
@@ -36,6 +37,9 @@ GAP = 0.2
 CLOCK_TOLERANCE = 0.001
 SHORT_TIMEOUT = 0.1
 SLOW = 0.5
+# Longer than SHORT_TIMEOUT: the machine standing still after a request
+# started and before it went out, as a parallel run did once (2026-10-06).
+MACHINE_PAUSE = 0.3
 
 
 def whole(text):
@@ -86,19 +90,34 @@ class FakeClock:
         return self.now
 
 
+@pytest.mark.parametrize("pause", [0, MACHINE_PAUSE], ids=["steady", "paused"])
 async def test_a_request_is_cut_off_at_the_client_s_own_time_limit(
-    pump, session, monkeypatch
+    pump, session, monkeypatch, pause
 ):
     """Every test set a limit of its own, so a client without one passed;
     and with no Modbus limit around the lock any more, it alone keeps a
-    stalling web server from holding Modbus off."""
+    stalling web server from holding Modbus off.
+
+    The first request needs a new connection, all of it inside the limit.
+    Whether it reached the stand-in in time is the machine's timing - a
+    parallel run stood still past the limit once - so the error, not the
+    stand-in, says what was cut off.
+    """
     monkeypatch.setattr(webif, "TIMEOUT_SECONDS", SHORT_TIMEOUT)
     client = connect(session, pump.host)
     pump.delays[webif.INDEX] = SLOW
+    connect_now = session.connector.connect
 
-    with pytest.raises(webif.Unreachable):
+    async def connect_after_a_pause(*args, **kwargs):
+        time.sleep(pause)  # noqa: ASYNC251 - a pause is the loop standing still
+        return await connect_now(*args, **kwargs)
+
+    monkeypatch.setattr(session.connector, "connect", connect_after_a_pause)
+
+    cut_off = rf"^GET {re.escape(webif.INDEX)}: \w*TimeoutError$"
+    with pytest.raises(webif.Unreachable, match=cut_off):
         await client.page(PAGE, whole)
-    assert pump.asked == [("GET", webif.INDEX)]
+    assert pump.asked in ([], [("GET", webif.INDEX)])
 
 
 async def test_an_answer_far_larger_than_any_page_ends_the_round(pump, session):
