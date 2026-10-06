@@ -1493,15 +1493,15 @@
   {
     "label": "circuits: a set-up circuit the entry leaves off goes unnamed",
     "path": "custom_components/weishaupt_modbus/coordinator.py",
-    "old": "    _notice(hass, entry, NOT_ENABLED_ISSUE, set_up - enabled)\n",
-    "new": "    _notice(hass, entry, NOT_ENABLED_ISSUE, set())\n",
+    "old": "        not_enabled = set_up and not enabled\n",
+    "new": "        not_enabled = False\n",
     "tests": "controller_sets_up_but_the_entry_leaves_off"
   },
   {
     "label": "circuits: an enabled circuit off at the controller goes unnamed",
     "path": "custom_components/weishaupt_modbus/coordinator.py",
-    "old": "    _notice(hass, entry, OFF_AT_CONTROLLER_ISSUE, (known.keys() - set_up) & enabled)\n",
-    "new": "    _notice(hass, entry, OFF_AT_CONTROLLER_ISSUE, set())\n",
+    "old": "        off_at_controller = known and not set_up and enabled\n",
+    "new": "        off_at_controller = False\n",
     "tests": "entry_polls_but_the_controller_has_off"
   },
   {
@@ -1510,6 +1510,13 @@
     "old": "        ir.async_delete_issue(hass, CONST.DOMAIN, issue_id)\n        return\n",
     "new": "        return\n",
     "tests": "matching_circuits_clear_an_earlier_notice"
+  },
+  {
+    "label": "circuits: one notice for every circuit",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "    return f\"{kind}_{entry.entry_id}_{circuit}\"\n",
+    "new": "    return f\"{kind}_{entry.entry_id}\"\n",
+    "tests": "ignored_circuit_notice_stays_ignored"
   },
   {
     "label": "device: a refused circuit reads as switched off",
@@ -1523,7 +1530,7 @@
     "path": "custom_components/weishaupt_modbus/__init__.py",
     "old": "    clear_circuit_notices(hass, entry)\n",
     "new": "    return\n",
-    "tests": "removing_the_entry_takes_its_circuit_notice_along"
+    "tests": "removing_the_entry_takes_its_circuit_notices_along"
   },
   {
     "label": "setup: a link lost during the circuit check fails the setup",

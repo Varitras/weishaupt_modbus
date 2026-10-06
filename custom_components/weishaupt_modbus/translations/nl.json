@@ -2021,13 +2021,13 @@
       "title" : "Opvragen van de webinterface gestopt",
       "description" : "De pagina {page} mislukte meerdere keren achter elkaar ({error}). Om de regelaar te sparen is het opvragen van de webinterface van de warmtepomp gestopt. Modbus blijft gewoon werken. Controleer de webinterface in een browser en houd de warmtepomp in de gaten; laad daarna de webinterface-vermelding opnieuw om het opvragen te hervatten."
     },
-    "circuits_not_enabled" : {
-      "title" : "Verwarmingscircuits worden niet gelezen",
-      "description" : "De warmtepomp meldt deze verwarmingscircuits als ingericht, maar deze vermelding leest ze niet: {circuits}. Schakel ze in onder **Opnieuw configureren** van de warmtepompvermelding om hun waarden te krijgen; is een circuit ingericht maar niet in gebruik, negeer dan deze melding."
+    "circuit_not_enabled" : {
+      "title" : "Verwarmingscircuit {circuit} wordt niet gelezen",
+      "description" : "De warmtepomp meldt verwarmingscircuit {circuit} als ingericht, maar deze vermelding leest het niet. Schakel het in onder **Opnieuw configureren** van de warmtepompvermelding om de waarden te krijgen. Is het circuit niet nodig, negeer dan deze melding; ze blijft dan genegeerd."
     },
-    "circuits_off_at_controller" : {
-      "title" : "Verwarmingscircuits uitgeschakeld op de warmtepomp",
-      "description" : "Deze vermelding leest deze verwarmingscircuits, maar de warmtepomp meldt ze als uitgeschakeld: {circuits}. Hun waarden horen bij geen circuit in gebruik. Schakel ze uit onder **Opnieuw configureren** van de warmtepompvermelding, of negeer deze melding als een circuit net wordt ingericht."
+    "circuit_off_at_controller" : {
+      "title" : "Verwarmingscircuit {circuit} uitgeschakeld op de warmtepomp",
+      "description" : "Deze vermelding leest verwarmingscircuit {circuit}, maar de warmtepomp meldt het als uitgeschakeld. De waarden horen bij geen circuit in gebruik. Schakel het uit onder **Opnieuw configureren** van de warmtepompvermelding, of negeer deze melding als het circuit net wordt ingericht."
     }
   }
 }

@@ -95,10 +95,11 @@ to answer at the new address before the change is saved.
 
 At every start the integration compares the heating circuits enabled here
 with the controller's own setup (registers 41201, 41301, ...: 0 means no
-circuit) and raises a repair notice when they differ - a circuit set up at
-the controller but not enabled, or one enabled but switched off there. A
-circuit's bands answer either way, with factory values when it is off. The
-notice goes once the two match.
+circuit) and raises a repair notice for each circuit where they differ - set
+up at the controller but not enabled, or enabled but switched off there. A
+circuit's bands answer either way, with factory values when it is off. A
+notice goes once the two match; one you ignore stays ignored, and only for
+its own circuit.
 
 ### Options
 

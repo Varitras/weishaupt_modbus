@@ -27,8 +27,8 @@ _LOGGER = logging.getLogger(__name__)
 
 # Heating circuit -> the entry's switch for it; circuit 1 is always polled.
 CIRCUIT_SWITCHES = {2: CONF.HK2, 3: CONF.HK3, 4: CONF.HK4, 5: CONF.HK5}
-NOT_ENABLED_ISSUE = "circuits_not_enabled"
-OFF_AT_CONTROLLER_ISSUE = "circuits_off_at_controller"
+NOT_ENABLED_ISSUE = "circuit_not_enabled"
+OFF_AT_CONTROLLER_ISSUE = "circuit_off_at_controller"
 
 # A short outage keeps the last values; only a longer one takes every entity
 # to unavailable. Counted from the first failed poll after a good one, so
@@ -54,33 +54,35 @@ def report_circuits(
     entry: MyConfigEntry,
     configurations: Mapping[int, int | None],
 ) -> None:
-    """Name the circuits the entry and the controller disagree on.
+    """Name each circuit the entry and the controller disagree on.
 
-    Only a hint: the entry polls what it was set up to. A circuit the
-    controller would not report on is judged neither way.
+    Only a hint: the entry polls what it was set up to. One notice per
+    circuit, so ignoring one says "not this circuit" and nothing more. A
+    circuit the controller would not report on is judged neither way.
     """
-    enabled = {
-        circuit for circuit, switch in CIRCUIT_SWITCHES.items() if entry.data[switch]
-    }
-    known = {
-        circuit: setup for circuit, setup in configurations.items() if setup is not None
-    }
-    set_up = {circuit for circuit, setup in known.items() if setup != CIRCUIT_OFF}
-    _notice(hass, entry, NOT_ENABLED_ISSUE, set_up - enabled)
-    _notice(hass, entry, OFF_AT_CONTROLLER_ISSUE, (known.keys() - set_up) & enabled)
+    for circuit, switch in CIRCUIT_SWITCHES.items():
+        setup = configurations.get(circuit)
+        known = setup is not None
+        set_up = known and setup != CIRCUIT_OFF
+        enabled = bool(entry.data[switch])
+        not_enabled = set_up and not enabled
+        off_at_controller = known and not set_up and enabled
+        _notice(hass, entry, NOT_ENABLED_ISSUE, circuit, not_enabled)
+        _notice(hass, entry, OFF_AT_CONTROLLER_ISSUE, circuit, off_at_controller)
 
 
 def clear_circuit_notices(hass: HomeAssistant, entry: MyConfigEntry) -> None:
     """Drop the entry's circuit notices; they name a pump that is gone."""
-    for kind in (NOT_ENABLED_ISSUE, OFF_AT_CONTROLLER_ISSUE):
-        ir.async_delete_issue(hass, CONST.DOMAIN, f"{kind}_{entry.entry_id}")
+    for circuit in CIRCUIT_SWITCHES:
+        for kind in (NOT_ENABLED_ISSUE, OFF_AT_CONTROLLER_ISSUE):
+            ir.async_delete_issue(hass, CONST.DOMAIN, _issue_id(kind, entry, circuit))
 
 
 def _notice(
-    hass: HomeAssistant, entry: MyConfigEntry, kind: str, circuits: set[int]
+    hass: HomeAssistant, entry: MyConfigEntry, kind: str, circuit: int, raised: bool
 ) -> None:
-    issue_id = f"{kind}_{entry.entry_id}"
-    if not circuits:
+    issue_id = _issue_id(kind, entry, circuit)
+    if not raised:
         ir.async_delete_issue(hass, CONST.DOMAIN, issue_id)
         return
     ir.async_create_issue(
@@ -90,10 +92,12 @@ def _notice(
         is_fixable=False,
         severity=ir.IssueSeverity.WARNING,
         translation_key=kind,
-        translation_placeholders={
-            "circuits": ", ".join(str(circuit) for circuit in sorted(circuits))
-        },
+        translation_placeholders={"circuit": str(circuit)},
     )
+
+
+def _issue_id(kind: str, entry: MyConfigEntry, circuit: int) -> str:
+    return f"{kind}_{entry.entry_id}_{circuit}"
 
 
 def scan_interval(config_entry: MyConfigEntry) -> timedelta:

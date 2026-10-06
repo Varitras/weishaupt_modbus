@@ -2021,13 +2021,13 @@
             "title": "Abruf der Weboberfläche gestoppt",
             "description": "Die Seite {page} schlug mehrmals in Folge fehl ({error}). Um den Regler zu schonen, wurde der Abruf der Weboberfläche gestoppt. Modbus ist davon nicht betroffen. Prüfen Sie die Weboberfläche im Browser und beobachten Sie die Wärmepumpe; laden Sie danach den Eintrag der Weboberfläche neu, um den Abruf fortzusetzen."
         },
-        "circuits_not_enabled": {
-            "title": "Heizkreise werden nicht gelesen",
-            "description": "Die Wärmepumpe meldet diese Heizkreise als eingerichtet, dieser Eintrag liest sie aber nicht: {circuits}. Damit ihre Werte erscheinen, schalten Sie sie unter **Neu konfigurieren** des Wärmepumpen-Eintrags ein; ist ein Kreis eingerichtet, aber nicht in Gebrauch, ignorieren Sie diesen Hinweis."
+        "circuit_not_enabled": {
+            "title": "Heizkreis {circuit} wird nicht gelesen",
+            "description": "Die Wärmepumpe meldet Heizkreis {circuit} als eingerichtet, dieser Eintrag liest ihn aber nicht. Damit seine Werte erscheinen, schalten Sie ihn unter **Neu konfigurieren** des Wärmepumpen-Eintrags ein. Wird der Kreis nicht gebraucht, ignorieren Sie diesen Hinweis; er bleibt dann ignoriert."
         },
-        "circuits_off_at_controller": {
-            "title": "Heizkreise an der Wärmepumpe ausgeschaltet",
-            "description": "Dieser Eintrag liest diese Heizkreise, die Wärmepumpe meldet sie aber als ausgeschaltet: {circuits}. Ihre Werte gehören zu keinem Kreis in Betrieb. Schalten Sie sie unter **Neu konfigurieren** des Wärmepumpen-Eintrags aus, oder ignorieren Sie diesen Hinweis, wenn ein Kreis gerade eingerichtet wird."
+        "circuit_off_at_controller": {
+            "title": "Heizkreis {circuit} an der Wärmepumpe ausgeschaltet",
+            "description": "Dieser Eintrag liest Heizkreis {circuit}, die Wärmepumpe meldet ihn aber als ausgeschaltet. Seine Werte gehören zu keinem Kreis in Betrieb. Schalten Sie ihn unter **Neu konfigurieren** des Wärmepumpen-Eintrags aus, oder ignorieren Sie diesen Hinweis, wenn der Kreis gerade eingerichtet wird."
         }
     }
 }

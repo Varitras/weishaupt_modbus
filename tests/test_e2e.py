@@ -503,12 +503,23 @@ async def test_the_copy_of_the_operating_mode_starts_disabled(hass):
 CIRCUIT_CONFIGURATION = {2: 41201, 3: 41301, 4: 41401, 5: 41501}
 CIRCUIT_OFF = 0
 MIXING_CIRCUIT = 2
-NOT_ENABLED = "circuits_not_enabled"
-OFF_AT_CONTROLLER = "circuits_off_at_controller"
+NOT_ENABLED = "circuit_not_enabled"
+OFF_AT_CONTROLLER = "circuit_off_at_controller"
 
 
-def _circuit_notice(hass, entry, kind):
-    return ir.async_get(hass).async_get_issue(CONST.DOMAIN, f"{kind}_{entry.entry_id}")
+def _circuit_notice(hass, entry, kind, circuit):
+    return ir.async_get(hass).async_get_issue(
+        CONST.DOMAIN, f"{kind}_{entry.entry_id}_{circuit}"
+    )
+
+
+def _notices(hass, entry, kind):
+    """The circuits a notice of this kind is raised for."""
+    return [
+        circuit
+        for circuit in CIRCUIT_CONFIGURATION
+        if _circuit_notice(hass, entry, kind, circuit) is not None
+    ]
 
 
 async def test_a_circuit_the_controller_sets_up_but_the_entry_leaves_off_is_named(
@@ -527,10 +538,10 @@ async def test_a_circuit_the_controller_sets_up_but_the_entry_leaves_off_is_name
     )
     entry = await _setup(hass, _entry(hass))
 
-    notice = _circuit_notice(hass, entry, NOT_ENABLED)
-    assert notice is not None
-    assert notice.translation_placeholders == {"circuits": "2, 3"}
-    assert _circuit_notice(hass, entry, OFF_AT_CONTROLLER) is None
+    assert _notices(hass, entry, NOT_ENABLED) == [2, 3]
+    notice = _circuit_notice(hass, entry, NOT_ENABLED, 3)
+    assert notice.translation_placeholders == {"circuit": "3"}
+    assert _notices(hass, entry, OFF_AT_CONTROLLER) == []
 
 
 async def test_a_circuit_the_entry_polls_but_the_controller_has_off_is_named(
@@ -541,23 +552,40 @@ async def test_a_circuit_the_entry_polls_but_the_controller_has_off_is_named(
     pump.load_raw({"holding": {CIRCUIT_CONFIGURATION[3]: CIRCUIT_OFF}})
     entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK3: True}))
 
-    notice = _circuit_notice(hass, entry, OFF_AT_CONTROLLER)
-    assert notice is not None
-    assert notice.translation_placeholders == {"circuits": "3"}
-    assert _circuit_notice(hass, entry, NOT_ENABLED) is None
+    assert _notices(hass, entry, OFF_AT_CONTROLLER) == [3]
+    notice = _circuit_notice(hass, entry, OFF_AT_CONTROLLER, 3)
+    assert notice.translation_placeholders == {"circuit": "3"}
+    assert _notices(hass, entry, NOT_ENABLED) == []
 
 
 async def test_matching_circuits_clear_an_earlier_notice(hass, pump):
     pump.load_raw({"holding": {CIRCUIT_CONFIGURATION[2]: MIXING_CIRCUIT}})
     entry = await _setup(hass, _entry(hass))
-    assert _circuit_notice(hass, entry, NOT_ENABLED) is not None
+    assert _notices(hass, entry, NOT_ENABLED) == [2]
 
     # The data change reloads the entry through its update listener.
     hass.config_entries.async_update_entry(entry, data={**entry.data, CONF.HK2: True})
     await hass.async_block_till_done()
 
     assert entry.state is ConfigEntryState.LOADED
-    assert _circuit_notice(hass, entry, NOT_ENABLED) is None
+    assert _notices(hass, entry, NOT_ENABLED) == []
+
+
+async def test_an_ignored_circuit_notice_stays_ignored_but_not_for_another_circuit(
+    hass, pump
+):
+    """Ignoring says "I do not want this circuit". One notice for every
+    circuit kept a circuit set up later hidden behind the ignored one."""
+    pump.load_raw({"holding": {CIRCUIT_CONFIGURATION[2]: MIXING_CIRCUIT}})
+    entry = await _setup(hass, _entry(hass))
+    ir.async_ignore_issue(hass, CONST.DOMAIN, f"{NOT_ENABLED}_{entry.entry_id}_2", True)
+
+    pump.load_raw({"holding": {CIRCUIT_CONFIGURATION[3]: MIXING_CIRCUIT}})
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert _circuit_notice(hass, entry, NOT_ENABLED, 2).dismissed_version is not None
+    assert _circuit_notice(hass, entry, NOT_ENABLED, 3).dismissed_version is None
 
 
 async def test_a_circuit_the_controller_refuses_is_not_judged(hass, pump):
@@ -565,7 +593,7 @@ async def test_a_circuit_the_controller_refuses_is_not_judged(hass, pump):
     pump.fail_read_band(CIRCUIT_CONFIGURATION[5], register_type="holding")
     entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK5: True}))
 
-    assert _circuit_notice(hass, entry, OFF_AT_CONTROLLER) is None
+    assert _notices(hass, entry, OFF_AT_CONTROLLER) == []
 
 
 async def test_a_link_lost_during_the_circuit_check_still_loads_the_entry(
@@ -580,18 +608,25 @@ async def test_a_link_lost_during_the_circuit_check_still_loads_the_entry(
     entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK3: True}))
 
     assert entry.state is ConfigEntryState.LOADED
-    assert _circuit_notice(hass, entry, OFF_AT_CONTROLLER) is None
+    assert _notices(hass, entry, OFF_AT_CONTROLLER) == []
 
 
-async def test_removing_the_entry_takes_its_circuit_notice_along(hass, pump):
-    pump.load_raw({"holding": {CIRCUIT_CONFIGURATION[2]: MIXING_CIRCUIT}})
+async def test_removing_the_entry_takes_its_circuit_notices_along(hass, pump):
+    pump.load_raw(
+        {
+            "holding": {
+                CIRCUIT_CONFIGURATION[2]: MIXING_CIRCUIT,
+                CIRCUIT_CONFIGURATION[4]: MIXING_CIRCUIT,
+            }
+        }
+    )
     entry = await _setup(hass, _entry(hass))
-    assert _circuit_notice(hass, entry, NOT_ENABLED) is not None
+    assert _notices(hass, entry, NOT_ENABLED) == [2, 4]
 
     await hass.config_entries.async_remove(entry.entry_id)
     await hass.async_block_till_done()
 
-    assert _circuit_notice(hass, entry, NOT_ENABLED) is None
+    assert _notices(hass, entry, NOT_ENABLED) == []
 
 
 async def test_icons_come_from_the_icon_translations(hass):
