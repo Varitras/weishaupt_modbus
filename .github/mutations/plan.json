@@ -1477,6 +1477,20 @@
     "tests": "aus_reads_0_only"
   },
   {
+    "label": "table: the copy of the operating mode starts enabled",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "device=DEVICES.HZ, params={\"enabled_by_default\": False}, translation_key=\"adr31106\"",
+    "new": "device=DEVICES.HZ, translation_key=\"adr31106\"",
+    "tests": "copy_of_the_operating_mode_starts_disabled"
+  },
+  {
+    "label": "entities: no row can start disabled",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        self._attr_entity_registry_enabled_default = self._api_item.params.get(\n            \"enabled_by_default\", True\n        )\n",
+    "new": "",
+    "tests": "copy_of_the_operating_mode_starts_disabled"
+  },
+  {
     "label": "webif sensor: the setpoint's no value is unknown instead of 0",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
     "old": "    if shown == pages.NO_VALUE and description.no_value_is_zero:\n        return 0.0\n",

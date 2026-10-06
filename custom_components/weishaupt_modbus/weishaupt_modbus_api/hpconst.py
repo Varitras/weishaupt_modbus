@@ -890,7 +890,7 @@ MODBUS_HZ_ITEMS = [
     ModbusItem(address=31103, name="Raumfeuchte", format=FORMATS.PERCENTAGE, type=TYPES.SENSOR, device=DEVICES.HZ, params=PARAMS_PERCENTAGE, translation_key="raum_feuchte"),
     ModbusItem(address=31104, name="Vorlaufsolltemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.HZ, params={**PARAMS_STDTEMP, "setpoint": True}, translation_key="hz_vl_solltemp"),
     ModbusItem(address=31105, name="HZ_Vorlauftemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.HZ, params=PARAMS_STDTEMP, translation_key="hz_vl_temp"),
-    ModbusItem(address=31106, name="Adr. 31106", format=FORMATS.UNKNOWN, type=TYPES.SENSOR, device=DEVICES.HZ, translation_key="adr31106"),
+    ModbusItem(address=31106, name="Adr. 31106", format=FORMATS.UNKNOWN, type=TYPES.SENSOR, device=DEVICES.HZ, params={"enabled_by_default": False}, translation_key="adr31106"),
 
     ModbusItem(address=41101, name="HZ_Konfiguration", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.HZ, resultlist=HZ_KONFIGURATION, translation_key="hz_konf"),
     ModbusItem(address=41102, name="Anforderung Typ", format=FORMATS.STATUS, type=TYPES.SELECT, device=DEVICES.HZ, resultlist=HZ_ANFORDERUNG, translation_key="anf_typ"),

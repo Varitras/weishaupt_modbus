@@ -104,6 +104,9 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
 
         self._attr_unique_id = create_unique_id(self._config_entry, self._api_item)
         self._attr_entity_category = entity_category(self._api_item)
+        self._attr_entity_registry_enabled_default = self._api_item.params.get(
+            "enabled_by_default", True
+        )
 
         if self._api_item.format == FORMATS.STATUS:
             self._divider = 1
