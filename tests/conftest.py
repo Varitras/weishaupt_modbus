@@ -104,8 +104,8 @@ class SharedMockModbus:
         unit = connection.for_unit(1)
         unit.load_raw(self._raw)
         unit.fail_requests(self._request_failure)
-        for address, error in self._read_failures:
-            unit.fail_read(address, error, register_type="input")
+        for address, error, register_type in self._read_failures:
+            unit.fail_read(address, error, register_type=register_type)
         self.connections.append(connection)
         return connection
 
@@ -124,12 +124,12 @@ class SharedMockModbus:
         for connection in self.connections:
             connection.for_unit(1).load_raw(raw)
 
-    def fail_read_band(self, address: int) -> None:
-        """The controller refuses the input band starting at ``address``."""
-        self._read_failures.append((address, IllegalDataAddressError()))
+    def fail_read_band(self, address: int, register_type: str = "input") -> None:
+        """The controller refuses the band starting at ``address``."""
+        self._read_failures.append((address, IllegalDataAddressError(), register_type))
         for connection in self.connections:
             connection.for_unit(1).fail_read(
-                address, IllegalDataAddressError(), register_type="input"
+                address, IllegalDataAddressError(), register_type=register_type
             )
 
     def fail_requests(self, error: Exception | None) -> None:

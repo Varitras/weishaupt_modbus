@@ -1,5 +1,6 @@
 """The Update Coordinator for the ModbusItems."""
 
+from collections.abc import Mapping
 from datetime import timedelta
 import logging
 from typing import Any
@@ -7,10 +8,12 @@ from typing import Any
 from modbus_connection import ModbusError
 
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.const import (
+    CIRCUIT_OFF,
     DEFAULT_WRITE_LIMIT_PER_DAY,
     DEFAULT_WRITE_WARNING_PER_DAY,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -21,6 +24,11 @@ from .weishaupt_modbus_api.device import WeishauptHeatPump
 from .weishaupt_modbus_api.write_budget import WriteBudget
 
 _LOGGER = logging.getLogger(__name__)
+
+# Heating circuit -> the entry's switch for it; circuit 1 is always polled.
+CIRCUIT_SWITCHES = {2: CONF.HK2, 3: CONF.HK3, 4: CONF.HK4, 5: CONF.HK5}
+NOT_ENABLED_ISSUE = "circuits_not_enabled"
+OFF_AT_CONTROLLER_ISSUE = "circuits_off_at_controller"
 
 # A short outage keeps the last values; only a longer one takes every entity
 # to unavailable. Counted from the first failed poll after a good one, so
@@ -39,6 +47,53 @@ def check_configured(modbus_item: ModbusItem, config_entry: MyConfigEntry) -> bo
     }
     switch = switches.get(modbus_item.device)
     return True if switch is None else bool(config_entry.data[switch])
+
+
+def report_circuits(
+    hass: HomeAssistant,
+    entry: MyConfigEntry,
+    configurations: Mapping[int, int | None],
+) -> None:
+    """Name the circuits the entry and the controller disagree on.
+
+    Only a hint: the entry polls what it was set up to. A circuit the
+    controller would not report on is judged neither way.
+    """
+    enabled = {
+        circuit for circuit, switch in CIRCUIT_SWITCHES.items() if entry.data[switch]
+    }
+    known = {
+        circuit: setup for circuit, setup in configurations.items() if setup is not None
+    }
+    set_up = {circuit for circuit, setup in known.items() if setup != CIRCUIT_OFF}
+    _notice(hass, entry, NOT_ENABLED_ISSUE, set_up - enabled)
+    _notice(hass, entry, OFF_AT_CONTROLLER_ISSUE, (known.keys() - set_up) & enabled)
+
+
+def clear_circuit_notices(hass: HomeAssistant, entry: MyConfigEntry) -> None:
+    """Drop the entry's circuit notices; they name a pump that is gone."""
+    for kind in (NOT_ENABLED_ISSUE, OFF_AT_CONTROLLER_ISSUE):
+        ir.async_delete_issue(hass, CONST.DOMAIN, f"{kind}_{entry.entry_id}")
+
+
+def _notice(
+    hass: HomeAssistant, entry: MyConfigEntry, kind: str, circuits: set[int]
+) -> None:
+    issue_id = f"{kind}_{entry.entry_id}"
+    if not circuits:
+        ir.async_delete_issue(hass, CONST.DOMAIN, issue_id)
+        return
+    ir.async_create_issue(
+        hass,
+        CONST.DOMAIN,
+        issue_id,
+        is_fixable=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key=kind,
+        translation_placeholders={
+            "circuits": ", ".join(str(circuit) for circuit in sorted(circuits))
+        },
+    )
 
 
 def scan_interval(config_entry: MyConfigEntry) -> timedelta:

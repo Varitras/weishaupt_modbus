@@ -2020,6 +2020,14 @@
     "webif_stopped": {
       "title": "Web interface polling stopped",
       "description": "The page {page} failed several times in a row ({error}), so polling of the heat pump's web interface stopped to spare the controller. Modbus is not affected. Check the web interface in a browser and watch the heat pump, then reload the web interface entry to resume polling."
+    },
+    "circuits_not_enabled": {
+      "title": "Heating circuits not read",
+      "description": "The heat pump reports these heating circuits as set up, but this entry does not read them: {circuits}. To get their values, enable them under **Reconfigure** of the heat pump entry; if one is set up but not in use, ignore this notice."
+    },
+    "circuits_off_at_controller": {
+      "title": "Heating circuits switched off at the heat pump",
+      "description": "This entry reads these heating circuits, but the heat pump reports them as switched off: {circuits}. Their values belong to no circuit in use. Disable them under **Reconfigure** of the heat pump entry, or ignore this notice if a circuit is about to be set up."
     }
   }
 }

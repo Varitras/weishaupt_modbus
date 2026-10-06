@@ -2020,6 +2020,14 @@
     "webif_stopped" : {
       "title" : "Opvragen van de webinterface gestopt",
       "description" : "De pagina {page} mislukte meerdere keren achter elkaar ({error}). Om de regelaar te sparen is het opvragen van de webinterface van de warmtepomp gestopt. Modbus blijft gewoon werken. Controleer de webinterface in een browser en houd de warmtepomp in de gaten; laad daarna de webinterface-vermelding opnieuw om het opvragen te hervatten."
+    },
+    "circuits_not_enabled" : {
+      "title" : "Verwarmingscircuits worden niet gelezen",
+      "description" : "De warmtepomp meldt deze verwarmingscircuits als ingericht, maar deze vermelding leest ze niet: {circuits}. Schakel ze in onder **Opnieuw configureren** van de warmtepompvermelding om hun waarden te krijgen; is een circuit ingericht maar niet in gebruik, negeer dan deze melding."
+    },
+    "circuits_off_at_controller" : {
+      "title" : "Verwarmingscircuits uitgeschakeld op de warmtepomp",
+      "description" : "Deze vermelding leest deze verwarmingscircuits, maar de warmtepomp meldt ze als uitgeschakeld: {circuits}. Hun waarden horen bij geen circuit in gebruik. Schakel ze uit onder **Opnieuw configureren** van de warmtepompvermelding, of negeer deze melding als een circuit net wordt ingericht."
     }
   }
 }

@@ -93,6 +93,13 @@ entry and add it again.
 circuits and the two name options without losing history. The heat pump has
 to answer at the new address before the change is saved.
 
+At every start the integration compares the heating circuits enabled here
+with the controller's own setup (registers 41201, 41301, ...: 0 means no
+circuit) and raises a repair notice when they differ - a circuit set up at
+the controller but not enabled, or one enabled but switched off there. A
+circuit's bands answer either way, with factory values when it is off. The
+notice goes once the two match.
+
 ### Options
 
 The *Options* dialog holds the settings that can change at any time. A

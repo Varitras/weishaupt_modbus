@@ -33,7 +33,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import EntityCategory
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import entity_registry as er, issue_registry as ir
 
 pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
 
@@ -497,6 +497,101 @@ async def test_the_copy_of_the_operating_mode_starts_disabled(hass):
     for unique_id in ("weishaupt_wbbAdr. 31106", "weishaupt_wbbAdr. 311062"):
         assert disabled_by(unique_id) is er.RegistryEntryDisabler.INTEGRATION
     assert disabled_by(OUTSIDE_TEMPERATURE_UNIQUE_ID) is None
+
+
+# Heating circuit configuration (41101, +100 per circuit): 0 = off.
+CIRCUIT_CONFIGURATION = {2: 41201, 3: 41301, 4: 41401, 5: 41501}
+CIRCUIT_OFF = 0
+MIXING_CIRCUIT = 2
+NOT_ENABLED = "circuits_not_enabled"
+OFF_AT_CONTROLLER = "circuits_off_at_controller"
+
+
+def _circuit_notice(hass, entry, kind):
+    return ir.async_get(hass).async_get_issue(CONST.DOMAIN, f"{kind}_{entry.entry_id}")
+
+
+async def test_a_circuit_the_controller_sets_up_but_the_entry_leaves_off_is_named(
+    hass, pump
+):
+    """A circuit the installer set up stayed out of Home Assistant with
+    nothing to say it exists. Live, the controller reports a real circuit
+    as 1 to 3 and one that is not there as 0, even where its band answers."""
+    pump.load_raw(
+        {
+            "holding": {
+                CIRCUIT_CONFIGURATION[2]: MIXING_CIRCUIT,
+                CIRCUIT_CONFIGURATION[3]: 1,
+            }
+        }
+    )
+    entry = await _setup(hass, _entry(hass))
+
+    notice = _circuit_notice(hass, entry, NOT_ENABLED)
+    assert notice is not None
+    assert notice.translation_placeholders == {"circuits": "2, 3"}
+    assert _circuit_notice(hass, entry, OFF_AT_CONTROLLER) is None
+
+
+async def test_a_circuit_the_entry_polls_but_the_controller_has_off_is_named(
+    hass, pump
+):
+    """On a one-circuit pump, circuits 2-4 answer factory values and look
+    like circuits of their own once enabled."""
+    pump.load_raw({"holding": {CIRCUIT_CONFIGURATION[3]: CIRCUIT_OFF}})
+    entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK3: True}))
+
+    notice = _circuit_notice(hass, entry, OFF_AT_CONTROLLER)
+    assert notice is not None
+    assert notice.translation_placeholders == {"circuits": "3"}
+    assert _circuit_notice(hass, entry, NOT_ENABLED) is None
+
+
+async def test_matching_circuits_clear_an_earlier_notice(hass, pump):
+    pump.load_raw({"holding": {CIRCUIT_CONFIGURATION[2]: MIXING_CIRCUIT}})
+    entry = await _setup(hass, _entry(hass))
+    assert _circuit_notice(hass, entry, NOT_ENABLED) is not None
+
+    # The data change reloads the entry through its update listener.
+    hass.config_entries.async_update_entry(entry, data={**entry.data, CONF.HK2: True})
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert _circuit_notice(hass, entry, NOT_ENABLED) is None
+
+
+async def test_a_circuit_the_controller_refuses_is_not_judged(hass, pump):
+    """The WBB refuses circuit 5's bands outright: no reading, no claim."""
+    pump.fail_read_band(CIRCUIT_CONFIGURATION[5], register_type="holding")
+    entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK5: True}))
+
+    assert _circuit_notice(hass, entry, OFF_AT_CONTROLLER) is None
+
+
+async def test_a_link_lost_during_the_circuit_check_still_loads_the_entry(
+    hass, pump, monkeypatch
+):
+    """The check is only a hint; the polls report a link that drops."""
+
+    async def drops(_self):
+        raise ModbusConnectionError("link down")
+
+    monkeypatch.setattr(WeishauptHeatPump, "circuit_configurations", drops)
+    entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK3: True}))
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert _circuit_notice(hass, entry, OFF_AT_CONTROLLER) is None
+
+
+async def test_removing_the_entry_takes_its_circuit_notice_along(hass, pump):
+    pump.load_raw({"holding": {CIRCUIT_CONFIGURATION[2]: MIXING_CIRCUIT}})
+    entry = await _setup(hass, _entry(hass))
+    assert _circuit_notice(hass, entry, NOT_ENABLED) is not None
+
+    await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert _circuit_notice(hass, entry, NOT_ENABLED) is None
 
 
 async def test_icons_come_from_the_icon_translations(hass):

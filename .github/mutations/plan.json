@@ -1491,6 +1491,48 @@
     "tests": "copy_of_the_operating_mode_starts_disabled"
   },
   {
+    "label": "circuits: a set-up circuit the entry leaves off goes unnamed",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "    _notice(hass, entry, NOT_ENABLED_ISSUE, set_up - enabled)\n",
+    "new": "    _notice(hass, entry, NOT_ENABLED_ISSUE, set())\n",
+    "tests": "controller_sets_up_but_the_entry_leaves_off"
+  },
+  {
+    "label": "circuits: an enabled circuit off at the controller goes unnamed",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "    _notice(hass, entry, OFF_AT_CONTROLLER_ISSUE, (known.keys() - set_up) & enabled)\n",
+    "new": "    _notice(hass, entry, OFF_AT_CONTROLLER_ISSUE, set())\n",
+    "tests": "entry_polls_but_the_controller_has_off"
+  },
+  {
+    "label": "circuits: a matching entry keeps the earlier notice",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        ir.async_delete_issue(hass, CONST.DOMAIN, issue_id)\n        return\n",
+    "new": "        return\n",
+    "tests": "matching_circuits_clear_an_earlier_notice"
+  },
+  {
+    "label": "device: a refused circuit reads as switched off",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "                configurations[circuit] = None\n",
+    "new": "                configurations[circuit] = 0\n",
+    "tests": "controller_refuses_is_not_judged"
+  },
+  {
+    "label": "setup: removing the entry leaves its circuit notices",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    clear_circuit_notices(hass, entry)\n",
+    "new": "    return\n",
+    "tests": "removing_the_entry_takes_its_circuit_notice_along"
+  },
+  {
+    "label": "setup: a link lost during the circuit check fails the setup",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    except (ModbusError, TimeoutError) as err:\n",
+    "new": "    except TimeoutError as err:\n",
+    "tests": "link_lost_during_the_circuit_check"
+  },
+  {
     "label": "webif sensor: the setpoint's no value is unknown instead of 0",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
     "old": "    if shown == pages.NO_VALUE and description.no_value_is_zero:\n        return 0.0\n",

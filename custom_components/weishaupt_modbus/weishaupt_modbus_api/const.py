@@ -27,6 +27,9 @@ SETPOINT_OFF_SIGNED = -32768
 SETPOINT_NO_DEMAND_WORDS = (TEMPERATURE_NO_SENSOR, 1)
 SETPOINT_RAW_MIN = 50
 PERCENTAGE_NO_VALUE = 0xFFFF
+# A heating circuit's configuration (41x01) when the controller runs no
+# circuit there - its bands still answer, with factory values.
+CIRCUIT_OFF = 0
 
 
 # Weishaupt rates the register EEPROM for this many writes over the pump's

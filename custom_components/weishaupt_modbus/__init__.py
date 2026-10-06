@@ -6,7 +6,7 @@ import re
 from typing import cast
 
 import aiohttp
-from modbus_connection import ModbusTcpParams
+from modbus_connection import ModbusError, ModbusTcpParams
 
 from homeassistant.components.modbus import async_get_unit
 from homeassistant.config_entries import (
@@ -35,7 +35,13 @@ from .configentry import (
     web_interface_title,
 )
 from .const import CONF, CONST
-from .coordinator import WeishauptModbusCoordinator, check_configured, write_budget
+from .coordinator import (
+    WeishauptModbusCoordinator,
+    check_configured,
+    clear_circuit_notices,
+    report_circuits,
+    write_budget,
+)
 from .items import ModbusItem
 from .kennfeld import PowerMap
 from .migrate_helpers import entry_unique_id, unique_id_from_parts
@@ -143,6 +149,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     )
     await modbus_coordinator.async_config_entry_first_refresh()
     entry.runtime_data = MyData(coordinator=modbus_coordinator, powermap=None)
+    try:
+        configurations = await pump.circuit_configurations()
+    except (ModbusError, TimeoutError) as err:
+        # Only a hint: a link that drops now is the next poll's to report.
+        _LOGGER.debug("Heating circuit configuration not read: %s", err)
+    else:
+        report_circuits(hass, entry, configurations)
 
     powermap = PowerMap(entry, hass)
     await powermap.initialize()
@@ -383,6 +396,11 @@ def _entity_id_with_new_label(entity_id: str, labels: tuple) -> str | None:
             renamed = generated.sub(rf"\g<1>{slugify(new_label)}\g<2>", object_id)
             return f"{domain}.{renamed}"
     return None
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Take the entry's circuit notices along."""
+    clear_circuit_notices(hass, entry)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
