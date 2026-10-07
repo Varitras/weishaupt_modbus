@@ -139,7 +139,7 @@ device postfix:
 The entity types are sensors (read-only values), numbers (writable
 setpoints), selects (writable modes) and switches. The undocumented
 register 31106 (`Adr. 31106`, per circuit) repeats the circuit's operating
-mode and is created disabled.
+mode and is created disabled; one that already exists keeps its state.
 
 **Setpoints that can be switched off.** Some setpoints can be switched off
 at the controller - the constant flow temperatures, the summer/winter

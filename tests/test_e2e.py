@@ -526,6 +526,23 @@ async def test_only_the_copies_of_the_operating_mode_start_disabled(hass):
     }
 
 
+async def test_a_copy_of_the_operating_mode_that_exists_stays_enabled(hass):
+    """Home Assistant applies the default only to an entity it creates: an
+    update that disabled a sensor someone uses would break their setup."""
+    entry = _entry(hass)
+    unique_id = CONST.DEF_PREFIX + "Adr. 31106"
+    er.async_get(hass).async_get_or_create(
+        "sensor", CONST.DOMAIN, unique_id, config_entry=entry
+    )
+
+    await _setup(hass, entry)
+
+    registry = er.async_get(hass)
+    entity_id = registry.async_get_entity_id("sensor", CONST.DOMAIN, unique_id)
+    assert registry.async_get(entity_id).disabled_by is None
+    assert hass.states.get(entity_id) is not None
+
+
 async def test_icons_come_from_the_icon_translations(hass):
     """An icon set in code bypasses icons.json: it cannot follow a state and
     is not where Home Assistant looks for one."""
