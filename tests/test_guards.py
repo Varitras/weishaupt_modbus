@@ -53,6 +53,8 @@ SINGLE_FILE_EXEMPTIONS: set = {
     ("test_secret_scan.py", "hpconst"),
     # Home Assistant takes a config flow from config_flow.py and nowhere else
     ("test_flow_messages.py", "config_flow"),
+    # the params keys are documented in the doc block of the one table
+    ("test_item_register.py", "hpconst"),
 }
 
 

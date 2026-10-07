@@ -463,14 +463,11 @@ IO_KONFIG_IN: list[StatusItem] = [
 #####################################################
 
 ##############################################################################################################################
-# A parameter list that can contain the following elements:
-# all of the entries are optional on general
-# "min": The lowest allowed value of the entity that can be set by the user if read/write.
-#        Not needed for SENSOR, SELECT, SENSOR_CALC
-# "dynamic_min": The translation key of another entity of this integration. The content of this entity will be used as min val
-# "max": The highest allowed value of the entity that can be set by the user if read/write.
-#        Not needed for SENSOR, SELECT, SENSOR_CALC
-# "dynamic_max": The translation key of another entity of this integration. The content of this entity will be used as max val
+# A row's parameters. Every key is optional; test_item_register refuses one not listed here.
+# "min": the lowest value the user can set on a read/write entity
+# "max": the highest value the user can set on a read/write entity
+# "dynamic_min": the translation key of another entity of this integration whose value is the min
+# "dynamic_max": the translation key of another entity of this integration whose value is the max
 # "step": the step when entity is r/w, values can only be set according this step
 # "divider": On modbus, values usually are coded as int. To get the real float number,
 #            the modbus value has to be divided by this value
@@ -478,6 +475,10 @@ IO_KONFIG_IN: list[StatusItem] = [
 # "precision": number of digits after the decimal point
 # "unit": the unit of the sensor. When ever possible, use one of the pre-defined units of HomeAssistant
 # "stateclass": one of the SensorStateClass types to control storage of the entity in the recorder database
+# "setpoint": a setpoint the controller only reports; its no-demand words 1 and 0x8000 read 0
+# "off_is_a_setting": the menu offers "Aus" beside the value, reported as 0x8000; a switch sets it
+# "only_if_served": no entity when the first poll finds the register refused (firmware without it)
+# "enabled_by_default": False creates the entity disabled; an existing entity keeps its state
 #
 # For SENSOR_CALC only:
 # "calculation": a function from calculations.py. It receives the entity's own register (divided),
@@ -510,7 +511,6 @@ PARAMS_ROOMTEMP: dict[str, Any] = {
 # then clamps to the circuit's own minimum/maximum flow settings, which have
 # no Modbus register. A narrower limit here refused a live 35 degC; the
 # controller keeps its own limits on top of these.
-# off_is_a_setting: the menu offers "Aus" beside the value, reported as 0x8000.
 PARAMS_CONSTANT_FLOW_HEATING: dict[str, Any] = {
     **PARAMS_ROOMTEMP,
     "min": 7,

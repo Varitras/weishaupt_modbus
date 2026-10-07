@@ -1519,6 +1519,13 @@
     "tests": "copies_of_the_operating_mode_start_disabled"
   },
   {
+    "label": "table: a row sets a params key nothing reads",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "device=DEVICES.HZ, params={\"enabled_by_default\": False}, translation_key=\"adr31106\"",
+    "new": "device=DEVICES.HZ, params={\"enabled_by_defualt\": False}, translation_key=\"adr31106\"",
+    "tests": "params_key_a_row_sets_is_documented"
+  },
+  {
     "label": "webif sensor: the setpoint's no value is unknown instead of 0",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
     "old": "    if shown == pages.NO_VALUE and description.no_value_is_zero:\n        return 0.0\n",

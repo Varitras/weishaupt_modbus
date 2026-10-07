@@ -11,9 +11,11 @@ entry without one is a red test. What was already wrong on adoption is listed
 by name so the NEXT one fails.
 """
 
+import ast
 from collections import Counter
 import json
 import pathlib
+import re
 
 import pytest
 
@@ -227,6 +229,46 @@ def test_status_numbers_map_to_distinct_translation_keys():
     assert not new, f"status number(s) sharing a translation key: {sorted(new)}"
     fixed = KNOWN_SHARED_STATUS_KEYS - shared
     assert not fixed, f"{sorted(fixed)} are distinct now - drop the exemption."
+
+
+def _documented_params_keys() -> set[str]:
+    """The keys the table's doc block lists, one `# "key":` line each."""
+    source = pathlib.Path(hpconst.__file__).read_text(encoding="utf-8")
+    return set(re.findall(r'^# "(\w+)":', source, re.MULTILINE))
+
+
+def _params_keys_read() -> set[str]:
+    """Every literal key the package looks up in a row's params."""
+    read = set()
+    for module in PACKAGE.rglob("*.py"):
+        for node in ast.walk(ast.parse(module.read_text(encoding="utf-8"))):
+            if not (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "get"
+                and node.args
+                and isinstance(node.args[0], ast.Constant)
+            ):
+                continue
+            owner = node.func.value
+            if (isinstance(owner, ast.Attribute) and owner.attr == "params") or (
+                isinstance(owner, ast.Name) and owner.id == "params"
+            ):
+                read.add(node.args[0].value)
+    return read
+
+
+def test_every_params_key_a_row_sets_is_documented_and_read():
+    """The keys are lookups with a default: a misspelt "enabled_by_default"
+    left its row enabled, and nothing said so."""
+    used = {key for item in _items(hpconst) for key in item.params}
+
+    assert used <= _documented_params_keys(), used - _documented_params_keys()
+    assert used <= _params_keys_read(), used - _params_keys_read()
+
+
+def test_the_params_doc_block_lists_exactly_the_keys_the_code_reads():
+    assert _params_keys_read() == _documented_params_keys()
 
 
 def test_the_signature_sees_a_changed_field():
