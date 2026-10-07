@@ -368,6 +368,9 @@ class Session:
             connection.connect()
             # Held here: http.client lets go of it once a closing answer begins.
             sockets.append(connection.sock)
+            if cut.is_set():
+                # The deadline fired before the socket was held and shut nothing.
+                _cut(sockets, cut)
             connection.request(method, path, body=form, headers=headers)
             response = connection.getresponse()
             body = response.read(MAX_PAGE_BYTES + 1)

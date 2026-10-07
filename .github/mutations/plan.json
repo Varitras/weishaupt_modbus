@@ -3150,6 +3150,13 @@
     "tests": "web_address_is_refused_before_anything_is_asked"
   },
   {
+    "label": "capture tool: a deadline before the socket is held cuts nothing",
+    "path": "tools/webif_capture.py",
+    "old": "            if cut.is_set():\n                # The deadline fired before the socket was held and shut nothing.\n                _cut(sockets, cut)\n",
+    "new": "",
+    "tests": "deadline_before_the_socket_is_held"
+  },
+  {
     "label": "webif coordinator: the hold is let go when a dialog ends early",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
     "old": "        self._no_dialog_visit.clear()\n        try:\n            yield\n        finally:\n            self._no_dialog_visit.set()\n",

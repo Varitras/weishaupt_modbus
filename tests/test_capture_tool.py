@@ -8,11 +8,13 @@ the stand-in on the loopback address.
 """
 
 import asyncio
+import http.client
 import importlib.util
 import json
 import pathlib
 import subprocess
 import sys
+import threading
 import time
 
 import pytest
@@ -435,6 +437,39 @@ async def test_a_page_that_trickles_is_cut_off_at_the_time_limit(
     # its own limit may keep the cut request from the stand-in altogether.
     walked = [*LOGIN, *asked(WALK[:3])]
     assert pump.asked in (walked, [*walked, *asked([HEAT_PUMP_PAGE])])
+    assert took < 3, took
+
+
+async def test_a_deadline_before_the_socket_is_held_still_cuts_the_request(
+    socket_enabled, monkeypatch
+):
+    """A machine standing still between connecting and holding the socket let
+    the deadline fire on nothing: the trickle ran on, 13 s past a 0.5 s limit."""
+    short_limit_for(monkeypatch, HEAT_PUMP_PAGE)
+    fired = threading.Event()
+    cut = capture_tool._cut
+
+    def noted(sockets, event):
+        cut(sockets, event)
+        fired.set()
+
+    monkeypatch.setattr(capture_tool, "_cut", noted)
+    connect = http.client.HTTPConnection.connect
+
+    def connect_then_stand_still(connection):
+        connect(connection)
+        if capture_tool.TIMEOUT_SECONDS == SHORT_LIMIT:
+            assert fired.wait(5)
+
+    monkeypatch.setattr(http.client.HTTPConnection, "connect", connect_then_stand_still)
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN)
+        pump.trickles[HEAT_PUMP_PAGE] = 0.05
+        started = time.monotonic()
+        report, _, _ = await run_capture(pump, attempts=1)
+        took = time.monotonic() - started
+
+    assert report is None
     assert took < 3, took
 
 
