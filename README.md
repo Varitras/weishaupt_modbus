@@ -283,8 +283,8 @@ To read only the web interface, for example from a second Home Assistant
 beside one that polls the heat pump over Modbus, disable the heat pump entry
 afterwards: *⋮ → Disable* on the entry itself. Disabling only its devices
 leaves the entry connecting over Modbus at every start. The web interface
-keeps working without it, and the heat pump's Modbus connection stays with
-the other Home Assistant.
+keeps working without it, and only the other Home Assistant polls the heat
+pump over Modbus.
 
 The entry takes the heat pump's address and follows it when the heat pump
 entry is reconfigured; when the heat pump entry is deleted, it stops. Its
@@ -442,8 +442,7 @@ every register the heat pump answers, without Home Assistant, and saves them
 as a CSV file: download it to a Windows PC in the same network, double-click
 it and enter the heat pump's address. It only reads, never writes, and the
 file holds no address, so it can be attached to an issue as it is. The scan
-takes about a minute; if it cannot connect, disable the integration while
-it runs.
+takes about a minute.
 
 ## Upgrading from 1.x
 

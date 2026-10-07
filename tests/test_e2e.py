@@ -569,8 +569,8 @@ async def test_setup_creates_all_three_platforms(hass):
 
 
 async def test_unload_releases_the_shared_connection(hass, mock_modbus):
-    """The controller allows one TCP connection; the last entry to let go of
-    the shared one has to close it, or the next load finds the port busy."""
+    """The last entry to let go of the shared connection has to close it;
+    left open, it holds a socket at the controller that nothing uses."""
     entry = await _setup(hass, _entry(hass))
     assert mock_modbus.connected
 
