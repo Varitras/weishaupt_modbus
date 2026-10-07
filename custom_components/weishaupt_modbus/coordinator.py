@@ -1,5 +1,6 @@
 """The Update Coordinator for the ModbusItems."""
 
+from collections.abc import Mapping
 from datetime import timedelta
 import logging
 from typing import Any
@@ -7,10 +8,12 @@ from typing import Any
 from modbus_connection import ModbusError
 
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.const import (
+    CIRCUIT_OFF,
     DEFAULT_WRITE_LIMIT_PER_DAY,
     DEFAULT_WRITE_WARNING_PER_DAY,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -18,9 +21,16 @@ from .configentry import MyConfigEntry
 from .const import CONF, CONST, DeviceConstants
 from .items import ModbusItem
 from .weishaupt_modbus_api.device import WeishauptHeatPump
+from .weishaupt_modbus_api.hpconst import HZ_KONFIGURATION
 from .weishaupt_modbus_api.write_budget import WriteBudget
 
 _LOGGER = logging.getLogger(__name__)
+
+# Heating circuit -> the entry's switch for it; circuit 1 is always polled.
+CIRCUIT_SWITCHES = {2: CONF.HK2, 3: CONF.HK3, 4: CONF.HK4, 5: CONF.HK5}
+NOT_ENABLED_ISSUE = "circuit_not_enabled"
+OFF_AT_CONTROLLER_ISSUE = "circuit_off_at_controller"
+DOCUMENTED_SETUPS = frozenset(status.number for status in HZ_KONFIGURATION)
 
 # A short outage keeps the last values; only a longer one takes every entity
 # to unavailable. Counted from the first failed poll after a good one, so
@@ -39,6 +49,64 @@ def check_configured(modbus_item: ModbusItem, config_entry: MyConfigEntry) -> bo
     }
     switch = switches.get(modbus_item.device)
     return True if switch is None else bool(config_entry.data[switch])
+
+
+def report_circuits(
+    hass: HomeAssistant,
+    entry: MyConfigEntry,
+    configurations: Mapping[int, int | None],
+) -> None:
+    """Name each circuit the entry and the controller disagree on.
+
+    Only a hint: the entry polls what it was set up to. One notice per
+    circuit, so ignoring one says "not this circuit" and nothing more. A
+    circuit the controller leaves untold - refused, unread, or a setup it
+    does not document - raises nothing and keeps its notice, unless the
+    entry itself now contradicts it.
+    """
+    for circuit, switch in CIRCUIT_SWITCHES.items():
+        setup = configurations.get(circuit)
+        enabled = bool(entry.data[switch])
+        if setup not in DOCUMENTED_SETUPS:
+            # Deleting the notice took the user's ignore with it, and the
+            # next good read raised it again. The entry's half needs no read.
+            contradicted = NOT_ENABLED_ISSUE if enabled else OFF_AT_CONTROLLER_ISSUE
+            _notice(hass, entry, contradicted, circuit, False)
+            continue
+        set_up = setup != CIRCUIT_OFF
+        not_enabled = set_up and not enabled
+        off_at_controller = enabled and not set_up
+        _notice(hass, entry, NOT_ENABLED_ISSUE, circuit, not_enabled)
+        _notice(hass, entry, OFF_AT_CONTROLLER_ISSUE, circuit, off_at_controller)
+
+
+def clear_circuit_notices(hass: HomeAssistant, entry: MyConfigEntry) -> None:
+    """Drop the entry's circuit notices; they name a pump that is gone."""
+    for circuit in CIRCUIT_SWITCHES:
+        for kind in (NOT_ENABLED_ISSUE, OFF_AT_CONTROLLER_ISSUE):
+            ir.async_delete_issue(hass, CONST.DOMAIN, _issue_id(kind, entry, circuit))
+
+
+def _notice(
+    hass: HomeAssistant, entry: MyConfigEntry, kind: str, circuit: int, raised: bool
+) -> None:
+    issue_id = _issue_id(kind, entry, circuit)
+    if not raised:
+        ir.async_delete_issue(hass, CONST.DOMAIN, issue_id)
+        return
+    ir.async_create_issue(
+        hass,
+        CONST.DOMAIN,
+        issue_id,
+        is_fixable=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key=kind,
+        translation_placeholders={"circuit": str(circuit)},
+    )
+
+
+def _issue_id(kind: str, entry: MyConfigEntry, circuit: int) -> str:
+    return f"{kind}_{entry.entry_id}_{circuit}"
 
 
 def scan_interval(config_entry: MyConfigEntry) -> timedelta:

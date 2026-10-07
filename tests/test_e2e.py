@@ -9,11 +9,19 @@ Marked `e2e` because each test boots a full Home Assistant instance; the
 everyday run deselects them, CI runs them with `-m ""`.
 """
 
+import asyncio
 import json
 import logging
 import pathlib
 
-from modbus_connection import ModbusConnectionError
+from modbus_connection import (
+    GatewayTargetError,
+    IllegalDataAddressError,
+    ModbusConnectionError,
+    ModbusTimeoutError,
+    ServerDeviceBusyError,
+    ServerDeviceFailureError,
+)
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.components.diagnostics import (
@@ -34,7 +42,7 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import EntityCategory
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import entity_registry as er, issue_registry as ir
 
 pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
 
@@ -541,6 +549,286 @@ async def test_a_copy_of_the_operating_mode_that_exists_stays_enabled(hass):
     entity_id = registry.async_get_entity_id("sensor", CONST.DOMAIN, unique_id)
     assert registry.async_get(entity_id).disabled_by is None
     assert hass.states.get(entity_id) is not None
+
+
+# Heating circuit configuration (41101, +100 per circuit): 0 = off.
+CIRCUIT_CONFIGURATION = {2: 41201, 3: 41301, 4: 41401, 5: 41501}
+CIRCUIT_OFF = 0
+MIXING_CIRCUIT = 2
+SETPOINT_CIRCUIT = 3
+NOT_ENABLED = "circuit_not_enabled"
+OFF_AT_CONTROLLER = "circuit_off_at_controller"
+
+
+def _circuit_notice(hass, entry, kind, circuit):
+    return ir.async_get(hass).async_get_issue(
+        CONST.DOMAIN, f"{kind}_{entry.entry_id}_{circuit}"
+    )
+
+
+def _notices(hass, entry, kind):
+    """The circuits a notice of this kind is raised for."""
+    return [
+        circuit
+        for circuit in CIRCUIT_CONFIGURATION
+        if _circuit_notice(hass, entry, kind, circuit) is not None
+    ]
+
+
+async def test_a_circuit_the_controller_sets_up_but_the_entry_leaves_off_is_named(
+    hass, pump
+):
+    """A circuit the installer set up stayed out of Home Assistant with
+    nothing to say it exists. Live, the controller reports a real circuit
+    as 1 to 3 and one that is not there as 0, even where its band answers."""
+    pump.load_raw(
+        {
+            "holding": {
+                CIRCUIT_CONFIGURATION[2]: MIXING_CIRCUIT,
+                CIRCUIT_CONFIGURATION[3]: 1,
+                CIRCUIT_CONFIGURATION[5]: SETPOINT_CIRCUIT,
+            }
+        }
+    )
+    entry = await _setup(hass, _entry(hass))
+
+    assert _notices(hass, entry, NOT_ENABLED) == [2, 3, 5]
+    notice = _circuit_notice(hass, entry, NOT_ENABLED, 3)
+    assert notice.translation_key == NOT_ENABLED
+    assert notice.translation_placeholders == {"circuit": "3"}
+    assert _notices(hass, entry, OFF_AT_CONTROLLER) == []
+
+
+async def test_a_circuit_the_entry_polls_but_the_controller_has_off_is_named(
+    hass, pump
+):
+    """On a one-circuit pump, circuits 2-4 answer factory values and look
+    like circuits of their own once enabled."""
+    pump.load_raw({"holding": {CIRCUIT_CONFIGURATION[3]: CIRCUIT_OFF}})
+    entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK3: True}))
+
+    assert _notices(hass, entry, OFF_AT_CONTROLLER) == [3]
+    notice = _circuit_notice(hass, entry, OFF_AT_CONTROLLER, 3)
+    assert notice.translation_key == OFF_AT_CONTROLLER
+    assert notice.translation_placeholders == {"circuit": "3"}
+    assert _notices(hass, entry, NOT_ENABLED) == []
+
+
+async def test_matching_circuits_clear_an_earlier_notice(hass, pump):
+    pump.load_raw({"holding": {CIRCUIT_CONFIGURATION[2]: MIXING_CIRCUIT}})
+    entry = await _setup(hass, _entry(hass))
+    assert _notices(hass, entry, NOT_ENABLED) == [2]
+
+    # The data change reloads the entry through its update listener.
+    hass.config_entries.async_update_entry(entry, data={**entry.data, CONF.HK2: True})
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert _notices(hass, entry, NOT_ENABLED) == []
+
+
+async def test_an_ignored_circuit_notice_stays_ignored_but_not_for_another_circuit(
+    hass, pump
+):
+    """Ignoring says "I do not want this circuit". One notice for every
+    circuit kept a circuit set up later hidden behind the ignored one."""
+    pump.load_raw({"holding": {CIRCUIT_CONFIGURATION[2]: MIXING_CIRCUIT}})
+    entry = await _setup(hass, _entry(hass))
+    ir.async_ignore_issue(hass, CONST.DOMAIN, f"{NOT_ENABLED}_{entry.entry_id}_2", True)
+
+    pump.load_raw({"holding": {CIRCUIT_CONFIGURATION[3]: MIXING_CIRCUIT}})
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert _circuit_notice(hass, entry, NOT_ENABLED, 2).dismissed_version is not None
+    assert _circuit_notice(hass, entry, NOT_ENABLED, 3).dismissed_version is None
+
+
+async def test_a_circuit_the_controller_refuses_is_not_judged(hass, pump):
+    """The WBB refuses circuit 5's bands outright: no reading, no claim."""
+    pump.fail_read_band(CIRCUIT_CONFIGURATION[5], register_type="holding")
+    entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK5: True}))
+
+    assert _notices(hass, entry, OFF_AT_CONTROLLER) == []
+
+
+def _fail_circuit_read(monkeypatch, address, error):
+    """The setup's read of one circuit fails; the polls still read its band."""
+    read_word = WeishauptHeatPump._read_word
+
+    async def failing(self, at):
+        if at == address:
+            raise error
+        return await read_word(self, at)
+
+    monkeypatch.setattr(WeishauptHeatPump, "_read_word", failing)
+
+
+# Every way the controller can leave a circuit's setup untold: an exception
+# code, a link that fails under the read, a word 41x01 does not document.
+UNTOLD = {
+    "refused": IllegalDataAddressError(),
+    "busy": ServerDeviceBusyError(),
+    "device-failure": ServerDeviceFailureError(),
+    "gateway": GatewayTargetError(),
+    "link-down": ModbusConnectionError("link down"),
+    "timed-out": ModbusTimeoutError("timed out"),
+    "undocumented-word": 4,
+    "no-sensor-word": 0x8000,
+}
+
+
+@pytest.mark.parametrize(
+    ("kind", "enabled", "told"),
+    [
+        pytest.param(NOT_ENABLED, False, MIXING_CIRCUIT, id="not-enabled"),
+        pytest.param(OFF_AT_CONTROLLER, True, CIRCUIT_OFF, id="off-at-controller"),
+    ],
+)
+@pytest.mark.parametrize("untold", UNTOLD.values(), ids=UNTOLD)
+async def test_a_circuit_left_untold_keeps_its_notice_as_it_was(
+    hass, pump, monkeypatch, kind, enabled, told, untold
+):
+    """A refused read deleted the notice and the user's ignore with it; the
+    next good read raised it again, un-ignored."""
+    address = CIRCUIT_CONFIGURATION[3]
+    pump.load_raw({"holding": {address: told}})
+    entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK3: enabled}))
+    ir.async_ignore_issue(hass, CONST.DOMAIN, f"{kind}_{entry.entry_id}_3", True)
+    ignored = _circuit_notice(hass, entry, kind, 3)
+
+    if isinstance(untold, Exception):
+        _fail_circuit_read(monkeypatch, address, untold)
+    else:
+        pump.load_raw({"holding": {address: untold}})
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert _circuit_notice(hass, entry, kind, 3) == ignored
+
+
+@pytest.mark.parametrize(
+    ("kind", "enabled", "told"),
+    [
+        pytest.param(NOT_ENABLED, False, MIXING_CIRCUIT, id="not-enabled"),
+        pytest.param(OFF_AT_CONTROLLER, True, CIRCUIT_OFF, id="off-at-controller"),
+    ],
+)
+@pytest.mark.parametrize("untold", UNTOLD.values(), ids=UNTOLD)
+async def test_a_notice_the_entry_now_contradicts_goes_though_the_circuit_is_untold(
+    hass, pump, monkeypatch, kind, enabled, told, untold
+):
+    """Kept for an untold circuit, "circuit 3 is not read" outlived the
+    reconfigure that enabled it. The entry's half of a notice needs no
+    answer from the controller."""
+    address = CIRCUIT_CONFIGURATION[3]
+    pump.load_raw({"holding": {address: told}})
+    entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK3: enabled}))
+    ir.async_ignore_issue(hass, CONST.DOMAIN, f"{kind}_{entry.entry_id}_3", True)
+
+    if isinstance(untold, Exception):
+        _fail_circuit_read(monkeypatch, address, untold)
+    else:
+        pump.load_raw({"holding": {address: untold}})
+    # The data change reloads the entry through its update listener.
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, CONF.HK3: not enabled}
+    )
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert _circuit_notice(hass, entry, NOT_ENABLED, 3) is None
+    assert _circuit_notice(hass, entry, OFF_AT_CONTROLLER, 3) is None
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        ModbusConnectionError("link down"),
+        ModbusTimeoutError("no answer"),
+        TimeoutError(),
+    ],
+    ids=["link-down", "timed-out", "time-limit"],
+)
+async def test_a_link_lost_during_the_circuit_check_still_loads_the_entry(
+    hass, pump, monkeypatch, caplog, error
+):
+    """The check is only a hint; the polls report a link that drops."""
+
+    async def drops(_self):
+        raise error
+
+    monkeypatch.setattr(WeishauptHeatPump, "circuit_configurations", drops)
+    entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK3: True}))
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert _notices(hass, entry, OFF_AT_CONTROLLER) == []
+    assert not _integration_warnings(caplog), "a dropped link is not a fault"
+
+
+async def test_a_cancel_during_the_circuit_check_is_not_swallowed(
+    hass, pump, monkeypatch
+):
+    """A handler wide enough to catch it loaded the entry of a setup that
+    Home Assistant had called off."""
+
+    async def cancelled(_self):
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(WeishauptHeatPump, "circuit_configurations", cancelled)
+    entry = _entry(hass)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is not ConfigEntryState.LOADED
+
+
+@pytest.mark.parametrize(
+    "error", [RuntimeError("bug"), KeyError("bug")], ids=["runtime", "key"]
+)
+async def test_an_unexpected_error_in_the_circuit_check_still_loads_the_entry(
+    hass, pump, monkeypatch, caplog, error
+):
+    """A fault of this code or a library failed the whole setup, without a
+    retry, for what is only a hint."""
+
+    async def fails(_self):
+        raise error
+
+    monkeypatch.setattr(WeishauptHeatPump, "circuit_configurations", fails)
+    entry = await _setup(hass, _entry(hass))
+
+    assert entry.state is ConfigEntryState.LOADED
+    tracebacks = [
+        record
+        for record in caplog.records
+        if record.name.startswith("custom_components.weishaupt_modbus")
+        and record.exc_info
+        and record.exc_info[1] is error
+    ]
+    assert len(tracebacks) == 1
+
+
+async def test_removing_the_entry_takes_its_circuit_notices_along(hass, pump):
+    pump.load_raw(
+        {
+            "holding": {
+                CIRCUIT_CONFIGURATION[2]: MIXING_CIRCUIT,
+                CIRCUIT_CONFIGURATION[3]: CIRCUIT_OFF,
+                CIRCUIT_CONFIGURATION[5]: MIXING_CIRCUIT,
+            }
+        }
+    )
+    entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK3: True}))
+    assert _notices(hass, entry, NOT_ENABLED) == [2, 5]
+    assert _notices(hass, entry, OFF_AT_CONTROLLER) == [3]
+
+    await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert _notices(hass, entry, NOT_ENABLED) == []
+    assert _notices(hass, entry, OFF_AT_CONTROLLER) == []
 
 
 async def test_icons_come_from_the_icon_translations(hass):

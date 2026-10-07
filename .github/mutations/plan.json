@@ -1526,6 +1526,181 @@
     "tests": "params_key_a_row_sets_is_documented"
   },
   {
+    "label": "circuits: a set-up circuit the entry leaves off goes unnamed",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        not_enabled = set_up and not enabled\n",
+    "new": "        not_enabled = False\n",
+    "tests": "controller_sets_up_but_the_entry_leaves_off"
+  },
+  {
+    "label": "circuits: an enabled circuit off at the controller goes unnamed",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        off_at_controller = enabled and not set_up\n",
+    "new": "        off_at_controller = False\n",
+    "tests": "entry_polls_but_the_controller_has_off"
+  },
+  {
+    "label": "circuits: a matching entry keeps the earlier notice",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        ir.async_delete_issue(hass, CONST.DOMAIN, issue_id)\n        return\n",
+    "new": "        return\n",
+    "tests": "matching_circuits_clear_an_earlier_notice"
+  },
+  {
+    "label": "circuits: one notice for every circuit",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "    return f\"{kind}_{entry.entry_id}_{circuit}\"\n",
+    "new": "    return f\"{kind}_{entry.entry_id}\"\n",
+    "tests": "ignored_circuit_notice_stays_ignored"
+  },
+  {
+    "label": "circuits: an untold circuit loses its notice and the ignore",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        if setup not in DOCUMENTED_SETUPS:\n",
+    "new": "        if False:\n",
+    "tests": "circuit_left_untold_keeps_its_notice"
+  },
+  {
+    "label": "circuits: a setup word the controller does not document is judged",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        if setup not in DOCUMENTED_SETUPS:\n",
+    "new": "        if setup is None:\n",
+    "tests": "circuit_left_untold_keeps_its_notice"
+  },
+  {
+    "label": "circuits: a setpoint circuit (3) is never judged",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "DOCUMENTED_SETUPS = frozenset(status.number for status in HZ_KONFIGURATION)\n",
+    "new": "DOCUMENTED_SETUPS = frozenset({0, 1, 2})\n",
+    "tests": "controller_sets_up_but_the_entry_leaves_off"
+  },
+  {
+    "label": "circuits: an untold circuit keeps a notice the entry contradicts",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "            _notice(hass, entry, contradicted, circuit, False)\n",
+    "new": "",
+    "tests": "entry_now_contradicts_goes"
+  },
+  {
+    "label": "circuits: an untold circuit loses the notice the entry still holds",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "            contradicted = NOT_ENABLED_ISSUE if enabled else OFF_AT_CONTROLLER_ISSUE\n",
+    "new": "            contradicted = OFF_AT_CONTROLLER_ISSUE if enabled else NOT_ENABLED_ISSUE\n",
+    "tests": "circuit_left_untold_keeps_its_notice"
+  },
+  {
+    "label": "setup: a failed circuit read leaves notices the entry contradicts",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    report_circuits(hass, entry, configurations)\n",
+    "new": "    if configurations:\n        report_circuits(hass, entry, configurations)\n",
+    "tests": "entry_now_contradicts_goes"
+  },
+  {
+    "label": "device: a refused circuit reads as switched off",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "                configurations[circuit] = None\n",
+    "new": "                configurations[circuit] = 0\n",
+    "tests": "controller_refuses_is_not_judged"
+  },
+  {
+    "label": "circuits: every notice gets the not-enabled text",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        translation_key=kind,\n",
+    "new": "        translation_key=NOT_ENABLED_ISSUE,\n",
+    "tests": "entry_polls_but_the_controller_has_off"
+  },
+  {
+    "label": "device: circuit 5's setup is never read",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        for circuit in range(2, CIRCUITS + 1):\n",
+    "new": "        for circuit in range(2, CIRCUITS):\n",
+    "tests": "controller_sets_up_but_the_entry_leaves_off"
+  },
+  {
+    "label": "device: a dead link under the circuit read reads as refused",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "            except ModbusExceptionError:\n",
+    "new": "            except Exception:\n",
+    "tests": "dead_link_under_the_circuit_read"
+  },
+  {
+    "label": "device: a time-out under the circuit read reads as refused",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "            except ModbusExceptionError:\n",
+    "new": "            except (ModbusExceptionError, TimeoutError):\n",
+    "tests": "dead_link_under_the_circuit_read"
+  },
+  {
+    "label": "setup: removing the entry leaves its off-at-controller notices",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        for kind in (NOT_ENABLED_ISSUE, OFF_AT_CONTROLLER_ISSUE):\n",
+    "new": "        for kind in (NOT_ENABLED_ISSUE,):\n",
+    "tests": "removing_the_entry_takes_its_circuit_notices_along"
+  },
+  {
+    "label": "setup: removing the entry leaves circuit 5's notices",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "    for circuit in CIRCUIT_SWITCHES:\n",
+    "new": "    for circuit in (2, 3, 4):\n",
+    "tests": "removing_the_entry_takes_its_circuit_notices_along"
+  },
+  {
+    "label": "texts: a notice title names a placeholder the code does not give",
+    "path": "custom_components/weishaupt_modbus/translations/de.json",
+    "old": "            \"title\": \"Heizkreis {circuit} wird nicht gelesen\",\n",
+    "new": "            \"title\": \"Heizkreis {kreis} wird nicht gelesen\",\n",
+    "tests": "controller_sets_up_but_the_entry_leaves_off"
+  },
+  {
+    "label": "texts: a notice the code raises has no text in one language",
+    "path": "custom_components/weishaupt_modbus/translations/nl.json",
+    "old": "    \"circuit_off_at_controller\" : {\n",
+    "new": "    \"circuit_switched_off\" : {\n",
+    "tests": "entry_polls_but_the_controller_has_off"
+  },
+  {
+    "label": "setup: removing the entry leaves its circuit notices",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    clear_circuit_notices(hass, entry)\n",
+    "new": "    return\n",
+    "tests": "removing_the_entry_takes_its_circuit_notices_along"
+  },
+  {
+    "label": "setup: a link lost during the circuit check is logged as a fault",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    except (ModbusError, TimeoutError) as err:\n",
+    "new": "    except TimeoutError as err:\n",
+    "tests": "link_lost_during_the_circuit_check"
+  },
+  {
+    "label": "setup: the circuit read's time limit is logged as a fault",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    except (ModbusError, TimeoutError) as err:\n",
+    "new": "    except ModbusError as err:\n",
+    "tests": "link_lost_during_the_circuit_check"
+  },
+  {
+    "label": "setup: the circuit check swallows a cancel",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    except Exception:\n",
+    "new": "    except BaseException:\n",
+    "tests": "cancel_during_the_circuit_check"
+  },
+  {
+    "label": "setup: an unexpected error in the circuit check fails the setup",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    except Exception:\n",
+    "new": "    except ZeroDivisionError:\n",
+    "tests": "unexpected_error_in_the_circuit_check"
+  },
+  {
+    "label": "setup: an unexpected error in the circuit check leaves no traceback",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        _LOGGER.exception(\"Heating circuit configuration not read\")\n",
+    "new": "        _LOGGER.debug(\"Heating circuit configuration not read\")\n",
+    "tests": "unexpected_error_in_the_circuit_check"
+  },
+  {
     "label": "webif sensor: the setpoint's no value is unknown instead of 0",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
     "old": "    if shown == pages.NO_VALUE and description.no_value_is_zero:\n        return 0.0\n",

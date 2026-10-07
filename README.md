@@ -93,6 +93,19 @@ entry and add it again.
 circuits and the two name options without losing history. The heat pump has
 to answer at the new address before the change is saved.
 
+Each time the entry loads - at start, after a reconfigure or an options
+change - the integration compares heating circuits 2-5 enabled here with
+the controller's own setup (registers 41201, 41301, 41401, 41501: 0 means no
+circuit) and raises a repair notice for each circuit where they differ - set
+up at the controller but not enabled, or enabled but switched off there. A
+circuit switched off at the controller still answers with factory values,
+so its entities look real. A notice goes once the two match; one you ignore
+stays ignored, and only for its own circuit. A circuit the controller does
+not tell about - a refused read, a value it does not document, a link that
+drops - is not judged: its notice stays as it was, unless the circuit's
+switch here now says otherwise. Circuit 1 is always read, so it has nothing
+to compare.
+
 ### Options
 
 The *Options* dialog holds the settings that can change at any time. A

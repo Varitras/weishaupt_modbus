@@ -27,14 +27,25 @@ _LOGGER = logging.getLogger(__name__)
 
 Band = tuple[int, int]
 
+CIRCUITS = 5
+CIRCUIT_STRIDE = 100
+# How the controller sets circuit 1 up; circuit n sits CIRCUIT_STRIDE * (n - 1) above.
+CIRCUIT_CONFIGURATION = 41101
+
 # The contiguous address ranges the controller serves, from the Weishaupt
 # register lists and a scan of a WBB (2026-07). Heating circuits 2-5 sit
 # 100, 200, 300, 400 above circuit 1. A read must never cross a band end.
 BANDS: tuple[Band, ...] = (
     (30001, 30006),
     (40001, 40002),
-    *((31101 + 100 * circuit, 31106 + 100 * circuit) for circuit in range(5)),
-    *((41101 + 100 * circuit, 41112 + 100 * circuit) for circuit in range(5)),
+    *(
+        (31101 + CIRCUIT_STRIDE * circuit, 31106 + CIRCUIT_STRIDE * circuit)
+        for circuit in range(CIRCUITS)
+    ),
+    *(
+        (41101 + CIRCUIT_STRIDE * circuit, 41112 + CIRCUIT_STRIDE * circuit)
+        for circuit in range(CIRCUITS)
+    ),
     (32101, 32102),
     (42101, 42105),
     (33101, 33111),
@@ -94,6 +105,7 @@ class WeishauptHeatPump:
     ) -> None:
         """Group the register rows by band and build a component per band."""
         self.items = [item for item in items if item.type != TYPES.SENSOR_CALC]
+        self._unit = unit
         self.write_budget = write_budget
         # The controller also serves the web interface, and the two never ask
         # it at once. Held per block and per write, not per poll, so a write
@@ -247,6 +259,28 @@ class WeishauptHeatPump:
                 self.write_budget.writes_today,
                 EEPROM_WRITE_RATING,
             )
+
+    async def circuit_configurations(self) -> dict[int, int | None]:
+        """How the controller sets up circuits 2-5 (41x01); None where refused.
+
+        Read for every circuit, not only the ones the entry polls: comparing
+        the two is the point. A refused band (circuit 5 on a WBB) has no
+        configuration to compare.
+        """
+        configurations: dict[int, int | None] = {}
+        for circuit in range(2, CIRCUITS + 1):
+            address = CIRCUIT_CONFIGURATION + CIRCUIT_STRIDE * (circuit - 1)
+            try:
+                configurations[circuit] = await self._read_word(address)
+            except ModbusExceptionError:
+                configurations[circuit] = None
+        return configurations
+
+    async def _read_word(self, address: int) -> int:
+        """One holding register, under the controller's lock like a band read."""
+        async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):
+            words = await self._unit.read_holding_registers(address, 1)
+        return words[0]
 
     def serves(self, item: ModbusItem) -> bool:
         """Whether the pump answered this row's band on the last poll."""
