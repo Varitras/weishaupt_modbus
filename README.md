@@ -139,7 +139,8 @@ device postfix:
 The entity types are sensors (read-only values), numbers (writable
 setpoints), selects (writable modes) and switches. The undocumented
 register 31106 (`Adr. 31106`, per circuit) repeats the circuit's operating
-mode and is created disabled; one that already exists keeps its state.
+mode and is created disabled; one that already exists stays enabled or
+disabled as it was.
 
 **Setpoints that can be switched off.** Some setpoints can be switched off
 at the controller - the constant flow temperatures, the summer/winter
@@ -155,9 +156,11 @@ demands nothing, and say so: their `demand` attribute is `none` then and
 `active` while a setpoint is in force. (The controller reports "no demand"
 as the value 1, which used to show as 0.1 °C.) To Home Assistant the 0 is a
 temperature like any other: it goes into the long-term statistics, so an
-hour without demand has a minimum of 0 °C and a lower mean, and it shows as
-32 °F with US customary units. An automation that waited for `unknown`,
-which up to 2.0 meant no demand, should look at `demand` instead.
+hour with a stretch without demand has a minimum of 0 °C and a lower mean,
+and a whole hour without demand a row of zeros where it had none; it shows
+as 32 °F with US customary units. An automation that waited for
+`unknown`, which 2.0.2 showed for no demand, should look at `demand`
+instead.
 
 **Electrical power.** Register 33126 is in no Weishaupt data-point list.
 Checked against an external meter on one WBB 12 it is the heat pump's own
