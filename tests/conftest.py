@@ -2,7 +2,7 @@
 
 Declares the Home Assistant custom-component test plugin (the `hass` fixture
 and a matching Home Assistant install), keeps every test off real hardware,
-checks the texts of every repair notice a test raises, and holds the runtime
+checks the texts of every repair notice a test creates, and holds the runtime
 budget per test - see durations.py for why one exists.
 """
 
@@ -98,22 +98,24 @@ RAISED_NOTICES = pytest.StashKey[list]()
 
 @pytest.fixture(autouse=True)
 def _record_repair_notices(request, monkeypatch):
-    """Every repair notice of this integration a test raises, with the
-    placeholders the code gives it, for the check after the test.
+    """Every repair notice of this integration created while a test sets up
+    and runs, with the placeholders the code gives it, for the check after.
 
     Taken from the call, not the source: the circuit notices hand their kind
-    through a parameter, which no scan of the source follows.
+    through a parameter, which no scan of the source follows. Taken at the
+    registry, where every way to create a notice ends: the module helper alone
+    missed one imported by name or created on the registry itself.
     """
     raised = request.node.stash[RAISED_NOTICES] = []
-    create = ir.async_create_issue
+    create = ir.IssueRegistry.async_get_or_create
 
-    def recording(hass, domain, issue_id, **kwargs):
+    def recording(registry, domain, issue_id, **kwargs):
         if domain == CONST.DOMAIN:
             given = set(kwargs.get("translation_placeholders") or {})
             raised.append((kwargs["translation_key"], given))
-        return create(hass, domain, issue_id, **kwargs)
+        return create(registry, domain, issue_id, **kwargs)
 
-    monkeypatch.setattr(ir, "async_create_issue", recording)
+    monkeypatch.setattr(ir.IssueRegistry, "async_get_or_create", recording)
 
 
 @pytest.hookimpl(wrapper=True)
@@ -133,7 +135,9 @@ def pytest_runtest_call(item):
 def _notice_text_problems(raised: list[tuple[str, set[str]]]) -> list[str]:
     """Title and description in every language, with exactly the placeholders
     the code gives."""
-    problems = []
+    problems: list[str] = []
+    if not raised:
+        return problems
     files = [PACKAGE / "strings.json", *sorted(PACKAGE.glob("translations/*.json"))]
     for path in files:
         issues = json.loads(path.read_text(encoding="utf-8")).get("issues", {})
