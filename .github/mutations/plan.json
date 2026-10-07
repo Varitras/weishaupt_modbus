@@ -1575,6 +1575,20 @@
     "tests": "removing_the_entry_takes_its_circuit_notices_along"
   },
   {
+    "label": "texts: a notice title names a placeholder the code does not give",
+    "path": "custom_components/weishaupt_modbus/translations/de.json",
+    "old": "            \"title\": \"Heizkreis {circuit} wird nicht gelesen\",\n",
+    "new": "            \"title\": \"Heizkreis {kreis} wird nicht gelesen\",\n",
+    "tests": "controller_sets_up_but_the_entry_leaves_off"
+  },
+  {
+    "label": "texts: a notice the code raises has no text in one language",
+    "path": "custom_components/weishaupt_modbus/translations/nl.json",
+    "old": "    \"circuit_off_at_controller\" : {\n",
+    "new": "    \"circuit_switched_off\" : {\n",
+    "tests": "entry_polls_but_the_controller_has_off"
+  },
+  {
     "label": "setup: removing the entry leaves its circuit notices",
     "path": "custom_components/weishaupt_modbus/__init__.py",
     "old": "    clear_circuit_notices(hass, entry)\n",

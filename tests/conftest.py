@@ -2,12 +2,20 @@
 
 Declares the Home Assistant custom-component test plugin (the `hass` fixture
 and a matching Home Assistant install), keeps every test off real hardware,
-and holds the runtime budget per test - see durations.py for why one exists.
+checks the texts of every repair notice a test raises, and holds the runtime
+budget per test - see durations.py for why one exists.
 """
+
+import json
+import pathlib
+import re
 
 from modbus_connection import IllegalDataAddressError
 from modbus_connection.mock import MockModbusConnection
 import pytest
+
+from custom_components.weishaupt_modbus.const import CONST
+from homeassistant.helpers import issue_registry as ir
 
 from .durations import SLOW_TEST_SECONDS, over_budget
 
@@ -80,6 +88,69 @@ def _no_real_heat_pump(monkeypatch):
         )
 
     monkeypatch.setattr(CORE_CONNECTION, _refuse)
+
+
+PACKAGE = (
+    pathlib.Path(__file__).resolve().parents[1] / "custom_components/weishaupt_modbus"
+)
+RAISED_NOTICES = pytest.StashKey[list]()
+
+
+@pytest.fixture(autouse=True)
+def _record_repair_notices(request, monkeypatch):
+    """Every repair notice of this integration a test raises, with the
+    placeholders the code gives it, for the check after the test.
+
+    Taken from the call, not the source: the circuit notices hand their kind
+    through a parameter, which no scan of the source follows.
+    """
+    raised = request.node.stash[RAISED_NOTICES] = []
+    create = ir.async_create_issue
+
+    def recording(hass, domain, issue_id, **kwargs):
+        if domain == CONST.DOMAIN:
+            given = set(kwargs.get("translation_placeholders") or {})
+            raised.append((kwargs["translation_key"], given))
+        return create(hass, domain, issue_id, **kwargs)
+
+    monkeypatch.setattr(ir, "async_create_issue", recording)
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_call(item):
+    """Fail the test that raised a notice without its texts.
+
+    A notice with a misspelt placeholder or no text at all passed every other
+    check. Failed here rather than in the fixture's teardown: a fixture error
+    says nothing to the mutation runs.
+    """
+    result = yield
+    problems = _notice_text_problems(item.stash.get(RAISED_NOTICES, []))
+    assert not problems, "\n".join(problems)
+    return result
+
+
+def _notice_text_problems(raised: list[tuple[str, set[str]]]) -> list[str]:
+    """Title and description in every language, with exactly the placeholders
+    the code gives."""
+    problems = []
+    files = [PACKAGE / "strings.json", *sorted(PACKAGE.glob("translations/*.json"))]
+    for path in files:
+        issues = json.loads(path.read_text(encoding="utf-8")).get("issues", {})
+        for key, given in raised:
+            texts = issues.get(key)
+            if texts is None:
+                problems.append(f"{path.name}: no text for the {key} notice")
+                continue
+            if not _placeholders(texts["title"]) <= given:
+                problems.append(f"{path.name}: the {key} title wants more than {given}")
+            if _placeholders(texts["description"]) != given:
+                problems.append(f"{path.name}: the {key} description is not {given}")
+    return problems
+
+
+def _placeholders(text: str) -> set[str]:
+    return set(re.findall(r"\{(\w+)\}", text))
 
 
 class SharedMockModbus:
