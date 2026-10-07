@@ -105,6 +105,9 @@ async def test_a_request_is_cut_off_at_the_client_s_own_time_limit(
     """
     monkeypatch.setattr(webif, "TIMEOUT_SECONDS", SHORT_TIMEOUT)
     client = connect(session, pump.host)
+    # A limit per read lets a page sent a byte at a time run on; one twice as
+    # long still cuts the slow answer off here.
+    assert client._timeout == aiohttp.ClientTimeout(total=SHORT_TIMEOUT)
     pump.delays[webif.INDEX] = SLOW
     connect_now = session.connector.connect
 
@@ -114,7 +117,7 @@ async def test_a_request_is_cut_off_at_the_client_s_own_time_limit(
 
     monkeypatch.setattr(session.connector, "connect", connect_after_a_pause)
 
-    cut_off = rf"^GET {re.escape(webif.INDEX)}: \w*TimeoutError$"
+    cut_off = rf"^GET {re.escape(webif.INDEX)}: TimeoutError$"
     with pytest.raises(webif.Unreachable, match=cut_off):
         await client.page(PAGE, whole)
     assert pump.asked in ([], [("GET", webif.INDEX)])
