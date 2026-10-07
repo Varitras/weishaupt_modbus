@@ -540,13 +540,15 @@ async def test_a_circuit_the_controller_sets_up_but_the_entry_leaves_off_is_name
             "holding": {
                 CIRCUIT_CONFIGURATION[2]: MIXING_CIRCUIT,
                 CIRCUIT_CONFIGURATION[3]: 1,
+                CIRCUIT_CONFIGURATION[5]: 1,
             }
         }
     )
     entry = await _setup(hass, _entry(hass))
 
-    assert _notices(hass, entry, NOT_ENABLED) == [2, 3]
+    assert _notices(hass, entry, NOT_ENABLED) == [2, 3, 5]
     notice = _circuit_notice(hass, entry, NOT_ENABLED, 3)
+    assert notice.translation_key == NOT_ENABLED
     assert notice.translation_placeholders == {"circuit": "3"}
     assert _notices(hass, entry, OFF_AT_CONTROLLER) == []
 
@@ -561,6 +563,7 @@ async def test_a_circuit_the_entry_polls_but_the_controller_has_off_is_named(
 
     assert _notices(hass, entry, OFF_AT_CONTROLLER) == [3]
     notice = _circuit_notice(hass, entry, OFF_AT_CONTROLLER, 3)
+    assert notice.translation_key == OFF_AT_CONTROLLER
     assert notice.translation_placeholders == {"circuit": "3"}
     assert _notices(hass, entry, NOT_ENABLED) == []
 
@@ -706,17 +709,20 @@ async def test_removing_the_entry_takes_its_circuit_notices_along(hass, pump):
         {
             "holding": {
                 CIRCUIT_CONFIGURATION[2]: MIXING_CIRCUIT,
-                CIRCUIT_CONFIGURATION[4]: MIXING_CIRCUIT,
+                CIRCUIT_CONFIGURATION[3]: CIRCUIT_OFF,
+                CIRCUIT_CONFIGURATION[5]: MIXING_CIRCUIT,
             }
         }
     )
-    entry = await _setup(hass, _entry(hass))
-    assert _notices(hass, entry, NOT_ENABLED) == [2, 4]
+    entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK3: True}))
+    assert _notices(hass, entry, NOT_ENABLED) == [2, 5]
+    assert _notices(hass, entry, OFF_AT_CONTROLLER) == [3]
 
     await hass.config_entries.async_remove(entry.entry_id)
     await hass.async_block_till_done()
 
     assert _notices(hass, entry, NOT_ENABLED) == []
+    assert _notices(hass, entry, OFF_AT_CONTROLLER) == []
 
 
 async def test_icons_come_from_the_icon_translations(hass):

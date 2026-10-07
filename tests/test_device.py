@@ -366,6 +366,22 @@ async def test_a_dead_link_is_raised_not_swallowed(pump, unit):
         await pump.async_update()
 
 
+async def test_every_circuit_s_setup_is_read_and_a_refused_one_is_untold(pump, unit):
+    unit.load_raw({"holding": {41201: 2, 41401: 1}})
+    unit.fail_read(41501, IllegalDataAddressError(), register_type="holding")
+
+    assert await pump.circuit_configurations() == {2: 2, 3: 0, 4: 1, 5: None}
+
+
+async def test_a_dead_link_under_the_circuit_read_is_raised_not_called_refused(
+    pump, unit
+):
+    unit.fail_read(41301, ModbusConnectionError("link down"), register_type="holding")
+
+    with pytest.raises(ModbusConnectionError):
+        await pump.circuit_configurations()
+
+
 # --- the controller, shared with the web interface ----------------------------
 
 

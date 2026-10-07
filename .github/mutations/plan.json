@@ -1540,6 +1540,41 @@
     "tests": "controller_refuses_is_not_judged"
   },
   {
+    "label": "circuits: every notice gets the not-enabled text",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        translation_key=kind,\n",
+    "new": "        translation_key=NOT_ENABLED_ISSUE,\n",
+    "tests": "entry_polls_but_the_controller_has_off"
+  },
+  {
+    "label": "device: circuit 5's setup is never read",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        for circuit in range(2, CIRCUITS + 1):\n",
+    "new": "        for circuit in range(2, CIRCUITS):\n",
+    "tests": "controller_sets_up_but_the_entry_leaves_off"
+  },
+  {
+    "label": "device: a dead link under the circuit read reads as refused",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "            except ModbusExceptionError:\n",
+    "new": "            except Exception:\n",
+    "tests": "dead_link_under_the_circuit_read"
+  },
+  {
+    "label": "setup: removing the entry leaves its off-at-controller notices",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        for kind in (NOT_ENABLED_ISSUE, OFF_AT_CONTROLLER_ISSUE):\n",
+    "new": "        for kind in (NOT_ENABLED_ISSUE,):\n",
+    "tests": "removing_the_entry_takes_its_circuit_notices_along"
+  },
+  {
+    "label": "setup: removing the entry leaves circuit 5's notices",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "    for circuit in CIRCUIT_SWITCHES:\n",
+    "new": "    for circuit in (2, 3, 4):\n",
+    "tests": "removing_the_entry_takes_its_circuit_notices_along"
+  },
+  {
     "label": "setup: removing the entry leaves its circuit notices",
     "path": "custom_components/weishaupt_modbus/__init__.py",
     "old": "    clear_circuit_notices(hass, entry)\n",
