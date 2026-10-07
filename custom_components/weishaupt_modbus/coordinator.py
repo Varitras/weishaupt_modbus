@@ -60,17 +60,20 @@ def report_circuits(
 
     Only a hint: the entry polls what it was set up to. One notice per
     circuit, so ignoring one says "not this circuit" and nothing more. A
-    circuit the controller leaves untold - refused, or a setup it does not
-    document - keeps its notice as it was.
+    circuit the controller leaves untold - refused, unread, or a setup it
+    does not document - raises nothing and keeps its notice, unless the
+    entry itself now contradicts it.
     """
     for circuit, switch in CIRCUIT_SWITCHES.items():
         setup = configurations.get(circuit)
+        enabled = bool(entry.data[switch])
         if setup not in DOCUMENTED_SETUPS:
             # Deleting the notice took the user's ignore with it, and the
-            # next good read raised it again.
+            # next good read raised it again. The entry's half needs no read.
+            contradicted = NOT_ENABLED_ISSUE if enabled else OFF_AT_CONTROLLER_ISSUE
+            _notice(hass, entry, contradicted, circuit, False)
             continue
         set_up = setup != CIRCUIT_OFF
-        enabled = bool(entry.data[switch])
         not_enabled = set_up and not enabled
         off_at_controller = enabled and not set_up
         _notice(hass, entry, NOT_ENABLED_ISSUE, circuit, not_enabled)

@@ -102,8 +102,9 @@ circuit switched off at the controller still answers with factory values,
 so its entities look real. A notice goes once the two match; one you ignore
 stays ignored, and only for its own circuit. A circuit the controller does
 not tell about - a refused read, a value it does not document, a link that
-drops - is not judged, and its notice stays as it was. Circuit 1 is always
-read, so it has nothing to compare.
+drops - is not judged: its notice stays as it was, unless the circuit's
+switch here now says otherwise. Circuit 1 is always read, so it has nothing
+to compare.
 
 ### Options
 

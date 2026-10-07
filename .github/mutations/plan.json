@@ -1533,6 +1533,27 @@
     "tests": "circuit_left_untold_keeps_its_notice"
   },
   {
+    "label": "circuits: an untold circuit keeps a notice the entry contradicts",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "            _notice(hass, entry, contradicted, circuit, False)\n",
+    "new": "",
+    "tests": "entry_now_contradicts_goes"
+  },
+  {
+    "label": "circuits: an untold circuit loses the notice the entry still holds",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "            contradicted = NOT_ENABLED_ISSUE if enabled else OFF_AT_CONTROLLER_ISSUE\n",
+    "new": "            contradicted = OFF_AT_CONTROLLER_ISSUE if enabled else NOT_ENABLED_ISSUE\n",
+    "tests": "circuit_left_untold_keeps_its_notice"
+  },
+  {
+    "label": "setup: a failed circuit read leaves notices the entry contradicts",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    report_circuits(hass, entry, configurations)\n",
+    "new": "    if configurations:\n        report_circuits(hass, entry, configurations)\n",
+    "tests": "entry_now_contradicts_goes"
+  },
+  {
     "label": "device: a refused circuit reads as switched off",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
     "old": "                configurations[circuit] = None\n",

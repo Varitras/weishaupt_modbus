@@ -662,6 +662,40 @@ async def test_a_circuit_left_untold_keeps_its_notice_as_it_was(
     assert _circuit_notice(hass, entry, kind, 3) == ignored
 
 
+@pytest.mark.parametrize(
+    ("kind", "enabled", "told"),
+    [
+        pytest.param(NOT_ENABLED, False, MIXING_CIRCUIT, id="not-enabled"),
+        pytest.param(OFF_AT_CONTROLLER, True, CIRCUIT_OFF, id="off-at-controller"),
+    ],
+)
+@pytest.mark.parametrize("untold", UNTOLD.values(), ids=UNTOLD)
+async def test_a_notice_the_entry_now_contradicts_goes_though_the_circuit_is_untold(
+    hass, pump, monkeypatch, kind, enabled, told, untold
+):
+    """Kept for an untold circuit, "circuit 3 is not read" outlived the
+    reconfigure that enabled it. The entry's half of a notice needs no
+    answer from the controller."""
+    address = CIRCUIT_CONFIGURATION[3]
+    pump.load_raw({"holding": {address: told}})
+    entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK3: enabled}))
+    ir.async_ignore_issue(hass, CONST.DOMAIN, f"{kind}_{entry.entry_id}_3", True)
+
+    if isinstance(untold, Exception):
+        _fail_circuit_read(monkeypatch, address, untold)
+    else:
+        pump.load_raw({"holding": {address: untold}})
+    # The data change reloads the entry through its update listener.
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, CONF.HK3: not enabled}
+    )
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert _circuit_notice(hass, entry, NOT_ENABLED, 3) is None
+    assert _circuit_notice(hass, entry, OFF_AT_CONTROLLER, 3) is None
+
+
 async def test_a_link_lost_during_the_circuit_check_still_loads_the_entry(
     hass, pump, monkeypatch, caplog
 ):
