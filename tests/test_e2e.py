@@ -501,21 +501,29 @@ async def test_settings_the_pump_only_reports_are_diagnostic(hass):
     assert registry.async_get(setpoint).entity_category is None
 
 
-async def test_the_copy_of_the_operating_mode_starts_disabled(hass):
+async def test_only_the_copies_of_the_operating_mode_start_disabled(hass):
     """31106 repeats the circuit's operating mode (41103) on every controller
-    seen; enabled, it put an unnamed second copy of the select on the device
-    page. Only new entities start disabled: an existing one keeps its state."""
-    await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK2: True}))
-    registry = er.async_get(hass)
+    seen; enabled, it put the select's raw number on the device page as a
+    sensor named by its address. Held by the outside temperature alone, every
+    diagnostic row could start disabled unnoticed."""
+    rows = [
+        row
+        for device in DEVICELISTS
+        for row in device
+        if row.params.get("enabled_by_default") is False
+    ]
+    assert {row.address for row in rows} == {31106 + 100 * n for n in range(5)}
+    await _setup(hass, _entry(hass, data=ALL_CIRCUITS))
 
-    def disabled_by(unique_id):
-        entity_id = registry.async_get_entity_id("sensor", CONST.DOMAIN, unique_id)
-        assert entity_id, unique_id
-        return registry.async_get(entity_id).disabled_by
-
-    for unique_id in ("weishaupt_wbbAdr. 31106", "weishaupt_wbbAdr. 311062"):
-        assert disabled_by(unique_id) is er.RegistryEntryDisabler.INTEGRATION
-    assert disabled_by(OUTSIDE_TEMPERATURE_UNIQUE_ID) is None
+    disabled = {
+        entry.unique_id: entry.disabled_by
+        for entry in er.async_get(hass).entities.values()
+        if entry.disabled_by is not None
+    }
+    assert disabled == {
+        CONST.DEF_PREFIX + row.name: er.RegistryEntryDisabler.INTEGRATION
+        for row in rows
+    }
 
 
 async def test_icons_come_from_the_icon_translations(hass):
