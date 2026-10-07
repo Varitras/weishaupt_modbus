@@ -80,7 +80,7 @@ because the thing it prevents happened, here or in a sibling project.
 | `test_durations.py` | No single test quietly starts taking minutes (budget in `durations.py`, enforced from `conftest.py`), and a run that stops making progress is cut off rather than only measured |
 | `test_guards.py` | No guard binds itself to one source file; every guard is listed; `check.sh` matches CI |
 | `test_imports.py` | Every module imports outside the author's own tree - the `from config.custom_components...` line that shipped on main cannot ship again; nothing in `webif/` imports Home Assistant, by name or through the integration around it |
-| `test_item_register.py` | Every register definition is complete (a name in every translation file, result list, address range, unique key), no translation outlives its item, and every item keeps the name its unique id is built from (`legacy_unique_ids.json`) |
+| `test_item_register.py` | Every register definition is complete (a name in every translation file, result list, address range, unique key), no translation outlives its item, and every item keeps the name its unique id is built from (`legacy_unique_ids.json`); every `params` key a row sets or the code reads is listed in the table's doc block, and the block lists no other |
 | `test_kennfeld.py` | The power map: interpolation, the per-entry preview, static SVGs, a broken custom grid disables only the heat power; and no module in the package imports numpy, scipy or pygal at import time |
 | `test_mutation_harness.py` | The mutation run fails loudly rather than printing "all caught" without having checked |
 | `test_mypy_scope.py` | Every module is in the mypy scope or carries a written reason why not yet |
