@@ -440,6 +440,37 @@ async def test_a_page_that_trickles_is_cut_off_at_the_time_limit(
     assert took < 3, took
 
 
+async def test_every_request_is_held_to_the_time_limit_both_ways(
+    socket_enabled, monkeypatch
+):
+    """The deadline and the socket's own limit both equal it. A deadline twice
+    as long, or a socket without a limit - the only bound on connecting -
+    passed every other test."""
+    limits = []
+    timer = threading.Timer
+
+    def recorded_timer(interval, *args, **kwargs):
+        limits.append(("deadline", interval))
+        return timer(interval, *args, **kwargs)
+
+    class RecordedConnection(http.client.HTTPConnection):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            limits.append(("socket", self.timeout))
+
+    monkeypatch.setattr(threading, "Timer", recorded_timer)
+    monkeypatch.setattr(http.client, "HTTPConnection", RecordedConnection)
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN)
+        pump.failing[STATISTICS_PAGE] = 503
+        await run_capture(pump, attempts=1)
+
+    requests = len(pump.asked)
+    assert limits.count(("deadline", capture_tool.TIMEOUT_SECONDS)) == requests
+    assert limits.count(("socket", capture_tool.TIMEOUT_SECONDS)) == requests
+    assert len(limits) == 2 * requests
+
+
 async def test_a_deadline_before_the_socket_is_held_still_cuts_the_request(
     socket_enabled, monkeypatch
 ):

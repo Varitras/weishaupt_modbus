@@ -3157,6 +3157,20 @@
     "tests": "deadline_before_the_socket_is_held"
   },
   {
+    "label": "capture tool: the deadline is twice the time limit",
+    "path": "tools/webif_capture.py",
+    "old": "        deadline = threading.Timer(TIMEOUT_SECONDS, _cut, (sockets, cut))\n",
+    "new": "        deadline = threading.Timer(2 * TIMEOUT_SECONDS, _cut, (sockets, cut))\n",
+    "tests": "held_to_the_time_limit_both_ways"
+  },
+  {
+    "label": "capture tool: the socket has no time limit",
+    "path": "tools/webif_capture.py",
+    "old": "        connection = http.client.HTTPConnection(self._host, timeout=TIMEOUT_SECONDS)\n",
+    "new": "        connection = http.client.HTTPConnection(self._host)\n",
+    "tests": "held_to_the_time_limit_both_ways"
+  },
+  {
     "label": "webif coordinator: the hold is let go when a dialog ends early",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
     "old": "        self._no_dialog_visit.clear()\n        try:\n            yield\n        finally:\n            self._no_dialog_visit.set()\n",
