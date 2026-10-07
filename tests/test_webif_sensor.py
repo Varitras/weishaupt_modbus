@@ -67,6 +67,7 @@ def test_a_shown_value_is_a_reading_only_in_its_unit(key, shown, expected):
         ("th_energie_heizen_tag", None),
         ("jaz_jahr", None),
         ("leistungsbegrenzung_heizen", None),
+        ("solltemperatur", None),
     ],
 )
 def test_aus_reads_0_only_for_an_idle_power_or_speed(key, expected):

@@ -1526,6 +1526,13 @@
     "tests": "no_value_reads_0_only"
   },
   {
+    "label": "webif sensor: Aus on the setpoint temperature reads 0",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    if shown == pages.NO_VALUE and description.no_value_is_zero:\n",
+    "new": "    if shown in (pages.NO_VALUE, pages.OFF) and description.no_value_is_zero:\n",
+    "tests": "aus_reads_0_only_for_an_idle_power_or_speed"
+  },
+  {
     "label": "webif sensor: no value reads 0 on every sensor",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
     "old": "    if shown == pages.NO_VALUE and description.no_value_is_zero:\n",
