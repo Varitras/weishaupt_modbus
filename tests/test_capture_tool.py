@@ -386,13 +386,44 @@ async def test_no_answer_ends_the_attempt_without_a_logout(socket_enabled):
     assert rests.count(A_MINUTE) == 1
 
 
+SHORT_LIMIT = 0.5
+MACHINE_PAUSE = 0.6
+
+
+class StalledAtTheLogin(StandInPump):
+    """The machine stands still while the stand-in serves the login page."""
+
+    async def index(self, request):
+        time.sleep(MACHINE_PAUSE)  # noqa: ASYNC251 - the machine standing still
+        return await super().index(request)
+
+
+def short_limit_for(monkeypatch, path):
+    """The short time limit for the request meant to run into it, and no other.
+
+    Every request opens a connection of its own, inside its limit: under one
+    short limit for all, a pause of the machine timed the login out instead.
+    """
+    request = capture_tool.Session._request
+
+    def limited(session, method, asked_path, form=None):
+        if asked_path != path:
+            return request(session, method, asked_path, form)
+        with monkeypatch.context() as patch:
+            patch.setattr(capture_tool, "TIMEOUT_SECONDS", SHORT_LIMIT)
+            return request(session, method, asked_path, form)
+
+    monkeypatch.setattr(capture_tool.Session, "_request", limited)
+
+
+@pytest.mark.parametrize("stand_in", [StandInPump, StalledAtTheLogin])
 async def test_a_page_that_trickles_is_cut_off_at_the_time_limit(
-    socket_enabled, monkeypatch
+    socket_enabled, monkeypatch, stand_in
 ):
     """The socket's time limit bounds each read, not the request: a server
     sending a byte now and then kept one request open far past it."""
-    monkeypatch.setattr(capture_tool, "TIMEOUT_SECONDS", 0.5)
-    async with serving(StandInPump()) as pump:
+    short_limit_for(monkeypatch, HEAT_PUMP_PAGE)
+    async with serving(stand_in()) as pump:
         pump.site = site(GERMAN)
         pump.trickles[HEAT_PUMP_PAGE] = 0.05
         started = time.monotonic()
@@ -400,8 +431,10 @@ async def test_a_page_that_trickles_is_cut_off_at_the_time_limit(
         took = time.monotonic() - started
 
     assert report is None
-    # No answer: nothing more is asked, not even the logout.
-    assert pump.asked == [*LOGIN, *asked(WALK[:4])]
+    # No answer: nothing more is asked, not even the logout. A pause inside
+    # its own limit may keep the cut request from the stand-in altogether.
+    walked = [*LOGIN, *asked(WALK[:3])]
+    assert pump.asked in (walked, [*walked, *asked([HEAT_PUMP_PAGE])])
     assert took < 3, took
 
 
