@@ -277,7 +277,7 @@ class WeishauptHeatPump:
         return configurations
 
     async def _read_word(self, address: int) -> int:
-        """One holding register outside the polled bands, under the controller's lock."""
+        """One holding register, under the controller's lock like a band read."""
         async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):
             words = await self._unit.read_holding_registers(address, 1)
         return words[0]
