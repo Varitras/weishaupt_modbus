@@ -13,7 +13,14 @@ import json
 import logging
 import pathlib
 
-from modbus_connection import ModbusConnectionError
+from modbus_connection import (
+    GatewayTargetError,
+    IllegalDataAddressError,
+    ModbusConnectionError,
+    ModbusTimeoutError,
+    ServerDeviceBusyError,
+    ServerDeviceFailureError,
+)
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.components.diagnostics import (
@@ -594,6 +601,62 @@ async def test_a_circuit_the_controller_refuses_is_not_judged(hass, pump):
     entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK5: True}))
 
     assert _notices(hass, entry, OFF_AT_CONTROLLER) == []
+
+
+def _fail_circuit_read(monkeypatch, address, error):
+    """The setup's read of one circuit fails; the polls still read its band."""
+    read_word = WeishauptHeatPump._read_word
+
+    async def failing(self, at):
+        if at == address:
+            raise error
+        return await read_word(self, at)
+
+    monkeypatch.setattr(WeishauptHeatPump, "_read_word", failing)
+
+
+# Every way the controller can leave a circuit's setup untold: an exception
+# code, a link that fails under the read, a word 41x01 does not document.
+UNTOLD = {
+    "refused": IllegalDataAddressError(),
+    "busy": ServerDeviceBusyError(),
+    "device-failure": ServerDeviceFailureError(),
+    "gateway": GatewayTargetError(),
+    "link-down": ModbusConnectionError("link down"),
+    "timed-out": ModbusTimeoutError("timed out"),
+    "undocumented-word": 4,
+    "no-sensor-word": 0x8000,
+}
+
+
+@pytest.mark.parametrize(
+    ("kind", "enabled", "told"),
+    [
+        pytest.param(NOT_ENABLED, False, MIXING_CIRCUIT, id="not-enabled"),
+        pytest.param(OFF_AT_CONTROLLER, True, CIRCUIT_OFF, id="off-at-controller"),
+    ],
+)
+@pytest.mark.parametrize("untold", UNTOLD.values(), ids=UNTOLD)
+async def test_a_circuit_left_untold_keeps_its_notice_as_it_was(
+    hass, pump, monkeypatch, kind, enabled, told, untold
+):
+    """A refused read deleted the notice and the user's ignore with it; the
+    next good read raised it again, un-ignored."""
+    address = CIRCUIT_CONFIGURATION[3]
+    pump.load_raw({"holding": {address: told}})
+    entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK3: enabled}))
+    ir.async_ignore_issue(hass, CONST.DOMAIN, f"{kind}_{entry.entry_id}_3", True)
+    ignored = _circuit_notice(hass, entry, kind, 3)
+
+    if isinstance(untold, Exception):
+        _fail_circuit_read(monkeypatch, address, untold)
+    else:
+        pump.load_raw({"holding": {address: untold}})
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert _circuit_notice(hass, entry, kind, 3) == ignored
 
 
 async def test_a_link_lost_during_the_circuit_check_still_loads_the_entry(

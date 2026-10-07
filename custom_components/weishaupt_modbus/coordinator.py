@@ -21,6 +21,7 @@ from .configentry import MyConfigEntry
 from .const import CONF, CONST, DeviceConstants
 from .items import ModbusItem
 from .weishaupt_modbus_api.device import WeishauptHeatPump
+from .weishaupt_modbus_api.hpconst import HZ_KONFIGURATION
 from .weishaupt_modbus_api.write_budget import WriteBudget
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ _LOGGER = logging.getLogger(__name__)
 CIRCUIT_SWITCHES = {2: CONF.HK2, 3: CONF.HK3, 4: CONF.HK4, 5: CONF.HK5}
 NOT_ENABLED_ISSUE = "circuit_not_enabled"
 OFF_AT_CONTROLLER_ISSUE = "circuit_off_at_controller"
+DOCUMENTED_SETUPS = frozenset(status.number for status in HZ_KONFIGURATION)
 
 # A short outage keeps the last values; only a longer one takes every entity
 # to unavailable. Counted from the first failed poll after a good one, so
@@ -58,15 +60,19 @@ def report_circuits(
 
     Only a hint: the entry polls what it was set up to. One notice per
     circuit, so ignoring one says "not this circuit" and nothing more. A
-    circuit the controller would not report on is judged neither way.
+    circuit the controller leaves untold - refused, or a setup it does not
+    document - keeps its notice as it was.
     """
     for circuit, switch in CIRCUIT_SWITCHES.items():
         setup = configurations.get(circuit)
-        known = setup is not None
-        set_up = known and setup != CIRCUIT_OFF
+        if setup not in DOCUMENTED_SETUPS:
+            # Deleting the notice took the user's ignore with it, and the
+            # next good read raised it again.
+            continue
+        set_up = setup != CIRCUIT_OFF
         enabled = bool(entry.data[switch])
         not_enabled = set_up and not enabled
-        off_at_controller = known and not set_up and enabled
+        off_at_controller = enabled and not set_up
         _notice(hass, entry, NOT_ENABLED_ISSUE, circuit, not_enabled)
         _notice(hass, entry, OFF_AT_CONTROLLER_ISSUE, circuit, off_at_controller)
 
