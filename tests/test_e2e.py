@@ -9,6 +9,7 @@ Marked `e2e` because each test boots a full Home Assistant instance; the
 everyday run deselects them, CI runs them with `-m ""`.
 """
 
+import asyncio
 import json
 import logging
 import pathlib
@@ -510,6 +511,7 @@ async def test_the_copy_of_the_operating_mode_starts_disabled(hass):
 CIRCUIT_CONFIGURATION = {2: 41201, 3: 41301, 4: 41401, 5: 41501}
 CIRCUIT_OFF = 0
 MIXING_CIRCUIT = 2
+SETPOINT_CIRCUIT = 3
 NOT_ENABLED = "circuit_not_enabled"
 OFF_AT_CONTROLLER = "circuit_off_at_controller"
 
@@ -540,7 +542,7 @@ async def test_a_circuit_the_controller_sets_up_but_the_entry_leaves_off_is_name
             "holding": {
                 CIRCUIT_CONFIGURATION[2]: MIXING_CIRCUIT,
                 CIRCUIT_CONFIGURATION[3]: 1,
-                CIRCUIT_CONFIGURATION[5]: 1,
+                CIRCUIT_CONFIGURATION[5]: SETPOINT_CIRCUIT,
             }
         }
     )
@@ -696,13 +698,22 @@ async def test_a_notice_the_entry_now_contradicts_goes_though_the_circuit_is_unt
     assert _circuit_notice(hass, entry, OFF_AT_CONTROLLER, 3) is None
 
 
+@pytest.mark.parametrize(
+    "error",
+    [
+        ModbusConnectionError("link down"),
+        ModbusTimeoutError("no answer"),
+        TimeoutError(),
+    ],
+    ids=["link-down", "timed-out", "time-limit"],
+)
 async def test_a_link_lost_during_the_circuit_check_still_loads_the_entry(
-    hass, pump, monkeypatch, caplog
+    hass, pump, monkeypatch, caplog, error
 ):
     """The check is only a hint; the polls report a link that drops."""
 
     async def drops(_self):
-        raise ModbusConnectionError("link down")
+        raise error
 
     monkeypatch.setattr(WeishauptHeatPump, "circuit_configurations", drops)
     entry = await _setup(hass, _entry(hass, data={**BASE_DATA, CONF.HK3: True}))
@@ -710,6 +721,23 @@ async def test_a_link_lost_during_the_circuit_check_still_loads_the_entry(
     assert entry.state is ConfigEntryState.LOADED
     assert _notices(hass, entry, OFF_AT_CONTROLLER) == []
     assert not _integration_warnings(caplog), "a dropped link is not a fault"
+
+
+async def test_a_cancel_during_the_circuit_check_is_not_swallowed(
+    hass, pump, monkeypatch
+):
+    """A handler wide enough to catch it loaded the entry of a setup that
+    Home Assistant had called off."""
+
+    async def cancelled(_self):
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(WeishauptHeatPump, "circuit_configurations", cancelled)
+    entry = _entry(hass)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is not ConfigEntryState.LOADED
 
 
 @pytest.mark.parametrize(

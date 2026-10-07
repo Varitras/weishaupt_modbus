@@ -1533,6 +1533,13 @@
     "tests": "circuit_left_untold_keeps_its_notice"
   },
   {
+    "label": "circuits: a setpoint circuit (3) is never judged",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "DOCUMENTED_SETUPS = frozenset(status.number for status in HZ_KONFIGURATION)\n",
+    "new": "DOCUMENTED_SETUPS = frozenset({0, 1, 2})\n",
+    "tests": "controller_sets_up_but_the_entry_leaves_off"
+  },
+  {
     "label": "circuits: an untold circuit keeps a notice the entry contradicts",
     "path": "custom_components/weishaupt_modbus/coordinator.py",
     "old": "            _notice(hass, entry, contradicted, circuit, False)\n",
@@ -1582,6 +1589,13 @@
     "tests": "dead_link_under_the_circuit_read"
   },
   {
+    "label": "device: a time-out under the circuit read reads as refused",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "            except ModbusExceptionError:\n",
+    "new": "            except (ModbusExceptionError, TimeoutError):\n",
+    "tests": "dead_link_under_the_circuit_read"
+  },
+  {
     "label": "setup: removing the entry leaves its off-at-controller notices",
     "path": "custom_components/weishaupt_modbus/coordinator.py",
     "old": "        for kind in (NOT_ENABLED_ISSUE, OFF_AT_CONTROLLER_ISSUE):\n",
@@ -1622,6 +1636,20 @@
     "old": "    except (ModbusError, TimeoutError) as err:\n",
     "new": "    except TimeoutError as err:\n",
     "tests": "link_lost_during_the_circuit_check"
+  },
+  {
+    "label": "setup: the circuit read's time limit is logged as a fault",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    except (ModbusError, TimeoutError) as err:\n",
+    "new": "    except ModbusError as err:\n",
+    "tests": "link_lost_during_the_circuit_check"
+  },
+  {
+    "label": "setup: the circuit check swallows a cancel",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    except Exception:\n",
+    "new": "    except BaseException:\n",
+    "tests": "cancel_during_the_circuit_check"
   },
   {
     "label": "setup: an unexpected error in the circuit check fails the setup",

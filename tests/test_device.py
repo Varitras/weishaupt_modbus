@@ -14,6 +14,7 @@ from modbus_connection import (
     IllegalDataAddressError,
     ModbusConnectionError,
     ModbusExceptionError,
+    ModbusTimeoutError,
 )
 from modbus_connection.mock import MockModbusConnection
 import pytest
@@ -373,13 +374,21 @@ async def test_every_circuit_s_setup_is_read_and_a_refused_one_is_untold(pump, u
     assert await pump.circuit_configurations() == {2: 2, 3: 0, 4: 1, 5: None}
 
 
+@pytest.mark.parametrize(
+    "error",
+    [ModbusConnectionError("link down"), ModbusTimeoutError("no answer")],
+    ids=["link-down", "timed-out"],
+)
 async def test_a_dead_link_under_the_circuit_read_is_raised_not_called_refused(
-    pump, unit
+    pump, unit, error
 ):
-    unit.fail_read(41301, ModbusConnectionError("link down"), register_type="holding")
+    """Called refused, a time-out let the read go on to the next circuit and
+    a setup wait out one time limit per circuit."""
+    unit.fail_read(41301, error, register_type="holding")
 
-    with pytest.raises(ModbusConnectionError):
+    with pytest.raises(type(error)):
         await pump.circuit_configurations()
+    assert [read.address for read in unit.read_events] == [41201, 41301]
 
 
 # --- the controller, shared with the web interface ----------------------------
