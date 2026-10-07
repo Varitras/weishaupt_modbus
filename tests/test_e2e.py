@@ -29,6 +29,7 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.device import (
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.exceptions import (
     WriteError,
 )
+from custom_components.weishaupt_modbus.weishaupt_modbus_api.hpconst import DEVICELISTS
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import EntityCategory
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
@@ -200,25 +201,43 @@ async def test_a_second_poll_reaches_every_platform(hass, pump):
     assert hass.states.get(entity_ids["number"]).state == "23.0"
 
 
-FLOW_SETPOINT = 31104
-FLOW_SETPOINT_UNIQUE_ID = "weishaupt_wbbVorlaufsolltemperatur"
+# The setpoints the controller only reports, per the register reference: room
+# and flow for each circuit, and hot water.
+REPORTED_SETPOINTS = {
+    *(31101 + 100 * circuit for circuit in range(5)),
+    *(31104 + 100 * circuit for circuit in range(5)),
+    32101,
+}
+ALL_CIRCUITS = {
+    **BASE_DATA,
+    CONF.HK2: True,
+    CONF.HK3: True,
+    CONF.HK4: True,
+    CONF.HK5: True,
+}
 
 
 @pytest.mark.parametrize("no_demand", [1, 0x8000])
-async def test_a_flow_setpoint_with_no_demand_reads_zero_in_home_assistant(
+async def test_every_reported_setpoint_with_no_demand_reads_zero_in_home_assistant(
     hass, pump, no_demand
 ):
-    """Live, the controller reported 1 on 31104 all summer. The unit test
-    holds the entity alone; this holds the state Home Assistant shows."""
-    pump.load_raw({"input": {FLOW_SETPOINT: no_demand}})
-    await _setup(hass, _entry(hass))
-    entity_id = er.async_get(hass).async_get_entity_id(
-        "sensor", CONST.DOMAIN, FLOW_SETPOINT_UNIQUE_ID
-    )
+    """Live, the controller reported 1 on 31104 all summer. Held by that row
+    alone, hot water, the room setpoints and circuits 2-5 could go back to
+    unknown unnoticed."""
+    rows = [
+        row for device in DEVICELISTS for row in device if row.params.get("setpoint")
+    ]
+    assert {row.address for row in rows} == REPORTED_SETPOINTS
+    pump.load_raw({"input": dict.fromkeys(REPORTED_SETPOINTS, no_demand)})
+    await _setup(hass, _entry(hass, data=ALL_CIRCUITS))
+    registry = er.async_get(hass)
 
-    state = hass.states.get(entity_id)
-    assert float(state.state) == 0
-    assert state.attributes["demand"] == "none"
+    for row in rows:
+        entity_id = registry.async_get_entity_id(
+            "sensor", CONST.DOMAIN, CONST.DEF_PREFIX + row.name
+        )
+        state = hass.states.get(entity_id)
+        assert (state.state, state.attributes.get("demand")) == ("0.0", "none"), row
 
 
 SG_READY_BOOST = 42105

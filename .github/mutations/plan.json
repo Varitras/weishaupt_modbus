@@ -742,6 +742,20 @@
     "tests": "no_demand_reads_zero_not_unknown"
   },
   {
+    "label": "sensor: only circuit 1's setpoints read 0 for no demand",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        if self._api_item.is_off and self._api_item.params.get(\"setpoint\"):\n",
+    "new": "        if self._api_item.is_off and self._api_item.address in (31101, 31104):\n",
+    "tests": "every_reported_setpoint_with_no_demand"
+  },
+  {
+    "label": "table: the hot water setpoint is no reported setpoint",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "params={**PARAMS_WATERTEMP, \"setpoint\": True}",
+    "new": "params=PARAMS_WATERTEMP",
+    "tests": "every_reported_setpoint_with_no_demand"
+  },
+  {
     "label": "table: SG-Ready 1 and 2 read as on or off like DE1 and DE2",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
     "old": "    ModbusItem(address=35101, name=\"SG-Ready 1\", format=FORMATS.STATUS, type=TYPES.SENSOR, device=DEVICES.IO, resultlist=W2_STATUS, translation_key=\"sgr1\"),\n",
