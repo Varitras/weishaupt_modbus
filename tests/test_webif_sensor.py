@@ -55,42 +55,38 @@ def test_a_shown_value_is_a_reading_only_in_its_unit(key, shown, expected):
     assert reading(_description(key), shown) == expected
 
 
-@pytest.mark.parametrize(
-    ("key", "expected"),
-    [
-        ("soll_leistung", 0.0),
-        ("ist_leistung", 0.0),
-        ("drehzahl_pumpe_m1", 0.0),
-        ("verdichter_drehzahl", 0.0),
-        ("schaltspiele_verdichter", None),
-        ("betriebsstunden_verdichter", None),
-        ("th_energie_heizen_tag", None),
-        ("jaz_jahr", None),
-        ("leistungsbegrenzung_heizen", None),
-        ("solltemperatur", None),
-    ],
-)
-def test_aus_reads_0_only_for_an_idle_power_or_speed(key, expected):
+# What the controller shows for an idle power or speed, and for a setpoint
+# while nothing is demanded.
+IDLE_SHOWN_AS_AUS = {
+    "soll_leistung",
+    "ist_leistung",
+    "drehzahl_pumpe_m1",
+    "verdichter_drehzahl",
+}
+NO_DEMAND_SHOWN_AS_DASHES = {"solltemperatur"}
+
+
+@pytest.mark.parametrize("sensor", WEBIF_SENSORS, ids=lambda sensor: sensor.key)
+def test_aus_reads_0_only_for_an_idle_power_or_speed(sensor):
     """Elsewhere "Aus" read as 0 too: on a rising total that is a meter reset
     to Home Assistant's statistics, which then count the next reading in full
-    again; on the power limit it more likely means no limit."""
-    assert reading(_description(key), "Aus") == expected
+    again; on the power limit it more likely means no limit. A text keeps
+    the word."""
+    if sensor.shown_unit is None:
+        assert reading(sensor, "Aus") == "Aus"
+    elif sensor.key in IDLE_SHOWN_AS_AUS:
+        assert reading(sensor, "Aus") == 0.0
+    else:
+        assert reading(sensor, "Aus") is None
 
 
-@pytest.mark.parametrize(
-    ("key", "expected"),
-    [
-        ("solltemperatur", 0.0),
-        ("druckgastemperatur", None),
-        ("schaltdifferenz_dynamisch", None),
-        ("stellung_umschaltventil", None),
-    ],
-)
-def test_no_value_reads_0_only_for_the_setpoint_temperature(key, expected):
+@pytest.mark.parametrize("sensor", WEBIF_SENSORS, ids=lambda sensor: sensor.key)
+def test_no_value_reads_0_only_for_the_setpoint_temperature(sensor):
     """The page shows the setpoint as "--" while nothing is demanded; read as
     unknown it left a gap in the history, as the Modbus setpoints did.
     Elsewhere "--" is no value, not a 0."""
-    assert reading(_description(key), "--") == expected
+    expected = 0.0 if sensor.key in NO_DEMAND_SHOWN_AS_DASHES else None
+    assert reading(sensor, "--") == expected
 
 
 def test_an_energy_shows_the_three_decimals_the_controller_gives():

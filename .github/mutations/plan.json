@@ -1540,6 +1540,20 @@
     "tests": "aus_reads_0_only_for_an_idle_power_or_speed"
   },
   {
+    "label": "webif sensor: Aus on a temperature reads 0",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    _temperature(\"druckgastemperatur\", \"Druckgastemperatur\"),\n",
+    "new": "    _temperature(\"druckgastemperatur\", \"Druckgastemperatur\", off_is_zero=True),\n",
+    "tests": "aus_reads_0_only_for_an_idle_power_or_speed"
+  },
+  {
+    "label": "webif sensor: -- on another temperature reads 0",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    _temperature(\"oelsumpftemperatur\", \"Ölsumpftemperatur\"),\n",
+    "new": "    _temperature(\"oelsumpftemperatur\", \"Ölsumpftemperatur\", no_value_is_zero=True),\n",
+    "tests": "no_value_reads_0_only_for_the_setpoint_temperature"
+  },
+  {
     "label": "webif sensor: no value reads 0 on every sensor",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
     "old": "    if shown == pages.NO_VALUE and description.no_value_is_zero:\n",
