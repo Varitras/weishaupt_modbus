@@ -660,7 +660,7 @@ async def test_a_circuit_left_untold_keeps_its_notice_as_it_was(
 
 
 async def test_a_link_lost_during_the_circuit_check_still_loads_the_entry(
-    hass, pump, monkeypatch
+    hass, pump, monkeypatch, caplog
 ):
     """The check is only a hint; the polls report a link that drops."""
 
@@ -672,6 +672,33 @@ async def test_a_link_lost_during_the_circuit_check_still_loads_the_entry(
 
     assert entry.state is ConfigEntryState.LOADED
     assert _notices(hass, entry, OFF_AT_CONTROLLER) == []
+    assert not _integration_warnings(caplog), "a dropped link is not a fault"
+
+
+@pytest.mark.parametrize(
+    "error", [RuntimeError("bug"), KeyError("bug")], ids=["runtime", "key"]
+)
+async def test_an_unexpected_error_in_the_circuit_check_still_loads_the_entry(
+    hass, pump, monkeypatch, caplog, error
+):
+    """A fault of this code or a library failed the whole setup, without a
+    retry, for what is only a hint."""
+
+    async def fails(_self):
+        raise error
+
+    monkeypatch.setattr(WeishauptHeatPump, "circuit_configurations", fails)
+    entry = await _setup(hass, _entry(hass))
+
+    assert entry.state is ConfigEntryState.LOADED
+    tracebacks = [
+        record
+        for record in caplog.records
+        if record.name.startswith("custom_components.weishaupt_modbus")
+        and record.exc_info
+        and record.exc_info[1] is error
+    ]
+    assert len(tracebacks) == 1
 
 
 async def test_removing_the_entry_takes_its_circuit_notices_along(hass, pump):

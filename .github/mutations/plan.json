@@ -1547,11 +1547,25 @@
     "tests": "removing_the_entry_takes_its_circuit_notices_along"
   },
   {
-    "label": "setup: a link lost during the circuit check fails the setup",
+    "label": "setup: a link lost during the circuit check is logged as a fault",
     "path": "custom_components/weishaupt_modbus/__init__.py",
     "old": "    except (ModbusError, TimeoutError) as err:\n",
     "new": "    except TimeoutError as err:\n",
     "tests": "link_lost_during_the_circuit_check"
+  },
+  {
+    "label": "setup: an unexpected error in the circuit check fails the setup",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    except Exception:\n",
+    "new": "    except ZeroDivisionError:\n",
+    "tests": "unexpected_error_in_the_circuit_check"
+  },
+  {
+    "label": "setup: an unexpected error in the circuit check leaves no traceback",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        _LOGGER.exception(\"Heating circuit configuration not read\")\n",
+    "new": "        _LOGGER.debug(\"Heating circuit configuration not read\")\n",
+    "tests": "unexpected_error_in_the_circuit_check"
   },
   {
     "label": "webif sensor: the setpoint's no value is unknown instead of 0",

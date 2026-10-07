@@ -154,6 +154,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     except (ModbusError, TimeoutError) as err:
         # Only a hint: a link that drops now is the next poll's to report.
         _LOGGER.debug("Heating circuit configuration not read: %s", err)
+    except Exception:
+        # A fault of this code or of a library, not of the link: it failed
+        # the setup, without a retry, for what is only a hint.
+        _LOGGER.exception("Heating circuit configuration not read")
     else:
         report_circuits(hass, entry, configurations)
 
