@@ -153,7 +153,11 @@ allowed one).
 flow and DHW setpoint temperature - read 0 °C while the controller
 demands nothing, and say so: their `demand` attribute is `none` then and
 `active` while a setpoint is in force. (The controller reports "no demand"
-as the value 1, which used to show as 0.1 °C.)
+as the value 1, which used to show as 0.1 °C.) To Home Assistant the 0 is a
+temperature like any other: it goes into the long-term statistics, so an
+hour without demand has a minimum of 0 °C and a lower mean, and it shows as
+32 °F with US customary units. An automation that waited for `unknown`,
+which up to 2.0 meant no demand, should look at `demand` instead.
 
 **Electrical power.** Register 33126 is in no Weishaupt data-point list.
 Checked against an external meter on one WBB 12 it is the heat pump's own
@@ -327,7 +331,8 @@ A value counts only in the unit the page shows for it; anything else reads as
 unknown. The page shows an idle power or speed as `Aus`, which reads as 0
 there and as unknown on any other value. It shows the setpoint temperature
 as `--` while nothing is demanded, which reads as 0 °C like the Modbus
-setpoints; any other `--` reads as unknown. The heating power limit can be
+setpoints, in the statistics too, but without a `demand` attribute; any
+other `--` reads as unknown. The heating power limit can be
 read here, not set.
 
 ### How gently it asks
