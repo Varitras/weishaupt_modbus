@@ -660,7 +660,7 @@ async def test_a_pump_run_once_and_then_disabled_still_shows_its_web_interface(
     assert registry.async_get(high_pressure).disabled_by is None
     assert hass.states.get(high_pressure).state == "12.0"
     device = dr.async_get(hass).async_get(registry.async_get(high_pressure).device_id)
-    assert device.config_entries == {web.entry_id}
+    assert device.config_entry_id == web.entry_id
     assert device.disabled_by is None
 
 
