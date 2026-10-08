@@ -14,10 +14,9 @@ from unittest.mock import AsyncMock
 
 from modbus_connection import ModbusConnectionError
 from modbus_connection.mock import MockModbusUnit
-from probatio import to_field_list
+from probatio import UNDEFINED, to_field_list
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
-import voluptuous as vol
 
 import custom_components.weishaupt_modbus as integration
 from custom_components.weishaupt_modbus import config_flow
@@ -1024,7 +1023,7 @@ async def test_no_login_form_offers_a_password(hass, web_interface):
     for form in forms:
         schema = form["data_schema"].schema
         password = next(key for key in schema if str(key) == CONF.PASSWORD)
-        assert password.default is vol.UNDEFINED, form["step_id"]
+        assert password.default is UNDEFINED, form["step_id"]
         assert "suggested_value" not in (password.description or {}), form["step_id"]
 
 
@@ -1054,7 +1053,7 @@ async def test_no_form_a_failed_visit_shows_again_offers_the_password(
         assert form["errors"] == {"base": "invalid_auth"}, form["step_id"]
         schema = form["data_schema"].schema
         password = next(key for key in schema if str(key) == CONF.PASSWORD)
-        assert password.default is vol.UNDEFINED, form["step_id"]
+        assert password.default is UNDEFINED, form["step_id"]
         assert "suggested_value" not in (password.description or {}), form["step_id"]
 
 
