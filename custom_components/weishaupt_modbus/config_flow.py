@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from modbus_connection import ModbusError, ModbusTcpParams
-import voluptuous as vol
+import probatio as vol
 
 from homeassistant import config_entries, exceptions
 from homeassistant.components.modbus import async_get_temporary_unit
