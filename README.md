@@ -182,6 +182,14 @@ in it (about 80 W there). Firmware that does not serve the register gets no
 entity - decided when the integration starts, so after a firmware update
 reload the integration.
 
+**System operating mode.** *Automatic* and *Cooling* work only when cooling
+is enabled at the controller (the heating circuit's *Freigabe Kühlbetrieb*,
+installer level): Weishaupt's data-point list marks both "bei
+Kühlfreigabe", and the controller's own menu leaves them out otherwise.
+Without it the controller acknowledges the write - the write counters count
+it - but keeps the previous mode, and the select shows that mode again
+after the next poll.
+
 **Write counters.** Writes go to the heat pump's EEPROM, which Weishaupt
 rates for 100 000 writes over its lifetime. Two diagnostic sensors on the
 System device count the writes that actually went out, in total and today;
