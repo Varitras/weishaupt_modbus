@@ -267,6 +267,8 @@ def _seconds_since(read_at: float | None, now: float) -> int | None:
 class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
     """Each page's last whole values by page key; None where they are gone."""
 
+    config_entry: ConfigEntry
+
     def __init__(
         self,
         hass: HomeAssistant,
@@ -290,7 +292,6 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             update_interval=shortest,
         )
         self._shortest_interval = shortest
-        self._entry = config_entry
         self._client = client
         self._pages = polled
         self.budget = budget
@@ -391,7 +392,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
     @callback
     def _start_write(self, burst: _Burst) -> None:
         self._quiet = None
-        self._entry.async_create_background_task(
+        self.config_entry.async_create_background_task(
             self.hass, self._write(burst), "weishaupt-webif power limit"
         )
 
@@ -448,7 +449,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             self._publish(self._heating, error.text)
         elif isinstance(error, (MaybeSaved, NotReadBack)):
             # Unknown what the controller holds: the next round asks.
-            self._readings[self._heating.key].asked_at = None
+            self._readings[HEATING_PAGE].asked_at = None
         elif isinstance(error, LoginRefused):
             self._refused = error
 

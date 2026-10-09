@@ -3397,7 +3397,7 @@
   {
     "label": "positive list: a save of another form type passes",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        and form[pages.FORM_FIELDS[2]] == SETTING_LIST\n",
+    "old": "        and form[pages.TYPE_FIELD] == SETTING_LIST\n",
     "new": "        and bool(form)\n",
     "tests": "no_post_but_the_login_and_one_setting_form"
   },
@@ -3516,7 +3516,7 @@
   {
     "label": "power limit write: after an unclear save the heating page waits its interval",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            self._readings[self._heating.key].asked_at = None\n",
+    "old": "            self._readings[HEATING_PAGE].asked_at = None\n",
     "new": "            pass\n",
     "tests": "heating_page_is_due_at_once"
   },

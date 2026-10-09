@@ -36,7 +36,8 @@ NO_VALUE = "--"
 # A setting's own page saves it with one form: three hidden fields and the
 # value chosen from a list.
 SAVE_ACTION = "pro_save.html"
-FORM_FIELDS = ("id", "stack", "type")
+TYPE_FIELD = "type"
+FORM_FIELDS = ("id", "stack", TYPE_FIELD)
 VALUE_FIELD = "value"
 
 

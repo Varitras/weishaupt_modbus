@@ -155,7 +155,7 @@ def _is_setting_save(form: Mapping[str, str] | None) -> bool:
     return (
         form is not None
         and tuple(form) == SAVE_FIELDS
-        and form[pages.FORM_FIELDS[2]] == SETTING_LIST
+        and form[pages.TYPE_FIELD] == SETTING_LIST
     )
 
 
