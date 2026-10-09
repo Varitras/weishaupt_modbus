@@ -376,10 +376,10 @@ Leistungsbegrenzung* at the controller, 10 to 100 % in steps of one.
   form once and reads the heating page back. A value the controller already
   shows is not written.
 - The number shows a value only once the controller shows it, and unknown
-  while the heating page has no reading; it can be set all the same. A
-  refused or failed write says why at the call: the daily limit reached,
-  polling stopped, a form that does not match the value shown, or a save
-  the controller did not confirm.
+  while the heating page has no reading or polling has stopped; it can be
+  set all the same. A refused or failed write says why at the call: the
+  daily limit reached, polling stopped, a form that does not match the
+  value shown, or a save the controller did not confirm.
 - The save is never repeated. When its outcome is unclear, the next reading
   shows what the controller holds.
 - The controller stores the limit in its EEPROM. The options limit the

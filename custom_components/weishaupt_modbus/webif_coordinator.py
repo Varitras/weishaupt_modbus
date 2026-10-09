@@ -303,6 +303,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         # A write's own: its message sends the user to the log, also after a
         # round's traceback was logged.
         self._write_traceback_logged = False
+        # Whether the last round reached every due page; one cut short by a
+        # timeout leaves the controller a rest a write must not take away.
+        self._round_finished = True
         self._no_dialog_visit = asyncio.Event()
         self._no_dialog_visit.set()
         # Held for a round's page and for a whole write: a round request
@@ -436,6 +439,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 _LOGGER.exception(
                     "Writing the power limit failed on an unexpected error"
                 )
+            if counted:
+                # The save may have gone out: the next round asks.
+                self._readings[HEATING_PAGE].asked_at = None
             outcome.set_exception(WriteFailed(type(error).__name__))
         else:
             outcome.set_result(None)
@@ -459,7 +465,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         self._readings[page.key].asked_at = self._readings[page.key].read_at
         # Home Assistant restarts its refresh timer here, with the wait the
         # last round planned: the next page due would come that much late.
-        self._plan_next_round(True)
+        self._plan_next_round(self._round_finished)
         self.async_set_updated_data(self._published())
 
     @property
@@ -492,8 +498,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 translation_domain=CONST.DOMAIN, translation_key="webif_login_refused"
             ) from self._refused
         if self._stopped_by is None:
-            finished = await self._round()
-            self._plan_next_round(finished)
+            self._round_finished = await self._round()
+            self._plan_next_round(self._round_finished)
         if (slowest := self._client.take_slowest_answer()) is not None:
             self.answer_seconds = slowest
         if self._stopped_by is not None:

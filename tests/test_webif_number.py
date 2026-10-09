@@ -98,3 +98,14 @@ def test_the_heating_page_still_requires_the_power_limit():
     the titles the page requires."""
     assert REQUIRED_TITLES[HEATING_PAGE] == {"Leistungsbegrenzung", "Schaltdifferenz"}
     assert "leistungsbegrenzung_heizen" not in {sensor.key for sensor in WEBIF_SENSORS}
+
+
+def test_a_stopped_polling_shows_no_frozen_value():
+    """Polling stopped or the login refused: the last reading stays in the
+    coordinator, and the number showed it for good while the controller may
+    have long since changed."""
+    number = _number({"Leistungsbegrenzung": "60 %"})
+    number.coordinator.last_update_success = False
+
+    assert number.available
+    assert number.native_value is None

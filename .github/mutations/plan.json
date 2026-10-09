@@ -1276,8 +1276,8 @@
   {
     "label": "webif coordinator: a stopped coordinator still asks by hand",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        if self._stopped_by is None:\n            finished = await self._round()\n",
-    "new": "        if True:\n            finished = await self._round()\n",
+    "old": "        if self._stopped_by is None:\n            self._round_finished = await self._round()\n",
+    "new": "        if True:\n            self._round_finished = await self._round()\n",
     "tests": "third_failure_in_a_row_stops"
   },
   {
@@ -3516,8 +3516,8 @@
   {
     "label": "power limit write: after an unclear save the heating page waits its interval",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            self._readings[HEATING_PAGE].asked_at = None\n",
-    "new": "            pass\n",
+    "old": "            # Unknown what the controller holds: the next round asks.\n            self._readings[HEATING_PAGE].asked_at = None\n",
+    "new": "            # Unknown what the controller holds: the next round asks.\n            pass\n",
     "tests": "heating_page_is_due_at_once"
   },
   {
@@ -3628,14 +3628,14 @@
   {
     "label": "power limit write: a write cancelled after its save reads as called off",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "    if counted:\n",
-    "new": "    if False:\n",
+    "old": "    \"\"\"What the callers of a write cancelled with its entry hear.\"\"\"\n    if counted:\n",
+    "new": "    \"\"\"What the callers of a write cancelled with its entry hear.\"\"\"\n    if False:\n",
     "tests": "cancelled_with_its_entry_lets_its_callers_go"
   },
   {
     "label": "power limit write: the next round is not planned again after a write",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        self._plan_next_round(True)\n        self.async_set_updated_data(self._published())\n",
+    "old": "        self._plan_next_round(self._round_finished)\n        self.async_set_updated_data(self._published())\n",
     "new": "        self.async_set_updated_data(self._published())\n",
     "tests": "keeps_the_next_round_when_it_is_due"
   },
@@ -3652,5 +3652,33 @@
     "old": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiet = None\n",
     "new": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiet = None\n        if burst is None:\n            self._client.save(None, 0)\n",
     "tests": "called_by_the_power_limit_write_only"
+  },
+  {
+    "label": "power limit write: planned as after a whole round, the rest after a timeout is lost",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self._plan_next_round(self._round_finished)\n        self.async_set_updated_data(self._published())\n",
+    "new": "        self._plan_next_round(True)\n        self.async_set_updated_data(self._published())\n",
+    "tests": "keeps_the_rest_a_timeout_gave_the_controller"
+  },
+  {
+    "label": "power limit write: the next round planned after Home Assistant restarted its timer",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self._plan_next_round(self._round_finished)\n        self.async_set_updated_data(self._published())\n",
+    "new": "        self.async_set_updated_data(self._published())\n        self._plan_next_round(self._round_finished)\n",
+    "tests": "next_round_comes_when_its_page_is_due"
+  },
+  {
+    "label": "power limit write: after an unexpected error once counted the heating page waits",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            if counted:\n                # The save may have gone out: the next round asks.\n                self._readings[HEATING_PAGE].asked_at = None\n",
+    "new": "",
+    "tests": "unexpected_error_on_the_read_back_the_heating_page_is_due"
+  },
+  {
+    "label": "power limit number: a stopped polling leaves the last value shown",
+    "path": "custom_components/weishaupt_modbus/webif_number.py",
+    "old": "        if not self.coordinator.last_update_success:\n            return None\n",
+    "new": "",
+    "tests": "stopped_polling_shows_no_frozen_value"
   }
 ]

@@ -1287,3 +1287,60 @@ async def test_a_write_cancelled_before_its_save_is_called_off(
     async with asyncio.timeout(HOLD_LIMIT_SECONDS):
         assert await call == ("webif_write_aborted", None)
     assert coordinator.budget.writes_today == 0
+
+
+async def test_after_a_write_the_next_round_comes_when_its_page_is_due(
+    hass, listened, client, clock, quick
+):
+    """Planned after Home Assistant had restarted its timer, the new wait
+    reached nothing: the heat pump page due in 5 minutes came 15 late."""
+    await first_round_showing(listened, client, clock)
+    clock.now = 10 * 60
+    await listened.set_power_limit(61)
+    client.asked.clear()
+    clock.now = 15 * 60
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=5, seconds=1))
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert client.asked == [HEAT_PUMP.path]
+
+
+async def test_a_write_keeps_the_rest_a_timeout_gave_the_controller(
+    hass, listened, client, clock, quick
+):
+    """Planned as after a whole round, the write let the pages the timeout
+    had kept the round from be asked a second after its read-back."""
+    client.shows_power_limit(60)
+    client.answer(HEAT_PUMP, Unreachable("timeout"))
+    await round_at(listened, clock, 0)
+    clock.now = 60
+    await listened.set_power_limit(61)
+    client.asked.clear()
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=10))
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert client.asked == []
+    assert listened.update_interval == QUARTER_HOUR
+
+
+async def test_after_an_unexpected_error_on_the_read_back_the_heating_page_is_due(
+    coordinator, client, clock, quick
+):
+    """The save may have gone out: the next round reads what the controller
+    holds instead of showing the old value for up to an hour."""
+    await first_round_showing(coordinator, client, clock)
+
+    async def saved_then_faulty(form, value):
+        client.asked.append(SAVE)
+        client.answer(HEATING, RuntimeError("a fault of the parser"))
+
+    client.save = saved_then_faulty
+
+    assert (await refused(coordinator.set_power_limit(61)))[0] == "webif_write_failed"
+    client.shows_power_limit(61)
+    client.asked.clear()
+    await round_at(coordinator, clock, 60)
+
+    assert client.asked == [HEATING.path]

@@ -61,7 +61,13 @@ class PowerLimitNumber(CoordinatorEntity[WebifCoordinator], NumberEntity):
 
     @property
     def native_value(self) -> int | None:
-        """The power limit the heating page shows."""
+        """The power limit the heating page shows; unknown once polling stopped.
+
+        After a stop or a refused login the last reading stays in the
+        coordinator, while the controller may long since hold another value.
+        """
+        if not self.coordinator.last_update_success:
+            return None
         return shown_percent((self._values() or {}).get(POWER_LIMIT.title, ""))
 
     async def async_set_native_value(self, value: float) -> None:
