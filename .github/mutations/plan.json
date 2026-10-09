@@ -1024,7 +1024,7 @@
   {
     "label": "webif client: any POST passes the positive list",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        return path == LOGIN\n",
+    "old": "        return path == LOGIN or (path == SAVE and _is_setting_save(form))\n",
     "new": "        return True\n",
     "tests": "no_post_but_the_login"
   },
@@ -1171,8 +1171,8 @@
   {
     "label": "webif client: pages asked for at once overlap",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        async with self._lock:\n            if self._closed:\n",
-    "new": "        async with asyncio.Lock():\n            if self._closed:\n",
+    "old": "        async with self._lock:\n            if self._closed:\n                raise Closed(f\"{path}: the client is closed\")\n",
+    "new": "        async with asyncio.Lock():\n            if self._closed:\n                raise Closed(f\"{path}: the client is closed\")\n",
     "tests": "served_one_after_the_other"
   },
   {
@@ -1878,8 +1878,8 @@
   {
     "label": "webif client: the session id goes through aiohttp's cookie handling",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "                    headers=cookie,\n",
-    "new": "                    cookies={SESSION_COOKIE: self._cookie} if self._cookie else None,\n",
+    "old": "                    headers={**(headers or {}), **cookie},\n",
+    "new": "                    headers=dict(headers or {}),\n                    cookies={SESSION_COOKIE: self._cookie} if self._cookie else None,\n",
     "tests": "id_with_a_slash_keeps_its_session"
   },
   {
@@ -2347,14 +2347,14 @@
   {
     "label": "webif client: a request off the positive list goes out",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        if not _allowed(method, path):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "old": "        if not _allowed(method, path, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
     "new": "",
     "tests": "off_the_positive_list"
   },
   {
     "label": "controller access: a web request goes out without the positive list",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        if not _allowed(method, path):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "old": "        if not _allowed(method, path, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
     "new": "",
     "tests": "every_web_request_asks_the_positive_list_first"
   },
@@ -2655,8 +2655,8 @@
   {
     "label": "controller access: the positive list is asked and its answer ignored",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        if not _allowed(method, path):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
-    "new": "        _allowed(method, path)\n",
+    "old": "        if not _allowed(method, path, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "new": "        _allowed(method, path, form)\n",
     "tests": "every_web_request_asks_the_positive_list_first"
   },
   {
@@ -2767,8 +2767,8 @@
   {
     "label": "webif client: a refused address counts, paces and logs as a request",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        # Asked where the request goes out, so no other way out can skip it.\n        if not _allowed(method, path):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
-    "new": "        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n                if not _allowed(method, path):\n                    raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "old": "        # Asked where the request goes out, so no other way out can skip it.\n        if not _allowed(method, path, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
+    "new": "        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n                if not _allowed(method, path, form):\n                    raise ValueError(f\"{method} {path} is not on the positive list\")\n",
     "tests": "off_the_positive_list_is_never_asked_for"
   },
   {
@@ -2851,15 +2851,15 @@
   {
     "label": "controller access: the positive list is asked on one branch only",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        if not _allowed(method, path):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
-    "new": "        if method == \"POST\":\n            if not _allowed(method, path):\n                raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "old": "        if not _allowed(method, path, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "new": "        if method == \"POST\":\n            if not _allowed(method, path, form):\n                raise ValueError(f\"{method} {path} is not on the positive list\")\n",
     "tests": "every_web_request_asks_the_positive_list_first"
   },
   {
     "label": "controller access: the positive list is asked about another address",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        if not _allowed(method, path):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
-    "new": "        if not _allowed(method, INDEX):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "old": "        if not _allowed(method, path, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "new": "        if not _allowed(method, INDEX, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
     "tests": "every_web_request_asks_the_positive_list_first"
   },
   {
@@ -3393,5 +3393,40 @@
     "old": "        return self.path.rsplit(\",\", 1)[0]\n",
     "new": "        return self.path\n",
     "tests": "setting_form_is_read_as_the_controller_serves_it"
+  },
+  {
+    "label": "positive list: a save of another form type passes",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        and form[pages.FORM_FIELDS[2]] == SETTING_LIST\n",
+    "new": "        and bool(form)\n",
+    "tests": "no_post_but_the_login_and_one_setting_form"
+  },
+  {
+    "label": "positive list: the fields of a save in any order pass",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        and tuple(form) == SAVE_FIELDS\n",
+    "new": "        and sorted(form) == sorted(SAVE_FIELDS)\n",
+    "tests": "no_post_but_the_login_and_one_setting_form"
+  },
+  {
+    "label": "save: a lost session logs in and sends the form again",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "            _raise_unless_saved(form, answer)\n",
+    "new": "            if answer.session_lost:\n                await self._login()\n                answer = await self._request(\"POST\", SAVE, fields, headers)\n            _raise_unless_saved(form, answer)\n",
+    "tests": "not_saved_and_not_sent_again"
+  },
+  {
+    "label": "save: any redirect but the login counts as stored",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "    if answer.status == HTTPStatus.SEE_OTHER and answer.location == form.parent_path:\n",
+    "new": "    if answer.status == HTTPStatus.SEE_OTHER and not answer.session_lost:\n",
+    "tests": "save_without_a_clear_answer_raises_maybe_saved"
+  },
+  {
+    "label": "save: no answer in time counts as stored",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "                raise MaybeSaved(str(error)) from error\n",
+    "new": "                return\n",
+    "tests": "save_without_a_clear_answer_raises_maybe_saved"
   }
 ]

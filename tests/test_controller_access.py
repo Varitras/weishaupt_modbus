@@ -179,8 +179,8 @@ def _web_requests(source):
 
 
 def _refuses_off_the_list(node, sent_with):
-    """`if not _allowed(method, path):` with a raise in its body, asking
-    about two names the request is sent with."""
+    """`if not _allowed(method, path, form):` with a raise in its body, asking
+    about three names the request is sent with."""
     if not isinstance(node, ast.If):
         return False
     test = node.test
@@ -193,7 +193,7 @@ def _refuses_off_the_list(node, sent_with):
     if not asks:
         return False
     asked = test.operand.args
-    about_the_request = len(asked) == 2 and all(
+    about_the_request = len(asked) == 3 and all(
         isinstance(argument, ast.Name) and argument.id in sent_with
         for argument in asked
     )
@@ -207,9 +207,10 @@ def _refused_off_the_list_first(function, call):
     it, and before the request."""
     if function is None:
         return False
+    # The form goes as `data=`, so the keywords count as what it is sent with.
     sent_with = {
         node.id
-        for argument in call.args
+        for argument in (*call.args, *(keyword.value for keyword in call.keywords))
         for node in ast.walk(argument)
         if isinstance(node, ast.Name)
     }
@@ -305,14 +306,15 @@ def test_every_request_to_the_controller_holds_the_host_lock():
 
 
 def test_every_web_request_asks_the_positive_list_first():
-    """GET and the login POST, nothing else, and asked where the request
-    goes out: a check further up lets a second way out pass it by."""
+    """GET, the login POST and one setting's save, nothing else, and asked
+    where the request goes out: a check further up lets a second way out
+    pass it by."""
     unlisted = _in_package(_unlisted_web_requests)
 
     assert _in_package(_web_requests), "no web request found - the scan looks nowhere"
     assert not unlisted, (
         f"web request(s) sent without the positive list: {unlisted}. Ask "
-        f"`{POSITIVE_LIST}(method, path)` first, in the function that sends."
+        f"`{POSITIVE_LIST}(method, path, form)` first, in the function that sends."
     )
 
 
@@ -369,19 +371,19 @@ def test_only_the_heat_pump_s_own_methods_go_out_unlocked():
 def test_the_scan_catches_a_positive_list_asked_one_call_up():
     """The shape the client had: checked in the caller, sent in the callee."""
     asked_by_the_caller = (
-        "async def _request(self, method, path):\n"
-        "    if not _allowed(method, path):\n"
+        "async def _request(self, method, path, form):\n"
+        "    if not _allowed(method, path, form):\n"
         "        raise ValueError(path)\n"
-        "    return await self._exchange(method, path)\n"
-        "async def _exchange(self, method, path):\n"
-        "    async with self._session.request(method, path) as answer:\n"
+        "    return await self._exchange(method, path, form)\n"
+        "async def _exchange(self, method, path, form):\n"
+        "    async with self._session.request(method, path, data=form) as answer:\n"
         "        return answer\n"
     )
     asked_where_it_goes_out = (
-        "async def _exchange(self, method, path):\n"
-        "    if not _allowed(method, path):\n"
+        "async def _exchange(self, method, path, form):\n"
+        "    if not _allowed(method, path, form):\n"
         "        raise ValueError(path)\n"
-        "    async with self._session.request(method, path) as answer:\n"
+        "    async with self._session.request(method, path, data=form) as answer:\n"
         "        return answer\n"
     )
 
@@ -392,9 +394,9 @@ def test_the_scan_catches_a_positive_list_asked_one_call_up():
 def test_the_positive_list_has_to_refuse_not_just_be_asked():
     """A call whose answer nobody looks at passed for the check."""
     asked_and_ignored = (
-        "async def _exchange(self, method, path):\n"
-        "    _allowed(method, path)\n"
-        "    async with self._session.request(method, path) as answer:\n"
+        "async def _exchange(self, method, path, form):\n"
+        "    _allowed(method, path, form)\n"
+        "    async with self._session.request(method, path, data=form) as answer:\n"
         "        return answer\n"
     )
 
@@ -541,29 +543,53 @@ def test_every_request_is_awaited_where_it_is_made():
 def test_the_positive_list_has_to_ask_about_the_request_itself():
     """Asked on one branch only, or about another address than the one the
     request goes to, the refusal passed for the check."""
+    sent = "    async with self._session.request(method, self._base + path, data=form) as answer:\n"
     on_one_branch = (
-        "async def _exchange(self, method, path):\n"
+        "async def _exchange(self, method, path, form):\n"
         "    if method == 'POST':\n"
-        "        if not _allowed(method, path):\n"
+        "        if not _allowed(method, path, form):\n"
         "            raise ValueError(path)\n"
-        "    async with self._session.request(method, self._base + path) as answer:\n"
+        f"{sent}"
         "        return answer\n"
     )
     about_another_address = (
-        "async def _exchange(self, method, path):\n"
-        "    if not _allowed(method, INDEX):\n"
+        "async def _exchange(self, method, path, form):\n"
+        "    if not _allowed(method, INDEX, form):\n"
         "        raise ValueError(path)\n"
-        "    async with self._session.request(method, self._base + path) as answer:\n"
+        f"{sent}"
         "        return answer\n"
     )
     about_the_request = (
-        "async def _exchange(self, method, path):\n"
-        "    if not _allowed(method, path):\n"
+        "async def _exchange(self, method, path, form):\n"
+        "    if not _allowed(method, path, form):\n"
         "        raise ValueError(path)\n"
-        "    async with self._session.request(method, self._base + path) as answer:\n"
+        f"{sent}"
         "        return answer\n"
     )
 
     assert _unlisted_web_requests(on_one_branch) == ["5: self._session.request"]
     assert _unlisted_web_requests(about_another_address) == ["4: self._session.request"]
     assert _unlisted_web_requests(about_the_request) == []
+
+
+def test_the_positive_list_has_to_ask_about_the_form_sent():
+    """A save is told from a harmless POST by its fields alone: a check of
+    method and address passed any form the request carried."""
+    sent = "    async with self._session.request(method, path, data=form) as answer:\n"
+    without_the_form = (
+        "async def _exchange(self, method, path, form):\n"
+        "    if not _allowed(method, path):\n"
+        "        raise ValueError(path)\n"
+        f"{sent}"
+        "        return answer\n"
+    )
+    about_no_form = (
+        "async def _exchange(self, method, path, form):\n"
+        "    if not _allowed(method, path, None):\n"
+        "        raise ValueError(path)\n"
+        f"{sent}"
+        "        return answer\n"
+    )
+
+    assert _unlisted_web_requests(without_the_form) == ["4: self._session.request"]
+    assert _unlisted_web_requests(about_no_form) == ["4: self._session.request"]

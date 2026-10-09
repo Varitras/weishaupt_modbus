@@ -31,6 +31,8 @@ HEAT_PUMP_INFO = "0C000C22000000000000000A0B020003000401"
 STATISTICS_INFO = "0C000C23000000000000000A0B020003000401"
 HEATING = "64001800000000000080000A0B020003000401"
 RESET = "64001900000000000080000A0B020003000401"
+# Where the controller saves a setting's form.
+SAVE_PATH = "/pro_save.html"
 # The controller's ids are base64-like, 131 characters with + and /.
 SESSION_ID = "Kq3/Zt+w" * 16
 
@@ -134,7 +136,9 @@ class StandInPump:
     A page is answered from `site` by its address, otherwise from `pages`
     in turn, the last one for good. `login_answer`, when set, builds the
     answer to every login instead. A path in `failing` is answered with its
-    error status alone, one in `failing_once` so the next time it is asked. A page in `stalls` sends its headers and its first
+    error status alone, one in `failing_once` so the next time it is asked. A
+    save is noted in `saved` (its form) and `save_headers` (its Referer and
+    Origin); `save_answer`, when set, answers it instead. A page in `stalls` sends its headers and its first
     character at once, and the rest after that many seconds; one in
     `trickles` sends one character every that many seconds. With
     `watched_lock` set, `held` notes for every request whether that lock was
@@ -160,6 +164,9 @@ class StandInPump:
         self.sets_cookie = True
         self.login_answer = None
         self.sessions = set()
+        self.saved = []
+        self.save_headers = []
+        self.save_answer = None
 
     def application(self):
         @web.middleware
@@ -180,6 +187,7 @@ class StandInPump:
         application.router.add_post(webif.LOGIN, self.login)
         application.router.add_get(webif.LOGOUT, self.logout)
         application.router.add_get(PAGE_PATH, self.page)
+        application.router.add_post(SAVE_PATH, self.save)
         return application
 
     async def index(self, request):
@@ -203,6 +211,33 @@ class StandInPump:
     async def logout(self, request):
         self.sessions.discard(session_cookie(request))
         return see_other("/index.html#loggedout")
+
+    def show_power_limit(self, limit):
+        """The heating page and the power limit's own page, for a limit."""
+        for path in [path for path in self.site if path.startswith(HEATING_PATH + ",")]:
+            del self.site[path]
+        self.site[HEATING_PATH] = heating_page(limit)
+        self.site[f"{HEATING_PATH},{limit_segment(limit)}"] = limit_leaf(limit)
+
+    async def save(self, request):
+        """Set the posted value as the controller does: the links move with it.
+
+        What the controller does with a form that is no longer current is not
+        known; here it is answered like a save and changes nothing.
+        """
+        form = dict(await request.post())
+        self.saved.append(form)
+        self.save_headers.append(
+            {name: request.headers.get(name) for name in ("Referer", "Origin")}
+        )
+        if self.save_answer is not None:
+            return self.save_answer()
+        if session_cookie(request) not in self.sessions:
+            return see_other(webif.INDEX)
+        current = STACK + form.get("stack", "") in self.site
+        if current and form.get("value", "").isdigit():
+            self.show_power_limit(int(form["value"]))
+        return see_other(HEATING_PATH)
 
     async def page(self, request):
         if session_cookie(request) not in self.sessions:
