@@ -127,7 +127,7 @@ def test_a_sensor_of_a_page_gone_is_unavailable():
     assert not sensor.available
 
 
-@pytest.mark.parametrize("key", ["hochdruck", "jaz_jahr", "leistungsbegrenzung_heizen"])
+@pytest.mark.parametrize("key", ["hochdruck", "jaz_jahr", "schaltdifferenz_heizen"])
 def test_a_sensor_sits_on_the_web_interface_device_with_an_id_of_its_own(key):
     """A device belongs to one config entry: the pump entry's devices are
     not the web interface entry's to add to."""

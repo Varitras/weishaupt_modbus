@@ -23,6 +23,7 @@ from custom_components.weishaupt_modbus.const import FORMATS, TYPES
 from custom_components.weishaupt_modbus.items import ModbusItem
 from custom_components.weishaupt_modbus.webif_sensor import (
     ANSWER_TIME,
+    POWER_LIMIT,
     TRAFFIC_SENSORS,
     WEBIF_SENSORS,
 )
@@ -132,6 +133,8 @@ def test_no_translation_outlives_its_item(path):
         ("sensor", description.translation_key)
         for description in (*WEBIF_SENSORS, *TRAFFIC_SENSORS, ANSWER_TIME)
     }
+    # The one setting the web interface writes is a number.
+    known.add(("number", POWER_LIMIT.translation_key))
     orphaned = sorted(
         f"{platform}.{key}"
         for platform in sorted(set(PLATFORM_OF.values()))

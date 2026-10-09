@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .configentry import MyConfigEntry
+from .configentry import MyConfigEntry, WebifConfigEntry, is_web_interface
 from .const import TYPES
 from .entity_helpers import build_entity_list
+from .webif_number import PowerLimitNumber
 
 # Per platform; the device's write lock is what serialises writes across
 # all of them.
@@ -20,6 +23,10 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the number platform."""
+    if is_web_interface(config_entry):
+        web = cast(WebifConfigEntry, config_entry).runtime_data
+        async_add_entities([PowerLimitNumber(web.coordinator, web.pump_data)])
+        return
     coordinator = config_entry.runtime_data.coordinator
 
     entries = build_entity_list(

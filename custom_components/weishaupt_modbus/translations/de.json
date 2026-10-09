@@ -308,6 +308,9 @@
             },
             "sys_pv": {
                 "name": "{prefix}Sollwert PV"
+            },
+            "webif_leistungsbegrenzung_heizen": {
+                "name": "{prefix}Leistungsbegrenzung Heizen"
             }
         },
         "switch": {
@@ -1935,9 +1938,6 @@
             "webif_jaz_gesamt": {
                 "name": "{prefix}Arbeitszahl gesamt"
             },
-            "webif_leistungsbegrenzung_heizen": {
-                "name": "{prefix}Leistungsbegrenzung Heizen"
-            },
             "webif_schaltdifferenz_heizen": {
                 "name": "{prefix}Schaltdifferenz Heizen"
             },
@@ -2047,6 +2047,9 @@
         },
         "webif_write_failed": {
             "message": "Das Setzen der Leistungsbegrenzung Heizen ist an einem unerwarteten Fehler gescheitert; Einzelheiten stehen im Log."
+        },
+        "webif_power_limit_whole_percent": {
+            "message": "{value} ist kein ganzer Prozentwert. Die Leistungsbegrenzung Heizen wird in Schritten von 1 % eingestellt."
         }
     },
     "issues": {

@@ -47,7 +47,7 @@ from .kennfeld import PowerMap
 from .migrate_helpers import entry_unique_id, unique_id_from_parts
 from .webif.client import Client
 from .webif_coordinator import WebifCoordinator, polled_pages
-from .webif_sensor import REQUIRED_TITLES
+from .webif_sensor import POWER_LIMIT, REQUIRED_TITLES
 from .weishaupt_modbus_api.const import DEFAULT_PORT, MODBUS_UNIT_ID
 from .weishaupt_modbus_api.device import WeishauptHeatPump
 from .weishaupt_modbus_api.hpconst import DEVICELISTS
@@ -118,8 +118,8 @@ PLATFORMS: list[str] = [
     "sensor",
     "switch",
 ]
-# The web interface only reads; its values are sensors.
-WEBIF_PLATFORMS: list[str] = ["sensor"]
+# The web interface's values are sensors; the one setting it writes is a number.
+WEBIF_PLATFORMS: list[str] = ["number", "sensor"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
@@ -237,6 +237,15 @@ async def _async_setup_web_interface(
     entry.async_on_unload(
         async_dispatcher_connect(hass, SIGNAL_CONFIG_ENTRY_CHANGED, follow_pump)
     )
+    # Until 2.1.0b2 the power limit was a sensor, with the unique id the number
+    # has now. Left alone it would show unavailable for good.
+    registry = er.async_get(hass)
+    if old_sensor := registry.async_get_entity_id(
+        "sensor",
+        CONST.DOMAIN,
+        unique_id_from_parts(started_with, f"webif_{POWER_LIMIT.key}"),
+    ):
+        registry.async_remove(old_sensor)
     polled = polled_pages(entry.data[CONF.PAGES], entry.options, REQUIRED_TITLES)
     # No warning: the daily limit is the guard for settings written here.
     budget = WriteBudget(

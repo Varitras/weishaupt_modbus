@@ -28,6 +28,8 @@ from custom_components.weishaupt_modbus.webif.discovery import (
 )
 from custom_components.weishaupt_modbus.webif_sensor import (
     ANSWER_TIME,
+    POWER_LIMIT,
+    READ_VALUES,
     TRAFFIC_SENSORS,
     WEBIF_SENSORS,
 )
@@ -64,7 +66,7 @@ PAGES = {
     HEATING_PAGE: STACK + f"{PUMP_MENU},{HEATING}",
 }
 SWITCHING_DIFFERENCE = "64001805000000002D40000A0B030011010401"
-POWER_LIMIT = "64001807000000003C40000A0B030011010401"
+POWER_LIMIT_SEGMENT = "64001807000000003C40000A0B030011010401"
 # What the controller shows, by the unit text after the number.
 SAMPLE = {
     "°C": "21.5 °C",
@@ -81,12 +83,14 @@ SAMPLE = {
 }
 # The values, and the sensors about the polling itself.
 EVERY_SENSOR = (*WEBIF_SENSORS, *TRAFFIC_SENSORS, ANSWER_TIME)
+# And the one setting it writes, a number.
+EVERY_ENTITY = (*EVERY_SENSOR, POWER_LIMIT)
 SHOWN: dict = {}
-for sensor in WEBIF_SENSORS:
+for sensor in READ_VALUES:
     SHOWN.setdefault(sensor.page, {})[sensor.title] = SAMPLE[sensor.shown_unit]
 HEATING_LINKS = {
     "Schaltdifferenz": SWITCHING_DIFFERENCE,
-    "Leistungsbegrenzung": POWER_LIMIT,
+    "Leistungsbegrenzung": POWER_LIMIT_SEGMENT,
 }
 SITE = {
     PAGES[HEAT_PUMP_PAGE]: column(
@@ -515,7 +519,7 @@ async def test_a_web_interface_stops_when_its_pump_is_removed(hass, pump):
     again = await _start(hass, _entries(hass, pump))
     registry = er.async_get(hass)
     assert len(er.async_entries_for_config_entry(registry, again.entry_id)) == len(
-        EVERY_SENSOR
+        EVERY_ENTITY
     )
 
 
@@ -593,7 +597,7 @@ async def test_the_values_become_sensors_on_a_device_of_their_own(hass, pump):
     registry = er.async_get(hass)
 
     assert len(er.async_entries_for_config_entry(registry, entry.entry_id)) == len(
-        EVERY_SENSOR
+        EVERY_ENTITY
     )
     high_pressure = registry.async_get_entity_id(
         "sensor", CONST.DOMAIN, f"{CONST.DEF_PREFIX}webif_hochdruck"

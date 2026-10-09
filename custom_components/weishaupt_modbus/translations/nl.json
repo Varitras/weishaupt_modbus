@@ -308,6 +308,9 @@
       },
       "sys_pv" : {
         "name" : "{prefix}Setpoint PV"
+      },
+      "webif_leistungsbegrenzung_heizen" : {
+        "name" : "{prefix}Vermogensbegrenzing verwarmen"
       }
     },
     "switch" : {
@@ -1935,9 +1938,6 @@
       "webif_jaz_gesamt" : {
         "name" : "{prefix}Totale prestatiefactor"
       },
-      "webif_leistungsbegrenzung_heizen" : {
-        "name" : "{prefix}Vermogensbegrenzing verwarmen"
-      },
       "webif_schaltdifferenz_heizen" : {
         "name" : "{prefix}Schakelverschil verwarmen"
       },
@@ -2047,6 +2047,9 @@
     },
     "webif_write_failed" : {
       "message" : "Het instellen van de vermogensbegrenzing verwarmen is mislukt door een onverwachte fout; het log bevat de details."
+    },
+    "webif_power_limit_whole_percent" : {
+      "message" : "{value} is geen geheel percentage. De vermogensbegrenzing verwarmen wordt ingesteld in stappen van 1 %."
     }
   },
   "issues" : {

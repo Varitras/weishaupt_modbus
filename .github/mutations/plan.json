@@ -1780,7 +1780,7 @@
   {
     "label": "webif sensor: a page counts as whole without its sensors' titles",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "    page: frozenset(sensor.title for sensor in WEBIF_SENSORS if sensor.page == page)\n",
+    "old": "    page: frozenset(value.title for value in READ_VALUES if value.page == page)\n",
     "new": "    page: frozenset()\n",
     "tests": "requires_the_titles_of_its_sensors"
   },
@@ -3547,5 +3547,19 @@
     "old": "            async with self._asking:\n                self._refuse_write()\n",
     "new": "            async with self._asking:\n",
     "tests": "refused_again_when_its_quiet_time_ends"
+  },
+  {
+    "label": "power limit number: a value between two percentages is written",
+    "path": "custom_components/weishaupt_modbus/webif_number.py",
+    "old": "        if not value.is_integer():\n",
+    "new": "        if False:\n",
+    "tests": "value_between_two_percentages_is_refused"
+  },
+  {
+    "label": "power limit number: the heating page no longer requires its title",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "READ_VALUES = (*WEBIF_SENSORS, POWER_LIMIT)\n",
+    "new": "READ_VALUES = WEBIF_SENSORS\n",
+    "tests": "heating_page_still_requires_the_power_limit"
   }
 ]

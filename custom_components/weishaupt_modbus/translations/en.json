@@ -308,6 +308,9 @@
       },
       "sys_pv": {
         "name": "{prefix}PV setpoint"
+      },
+      "webif_leistungsbegrenzung_heizen": {
+        "name": "{prefix}Heating power limit"
       }
     },
     "switch": {
@@ -1935,9 +1938,6 @@
       "webif_jaz_gesamt": {
         "name": "{prefix}Total performance factor"
       },
-      "webif_leistungsbegrenzung_heizen": {
-        "name": "{prefix}Heating power limit"
-      },
       "webif_schaltdifferenz_heizen": {
         "name": "{prefix}Heating switching difference"
       },
@@ -2047,6 +2047,9 @@
     },
     "webif_write_failed": {
       "message": "Setting the heating power limit failed on an unexpected error; the log has the details."
+    },
+    "webif_power_limit_whole_percent": {
+      "message": "{value} is no whole percentage. The heating power limit is set in steps of 1 %."
     }
   },
   "issues": {
