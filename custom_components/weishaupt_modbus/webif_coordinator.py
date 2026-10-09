@@ -453,6 +453,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         """A page a write read counts as that page's reading, as of now."""
         self._store(page, text)
         self._readings[page.key].asked_at = self._readings[page.key].read_at
+        # Home Assistant restarts its refresh timer here, with the wait the
+        # last round planned: the next page due would come that much late.
+        self._plan_next_round(True)
         self.async_set_updated_data(self._published())
 
     @property

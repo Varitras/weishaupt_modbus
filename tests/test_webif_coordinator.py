@@ -1029,6 +1029,19 @@ async def test_a_write_publishes_the_heating_page_as_read(
     assert HEATING.path not in client.asked
 
 
+async def test_a_write_keeps_the_next_round_when_it_is_due(
+    coordinator, client, clock, quick
+):
+    """Publishing the read-back restarts Home Assistant's refresh timer with
+    the last planned wait: the heat pump page due in 5 minutes came 15 late."""
+    await first_round_showing(coordinator, client, clock)
+    clock.now = 10 * 60
+
+    await coordinator.set_power_limit(61)
+
+    assert coordinator.update_interval == timedelta(minutes=5)
+
+
 async def test_another_value_shown_is_published_and_named(
     coordinator, client, clock, quick
 ):

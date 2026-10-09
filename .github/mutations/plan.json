@@ -3631,5 +3631,12 @@
     "old": "    if counted:\n",
     "new": "    if False:\n",
     "tests": "cancelled_with_its_entry_lets_its_callers_go"
+  },
+  {
+    "label": "power limit write: the next round is not planned again after a write",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self._plan_next_round(True)\n        self.async_set_updated_data(self._published())\n",
+    "new": "        self.async_set_updated_data(self._published())\n",
+    "tests": "keeps_the_next_round_when_it_is_due"
   }
 ]
