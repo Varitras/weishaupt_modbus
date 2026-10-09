@@ -9,6 +9,8 @@ import pytest
 
 from custom_components.weishaupt_modbus.webif import pages
 
+from . import webif_stand_in as stand_in
+
 MAIN = "0C000001000000000080000A0B010002000301"
 HEAT_PUMP = "0C000C22000000000000000A0B020003000401"
 PUMP_MENU = "64000001000000000080000A0B010002000301"
@@ -250,3 +252,54 @@ def test_a_grandchild_is_no_child():
 )
 def test_a_shown_value_becomes_a_number(shown, expected):
     assert pages.number(shown) == expected
+
+
+def test_the_setting_form_is_read_as_the_controller_serves_it():
+    """Live, 2026-10-02: the power limit's own page holds one form, and the
+    controller saves exactly its hidden fields and the value chosen."""
+    form = pages.setting_form(stand_in.limit_leaf(60))
+
+    assert form is not None
+    assert form.id == stand_in.limit_segment(60)
+    assert form.stack == f"{PUMP_MENU},{HEATING},{stand_in.limit_segment(60)}"
+    assert form.type == "para_list"
+    assert form.offered == tuple(range(10, 101))
+    assert form.selected == 60
+    assert form.path == f"{stand_in.HEATING_PATH},{stand_in.limit_segment(60)}"
+    assert form.parent_path == stand_in.HEATING_PATH
+
+
+LEAF = stand_in.limit_leaf(60)
+SIXTY_ONE = '<option value="61">'
+
+
+@pytest.mark.parametrize(
+    "page",
+    [
+        LEAF.replace('name="id"', 'name="other"'),
+        LEAF.replace('name="stack"', 'name="other"'),
+        LEAF.replace('name="type"', 'name="other"'),
+        LEAF.replace('<select class="form-control" name="value">', "<select>"),
+        LEAF.replace(" selected", ""),
+        LEAF.replace(SIXTY_ONE, '<option value="61" selected>'),
+        LEAF.replace(SIXTY_ONE, '<option value="x">'),
+        LEAF.replace('action="pro_save.html"', 'action="other.html"'),
+    ],
+    ids=[
+        "no id",
+        "no stack",
+        "no type",
+        "no value select",
+        "nothing selected",
+        "two selected",
+        "an option no number",
+        "another action",
+    ],
+)
+def test_a_form_missing_a_part_is_not_read(page):
+    """A page served half, or another form: nothing in it may be sent."""
+    assert pages.setting_form(page) is None
+
+
+def test_a_page_without_a_form_is_not_read():
+    assert pages.setting_form(stand_in.heating_page(60)) is None

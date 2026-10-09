@@ -71,6 +71,45 @@ def column(inner):
 
 
 MAIN_MENUS = column(link([INFO], "Info") + link([PUMP_MENU], "Wärmepumpe"))
+HEATING_PATH = STACK + f"{PUMP_MENU},{HEATING}"
+SWITCHING_DIFFERENCE = "64001805000000002D40000A0B030011010401"
+LIMIT_OPTIONS = range(10, 101)
+
+
+def limit_segment(limit):
+    """The power limit's own segment: the controller writes its value into it."""
+    return f"6400180700000000{limit:02X}40000A0B030011010401"
+
+
+def heating_page(limit, switching="4.5 K"):
+    """Wärmepumpe › Heizen with the power limit and the switching difference."""
+    return MAIN_MENUS + column(
+        link([PUMP_MENU, HEATING, SWITCHING_DIFFERENCE], "Schaltdifferenz", switching)
+        + link(
+            [PUMP_MENU, HEATING, limit_segment(limit)],
+            "Leistungsbegrenzung",
+            f"{limit} %",
+        )
+    )
+
+
+def limit_leaf(limit, offered=LIMIT_OPTIONS):
+    """The power limit's own page: the one form that saves it."""
+    options = "".join(
+        f'<option value="{option}"{" selected" if option == limit else ""}>\n'
+        f"{option}</option>\n"
+        for option in offered
+    )
+    return MAIN_MENUS + (
+        '<form action="pro_save.html" method="POST">'
+        f'<input type="hidden" name="id" value="{limit_segment(limit)}">\n'
+        '<input type="hidden" name="stack" '
+        f'value="{PUMP_MENU},{HEATING},{limit_segment(limit)}">\n'
+        '<input type="hidden" name="type" value="para_list">'
+        '<div class="form-group"><select class="form-control" name="value">\n'
+        f"{options}</select></div>\n"
+        '<button type="submit" class="btn btn-success">Speichern</button></form>\n'
+    )
 
 
 def menu_site():
