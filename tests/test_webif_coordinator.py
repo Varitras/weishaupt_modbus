@@ -882,6 +882,47 @@ async def test_a_change_during_a_write_is_written_after_it(
     assert client.saved == [61, 75]
 
 
+async def test_changes_while_a_write_runs_are_one_write_after_it(
+    coordinator, client, clock, quick
+):
+    """A write takes 20 to 60 s live. Each quiet time passing meanwhile made
+    a write of its own, one EEPROM write more for every second thought."""
+    await first_round_showing(coordinator, client, clock)
+    client.save_gate = asyncio.Event()
+    first = asyncio.create_task(coordinator.set_power_limit(61))
+    await until(lambda: client.saved)
+
+    second = asyncio.create_task(coordinator.set_power_limit(62))
+    await asyncio.sleep(2 * QUIET)
+    third = asyncio.create_task(coordinator.set_power_limit(63))
+    await asyncio.sleep(2 * QUIET)
+    client.save_gate.set()
+    await asyncio.gather(first, second, third)
+
+    assert client.saved == [61, 63]
+
+
+async def test_an_unload_calls_off_a_write_waiting_for_its_turn(
+    coordinator, client, clock, quick
+):
+    """Its quiet time over, a write waits for the one running; unloaded
+    meanwhile, it must not ask anything once the running one ends."""
+    await first_round_showing(coordinator, client, clock)
+    client.save_gate = asyncio.Event()
+    first = asyncio.create_task(coordinator.set_power_limit(61))
+    await until(lambda: client.saved)
+    second = asyncio.create_task(refused(coordinator.set_power_limit(62)))
+    await asyncio.sleep(2 * QUIET)
+
+    await coordinator.async_shutdown()
+    client.save_gate.set()
+    await first
+
+    async with asyncio.timeout(HOLD_LIMIT_SECONDS):
+        assert await second == ("webif_write_aborted", None)
+    assert client.saved == [61]
+
+
 async def test_every_call_of_a_burst_gets_its_outcome(
     coordinator, client, clock, quick
 ):

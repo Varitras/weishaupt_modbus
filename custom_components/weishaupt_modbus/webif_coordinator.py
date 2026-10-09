@@ -181,7 +181,11 @@ class WriteFailed(WebifError):
 
 @dataclass
 class _Burst:
-    """Requests not written yet: the last target, and the outcome they share."""
+    """Requests not written yet: the last target, and the outcome they share.
+
+    It takes requests until its write starts, also while that write waits
+    for one still running.
+    """
 
     target: int
     outcome: asyncio.Future[None]
@@ -375,8 +379,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
 
     @callback
     def _start_write(self, burst: _Burst) -> None:
-        # Requests from now on wait for a write of their own.
-        self._burst = self._quiet = None
+        self._quiet = None
         self._entry.async_create_background_task(
             self.hass, self._write(burst), "weishaupt-webif power limit"
         )
@@ -386,6 +389,15 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         outcome = burst.outcome
         try:
             async with self._asking:
+                # Live a write takes 20 to 60 s: the requests made while
+                # another ran joined this one, and from here on they wait
+                # for a write of their own.
+                if self._burst is burst:
+                    self._burst = None
+                if outcome.done():
+                    # Written by a write started for it earlier, or called
+                    # off by the unload while it waited for its turn.
+                    return
                 self._refuse_write()
                 text = await write_power_limit(
                     self._client,

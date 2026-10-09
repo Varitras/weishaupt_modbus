@@ -3544,8 +3544,8 @@
   {
     "label": "power limit write: not refused again once the requests have settled",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            async with self._asking:\n                self._refuse_write()\n",
-    "new": "            async with self._asking:\n",
+    "old": "                    return\n                self._refuse_write()\n",
+    "new": "                    return\n",
     "tests": "refused_again_when_its_quiet_time_ends"
   },
   {
@@ -3603,5 +3603,19 @@
     "old": "        return True\n",
     "new": "        return super().available and self._values() is not None\n",
     "tests": "stays_available_without_a_reading"
+  },
+  {
+    "label": "power limit debounce: a burst closes when its quiet time ends",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiet = None\n",
+    "new": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiet = self._burst = None\n",
+    "tests": "changes_while_a_write_runs_are_one_write_after_it"
+  },
+  {
+    "label": "power limit write: a write called off while it waited still writes",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n",
+    "new": "",
+    "tests": "calls_off_a_write_waiting_for_its_turn"
   }
 ]
