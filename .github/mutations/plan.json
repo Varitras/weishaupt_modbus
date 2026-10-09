@@ -3586,7 +3586,7 @@
   {
     "label": "power limit write: a cancelled write leaves its callers waiting",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            if not outcome.done():\n                outcome.set_exception(Closed(\"the entry unloads\"))\n",
+    "old": "            if not outcome.done():\n                outcome.set_exception(_cut_off(counted=counted))\n",
     "new": "            pass\n",
     "tests": "cancelled_with_its_entry_lets_its_callers_go"
   },
@@ -3617,5 +3617,19 @@
     "old": "                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n",
     "new": "",
     "tests": "calls_off_a_write_waiting_for_its_turn"
+  },
+  {
+    "label": "power limit write: a client closed after the save reads as called off",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    except (Broken, Unreachable, Closed) as error:\n",
+    "new": "    except (Broken, Unreachable) as error:\n",
+    "tests": "read_back_that_fails_is_reported_as_saved_but_not_read"
+  },
+  {
+    "label": "power limit write: a write cancelled after its save reads as called off",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "    if counted:\n",
+    "new": "    if False:\n",
+    "tests": "cancelled_with_its_entry_lets_its_callers_go"
   }
 ]

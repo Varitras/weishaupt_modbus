@@ -9,7 +9,7 @@ moves it.
 from collections.abc import Callable
 
 from . import pages
-from .client import SETTING_LIST, Broken, Client, Unreachable, WebifError
+from .client import SETTING_LIST, Broken, Client, Closed, Unreachable, WebifError
 
 POWER_LIMIT_TITLE = "Leistungsbegrenzung"
 PERCENT = "%"
@@ -118,7 +118,9 @@ async def write_power_limit(
     await client.save(form, target)
     try:
         read_back, (now_shown, _) = await _read(client, heating_path, limit_shown)
-    except (Broken, Unreachable) as error:
+    except (Broken, Unreachable, Closed) as error:
+        # Closed too: the save went out, and "called off" would invite the
+        # user to save again a value the controller may already hold.
         raise NotReadBack(str(error)) from error
     if now_shown != target:
         raise OtherValueShown(read_back, now_shown, target)

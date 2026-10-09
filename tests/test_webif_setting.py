@@ -9,6 +9,7 @@ import pytest
 from custom_components.weishaupt_modbus.webif import pages, setting
 from custom_components.weishaupt_modbus.webif.client import (
     Broken,
+    Closed,
     LoginRefused,
     MaybeSaved,
     NotSaved,
@@ -190,8 +191,13 @@ async def test_a_read_back_showing_another_value_says_which():
     assert raised.value.text == heating_page(65)
 
 
-async def test_a_read_back_that_fails_is_reported_as_saved_but_not_read():
-    client, events = scripted(heating=[heating_page(60), Broken(HEATING_PATH)])
+@pytest.mark.parametrize(
+    "failure", [Broken(HEATING_PATH), Closed("the client is closed")]
+)
+async def test_a_read_back_that_fails_is_reported_as_saved_but_not_read(failure):
+    """The client closed by an unload after the save: "called off" would
+    invite a second save of a value the controller already holds."""
+    client, events = scripted(heating=[heating_page(60), failure])
 
     with pytest.raises(setting.NotReadBack):
         await write(client)

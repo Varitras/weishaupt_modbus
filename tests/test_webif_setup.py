@@ -876,8 +876,9 @@ async def test_the_old_power_limit_sensor_leaves_no_entry(hass, pump):
 async def test_an_unload_during_a_save_tells_its_caller_and_asks_nothing_more(
     hass, pump, quick
 ):
-    """The save itself goes through; nothing follows the logout, and the
-    caller hears that the write was called off."""
+    """The save itself goes through and nothing follows the logout. Home
+    Assistant cancels the write before its read-back: the caller hears it
+    may be saved, not that it was called off."""
     pump.show_power_limit(60)
     entry = await _start(hass, _entries(hass, pump))
     pump.delays[SAVE_PATH] = 0.5
@@ -888,7 +889,7 @@ async def test_an_unload_during_a_save_tells_its_caller_and_asks_nothing_more(
 
     with pytest.raises(HomeAssistantError) as called_off:
         await setting
-    assert called_off.value.translation_key == "webif_write_aborted"
+    assert called_off.value.translation_key == "webif_write_maybe_saved"
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
 
 

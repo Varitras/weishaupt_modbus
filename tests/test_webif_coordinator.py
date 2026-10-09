@@ -1198,7 +1198,8 @@ async def test_a_write_cancelled_with_its_entry_lets_its_callers_go(
     coordinator, client, clock, entry, quick, monkeypatch
 ):
     """Home Assistant cancels an entry's background tasks when it goes: a
-    caller must not wait for an outcome that will never be set."""
+    caller must not wait for an outcome that will never be set. Cancelled
+    once the save may have gone out, "called off" would be wrong."""
     await first_round_showing(coordinator, client, clock)
     started = []
     create = entry.async_create_background_task
@@ -1216,4 +1217,37 @@ async def test_a_write_cancelled_with_its_entry_lets_its_callers_go(
     started[0].cancel()
 
     async with asyncio.timeout(HOLD_LIMIT_SECONDS):
+        assert await call == ("webif_write_maybe_saved", None)
+
+
+async def test_a_write_cancelled_before_its_save_is_called_off(
+    coordinator, client, clock, entry, quick, monkeypatch
+):
+    """Nothing was counted, so nothing can have been saved."""
+    await first_round_showing(coordinator, client, clock)
+    started = []
+    create = entry.async_create_background_task
+
+    def noted(hass, target, name, eager_start=True):
+        task = create(hass, target, name, eager_start)
+        started.append(task)
+        return task
+
+    monkeypatch.setattr(entry, "async_create_background_task", noted)
+    reading = asyncio.Event()
+    answer = client.page
+
+    async def held(path, complete):
+        reading.set()
+        await asyncio.Event().wait()
+        return await answer(path, complete)
+
+    monkeypatch.setattr(client, "page", held)
+    call = asyncio.create_task(refused(coordinator.set_power_limit(61)))
+    await reading.wait()
+
+    started[0].cancel()
+
+    async with asyncio.timeout(HOLD_LIMIT_SECONDS):
         assert await call == ("webif_write_aborted", None)
+    assert coordinator.budget.writes_today == 0

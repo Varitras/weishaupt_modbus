@@ -191,6 +191,14 @@ class _Burst:
     outcome: asyncio.Future[None]
 
 
+def _cut_off(*, counted: bool) -> WebifError:
+    """What the callers of a write cancelled with its entry hear."""
+    if counted:
+        # The save may have gone out: "called off" would invite a second one.
+        return MaybeSaved("cancelled after the save went out")
+    return Closed("the entry unloads")
+
+
 def _retrieved(outcome: asyncio.Future[None]) -> None:
     # Callers that gave up leave a failed write's outcome unread, and asyncio
     # would log it as an error nobody handled.
@@ -387,6 +395,13 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
     async def _write(self, burst: _Burst) -> None:
         """One write, its outcome handed to every caller that asked for it."""
         outcome = burst.outcome
+        counted = False
+
+        def count_write() -> None:
+            nonlocal counted
+            counted = True
+            self.budget.record_write()
+
         try:
             async with self._asking:
                 # Live a write takes 20 to 60 s: the requests made while
@@ -404,7 +419,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                     self._heating.path,
                     self._heating.is_whole,
                     burst.target,
-                    self.budget.record_write,
+                    count_write,
                 )
                 self._publish(self._heating, text)
         except (WebifError, HomeAssistantError) as error:
@@ -423,7 +438,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         finally:
             # Cancelled as the entry unloads: no caller may wait for good.
             if not outcome.done():
-                outcome.set_exception(Closed("the entry unloads"))
+                outcome.set_exception(_cut_off(counted=counted))
 
     def _after_failed_write(self, error: Exception) -> None:
         if isinstance(error, OtherValueShown):
