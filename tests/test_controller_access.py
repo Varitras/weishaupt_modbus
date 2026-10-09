@@ -593,3 +593,41 @@ def test_the_positive_list_has_to_ask_about_the_form_sent():
 
     assert _unlisted_web_requests(without_the_form) == ["4: self._session.request"]
     assert _unlisted_web_requests(about_no_form) == ["4: self._session.request"]
+
+
+SAVE = "save"
+# The positive list admits a list setting's form with any id and value; that
+# nothing but the heating power limit is ever written rests on this caller.
+SAVE_CALLER = "webif/setting.py"
+
+
+def _save_calls(source):
+    """The lines that call a method named like the client's save."""
+    return [
+        node.lineno
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == SAVE
+    ]
+
+
+def test_the_save_scan_sees_a_call_and_nothing_else():
+    source = (
+        "async def save(self, form, value):\n"
+        "    self.saved.append(value)\n"
+        "async def write(client, form):\n"
+        "    await client.save(form, 61)\n"
+    )
+
+    assert _save_calls(source) == [4]
+
+
+def test_the_one_save_is_called_by_the_power_limit_write_only():
+    """Spec: nothing but the heating power limit can ever be written."""
+    callers = _in_package(_save_calls)
+
+    assert [caller.rsplit(":", 1)[0] for caller in callers] == [SAVE_CALLER], (
+        f"the web interface's save is called from {callers}; only {SAVE_CALLER} "
+        "may, so that no other setting can be written."
+    )

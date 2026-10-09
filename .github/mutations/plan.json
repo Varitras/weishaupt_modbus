@@ -3645,5 +3645,12 @@
     "old": "            if not self._write_traceback_logged:\n                self._write_traceback_logged = True\n",
     "new": "            if not self._traceback_logged:\n                self._traceback_logged = True\n",
     "tests": "logs_its_unexpected_error_after_a_round_did"
+  },
+  {
+    "label": "controller access: a second caller of the web interface's save",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiet = None\n",
+    "new": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiet = None\n        if burst is None:\n            self._client.save(None, 0)\n",
+    "tests": "called_by_the_power_limit_write_only"
   }
 ]
