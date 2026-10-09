@@ -3561,5 +3561,12 @@
     "old": "READ_VALUES = (*WEBIF_SENSORS, POWER_LIMIT)\n",
     "new": "READ_VALUES = WEBIF_SENSORS\n",
     "tests": "heating_page_still_requires_the_power_limit"
+  },
+  {
+    "label": "web write limit: the option is ignored",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        limit=entry.options.get(\n            CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY, CONST.WEBIF_WRITE_LIMIT_PER_DAY\n        ),\n",
+    "new": "        limit=CONST.WEBIF_WRITE_LIMIT_PER_DAY,\n",
+    "tests": "option_sets_the_daily_limit"
   }
 ]

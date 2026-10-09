@@ -1944,6 +1944,12 @@
       "webif_answer_time" : {
         "name" : "Antwoordtijd"
       },
+      "webif_settings_written_total" : {
+        "name" : "Geschreven instellingen (totaal)"
+      },
+      "webif_settings_written_today" : {
+        "name" : "Geschreven instellingen (vandaag)"
+      },
       "webif_requests" : {
         "name" : "Verzoeken"
       },
@@ -1980,12 +1986,14 @@
         "data" : {
           "heat_pump_interval_minutes" : "Interval van de warmtepomppagina (minuten)",
           "statistics_interval_minutes" : "Interval van de statistiek (minuten)",
-          "heating_interval_minutes" : "Interval van de verwarmingsinstellingen (minuten)"
+          "heating_interval_minutes" : "Interval van de verwarmingsinstellingen (minuten)",
+          "settings_written_per_day" : "Geschreven instellingen per dag"
         },
         "data_description" : {
           "heat_pump_interval_minutes" : "Hoe vaak de warmtepomppagina wordt gelezen, 1 tot 60 minuten. Een wijziging laadt de vermelding opnieuw.",
           "statistics_interval_minutes" : "Hoe vaak de energiestatistiek wordt gelezen, 1 tot 60 minuten.",
-          "heating_interval_minutes" : "Hoe vaak de vermogensbegrenzing en het schakelverschil voor verwarmen worden gelezen, 1 tot 60 minuten."
+          "heating_interval_minutes" : "Hoe vaak de vermogensbegrenzing en het schakelverschil voor verwarmen worden gelezen, 1 tot 60 minuten.",
+          "settings_written_per_day" : "Er worden per dag hoogstens zoveel instellingen geschreven, zoals de vermogensbegrenzing verwarmen; 0 schakelt de limiet uit. De regelaar slaat elke instelling op in zijn EEPROM, dat slechts een beperkt aantal schrijfbewerkingen verdraagt."
         }
       }
     }

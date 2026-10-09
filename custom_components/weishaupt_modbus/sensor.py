@@ -16,7 +16,7 @@ from .webif_sensor import (
     TrafficSensor,
     WebifSensor,
 )
-from .write_counter_sensor import WRITE_COUNTER_DESCRIPTIONS, WriteCounterSensor
+from .write_counter_sensor import pump_write_counters, web_write_counters
 
 # Read only; the coordinator polls for every entity at once.
 PARALLEL_UPDATES = 0
@@ -41,6 +41,7 @@ async def async_setup_entry(
                     for description in TRAFFIC_SENSORS
                 ),
                 AnswerTimeSensor(web.coordinator, web.pump_data, ANSWER_TIME),
+                *web_write_counters(web.coordinator, web.pump_data),
             ]
         )
         return
@@ -50,10 +51,7 @@ async def async_setup_entry(
         item_types=(TYPES.NUMBER_RO, TYPES.SENSOR_CALC, TYPES.SENSOR),
         coordinator=coordinator,
     )
-    entries.extend(
-        WriteCounterSensor(coordinator, config_entry, description)
-        for description in WRITE_COUNTER_DESCRIPTIONS
-    )
+    entries.extend(pump_write_counters(coordinator, config_entry))
     # The first refresh already ran and every entity takes its initial value
     # from it; update_before_add would ask for a second full scan.
     async_add_entities(entries)

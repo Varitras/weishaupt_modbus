@@ -29,6 +29,7 @@ from custom_components.weishaupt_modbus.webif_sensor import (
 )
 from custom_components.weishaupt_modbus.weishaupt_modbus_api import hpconst
 from custom_components.weishaupt_modbus.write_counter_sensor import (
+    WEBIF_WRITE_COUNTER_DESCRIPTIONS,
     WRITE_COUNTER_DESCRIPTIONS,
 )
 from homeassistant.components.sensor import SensorStateClass
@@ -127,7 +128,13 @@ def test_no_translation_outlives_its_item(path):
     translations = _entity_translations(path)
     known = {(PLATFORM_OF[item.type], item.translation_key) for item in _items(hpconst)}
     # The write counters are sensors without a register.
-    known |= {("sensor", description.key) for description in WRITE_COUNTER_DESCRIPTIONS}
+    known |= {
+        ("sensor", description.key)
+        for description in (
+            *WRITE_COUNTER_DESCRIPTIONS,
+            *WEBIF_WRITE_COUNTER_DESCRIPTIONS,
+        )
+    }
     # So are the web interface's values, and the sensors about its polling.
     known |= {
         ("sensor", description.translation_key)

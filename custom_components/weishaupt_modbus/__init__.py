@@ -250,7 +250,9 @@ async def _async_setup_web_interface(
     # No warning: the daily limit is the guard for settings written here.
     budget = WriteBudget(
         warn_at=0,
-        limit=CONST.WEBIF_WRITE_LIMIT_PER_DAY,
+        limit=entry.options.get(
+            CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY, CONST.WEBIF_WRITE_LIMIT_PER_DAY
+        ),
         today=lambda: dt_util.now().date(),
     )
     coordinator = WebifCoordinator(hass, entry, client, polled, budget=budget)

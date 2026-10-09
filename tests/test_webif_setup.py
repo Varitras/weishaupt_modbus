@@ -34,6 +34,9 @@ from custom_components.weishaupt_modbus.webif_sensor import (
     WEBIF_SENSORS,
 )
 from custom_components.weishaupt_modbus.webif_visit import read_web_interface
+from custom_components.weishaupt_modbus.write_counter_sensor import (
+    WEBIF_WRITE_COUNTER_DESCRIPTIONS,
+)
 from homeassistant.config_entries import ConfigEntryDisabler, ConfigEntryState
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP, EntityCategory
 from homeassistant.core import State
@@ -83,8 +86,8 @@ SAMPLE = {
 }
 # The values, and the sensors about the polling itself.
 EVERY_SENSOR = (*WEBIF_SENSORS, *TRAFFIC_SENSORS, ANSWER_TIME)
-# And the one setting it writes, a number.
-EVERY_ENTITY = (*EVERY_SENSOR, POWER_LIMIT)
+# And the one setting it writes, a number, with the counts of its writes.
+EVERY_ENTITY = (*EVERY_SENSOR, POWER_LIMIT, *WEBIF_WRITE_COUNTER_DESCRIPTIONS)
 SHOWN: dict = {}
 for sensor in READ_VALUES:
     SHOWN.setdefault(sensor.page, {})[sensor.title] = SAMPLE[sensor.shown_unit]
@@ -730,3 +733,48 @@ async def test_the_diagnostic_sensors_stay_shown_when_polling_fails(hass, pump):
     assert hass.states.get(_sensor(hass, "hochdruck")).state == "unavailable"
     for key in (*TRAFFIC_COUNTS, "answer_time"):
         assert hass.states.get(_sensor(hass, key)).state != "unavailable"
+
+
+WEB_WRITE_COUNTERS = ("settings_written_total", "settings_written_today")
+
+
+async def test_the_web_interface_counts_its_written_settings(hass, pump):
+    """Beside the polling counts, on the web interface's own device: the
+    EEPROM counters of the pump entry count Modbus writes only."""
+    entry = await _start(hass, _entries(hass, pump))
+    registry = er.async_get(hass)
+    web_device = registry.async_get(_sensor(hass, "hochdruck")).device_id
+
+    for key in WEB_WRITE_COUNTERS:
+        counter = registry.async_get(_sensor(hass, key))
+        assert counter.device_id == web_device
+        assert counter.entity_category is EntityCategory.DIAGNOSTIC
+        assert hass.states.get(counter.entity_id).state == "0"
+
+    entry.runtime_data.coordinator.budget.record_write()
+    await hass.async_block_till_done()
+
+    for key in WEB_WRITE_COUNTERS:
+        assert hass.states.get(_sensor(hass, key)).state == "1"
+
+
+async def test_the_web_write_counters_carry_over_a_reload(hass, pump):
+    entry = await _start(hass, _entries(hass, pump))
+    entry.runtime_data.coordinator.budget.record_write()
+    await hass.async_block_till_done()
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    for key in WEB_WRITE_COUNTERS:
+        assert hass.states.get(_sensor(hass, key)).state == "1", key
+    assert entry.runtime_data.coordinator.budget.total == 1
+
+
+@pytest.mark.parametrize(("chosen", "limit"), [(None, 10), (1, 1), (0, 0)])
+async def test_the_option_sets_the_daily_limit(hass, pump, chosen, limit):
+    options = {} if chosen is None else {CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY: chosen}
+
+    entry = await _start(hass, _entries(hass, pump, options=options))
+
+    assert entry.runtime_data.coordinator.budget.limit == limit

@@ -722,7 +722,7 @@ class OptionsFlow(config_entries.OptionsFlow):
 
 
 class WebifOptionsFlow(config_entries.OptionsFlowWithReload):
-    """How often each of the web interface's pages is read.
+    """How often each page is read, and how many settings may be written a day.
 
     A change reloads the entry; there is no update listener for it.
     """
@@ -736,7 +736,7 @@ class WebifOptionsFlow(config_entries.OptionsFlowWithReload):
     async def async_step_webif(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """The intervals, in minutes."""
+        """The intervals, in minutes, and the daily limit of settings written."""
         if user_input is not None:
             return self.async_create_entry(data=user_input)
         options = self.config_entry.options
@@ -753,10 +753,28 @@ class WebifOptionsFlow(config_entries.OptionsFlowWithReload):
             ),
             vol.Coerce(int),
         )
+        # 0 switches the limit off, as for the Modbus writes.
+        writes_per_day = vol.All(
+            NumberSelector(
+                NumberSelectorConfig(
+                    min=0,
+                    max=EEPROM_WRITE_RATING,
+                    step=1,
+                    mode=NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Coerce(int),
+        )
+        limit = CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY
         schema = vol.Schema(
             {
-                vol.Required(option, default=options.get(option, default)): minutes
-                for option, default in INTERVAL_OPTIONS.values()
+                **{
+                    vol.Required(option, default=options.get(option, default)): minutes
+                    for option, default in INTERVAL_OPTIONS.values()
+                },
+                vol.Required(
+                    limit, default=options.get(limit, CONST.WEBIF_WRITE_LIMIT_PER_DAY)
+                ): writes_per_day,
             }
         )
         return self.async_show_form(step_id="webif", data_schema=schema)

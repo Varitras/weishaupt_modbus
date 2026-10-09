@@ -1161,7 +1161,10 @@ async def test_the_web_interface_interval_is_its_own_option(hass, web_interface)
 
     form = await hass.config_entries.options.async_init(entry.entry_id)
     assert form["step_id"] == "webif"
-    assert [str(field) for field in form["data_schema"].schema] == list(chosen)
+    assert [str(field) for field in form["data_schema"].schema] == [
+        *chosen,
+        CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY,
+    ]
     for option in chosen:
         with pytest.raises(InvalidData):
             await hass.config_entries.options.async_configure(
@@ -1173,7 +1176,10 @@ async def test_the_web_interface_interval_is_its_own_option(hass, web_interface)
     await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == chosen
+    assert entry.options == {
+        **chosen,
+        CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY: CONST.WEBIF_WRITE_LIMIT_PER_DAY,
+    }
 
 
 async def test_the_interval_sliders_show_their_minutes(hass, web_interface):
@@ -1185,10 +1191,13 @@ async def test_the_interval_sliders_show_their_minutes(hass, web_interface):
     # How Home Assistant hands the form to the frontend.
     fields = to_field_list(form["data_schema"], custom_serializer=cv.custom_serializer)
 
-    numbers = [field["selector"]["number"] for field in fields]
-    assert [(number["mode"], number["unit_of_measurement"]) for number in numbers] == [
-        ("slider", "min")
-    ] * 3
+    numbers = {field["name"]: field["selector"]["number"] for field in fields}
+    limit = numbers.pop(CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY)
+    assert [
+        (number["mode"], number["unit_of_measurement"]) for number in numbers.values()
+    ] == [("slider", "min")] * 3
+    # A count up to the EEPROM's rating is typed, not dragged.
+    assert (limit["mode"], limit["min"]) == ("box", 0)
 
 
 async def test_a_web_interface_holds_no_postfix_of_its_own(hass):
@@ -1199,3 +1208,30 @@ async def test_a_web_interface_holds_no_postfix_of_its_own(hass):
     await hass.config_entries.async_remove(pump.entry_id)
 
     assert (await _create(hass, PAGE_ONE))["type"] is FlowResultType.CREATE_ENTRY
+
+
+async def test_the_options_ask_for_the_settings_written_per_day(hass, web_interface):
+    """Owner decision, 2026-10-09: 10 a day unless set otherwise, 0 for no
+    limit; never fewer than none."""
+    entry = _web_entry(hass, _pump_entry(hass))
+    intervals = {
+        CONST.OPTION_WEBIF_HEAT_PUMP_INTERVAL: 5,
+        CONST.OPTION_WEBIF_STATISTICS_INTERVAL: 15,
+        CONST.OPTION_WEBIF_HEATING_INTERVAL: 15,
+    }
+
+    form = await hass.config_entries.options.async_init(entry.entry_id)
+    with pytest.raises(InvalidData):
+        await hass.config_entries.options.async_configure(
+            form["flow_id"], {**intervals, CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY: -1}
+        )
+    await hass.config_entries.options.async_configure(form["flow_id"], intervals)
+    await hass.async_block_till_done()
+    assert entry.options[CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY] == 10
+
+    form = await hass.config_entries.options.async_init(entry.entry_id)
+    await hass.config_entries.options.async_configure(
+        form["flow_id"], {**intervals, CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY: 0}
+    )
+    await hass.async_block_till_done()
+    assert entry.options[CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY] == 0
