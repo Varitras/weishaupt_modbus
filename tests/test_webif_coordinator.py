@@ -1207,6 +1207,29 @@ async def test_an_unexpected_error_of_a_write_logs_once(
     assert len(tracebacks) == 1
 
 
+async def test_a_write_logs_its_unexpected_error_after_a_round_did(
+    coordinator, client, clock, quick, caplog
+):
+    """One flag for both: after a round's traceback, the write's was never
+    logged, while its message sends the user to the log."""
+    client.shows_power_limit(60)
+    client.answer(HEAT_PUMP, RuntimeError("a fault of the parser"))
+    await round_at(coordinator, clock, 0)
+    client.save_error = RuntimeError("a fault of the form")
+
+    assert await refused(coordinator.set_power_limit(61)) == (
+        "webif_write_failed",
+        None,
+    )
+
+    tracebacks = [
+        record
+        for record in caplog.records
+        if record.exc_info and record.levelno >= logging.ERROR
+    ]
+    assert len(tracebacks) == 2
+
+
 async def test_a_write_cancelled_with_its_entry_lets_its_callers_go(
     coordinator, client, clock, entry, quick, monkeypatch
 ):

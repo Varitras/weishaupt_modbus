@@ -299,6 +299,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         self._stopped_by: tuple[str, str] | None = None
         self._refused: LoginRefused | None = None
         self._traceback_logged = False
+        # A write's own: its message sends the user to the log, also after a
+        # round's traceback was logged.
+        self._write_traceback_logged = False
         self._no_dialog_visit = asyncio.Event()
         self._no_dialog_visit.set()
         # Held for a round's page and for a whole write: a round request
@@ -427,8 +430,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             outcome.set_exception(error)
         except Exception as error:
             # A fault of this code or of a library, not of the pump.
-            if not self._traceback_logged:
-                self._traceback_logged = True
+            if not self._write_traceback_logged:
+                self._write_traceback_logged = True
                 _LOGGER.exception(
                     "Writing the power limit failed on an unexpected error"
                 )

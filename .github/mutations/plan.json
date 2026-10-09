@@ -3537,7 +3537,7 @@
   {
     "label": "power limit write: every unexpected error of a write logs its traceback",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "                self._traceback_logged = True\n                _LOGGER.exception(\n                    \"Writing the power limit failed on an unexpected error\"\n",
+    "old": "                self._write_traceback_logged = True\n                _LOGGER.exception(\n                    \"Writing the power limit failed on an unexpected error\"\n",
     "new": "                pass\n                _LOGGER.exception(\n                    \"Writing the power limit failed on an unexpected error\"\n",
     "tests": "unexpected_error_of_a_write_logs_once"
   },
@@ -3638,5 +3638,12 @@
     "old": "        self._plan_next_round(True)\n        self.async_set_updated_data(self._published())\n",
     "new": "        self.async_set_updated_data(self._published())\n",
     "tests": "keeps_the_next_round_when_it_is_due"
+  },
+  {
+    "label": "power limit write: a round's traceback silences the write's",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            if not self._write_traceback_logged:\n                self._write_traceback_logged = True\n",
+    "new": "            if not self._traceback_logged:\n                self._traceback_logged = True\n",
+    "tests": "logs_its_unexpected_error_after_a_round_did"
   }
 ]
