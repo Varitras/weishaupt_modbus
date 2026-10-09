@@ -890,3 +890,19 @@ async def test_an_unload_during_a_save_tells_its_caller_and_asks_nothing_more(
         await setting
     assert called_off.value.translation_key == "webif_write_aborted"
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
+
+
+async def test_the_power_limit_is_set_without_a_reading_of_the_heating_page(
+    hass, pump, quick
+):
+    """The first round could not read the heating page; the call reached
+    nothing while the number was unavailable."""
+    pump.show_power_limit(60)
+    pump.failing_once[HEATING_PATH] = 500
+    await _start(hass, _entries(hass, pump))
+    assert hass.states.get(_number(hass)).state == "unknown"
+
+    await _set_power_limit(hass, 61)
+
+    assert [form["value"] for form in pump.saved] == ["61"]
+    assert hass.states.get(_number(hass)).state == "61"

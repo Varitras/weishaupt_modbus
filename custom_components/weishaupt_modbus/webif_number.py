@@ -52,8 +52,12 @@ class PowerLimitNumber(CoordinatorEntity[WebifCoordinator], NumberEntity):
 
     @property
     def available(self) -> bool:
-        """Only while the heating page's last values are still shown."""
-        return super().available and self._values() is not None
+        """As long as the entry is loaded, with or without a reading.
+
+        Home Assistant drops a call to an unavailable entity without a word:
+        the write would neither run nor say why it was refused.
+        """
+        return True
 
     @property
     def native_value(self) -> int | None:

@@ -46,9 +46,16 @@ def test_the_number_shows_the_heating_page_value():
     assert number.native_value == 60
 
 
-def test_the_number_of_a_heating_page_gone_is_unavailable():
-    """The page failed twice in a row; its values are no longer shown."""
-    assert not _number(None).available
+@pytest.mark.parametrize("polled", [True, False], ids=["polling", "polling stopped"])
+def test_the_number_stays_available_without_a_reading(polled):
+    """Home Assistant drops a call to an unavailable entity without a word:
+    an automation set nothing, and never heard that polling had stopped or
+    the login was refused. Without a reading it shows unknown."""
+    number = _number(None)
+    number.coordinator.last_update_success = polled
+
+    assert number.available
+    assert number.native_value is None
 
 
 def test_the_number_is_a_config_box_from_10_to_100():

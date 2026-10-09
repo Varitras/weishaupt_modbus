@@ -3596,5 +3596,12 @@
     "old": "        if self._burst is not None:\n            self._burst.outcome.set_exception(Closed(\"the entry unloads\"))\n            self._burst = None\n",
     "new": "",
     "tests": "unload_during_the_quiet_time_aborts_the_waiting_calls"
+  },
+  {
+    "label": "power limit number: unavailable without a reading, calls dropped",
+    "path": "custom_components/weishaupt_modbus/webif_number.py",
+    "old": "        return True\n",
+    "new": "        return super().available and self._values() is not None\n",
+    "tests": "stays_available_without_a_reading"
   }
 ]
