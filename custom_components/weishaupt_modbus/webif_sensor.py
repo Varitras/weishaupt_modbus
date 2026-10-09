@@ -34,6 +34,7 @@ from .migrate_helpers import unique_id_from_parts
 from .webif import pages
 from .webif.client import Traffic
 from .webif.discovery import HEAT_PUMP_PAGE, HEATING_PAGE, STATISTICS_PAGE
+from .webif.setting import POWER_LIMIT_TITLE
 from .webif_coordinator import WebifCoordinator
 
 # The unit texts the controller shows after a number.
@@ -287,14 +288,8 @@ STATISTICS_SENSORS = (
     _performance("jaz_gesamt", "JAZ gesamt"),
 )
 
-# Wärmepumpe > Heizen: two settings, read here and not written.
+# Wärmepumpe > Heizen: the switching difference, read here and not written.
 HEATING_SENSORS = (
-    _percentage(
-        "leistungsbegrenzung_heizen",
-        "Leistungsbegrenzung",
-        HEATING_PAGE,
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
     _difference(
         "schaltdifferenz_heizen",
         "Schaltdifferenz",
@@ -304,10 +299,14 @@ HEATING_SENSORS = (
 )
 
 WEBIF_SENSORS = HEAT_PUMP_SENSORS + STATISTICS_SENSORS + HEATING_SENSORS
+# Beside it on the heating page, the power limit: a number (webif_number.py),
+# read from the page by the same rules as the sensors.
+POWER_LIMIT = _percentage("leistungsbegrenzung_heizen", POWER_LIMIT_TITLE, HEATING_PAGE)
+READ_VALUES = (*WEBIF_SENSORS, POWER_LIMIT)
 
-# A page counts as whole only with the title of every sensor it carries.
+# A page counts as whole only with the title of every value read from it.
 REQUIRED_TITLES = {
-    page: frozenset(sensor.title for sensor in WEBIF_SENSORS if sensor.page == page)
+    page: frozenset(value.title for value in READ_VALUES if value.page == page)
     for page in (HEAT_PUMP_PAGE, STATISTICS_PAGE, HEATING_PAGE)
 }
 
@@ -353,7 +352,7 @@ def shown_in_unknown_units(page: str, found: list[tuple[str, str]]) -> frozenset
 
     "--" and "Aus" are the controller's own words for no value, not a unit.
     """
-    sensors = {sensor.title: sensor for sensor in WEBIF_SENSORS if sensor.page == page}
+    sensors = {value.title: value for value in READ_VALUES if value.page == page}
     return frozenset(
         title
         for title, shown in found

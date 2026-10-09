@@ -21,9 +21,12 @@ from pytest_homeassistant_custom_component.common import (
 from custom_components.weishaupt_modbus import webif_coordinator
 from custom_components.weishaupt_modbus.const import CONST
 from custom_components.weishaupt_modbus.webif.client import (
+    SAVE,
     Broken,
     Closed,
     LoginRefused,
+    MaybeSaved,
+    NotSaved,
     Traffic,
     Unreachable,
 )
@@ -38,9 +41,15 @@ from custom_components.weishaupt_modbus.webif_coordinator import (
     WebifCoordinator,
     polled_pages,
 )
-from homeassistant.exceptions import ConfigEntryAuthFailed
+from custom_components.weishaupt_modbus.weishaupt_modbus_api.write_budget import (
+    WriteBudget,
+)
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.util import dt as dt_util
+
+from .locking import until
+from .webif_stand_in import heating_page, limit_leaf, limit_segment
 
 STACK = "/settings_export.html?stack="
 PUMP_MENU = "64000001000000000080000A0B010002000301"
@@ -99,6 +108,24 @@ class FakeClient:
         self.script = {}
         self.traffic = Traffic()
         self.slowest = None
+        self.saved = []
+        self.save_error = None
+        self.save_gate = None
+
+    def shows_power_limit(self, limit):
+        """The heating page and the limit's own page, as the controller
+        serves them for `limit`."""
+        self.script[HEATING.path] = [heating_page(limit)]
+        self.script[f"{HEATING.path},{limit_segment(limit)}"] = [limit_leaf(limit)]
+
+    async def save(self, form, value):
+        self.asked.append(SAVE)
+        self.saved.append(value)
+        if self.save_gate is not None:
+            await self.save_gate.wait()
+        if self.save_error is not None:
+            raise self.save_error
+        self.shows_power_limit(value)
 
     def answer(self, page, *answers):
         self.script[page.path] = list(answers)
@@ -109,7 +136,7 @@ class FakeClient:
 
     async def page(self, path, complete):
         self.asked.append(path)
-        answers = self.script.get(path, [WHOLE[path]])
+        answers = self.script[path] if path in self.script else [WHOLE[path]]
         answer = answers.pop(0) if len(answers) > 1 else answers[0]
         if isinstance(answer, BaseException):
             raise answer
@@ -146,7 +173,12 @@ def clock():
 @pytest.fixture
 def coordinator(hass, entry, client, clock):
     return WebifCoordinator(
-        hass, entry, client, [HEAT_PUMP, STATISTICS, HEATING], clock=clock
+        hass,
+        entry,
+        client,
+        [HEAT_PUMP, STATISTICS, HEATING],
+        budget=WriteBudget(warn_at=0, limit=10),
+        clock=clock,
     )
 
 
@@ -231,7 +263,9 @@ async def test_a_page_of_7_minutes_beside_one_of_5_comes_after_7_not_10(
         replace(HEAT_PUMP, interval=timedelta(minutes=5)),
         replace(STATISTICS, interval=timedelta(minutes=7)),
     ]
-    coordinator = WebifCoordinator(hass, entry, client, polled, clock=clock)
+    coordinator = WebifCoordinator(
+        hass, entry, client, polled, budget=WriteBudget(0, 10), clock=clock
+    )
     rounds = []
     while clock.now <= 15 * 60:
         client.asked.clear()
@@ -314,7 +348,9 @@ async def test_a_page_falling_due_as_the_round_ends_still_gets_a_round(
     polling for good, with no stop and no notice."""
     client = SlowClient(clock, seconds=6)
     polled = [HEAT_PUMP, replace(STATISTICS, interval=QUARTER_HOUR)]
-    coordinator = WebifCoordinator(hass, entry, client, polled, clock=clock)
+    coordinator = WebifCoordinator(
+        hass, entry, client, polled, budget=WriteBudget(0, 10), clock=clock
+    )
     stop_listening = coordinator.async_add_listener(lambda: None)
     await round_at(coordinator, clock, 0)
     await round_at(coordinator, clock, 15 * 60)
@@ -738,7 +774,9 @@ async def test_a_reload_takes_the_stop_back(hass, entry, client, clock, coordina
     for quarter in range(3):
         await round_at(coordinator, clock, quarter * 15 * 60)
 
-    WebifCoordinator(hass, entry, client, [HEAT_PUMP], clock=clock)
+    WebifCoordinator(
+        hass, entry, client, [HEAT_PUMP], budget=WriteBudget(0, 10), clock=clock
+    )
 
     issues = ir.async_get(hass)
     assert (
@@ -763,3 +801,546 @@ def test_the_stop_notice_names_the_page_and_the_error(name):
     for text in (notice["title"], notice["description"]):
         assert set(re.findall(r"\{(\w+)\}", text)) <= {"page", "error"}
     assert set(re.findall(r"\{(\w+)\}", notice["description"])) == {"page", "error"}
+
+
+# Short enough for a test, long enough that the calls a test spaces out
+# shorter than it still fall inside it on a busy machine.
+QUIET = 0.2
+INSIDE_QUIET = 0.12
+
+
+@pytest.fixture
+def quick(monkeypatch):
+    """The quiet time a write waits for, shortened."""
+    monkeypatch.setattr(webif_coordinator, "DEBOUNCE_SECONDS", QUIET)
+
+
+def leaf(limit):
+    return f"{HEATING.path},{limit_segment(limit)}"
+
+
+async def first_round_showing(coordinator, client, clock, limit=60):
+    client.shows_power_limit(limit)
+    await round_at(coordinator, clock, 0)
+    client.asked.clear()
+
+
+async def refused(call):
+    """The translation key and placeholders the call was refused with."""
+    with pytest.raises(HomeAssistantError) as raised:
+        await call
+    return raised.value.translation_key, raised.value.translation_placeholders
+
+
+async def test_a_burst_of_changes_writes_the_last_value_once(
+    coordinator, client, clock, quick
+):
+    """Spec decision, 2026-10-09: each request restarts the quiet time, so
+    arrow clicks a little apart are one write, of the last value."""
+    await first_round_showing(coordinator, client, clock)
+
+    calls = [asyncio.create_task(coordinator.set_power_limit(61))]
+    for target in (65, 70):
+        await asyncio.sleep(INSIDE_QUIET)
+        calls.append(asyncio.create_task(coordinator.set_power_limit(target)))
+    await asyncio.gather(*calls)
+
+    assert client.saved == [70]
+    assert coordinator.data["heating"] == {"Leistungsbegrenzung": "70 %"}
+
+
+async def test_back_and_forth_to_the_shown_value_writes_nothing(
+    coordinator, client, clock, quick
+):
+    """Owner decision, 2026-10-09: the controller is read fresh, and what it
+    already shows is not written."""
+    await first_round_showing(coordinator, client, clock)
+
+    await asyncio.gather(
+        coordinator.set_power_limit(61), coordinator.set_power_limit(60)
+    )
+
+    assert client.asked == [HEATING.path]
+    assert client.saved == []
+    assert coordinator.budget.writes_today == 0
+
+
+async def test_a_change_during_a_write_is_written_after_it(
+    coordinator, client, clock, quick
+):
+    await first_round_showing(coordinator, client, clock)
+    client.save_gate = asyncio.Event()
+    first = asyncio.create_task(coordinator.set_power_limit(61))
+    await until(lambda: client.saved)
+
+    second = asyncio.create_task(coordinator.set_power_limit(75))
+    await asyncio.sleep(2 * QUIET)
+    assert client.saved == [61], "two writes at once"
+    client.save_gate.set()
+    await asyncio.gather(first, second)
+
+    assert client.saved == [61, 75]
+
+
+async def test_changes_while_a_write_runs_are_one_write_after_it(
+    coordinator, client, clock, quick
+):
+    """A write takes 20 to 60 s live. Each quiet time passing meanwhile made
+    a write of its own, one EEPROM write more for every second thought."""
+    await first_round_showing(coordinator, client, clock)
+    client.save_gate = asyncio.Event()
+    first = asyncio.create_task(coordinator.set_power_limit(61))
+    await until(lambda: client.saved)
+
+    second = asyncio.create_task(coordinator.set_power_limit(62))
+    await asyncio.sleep(2 * QUIET)
+    third = asyncio.create_task(coordinator.set_power_limit(63))
+    await asyncio.sleep(2 * QUIET)
+    client.save_gate.set()
+    await asyncio.gather(first, second, third)
+
+    assert client.saved == [61, 63]
+
+
+async def test_an_unload_calls_off_a_write_waiting_for_its_turn(
+    coordinator, client, clock, quick
+):
+    """Its quiet time over, a write waits for the one running; unloaded
+    meanwhile, it must not ask anything once the running one ends."""
+    await first_round_showing(coordinator, client, clock)
+    client.save_gate = asyncio.Event()
+    first = asyncio.create_task(coordinator.set_power_limit(61))
+    await until(lambda: client.saved)
+    second = asyncio.create_task(refused(coordinator.set_power_limit(62)))
+    await asyncio.sleep(2 * QUIET)
+
+    await coordinator.async_shutdown()
+    client.save_gate.set()
+    await first
+
+    async with asyncio.timeout(HOLD_LIMIT_SECONDS):
+        assert await second == ("webif_write_aborted", None)
+    assert client.saved == [61]
+
+
+async def test_every_call_of_a_burst_gets_its_outcome(
+    coordinator, client, clock, quick
+):
+    await first_round_showing(coordinator, client, clock)
+    client.save_error = MaybeSaved("POST /pro_save.html: TimeoutError")
+
+    outcomes = await asyncio.gather(
+        refused(coordinator.set_power_limit(61)),
+        refused(coordinator.set_power_limit(62)),
+    )
+
+    assert outcomes == [("webif_write_maybe_saved", None)] * 2
+    assert client.saved == [62]
+    assert coordinator.budget.writes_today == 1
+
+
+async def test_no_round_request_lands_between_the_write_requests(
+    coordinator, client, clock, quick
+):
+    """A round's request waiting on the client got in between the write's
+    read of the form, its save and its read-back."""
+    await first_round_showing(coordinator, client, clock)
+    client.save_gate = asyncio.Event()
+    writing = asyncio.create_task(coordinator.set_power_limit(61))
+    await until(lambda: client.saved)
+
+    clock.now = 2 * 60 * 60
+    polling = asyncio.create_task(coordinator._async_update_data())
+    await settle()
+    client.save_gate.set()
+    await asyncio.gather(writing, polling)
+
+    assert client.asked[:4] == [HEATING.path, leaf(60), SAVE, HEATING.path]
+    assert HEAT_PUMP.path in client.asked[4:]
+
+
+async def _stopped(coordinator, client, clock):
+    client.answer(HEAT_PUMP, Unreachable("timeout"))
+    for quarter in range(3):
+        await round_at(coordinator, clock, quarter * 15 * 60)
+
+
+async def _login_refused(coordinator, client, clock):
+    client.answer(HEAT_PUMP, LoginRefused("HTTP 303 to /index.html#wrongpassword"))
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator._async_update_data()
+
+
+async def _limit_used(coordinator, client, clock):
+    coordinator.budget.limit = 1
+    coordinator.budget.record_write()
+
+
+@pytest.mark.parametrize(
+    ("state", "outcome"),
+    [
+        (_stopped, ("webif_write_stopped", None)),
+        (_login_refused, ("webif_write_login_refused", None)),
+        (_limit_used, ("webif_write_limit_reached", {"limit": "1"})),
+    ],
+    ids=["polling stopped", "login refused", "daily limit used"],
+)
+async def test_a_write_is_refused_before_any_request(
+    coordinator, client, clock, quick, state, outcome
+):
+    await state(coordinator, client, clock)
+    client.asked.clear()
+
+    assert await refused(coordinator.set_power_limit(61)) == outcome
+    await asyncio.sleep(2 * QUIET)
+    assert client.asked == []
+
+
+async def test_a_write_is_refused_again_when_its_quiet_time_ends(
+    coordinator, client, clock, quick
+):
+    """The limit was free when asked, and used up by the time the requests
+    had settled."""
+    await first_round_showing(coordinator, client, clock)
+    coordinator.budget.limit = 1
+    call = asyncio.create_task(refused(coordinator.set_power_limit(61)))
+    await settle()
+
+    coordinator.budget.record_write()
+
+    assert await call == ("webif_write_limit_reached", {"limit": "1"})
+    assert client.asked == []
+
+
+async def test_a_write_publishes_the_heating_page_as_read(
+    coordinator, client, clock, quick
+):
+    """The read-back is a reading: the next round does not ask for the
+    heating page again before its interval from the write is over."""
+    await first_round_showing(coordinator, client, clock)
+    clock.now = 50 * 60
+
+    await coordinator.set_power_limit(70)
+    assert coordinator.data["heating"] == {"Leistungsbegrenzung": "70 %"}
+    client.asked.clear()
+    await round_at(coordinator, clock, 65 * 60)
+
+    assert HEAT_PUMP.path in client.asked
+    assert HEATING.path not in client.asked
+
+
+async def test_a_write_keeps_the_next_round_when_it_is_due(
+    coordinator, client, clock, quick
+):
+    """Publishing the read-back restarts Home Assistant's refresh timer with
+    the last planned wait: the heat pump page due in 5 minutes came 15 late."""
+    await first_round_showing(coordinator, client, clock)
+    clock.now = 10 * 60
+
+    await coordinator.set_power_limit(61)
+
+    assert coordinator.update_interval == timedelta(minutes=5)
+
+
+async def test_another_value_shown_is_published_and_named(
+    coordinator, client, clock, quick
+):
+    await first_round_showing(coordinator, client, clock)
+
+    async def clamped(form, value):
+        client.asked.append(SAVE)
+        client.shows_power_limit(65)
+
+    client.save = clamped
+
+    assert await refused(coordinator.set_power_limit(61)) == (
+        "webif_write_other_value",
+        {"shown": "65", "target": "61"},
+    )
+    assert coordinator.data["heating"] == {"Leistungsbegrenzung": "65 %"}
+
+
+def _unanswered(client):
+    client.save_error = MaybeSaved("POST /pro_save.html: TimeoutError")
+
+
+def _not_read_back(client):
+    async def saved_then_broken(form, value):
+        client.asked.append(SAVE)
+        client.answer(HEATING, Broken(HEATING.path))
+
+    client.save = saved_then_broken
+
+
+@pytest.mark.parametrize(
+    ("unclear", "key"),
+    [
+        (_unanswered, "webif_write_maybe_saved"),
+        (_not_read_back, "webif_write_not_read_back"),
+    ],
+)
+async def test_after_an_unclear_save_the_heating_page_is_due_at_once(
+    coordinator, client, clock, quick, unclear, key
+):
+    await first_round_showing(coordinator, client, clock)
+    unclear(client)
+
+    assert (await refused(coordinator.set_power_limit(61)))[0] == key
+    client.shows_power_limit(61)
+    client.asked.clear()
+    await round_at(coordinator, clock, 60)
+
+    assert client.asked == [HEATING.path]
+
+
+async def test_a_write_without_a_reading_still_reads_fresh(coordinator, client, quick):
+    """No round has run yet, or the heating page failed twice: the write
+    has no value to compare with and reads the controller."""
+    client.shows_power_limit(60)
+
+    await coordinator.set_power_limit(61)
+
+    assert client.saved == [61]
+
+
+async def test_an_unload_during_the_quiet_time_aborts_the_waiting_calls(
+    coordinator, client, clock, quick
+):
+    await first_round_showing(coordinator, client, clock)
+    call = asyncio.create_task(refused(coordinator.set_power_limit(61)))
+    await settle()
+
+    await coordinator.async_shutdown()
+
+    async with asyncio.timeout(HOLD_LIMIT_SECONDS):
+        assert await call == ("webif_write_aborted", None)
+    await asyncio.sleep(2 * QUIET)
+    assert client.asked == []
+
+
+async def test_read_failures_of_a_write_do_not_trip_the_brake(
+    coordinator, client, clock, quick
+):
+    """The brake stops the polling on three failed rounds; three writes that
+    could not read their form are no round."""
+    await first_round_showing(coordinator, client, clock)
+    client.answer(HEATING, Broken(HEATING.path))
+
+    for _ in range(3):
+        assert await refused(coordinator.set_power_limit(61)) == (
+            "webif_write_form_not_read",
+            None,
+        )
+
+    states = coordinator.diagnostics()
+    assert states["stopped_by"] is None
+    assert states["page_states"]["heating"]["failures"] == 0
+
+
+def _session_gone(client):
+    client.save_error = NotSaved("POST /pro_save.html: HTTP 303 to /index.html")
+
+
+def _other_form(client):
+    client.script[leaf(60)] = [
+        limit_leaf(60).replace('value="para_list"', 'value="para_text"')
+    ]
+
+
+def _login_refused_while_writing(client):
+    client.answer(HEATING, LoginRefused("HTTP 303 to /index.html#wrongpassword"))
+
+
+def _closed(client):
+    client.answer(HEATING, Closed("the client is closed"))
+
+
+@pytest.mark.parametrize(
+    ("failure", "key"),
+    [
+        (_session_gone, "webif_write_not_saved"),
+        (_other_form, "webif_write_form_mismatch"),
+        (_login_refused_while_writing, "webif_write_login_refused"),
+        (_closed, "webif_write_aborted"),
+    ],
+)
+async def test_each_failure_of_a_write_has_its_message(
+    coordinator, client, clock, quick, failure, key
+):
+    await first_round_showing(coordinator, client, clock)
+    failure(client)
+
+    assert await refused(coordinator.set_power_limit(61)) == (key, None)
+
+
+async def test_a_login_refused_while_writing_stops_the_polling_too(
+    coordinator, client, clock, quick
+):
+    """No wrong login is repeated, by a round or by the next write."""
+    await first_round_showing(coordinator, client, clock)
+    _login_refused_while_writing(client)
+    await refused(coordinator.set_power_limit(61))
+    client.asked.clear()
+
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator._async_update_data()
+    assert client.asked == []
+
+
+async def test_an_unexpected_error_of_a_write_logs_once(
+    coordinator, client, clock, quick, caplog
+):
+    await first_round_showing(coordinator, client, clock)
+    client.save_error = RuntimeError("a fault of the form")
+
+    for _ in range(2):
+        assert await refused(coordinator.set_power_limit(61)) == (
+            "webif_write_failed",
+            None,
+        )
+
+    tracebacks = [
+        record
+        for record in caplog.records
+        if record.exc_info and record.levelno >= logging.ERROR
+    ]
+    assert len(tracebacks) == 1
+
+
+async def test_a_write_logs_its_unexpected_error_after_a_round_did(
+    coordinator, client, clock, quick, caplog
+):
+    """One flag for both: after a round's traceback, the write's was never
+    logged, while its message sends the user to the log."""
+    client.shows_power_limit(60)
+    client.answer(HEAT_PUMP, RuntimeError("a fault of the parser"))
+    await round_at(coordinator, clock, 0)
+    client.save_error = RuntimeError("a fault of the form")
+
+    assert await refused(coordinator.set_power_limit(61)) == (
+        "webif_write_failed",
+        None,
+    )
+
+    tracebacks = [
+        record
+        for record in caplog.records
+        if record.exc_info and record.levelno >= logging.ERROR
+    ]
+    assert len(tracebacks) == 2
+
+
+async def test_a_write_cancelled_with_its_entry_lets_its_callers_go(
+    coordinator, client, clock, entry, quick, monkeypatch
+):
+    """Home Assistant cancels an entry's background tasks when it goes: a
+    caller must not wait for an outcome that will never be set. Cancelled
+    once the save may have gone out, "called off" would be wrong."""
+    await first_round_showing(coordinator, client, clock)
+    started = []
+    create = entry.async_create_background_task
+
+    def noted(hass, target, name, eager_start=True):
+        task = create(hass, target, name, eager_start)
+        started.append(task)
+        return task
+
+    monkeypatch.setattr(entry, "async_create_background_task", noted)
+    client.save_gate = asyncio.Event()
+    call = asyncio.create_task(refused(coordinator.set_power_limit(61)))
+    await until(lambda: client.saved)
+
+    started[0].cancel()
+
+    async with asyncio.timeout(HOLD_LIMIT_SECONDS):
+        assert await call == ("webif_write_maybe_saved", None)
+
+
+async def test_a_write_cancelled_before_its_save_is_called_off(
+    coordinator, client, clock, entry, quick, monkeypatch
+):
+    """Nothing was counted, so nothing can have been saved."""
+    await first_round_showing(coordinator, client, clock)
+    started = []
+    create = entry.async_create_background_task
+
+    def noted(hass, target, name, eager_start=True):
+        task = create(hass, target, name, eager_start)
+        started.append(task)
+        return task
+
+    monkeypatch.setattr(entry, "async_create_background_task", noted)
+    reading = asyncio.Event()
+    answer = client.page
+
+    async def held(path, complete):
+        reading.set()
+        await asyncio.Event().wait()
+        return await answer(path, complete)
+
+    monkeypatch.setattr(client, "page", held)
+    call = asyncio.create_task(refused(coordinator.set_power_limit(61)))
+    await reading.wait()
+
+    started[0].cancel()
+
+    async with asyncio.timeout(HOLD_LIMIT_SECONDS):
+        assert await call == ("webif_write_aborted", None)
+    assert coordinator.budget.writes_today == 0
+
+
+async def test_after_a_write_the_next_round_comes_when_its_page_is_due(
+    hass, listened, client, clock, quick
+):
+    """Planned after Home Assistant had restarted its timer, the new wait
+    reached nothing: the heat pump page due in 5 minutes came 15 late."""
+    await first_round_showing(listened, client, clock)
+    clock.now = 10 * 60
+    await listened.set_power_limit(61)
+    client.asked.clear()
+    clock.now = 15 * 60
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=5, seconds=1))
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert client.asked == [HEAT_PUMP.path]
+
+
+async def test_a_write_keeps_the_rest_a_timeout_gave_the_controller(
+    hass, listened, client, clock, quick
+):
+    """Planned as after a whole round, the write let the pages the timeout
+    had kept the round from be asked a second after its read-back."""
+    client.shows_power_limit(60)
+    client.answer(HEAT_PUMP, Unreachable("timeout"))
+    await round_at(listened, clock, 0)
+    clock.now = 60
+    await listened.set_power_limit(61)
+    client.asked.clear()
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=10))
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert client.asked == []
+    assert listened.update_interval == QUARTER_HOUR
+
+
+async def test_after_an_unexpected_error_on_the_read_back_the_heating_page_is_due(
+    coordinator, client, clock, quick
+):
+    """The save may have gone out: the next round reads what the controller
+    holds instead of showing the old value for up to an hour."""
+    await first_round_showing(coordinator, client, clock)
+
+    async def saved_then_faulty(form, value):
+        client.asked.append(SAVE)
+        client.answer(HEATING, RuntimeError("a fault of the parser"))
+
+    client.save = saved_then_faulty
+
+    assert (await refused(coordinator.set_power_limit(61)))[0] == "webif_write_failed"
+    client.shows_power_limit(61)
+    client.asked.clear()
+    await round_at(coordinator, clock, 60)
+
+    assert client.asked == [HEATING.path]

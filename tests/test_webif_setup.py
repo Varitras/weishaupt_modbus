@@ -28,13 +28,19 @@ from custom_components.weishaupt_modbus.webif.discovery import (
 )
 from custom_components.weishaupt_modbus.webif_sensor import (
     ANSWER_TIME,
+    POWER_LIMIT,
+    READ_VALUES,
     TRAFFIC_SENSORS,
     WEBIF_SENSORS,
 )
 from custom_components.weishaupt_modbus.webif_visit import read_web_interface
+from custom_components.weishaupt_modbus.write_counter_sensor import (
+    WEBIF_WRITE_COUNTER_DESCRIPTIONS,
+)
 from homeassistant.config_entries import ConfigEntryDisabler, ConfigEntryState
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP, EntityCategory
 from homeassistant.core import State
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
@@ -42,14 +48,17 @@ from .locking import WatchedLock, until
 from .webif_stand_in import (
     HEAT_PUMP_INFO,
     HEATING,
+    HEATING_PATH,
     INFO,
     PASSWORD,
     PUMP_MENU,
+    SAVE_PATH,
     STACK,
     STATISTICS_INFO,
     USER,
     StandInPump,
     column,
+    limit_segment,
     link,
     menu_site,
     serving,
@@ -64,7 +73,7 @@ PAGES = {
     HEATING_PAGE: STACK + f"{PUMP_MENU},{HEATING}",
 }
 SWITCHING_DIFFERENCE = "64001805000000002D40000A0B030011010401"
-POWER_LIMIT = "64001807000000003C40000A0B030011010401"
+POWER_LIMIT_SEGMENT = "64001807000000003C40000A0B030011010401"
 # What the controller shows, by the unit text after the number.
 SAMPLE = {
     "°C": "21.5 °C",
@@ -81,12 +90,14 @@ SAMPLE = {
 }
 # The values, and the sensors about the polling itself.
 EVERY_SENSOR = (*WEBIF_SENSORS, *TRAFFIC_SENSORS, ANSWER_TIME)
+# And the one setting it writes, a number, with the counts of its writes.
+EVERY_ENTITY = (*EVERY_SENSOR, POWER_LIMIT, *WEBIF_WRITE_COUNTER_DESCRIPTIONS)
 SHOWN: dict = {}
-for sensor in WEBIF_SENSORS:
+for sensor in READ_VALUES:
     SHOWN.setdefault(sensor.page, {})[sensor.title] = SAMPLE[sensor.shown_unit]
 HEATING_LINKS = {
     "Schaltdifferenz": SWITCHING_DIFFERENCE,
-    "Leistungsbegrenzung": POWER_LIMIT,
+    "Leistungsbegrenzung": POWER_LIMIT_SEGMENT,
 }
 SITE = {
     PAGES[HEAT_PUMP_PAGE]: column(
@@ -515,7 +526,7 @@ async def test_a_web_interface_stops_when_its_pump_is_removed(hass, pump):
     again = await _start(hass, _entries(hass, pump))
     registry = er.async_get(hass)
     assert len(er.async_entries_for_config_entry(registry, again.entry_id)) == len(
-        EVERY_SENSOR
+        EVERY_ENTITY
     )
 
 
@@ -593,7 +604,7 @@ async def test_the_values_become_sensors_on_a_device_of_their_own(hass, pump):
     registry = er.async_get(hass)
 
     assert len(er.async_entries_for_config_entry(registry, entry.entry_id)) == len(
-        EVERY_SENSOR
+        EVERY_ENTITY
     )
     high_pressure = registry.async_get_entity_id(
         "sensor", CONST.DOMAIN, f"{CONST.DEF_PREFIX}webif_hochdruck"
@@ -726,3 +737,173 @@ async def test_the_diagnostic_sensors_stay_shown_when_polling_fails(hass, pump):
     assert hass.states.get(_sensor(hass, "hochdruck")).state == "unavailable"
     for key in (*TRAFFIC_COUNTS, "answer_time"):
         assert hass.states.get(_sensor(hass, key)).state != "unavailable"
+
+
+WEB_WRITE_COUNTERS = ("settings_written_total", "settings_written_today")
+
+
+async def test_the_web_interface_counts_its_written_settings(hass, pump):
+    """Beside the polling counts, on the web interface's own device: the
+    EEPROM counters of the pump entry count Modbus writes only."""
+    entry = await _start(hass, _entries(hass, pump))
+    registry = er.async_get(hass)
+    web_device = registry.async_get(_sensor(hass, "hochdruck")).device_id
+
+    for key in WEB_WRITE_COUNTERS:
+        counter = registry.async_get(_sensor(hass, key))
+        assert counter.device_id == web_device
+        assert counter.entity_category is EntityCategory.DIAGNOSTIC
+        assert hass.states.get(counter.entity_id).state == "0"
+
+    entry.runtime_data.coordinator.budget.record_write()
+    await hass.async_block_till_done()
+
+    for key in WEB_WRITE_COUNTERS:
+        assert hass.states.get(_sensor(hass, key)).state == "1"
+
+
+async def test_the_web_write_counters_carry_over_a_reload(hass, pump):
+    entry = await _start(hass, _entries(hass, pump))
+    entry.runtime_data.coordinator.budget.record_write()
+    await hass.async_block_till_done()
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    for key in WEB_WRITE_COUNTERS:
+        assert hass.states.get(_sensor(hass, key)).state == "1", key
+    assert entry.runtime_data.coordinator.budget.total == 1
+
+
+@pytest.mark.parametrize(("chosen", "limit"), [(None, 10), (1, 1), (0, 0)])
+async def test_the_option_sets_the_daily_limit(hass, pump, chosen, limit):
+    options = {} if chosen is None else {CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY: chosen}
+
+    entry = await _start(hass, _entries(hass, pump, options=options))
+
+    assert entry.runtime_data.coordinator.budget.limit == limit
+
+
+# The quiet time a write waits for, shortened for these tests.
+QUIET = 0.2
+POWER_LIMIT_UNIQUE_ID = f"{CONST.DEF_PREFIX}webif_{POWER_LIMIT.key}"
+
+
+@pytest.fixture
+def quick(monkeypatch):
+    monkeypatch.setattr(webif_coordinator, "DEBOUNCE_SECONDS", QUIET)
+
+
+def _number(hass):
+    return er.async_get(hass).async_get_entity_id(
+        "number", CONST.DOMAIN, POWER_LIMIT_UNIQUE_ID
+    )
+
+
+async def _set_power_limit(hass, value):
+    await hass.services.async_call(
+        "number",
+        "set_value",
+        {"entity_id": _number(hass), "value": value},
+        blocking=True,
+    )
+
+
+async def test_the_power_limit_is_set_from_home_assistant(hass, pump, quick):
+    """Live, 2026-10-02, the same four requests: the heating page, the
+    limit's own page, one save, the heating page again."""
+    pump.show_power_limit(60)
+    await _start(hass, _entries(hass, pump))
+    assert hass.states.get(_number(hass)).state == "60"
+    asked = len(pump.asked)
+
+    await _set_power_limit(hass, 61)
+
+    assert [form["value"] for form in pump.saved] == ["61"]
+    assert hass.states.get(_number(hass)).state == "61"
+    assert hass.states.get(_sensor(hass, "settings_written_today")).state == "1"
+    assert pump.asked[asked:] == [
+        ("GET", HEATING_PATH),
+        ("GET", f"{HEATING_PATH},{limit_segment(60)}"),
+        ("POST", SAVE_PATH),
+        ("GET", HEATING_PATH),
+    ]
+
+
+async def test_settings_made_at_once_are_one_write(hass, pump, quick):
+    """Arrow clicks are calls that overlap: Home Assistant queued them one
+    behind the other, and each became a write of its own."""
+    pump.show_power_limit(60)
+    await _start(hass, _entries(hass, pump))
+
+    await asyncio.gather(*(_set_power_limit(hass, value) for value in (61, 62, 63)))
+
+    assert [form["value"] for form in pump.saved] == ["63"]
+
+
+async def test_a_refused_power_limit_reaches_the_caller(hass, pump, quick):
+    pump.show_power_limit(60)
+    options = {CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY: 1}
+    await _start(hass, _entries(hass, pump, options=options))
+    await _set_power_limit(hass, 61)
+
+    with pytest.raises(HomeAssistantError) as refused:
+        await _set_power_limit(hass, 62)
+
+    assert refused.value.translation_key == "webif_write_limit_reached"
+    assert len(pump.saved) == 1
+    assert hass.states.get(_number(hass)).state == "61"
+
+
+async def test_the_old_power_limit_sensor_leaves_no_entry(hass, pump):
+    """Until 2.1.0b2 the power limit was a sensor; left in the registry it
+    would show unavailable for good beside the number."""
+    web = _entries(hass, pump)
+    registry = er.async_get(hass)
+    registry.async_get_or_create(
+        "sensor", CONST.DOMAIN, POWER_LIMIT_UNIQUE_ID, config_entry=web
+    )
+
+    await _start(hass, web)
+
+    assert (
+        registry.async_get_entity_id("sensor", CONST.DOMAIN, POWER_LIMIT_UNIQUE_ID)
+        is None
+    )
+    assert _number(hass) is not None
+
+
+async def test_an_unload_during_a_save_tells_its_caller_and_asks_nothing_more(
+    hass, pump, quick
+):
+    """The save itself goes through and nothing follows the logout. Home
+    Assistant cancels the write before its read-back: the caller hears it
+    may be saved, not that it was called off."""
+    pump.show_power_limit(60)
+    entry = await _start(hass, _entries(hass, pump))
+    pump.delays[SAVE_PATH] = 0.5
+    setting = asyncio.create_task(_set_power_limit(hass, 61))
+    await until(lambda: ("POST", SAVE_PATH) in pump.asked)
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+    with pytest.raises(HomeAssistantError) as called_off:
+        await setting
+    assert called_off.value.translation_key == "webif_write_maybe_saved"
+    assert pump.asked[-1] == ("GET", webif.LOGOUT)
+
+
+async def test_the_power_limit_is_set_without_a_reading_of_the_heating_page(
+    hass, pump, quick
+):
+    """The first round could not read the heating page; the call reached
+    nothing while the number was unavailable."""
+    pump.show_power_limit(60)
+    pump.failing_once[HEATING_PATH] = 500
+    await _start(hass, _entries(hass, pump))
+    assert hass.states.get(_number(hass)).state == "unknown"
+
+    await _set_power_limit(hass, 61)
+
+    assert [form["value"] for form in pump.saved] == ["61"]
+    assert hass.states.get(_number(hass)).state == "61"

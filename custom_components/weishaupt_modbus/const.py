@@ -66,6 +66,9 @@ class MainConstants:
     WEBIF_SLOW_INTERVAL_MINUTES: int = 15
     WEBIF_INTERVAL_MIN_MINUTES: int = 1
     WEBIF_INTERVAL_MAX_MINUTES: int = 60
+    # Owner decision, 2026-10-09: settings written per day; 0 = no limit.
+    OPTION_WEBIF_WRITE_LIMIT_PER_DAY: str = "settings_written_per_day"
+    WEBIF_WRITE_LIMIT_PER_DAY: int = 10
 
 
 CONST = MainConstants()

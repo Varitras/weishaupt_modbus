@@ -678,7 +678,8 @@ def test_the_tool_looks_for_the_titles_the_integration_finds(name):
     ],
 )
 def test_the_tool_asks_only_what_the_client_may(method, path):
-    assert capture_tool._allowed(method, path) == webif._allowed(method, path)
+    """Without a form: the client's one save is a write the tool never makes."""
+    assert capture_tool._allowed(method, path) == webif._allowed(method, path, None)
 
 
 def test_a_web_address_is_refused_before_anything_is_asked(monkeypatch):

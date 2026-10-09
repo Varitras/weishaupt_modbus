@@ -33,6 +33,12 @@ NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
 # The controller writes "Aus" for an idle power, power request or speed.
 OFF = "Aus"
 NO_VALUE = "--"
+# A setting's own page saves it with one form: three hidden fields and the
+# value chosen from a list.
+SAVE_ACTION = "pro_save.html"
+TYPE_FIELD = "type"
+FORM_FIELDS = ("id", "stack", TYPE_FIELD)
+VALUE_FIELD = "value"
 
 
 @dataclass(frozen=True)
@@ -150,6 +156,99 @@ def children(page: str, parent: str) -> list[Entry]:
         for entry in entries(page)
         if entry.href is not None and is_child(entry.href, parent)
     ]
+
+
+@dataclass(frozen=True)
+class SettingForm:
+    """The form on a setting's own page: what it sends and what it offers.
+
+    `id` and `stack` carry the setting's current value and change with every
+    save, so a form is read fresh for each one.
+    """
+
+    id: str
+    stack: str
+    type: str
+    offered: tuple[int, ...]
+    selected: int
+
+    @property
+    def path(self) -> str:
+        """The setting's own page, the one the form came from."""
+        return f"{PAGE_PATH}?{STACK_QUERY}{self.stack}"
+
+    @property
+    def parent_path(self) -> str:
+        """The menu page the controller answers a save with."""
+        return self.path.rsplit(",", 1)[0]
+
+
+class _SaveForms(HTMLParser):
+    """The hidden fields and value options of every save form, as found."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.forms = 0
+        self.hidden: list[tuple[str, str]] = []
+        self.selects = 0
+        self.options: list[tuple[str, bool]] = []
+        self._in_form = False
+        self._in_select = False
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = dict(attrs)
+        if tag == "form" and attributes.get("action") == SAVE_ACTION:
+            self.forms += 1
+            self._in_form = True
+            return
+        if not self._in_form:
+            return
+        if tag == "input" and attributes.get("type") == "hidden":
+            self.hidden.append(
+                (attributes.get("name") or "", attributes.get("value") or "")
+            )
+        elif tag == "select" and attributes.get("name") == VALUE_FIELD:
+            self.selects += 1
+            self._in_select = True
+        elif tag == "option" and self._in_select:
+            self.options.append(
+                (attributes.get("value") or "", "selected" in attributes)
+            )
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "select":
+            self._in_select = False
+        elif tag == "form":
+            self._in_form = False
+
+
+def setting_form(page: str) -> SettingForm | None:
+    """The page's save form; None when a part of it is missing or doubled.
+
+    A page served half must not leave a form that could still be sent.
+    """
+    parser = _SaveForms()
+    parser.feed(page)
+    fields = dict(parser.hidden)
+    selected = [option for option, chosen in parser.options if chosen]
+    hidden_once = sorted(name for name, _ in parser.hidden) == sorted(FORM_FIELDS)
+    whole = (
+        parser.forms == 1
+        and hidden_once
+        and all(fields.values())
+        and parser.selects == 1
+        and len(selected) == 1
+        and all(option.isdigit() for option, _ in parser.options)
+    )
+    if not whole:
+        return None
+    return SettingForm(
+        id=fields["id"],
+        stack=fields["stack"],
+        type=fields["type"],
+        offered=tuple(int(option) for option, _ in parser.options),
+        selected=int(selected[0]),
+    )
 
 
 def is_complete(found: list[tuple[str, str]], required: frozenset[str]) -> bool:

@@ -786,7 +786,7 @@
   {
     "label": "platforms: a write platform says how many updates may run at once",
     "path": "custom_components/weishaupt_modbus/number.py",
-    "old": "PARALLEL_UPDATES = 1\n",
+    "old": "PARALLEL_UPDATES = 0\n",
     "new": "",
     "tests": "how_many_updates_may_run_at_once"
   },
@@ -1024,7 +1024,7 @@
   {
     "label": "webif client: any POST passes the positive list",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        return path == LOGIN\n",
+    "old": "        return path == LOGIN or (path == SAVE and _is_setting_save(form))\n",
     "new": "        return True\n",
     "tests": "no_post_but_the_login"
   },
@@ -1171,8 +1171,8 @@
   {
     "label": "webif client: pages asked for at once overlap",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        async with self._lock:\n            if self._closed:\n",
-    "new": "        async with asyncio.Lock():\n            if self._closed:\n",
+    "old": "        async with self._lock:\n            if self._closed:\n                raise Closed(f\"{path}: the client is closed\")\n",
+    "new": "        async with asyncio.Lock():\n            if self._closed:\n                raise Closed(f\"{path}: the client is closed\")\n",
     "tests": "served_one_after_the_other"
   },
   {
@@ -1276,8 +1276,8 @@
   {
     "label": "webif coordinator: a stopped coordinator still asks by hand",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        if self._stopped_by is None:\n            finished = await self._round()\n",
-    "new": "        if True:\n            finished = await self._round()\n",
+    "old": "        if self._stopped_by is None:\n            self._round_finished = await self._round()\n",
+    "new": "        if True:\n            self._round_finished = await self._round()\n",
     "tests": "third_failure_in_a_row_stops"
   },
   {
@@ -1297,8 +1297,8 @@
   {
     "label": "webif coordinator: an update by hand sends a refused login again",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        if self._refused is not None:\n",
-    "new": "        if False:\n",
+    "old": "        if self._refused is not None:\n            # Until the reauth reloads the entry: an update requested by hand\n",
+    "new": "        if False:\n            # Until the reauth reloads the entry: an update requested by hand\n",
     "tests": "not_sent_again_by_a_later_refresh"
   },
   {
@@ -1780,7 +1780,7 @@
   {
     "label": "webif sensor: a page counts as whole without its sensors' titles",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "    page: frozenset(sensor.title for sensor in WEBIF_SENSORS if sensor.page == page)\n",
+    "old": "    page: frozenset(value.title for value in READ_VALUES if value.page == page)\n",
     "new": "    page: frozenset()\n",
     "tests": "requires_the_titles_of_its_sensors"
   },
@@ -1878,8 +1878,8 @@
   {
     "label": "webif client: the session id goes through aiohttp's cookie handling",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "                    headers=cookie,\n",
-    "new": "                    cookies={SESSION_COOKIE: self._cookie} if self._cookie else None,\n",
+    "old": "                    headers={**(headers or {}), **cookie},\n",
+    "new": "                    headers=dict(headers or {}),\n                    cookies={SESSION_COOKIE: self._cookie} if self._cookie else None,\n",
     "tests": "id_with_a_slash_keeps_its_session"
   },
   {
@@ -2347,14 +2347,14 @@
   {
     "label": "webif client: a request off the positive list goes out",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        if not _allowed(method, path):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "old": "        if not _allowed(method, path, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
     "new": "",
     "tests": "off_the_positive_list"
   },
   {
     "label": "controller access: a web request goes out without the positive list",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        if not _allowed(method, path):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "old": "        if not _allowed(method, path, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
     "new": "",
     "tests": "every_web_request_asks_the_positive_list_first"
   },
@@ -2655,8 +2655,8 @@
   {
     "label": "controller access: the positive list is asked and its answer ignored",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        if not _allowed(method, path):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
-    "new": "        _allowed(method, path)\n",
+    "old": "        if not _allowed(method, path, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "new": "        _allowed(method, path, form)\n",
     "tests": "every_web_request_asks_the_positive_list_first"
   },
   {
@@ -2704,8 +2704,8 @@
   {
     "label": "webif coordinator: every unexpected error logs its traceback",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "                self._traceback_logged = True\n",
-    "new": "                pass\n",
+    "old": "                self._traceback_logged = True\n                _LOGGER.exception(\"%s failed on an unexpected error\", page.key)\n",
+    "new": "                pass\n                _LOGGER.exception(\"%s failed on an unexpected error\", page.key)\n",
     "tests": "unexpected_error_logs_its_traceback_once"
   },
   {
@@ -2767,8 +2767,8 @@
   {
     "label": "webif client: a refused address counts, paces and logs as a request",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        # Asked where the request goes out, so no other way out can skip it.\n        if not _allowed(method, path):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
-    "new": "        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n                if not _allowed(method, path):\n                    raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "old": "        # Asked where the request goes out, so no other way out can skip it.\n        if not _allowed(method, path, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
+    "new": "        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n                if not _allowed(method, path, form):\n                    raise ValueError(f\"{method} {path} is not on the positive list\")\n",
     "tests": "off_the_positive_list_is_never_asked_for"
   },
   {
@@ -2851,15 +2851,15 @@
   {
     "label": "controller access: the positive list is asked on one branch only",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        if not _allowed(method, path):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
-    "new": "        if method == \"POST\":\n            if not _allowed(method, path):\n                raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "old": "        if not _allowed(method, path, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "new": "        if method == \"POST\":\n            if not _allowed(method, path, form):\n                raise ValueError(f\"{method} {path} is not on the positive list\")\n",
     "tests": "every_web_request_asks_the_positive_list_first"
   },
   {
     "label": "controller access: the positive list is asked about another address",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        if not _allowed(method, path):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
-    "new": "        if not _allowed(method, INDEX):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "old": "        if not _allowed(method, path, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "new": "        if not _allowed(method, INDEX, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n",
     "tests": "every_web_request_asks_the_positive_list_first"
   },
   {
@@ -3117,8 +3117,8 @@
   {
     "label": "webif coordinator: a cancellation goes through the catch for faults",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        except Exception as error:\n",
-    "new": "        except BaseException as error:\n",
+    "old": "        except Exception as error:\n            # A fault of this code or of a library, not of the pump. Counted\n",
+    "new": "        except BaseException as error:\n            # A fault of this code or of a library, not of the pump. Counted\n",
     "tests": "cancelled_page_goes_through_uncounted"
   },
   {
@@ -3379,5 +3379,306 @@
     "old": "        return await self._visit_web_interface(pump, user_input, next_step_id=\"webif\")\n",
     "new": "        return await self._visit_web_interface(pump, user_input, next_step_id=\"webif\", entry=pump)\n",
     "tests": "running_pump_gives_the_add_dialog_nothing_to_hold"
+  },
+  {
+    "label": "setting form: a form with two values selected is read",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "        and len(selected) == 1\n",
+    "new": "        and len(selected) >= 1\n",
+    "tests": "form_missing_a_part_is_not_read"
+  },
+  {
+    "label": "setting form: the parent page keeps the setting's own segment",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "        return self.path.rsplit(\",\", 1)[0]\n",
+    "new": "        return self.path\n",
+    "tests": "setting_form_is_read_as_the_controller_serves_it"
+  },
+  {
+    "label": "positive list: a save of another form type passes",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        and form[pages.TYPE_FIELD] == SETTING_LIST\n",
+    "new": "        and bool(form)\n",
+    "tests": "no_post_but_the_login_and_one_setting_form"
+  },
+  {
+    "label": "positive list: the fields of a save in any order pass",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        and tuple(form) == SAVE_FIELDS\n",
+    "new": "        and sorted(form) == sorted(SAVE_FIELDS)\n",
+    "tests": "no_post_but_the_login_and_one_setting_form"
+  },
+  {
+    "label": "save: a lost session logs in and sends the form again",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "            _raise_unless_saved(form, answer)\n",
+    "new": "            if answer.session_lost:\n                await self._login()\n                answer = await self._request(\"POST\", SAVE, fields, headers)\n            _raise_unless_saved(form, answer)\n",
+    "tests": "not_saved_and_not_sent_again"
+  },
+  {
+    "label": "save: any redirect but the login counts as stored",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "    if answer.status == HTTPStatus.SEE_OTHER and answer.location == form.parent_path:\n",
+    "new": "    if answer.status == HTTPStatus.SEE_OTHER and not answer.session_lost:\n",
+    "tests": "save_without_a_clear_answer_raises_maybe_saved"
+  },
+  {
+    "label": "save: no answer in time counts as stored",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "                raise MaybeSaved(str(error)) from error\n",
+    "new": "                return\n",
+    "tests": "save_without_a_clear_answer_raises_maybe_saved"
+  },
+  {
+    "label": "power limit write: counted only once the save is answered",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    count_write()\n    await client.save(form, target)\n",
+    "new": "    await client.save(form, target)\n    count_write()\n",
+    "tests": "save_without_a_clear_answer_ends_the_write"
+  },
+  {
+    "label": "power limit write: a form of another stack is saved",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        form.stack != link_stack\n        or form.selected != shown\n",
+    "new": "        form.selected != shown\n",
+    "tests": "form_that_does_not_match_sends_nothing"
+  },
+  {
+    "label": "power limit write: a form selecting another value is saved",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        or form.selected != shown\n",
+    "new": "",
+    "tests": "form_that_does_not_match_sends_nothing"
+  },
+  {
+    "label": "power limit write: a form of another type is saved",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        or form.type != SETTING_LIST\n",
+    "new": "",
+    "tests": "form_that_does_not_match_sends_nothing"
+  },
+  {
+    "label": "power limit write: a target the form does not offer is saved",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        or target not in form.offered\n",
+    "new": "",
+    "tests": "form_that_does_not_match_sends_nothing"
+  },
+  {
+    "label": "power limit write: the value read back is not compared",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    if now_shown != target:\n",
+    "new": "    if False:\n",
+    "tests": "another_value_says_which"
+  },
+  {
+    "label": "power limit write: a target already shown is written again",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        if shown == target:\n            return heating\n",
+    "new": "",
+    "tests": "already_shows_is_not_written"
+  },
+  {
+    "label": "power limit debounce: the first requested value is written",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        burst.target = target\n",
+    "new": "",
+    "tests": "burst_of_changes_writes_the_last_value_once"
+  },
+  {
+    "label": "power limit debounce: a further request does not restart the quiet time",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if self._quiet is not None:\n            self._quiet.cancel()\n        self._quiet = self.hass.loop.call_later(\n            DEBOUNCE_SECONDS, self._start_write, burst\n        )\n",
+    "new": "        if self._quiet is None:\n            self._quiet = self.hass.loop.call_later(\n                DEBOUNCE_SECONDS, self._start_write, burst\n            )\n",
+    "tests": "burst_of_changes_writes_the_last_value_once"
+  },
+  {
+    "label": "power limit write: a round page is fetched beside a write",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            async with self._asking:\n                fetched = await self._fetch(page)\n",
+    "new": "            fetched = await self._fetch(page)\n",
+    "tests": "no_round_request_lands_between_the_write_requests"
+  },
+  {
+    "label": "power limit write: the page read back is not marked as just read",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self._readings[page.key].asked_at = self._readings[page.key].read_at\n",
+    "new": "",
+    "tests": "publishes_the_heating_page_as_read"
+  },
+  {
+    "label": "power limit write: the daily limit is not checked",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if not self.budget.allows_write():\n",
+    "new": "        if False:\n",
+    "tests": "refused_before_any_request"
+  },
+  {
+    "label": "power limit write: after an unclear save the heating page waits its interval",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            # Unknown what the controller holds: the next round asks.\n            self._readings[HEATING_PAGE].asked_at = None\n",
+    "new": "            # Unknown what the controller holds: the next round asks.\n            pass\n",
+    "tests": "heating_page_is_due_at_once"
+  },
+  {
+    "label": "power limit write: a login refused while writing leaves the polling on",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        elif isinstance(error, LoginRefused):\n            self._refused = error\n",
+    "new": "        elif isinstance(error, LoginRefused):\n            pass\n",
+    "tests": "login_refused_while_writing_stops_the_polling"
+  },
+  {
+    "label": "power limit write: another value read back is not shown",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            self._publish(self._heating, error.text)\n",
+    "new": "            pass\n",
+    "tests": "another_value_shown_is_published"
+  },
+  {
+    "label": "power limit write: every unexpected error of a write logs its traceback",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                self._write_traceback_logged = True\n                _LOGGER.exception(\n                    \"Writing the power limit failed on an unexpected error\"\n",
+    "new": "                pass\n                _LOGGER.exception(\n                    \"Writing the power limit failed on an unexpected error\"\n",
+    "tests": "unexpected_error_of_a_write_logs_once"
+  },
+  {
+    "label": "power limit write: not refused again once the requests have settled",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                    return\n                self._refuse_write()\n",
+    "new": "                    return\n",
+    "tests": "refused_again_when_its_quiet_time_ends"
+  },
+  {
+    "label": "power limit number: a value between two percentages is written",
+    "path": "custom_components/weishaupt_modbus/webif_number.py",
+    "old": "        if not value.is_integer():\n",
+    "new": "        if False:\n",
+    "tests": "value_between_two_percentages_is_refused"
+  },
+  {
+    "label": "power limit number: the heating page no longer requires its title",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "READ_VALUES = (*WEBIF_SENSORS, POWER_LIMIT)\n",
+    "new": "READ_VALUES = WEBIF_SENSORS\n",
+    "tests": "heating_page_still_requires_the_power_limit"
+  },
+  {
+    "label": "web write limit: the option is ignored",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        limit=entry.options.get(\n            CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY, CONST.WEBIF_WRITE_LIMIT_PER_DAY\n        ),\n",
+    "new": "        limit=CONST.WEBIF_WRITE_LIMIT_PER_DAY,\n",
+    "tests": "option_sets_the_daily_limit"
+  },
+  {
+    "label": "power limit setup: the old sensor's registry entry stays",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        registry.async_remove(old_sensor)\n",
+    "new": "        pass\n",
+    "tests": "old_power_limit_sensor_leaves_no_entry"
+  },
+  {
+    "label": "number platform: Home Assistant queues every call behind the last",
+    "path": "custom_components/weishaupt_modbus/number.py",
+    "old": "PARALLEL_UPDATES = 0\n",
+    "new": "PARALLEL_UPDATES = 1\n",
+    "tests": "settings_made_at_once_are_one_write"
+  },
+  {
+    "label": "power limit write: a cancelled write leaves its callers waiting",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            if not outcome.done():\n                outcome.set_exception(_cut_off(counted=counted))\n",
+    "new": "            pass\n",
+    "tests": "cancelled_with_its_entry_lets_its_callers_go"
+  },
+  {
+    "label": "power limit write: an unload in the quiet time leaves the callers waiting",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if self._burst is not None:\n            self._burst.outcome.set_exception(Closed(\"the entry unloads\"))\n            self._burst = None\n",
+    "new": "",
+    "tests": "unload_during_the_quiet_time_aborts_the_waiting_calls"
+  },
+  {
+    "label": "power limit number: unavailable without a reading, calls dropped",
+    "path": "custom_components/weishaupt_modbus/webif_number.py",
+    "old": "        return True\n",
+    "new": "        return super().available and self._values() is not None\n",
+    "tests": "stays_available_without_a_reading"
+  },
+  {
+    "label": "power limit debounce: a burst closes when its quiet time ends",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiet = None\n",
+    "new": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiet = self._burst = None\n",
+    "tests": "changes_while_a_write_runs_are_one_write_after_it"
+  },
+  {
+    "label": "power limit write: a write called off while it waited still writes",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n",
+    "new": "",
+    "tests": "calls_off_a_write_waiting_for_its_turn"
+  },
+  {
+    "label": "power limit write: a client closed after the save reads as called off",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    except (Broken, Unreachable, Closed) as error:\n",
+    "new": "    except (Broken, Unreachable) as error:\n",
+    "tests": "read_back_that_fails_is_reported_as_saved_but_not_read"
+  },
+  {
+    "label": "power limit write: a write cancelled after its save reads as called off",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "    \"\"\"What the callers of a write cancelled with its entry hear.\"\"\"\n    if counted:\n",
+    "new": "    \"\"\"What the callers of a write cancelled with its entry hear.\"\"\"\n    if False:\n",
+    "tests": "cancelled_with_its_entry_lets_its_callers_go"
+  },
+  {
+    "label": "power limit write: the next round is not planned again after a write",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self._plan_next_round(self._round_finished)\n        self.async_set_updated_data(self._published())\n",
+    "new": "        self.async_set_updated_data(self._published())\n",
+    "tests": "keeps_the_next_round_when_it_is_due"
+  },
+  {
+    "label": "power limit write: a round's traceback silences the write's",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            if not self._write_traceback_logged:\n                self._write_traceback_logged = True\n",
+    "new": "            if not self._traceback_logged:\n                self._traceback_logged = True\n",
+    "tests": "logs_its_unexpected_error_after_a_round_did"
+  },
+  {
+    "label": "controller access: a second caller of the web interface's save",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiet = None\n",
+    "new": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiet = None\n        if burst is None:\n            self._client.save(None, 0)\n",
+    "tests": "called_by_the_power_limit_write_only"
+  },
+  {
+    "label": "power limit write: planned as after a whole round, the rest after a timeout is lost",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self._plan_next_round(self._round_finished)\n        self.async_set_updated_data(self._published())\n",
+    "new": "        self._plan_next_round(True)\n        self.async_set_updated_data(self._published())\n",
+    "tests": "keeps_the_rest_a_timeout_gave_the_controller"
+  },
+  {
+    "label": "power limit write: the next round planned after Home Assistant restarted its timer",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self._plan_next_round(self._round_finished)\n        self.async_set_updated_data(self._published())\n",
+    "new": "        self.async_set_updated_data(self._published())\n        self._plan_next_round(self._round_finished)\n",
+    "tests": "next_round_comes_when_its_page_is_due"
+  },
+  {
+    "label": "power limit write: after an unexpected error once counted the heating page waits",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            if counted:\n                # The save may have gone out: the next round asks.\n                self._readings[HEATING_PAGE].asked_at = None\n",
+    "new": "",
+    "tests": "unexpected_error_on_the_read_back_the_heating_page_is_due"
+  },
+  {
+    "label": "power limit number: a stopped polling leaves the last value shown",
+    "path": "custom_components/weishaupt_modbus/webif_number.py",
+    "old": "        if not self.coordinator.last_update_success:\n            return None\n",
+    "new": "",
+    "tests": "stopped_polling_shows_no_frozen_value"
   }
 ]

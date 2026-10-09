@@ -308,6 +308,9 @@
             },
             "sys_pv": {
                 "name": "{prefix}Sollwert PV"
+            },
+            "webif_leistungsbegrenzung_heizen": {
+                "name": "{prefix}Leistungsbegrenzung Heizen"
             }
         },
         "switch": {
@@ -1935,14 +1938,17 @@
             "webif_jaz_gesamt": {
                 "name": "{prefix}Arbeitszahl gesamt"
             },
-            "webif_leistungsbegrenzung_heizen": {
-                "name": "{prefix}Leistungsbegrenzung Heizen"
-            },
             "webif_schaltdifferenz_heizen": {
                 "name": "{prefix}Schaltdifferenz Heizen"
             },
             "webif_answer_time": {
                 "name": "Antwortzeit"
+            },
+            "webif_settings_written_total": {
+                "name": "Geschriebene Einstellungen (gesamt)"
+            },
+            "webif_settings_written_today": {
+                "name": "Geschriebene Einstellungen (heute)"
             },
             "webif_requests": {
                 "name": "Anfragen"
@@ -1980,12 +1986,14 @@
                 "data": {
                     "heat_pump_interval_minutes": "Intervall der Wärmepumpen-Seite (Minuten)",
                     "statistics_interval_minutes": "Intervall der Statistik (Minuten)",
-                    "heating_interval_minutes": "Intervall der Heiz-Einstellungen (Minuten)"
+                    "heating_interval_minutes": "Intervall der Heiz-Einstellungen (Minuten)",
+                    "settings_written_per_day": "Geschriebene Einstellungen pro Tag"
                 },
                 "data_description": {
                     "heat_pump_interval_minutes": "Wie oft die Wärmepumpen-Seite gelesen wird, 1 bis 60 Minuten. Eine Änderung lädt den Eintrag neu.",
                     "statistics_interval_minutes": "Wie oft die Energiestatistik gelesen wird, 1 bis 60 Minuten.",
-                    "heating_interval_minutes": "Wie oft Leistungsbegrenzung und Schaltdifferenz Heizen gelesen werden, 1 bis 60 Minuten."
+                    "heating_interval_minutes": "Wie oft Leistungsbegrenzung und Schaltdifferenz Heizen gelesen werden, 1 bis 60 Minuten.",
+                    "settings_written_per_day": "Höchstens so viele Einstellungen, etwa die Leistungsbegrenzung Heizen, werden pro Tag geschrieben; 0 schaltet die Grenze ab. Der Regler speichert jede im EEPROM, das nur eine begrenzte Zahl von Schreibvorgängen verträgt."
                 }
             }
         }
@@ -2014,6 +2022,42 @@
         },
         "webif_login_refused": {
             "message": "Die Weboberfläche hat Benutzer und Passwort abgelehnt."
+        },
+        "webif_write_stopped": {
+            "message": "Der Abruf der Weboberfläche ist gestoppt. Laden Sie ihren Eintrag neu, bevor Sie einen Wert setzen."
+        },
+        "webif_write_login_refused": {
+            "message": "Die Weboberfläche hat Benutzer und Passwort abgelehnt. Prüfen Sie diese in ihrem Eintrag."
+        },
+        "webif_write_limit_reached": {
+            "message": "Die heutige Grenze von {limit} geschriebenen Einstellungen ist erreicht. Sie wird in den Optionen des Eintrags der Weboberfläche eingestellt."
+        },
+        "webif_write_form_not_read": {
+            "message": "Das Formular der Leistungsbegrenzung Heizen ließ sich nicht von der Weboberfläche lesen. Es wurde nichts gesendet."
+        },
+        "webif_write_form_mismatch": {
+            "message": "Das Formular der Leistungsbegrenzung Heizen passt nicht zum angezeigten Wert oder bietet diesen Wert nicht an. Es wurde nichts gesendet."
+        },
+        "webif_write_not_saved": {
+            "message": "Der Regler hat die Leistungsbegrenzung Heizen nicht gespeichert: Seine Sitzung war beendet. Versuchen Sie es erneut."
+        },
+        "webif_write_maybe_saved": {
+            "message": "Der Regler hat nicht eindeutig geantwortet; ob die Leistungsbegrenzung Heizen gespeichert wurde, ist unbekannt. Die nächste Abfrage zeigt den Wert."
+        },
+        "webif_write_other_value": {
+            "message": "Der Regler zeigt {shown} % statt {target} %."
+        },
+        "webif_write_not_read_back": {
+            "message": "Die Leistungsbegrenzung Heizen wurde gespeichert, ließ sich aber nicht zurücklesen. Die nächste Abfrage zeigt den Wert."
+        },
+        "webif_write_aborted": {
+            "message": "Das Setzen der Leistungsbegrenzung Heizen wurde abgebrochen: Der Eintrag der Weboberfläche wird entladen."
+        },
+        "webif_write_failed": {
+            "message": "Das Setzen der Leistungsbegrenzung Heizen ist an einem unerwarteten Fehler gescheitert; Einzelheiten stehen im Log."
+        },
+        "webif_power_limit_whole_percent": {
+            "message": "{value} ist kein ganzer Prozentwert. Die Leistungsbegrenzung Heizen wird in Schritten von 1 % eingestellt."
         }
     },
     "issues": {

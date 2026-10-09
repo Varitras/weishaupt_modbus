@@ -5,11 +5,13 @@ is in flight, a gap lies between any two, each has a hard time limit, a page
 that arrived whole but wrong gets exactly one more try, and after a timeout
 or a broken connection nothing follows in this round. Only the addresses in
 the positive list are ever asked for: the access code form on every page
-saves by GET, so an address with any other query could change the pump.
+saves by GET, so an address with any other query could change the pump. The
+one POST besides the login saves a setting, with exactly the fields of the
+form its own page serves, and is never sent twice.
 """
 
 import asyncio
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass, field
 from http import HTTPStatus
@@ -33,6 +35,10 @@ WRONG_PASSWORD = INDEX + "#wrongpassword"
 SESSION_COOKIE = "session"
 LOGIN_USER_FIELD = "user"
 LOGIN_PASSWORD_FIELD = "pass"
+SAVE = "/" + pages.SAVE_ACTION
+SAVE_FIELDS = (*pages.FORM_FIELDS, pages.VALUE_FIELD)
+# The form type of a setting chosen from a list, the only kind saved here.
+SETTING_LIST = "para_list"
 # The longest whole answer in a 60-minute run took 15.5 s.
 TIMEOUT_SECONDS = 20.0
 MIN_GAP_SECONDS = 5.0
@@ -67,6 +73,14 @@ class Broken(WebifError):
 
 class Closed(WebifError):
     """The client was closed: its entry unloads or Home Assistant stops."""
+
+
+class NotSaved(WebifError):
+    """The controller turned the save away: its session was gone."""
+
+
+class MaybeSaved(WebifError):
+    """The save went out, and its answer leaves open whether it was stored."""
 
 
 @dataclass
@@ -125,14 +139,23 @@ class _Answer:
         return self.status == HTTPStatus.SEE_OTHER and self.location == WRONG_PASSWORD
 
 
-def _allowed(method: str, path: str) -> bool:
+def _allowed(method: str, path: str, form: Mapping[str, str] | None) -> bool:
     if method == "POST":
-        return path == LOGIN
+        return path == LOGIN or (path == SAVE and _is_setting_save(form))
     if method != "GET":
         return False
     return (
         path in (INDEX, LOGOUT, OVERVIEW)
         or pages.STACK_LINK.fullmatch(path) is not None
+    )
+
+
+def _is_setting_save(form: Mapping[str, str] | None) -> bool:
+    """Exactly a setting form's fields, in its order, for a list choice."""
+    return (
+        form is not None
+        and tuple(form) == SAVE_FIELDS
+        and form[pages.TYPE_FIELD] == SETTING_LIST
     )
 
 
@@ -188,6 +211,15 @@ def _page_text(path: str, answer: _Answer) -> str:
     if answer.status != HTTPStatus.OK:
         raise Unreachable(f"{path}: HTTP {answer.status} to {answer.location or '-'}")
     return answer.text
+
+
+def _raise_unless_saved(form: pages.SettingForm, answer: _Answer) -> None:
+    # The controller answers a stored setting with its menu page.
+    if answer.status == HTTPStatus.SEE_OTHER and answer.location == form.parent_path:
+        return
+    if answer.session_lost:
+        raise NotSaved(f"POST {SAVE}: HTTP {answer.status} to {answer.location}")
+    raise MaybeSaved(f"POST {SAVE}: HTTP {answer.status} to {answer.location or '-'}")
 
 
 def _raise_for_error_status(path: str, answer: _Answer) -> None:
@@ -261,6 +293,34 @@ class Client:
             except Broken, Unreachable:
                 self.traffic.failed_reads += 1
                 raise
+
+    async def save(self, form: pages.SettingForm, value: int) -> None:
+        """Send a setting's form with `value`, once.
+
+        Raises NotSaved when the session was gone, MaybeSaved when the answer
+        leaves it open. Neither is followed by a login or a second POST: the
+        save may have reached the EEPROM, and repeating it is the caller's.
+        """
+        async with self._lock:
+            if self._closed:
+                raise Closed(f"{SAVE}: the client is closed")
+            if self._cookie is None:
+                raise NotSaved(f"{SAVE}: no session to save in")
+            fields = dict(
+                zip(
+                    SAVE_FIELDS,
+                    (form.id, form.stack, form.type, str(value)),
+                    strict=True,
+                )
+            )
+            # Live, the save that worked carried a browser's Referer and
+            # Origin; only that request is proven.
+            headers = {"Referer": self._base + form.path, "Origin": self._base}
+            try:
+                answer = await self._request("POST", SAVE, fields, headers)
+            except Unreachable as error:
+                raise MaybeSaved(str(error)) from error
+            _raise_unless_saved(form, answer)
 
     def take_slowest_answer(self) -> float | None:
         """The longest answer since the last call, in seconds; None for none."""
@@ -337,18 +397,26 @@ class Client:
         self.traffic.logins += 1
 
     async def _request(
-        self, method: str, path: str, form: dict[str, str] | None = None
+        self,
+        method: str,
+        path: str,
+        form: dict[str, str] | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> _Answer:
         async with self._pacing.lock:
             await self._pace()
-            return await self._exchange(method, path, form)
+            return await self._exchange(method, path, form, headers)
 
     async def _exchange(
-        self, method: str, path: str, form: dict[str, str] | None
+        self,
+        method: str,
+        path: str,
+        form: dict[str, str] | None,
+        headers: Mapping[str, str] | None,
     ) -> _Answer:
         """One request under the lock Modbus shares, logged however it ends."""
         # Asked where the request goes out, so no other way out can skip it.
-        if not _allowed(method, path):
+        if not _allowed(method, path, form):
             raise ValueError(f"{method} {path} is not on the positive list")
         cookie = {"Cookie": f"{SESSION_COOKIE}={self._cookie}"} if self._cookie else {}
         async with self._host_lock:
@@ -359,7 +427,7 @@ class Client:
                     method,
                     self._base + path,
                     data=form,
-                    headers=cookie,
+                    headers={**(headers or {}), **cookie},
                     allow_redirects=False,
                     timeout=self._timeout,
                 ) as response:

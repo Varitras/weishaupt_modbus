@@ -287,9 +287,11 @@ files = [
   "custom_components/weishaupt_modbus/webif/client.py",
   "custom_components/weishaupt_modbus/webif/discovery.py",
   "custom_components/weishaupt_modbus/webif_coordinator.py",
+  "custom_components/weishaupt_modbus/webif_number.py",
   "custom_components/weishaupt_modbus/webif_sensor.py",
   "custom_components/weishaupt_modbus/webif_visit.py",
   "custom_components/weishaupt_modbus/webif/pages.py",
+  "custom_components/weishaupt_modbus/webif/setting.py",
   "custom_components/weishaupt_modbus/entity_helpers.py",
   # Named so mypy resolves the MODULE: kennfeld.py sits next to a kennfeld/
   # data directory, and a followed import lands on the directory instead,

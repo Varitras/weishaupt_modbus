@@ -12,19 +12,23 @@ import aiohttp
 from aiohttp import web
 import pytest
 
-from custom_components.weishaupt_modbus.webif import client as webif
+from custom_components.weishaupt_modbus.webif import client as webif, pages
 
 from .locking import WatchedLock, until
 from .webif_stand_in import (
     HEATING,
+    HEATING_PATH,
     PAGE_PATH,
     PASSWORD,
     PUMP_MENU,
+    SAVE_PATH,
     SESSION_ID,
     STACK,
     USER,
     WHOLE,
     StandInPump,
+    limit_leaf,
+    limit_segment,
     see_other,
     serving,
 )
@@ -648,27 +652,43 @@ async def test_an_address_off_the_positive_list_is_never_asked_for(
     assert not [record for record in caplog.records if record.name == webif.__name__]
 
 
+SAVED = {"id": "1", "stack": "2", "type": "para_list", "value": "61"}
+
+
 @pytest.mark.parametrize(
-    ("method", "path", "allowed"),
+    ("method", "path", "form", "allowed"),
     [
-        ("POST", webif.LOGIN, True),
-        ("POST", "/pro_save.html", False),
-        ("POST", PAGE, False),
-        ("GET", PAGE, True),
-        ("GET", webif.OVERVIEW, True),
-        ("GET", webif.LOGIN, False),
+        ("POST", webif.LOGIN, {"user": USER, "pass": PASSWORD}, True),
+        ("POST", SAVE_PATH, SAVED, True),
+        ("POST", SAVE_PATH, {**SAVED, "access_code": "0000"}, False),
+        (
+            "POST",
+            SAVE_PATH,
+            {key: SAVED[key] for key in ("id", "stack", "type")},
+            False,
+        ),
+        ("POST", SAVE_PATH, {**SAVED, "type": "other"}, False),
+        ("POST", SAVE_PATH, dict(reversed(SAVED.items())), False),
+        ("POST", SAVE_PATH, None, False),
+        ("GET", SAVE_PATH, None, False),
+        ("POST", PAGE, SAVED, False),
+        ("GET", PAGE, None, True),
+        ("GET", webif.OVERVIEW, None, True),
+        ("GET", webif.LOGIN, None, False),
     ],
 )
-def test_no_post_but_the_login(method, path, allowed):
-    """A POST elsewhere would be a write, and a write needs its own entry."""
-    assert webif._allowed(method, path) is allowed
+def test_no_post_but_the_login_and_one_setting_form(method, path, form, allowed):
+    """A POST is a write. The one allowed besides the login saves a setting
+    with exactly the fields of its form, in their order, as a list choice:
+    any other field set could change something else on the pump."""
+    assert webif._allowed(method, path, form) is allowed
 
 
 @pytest.mark.parametrize("method", ["PUT", "DELETE", "PATCH", "HEAD"])
 def test_only_get_reads_a_page(method):
     """Every method but POST passed the positive list on the read paths."""
-    assert not webif._allowed(method, webif.INDEX)
-    assert not webif._allowed(method, PAGE)
+    assert not webif._allowed(method, webif.INDEX, None)
+    assert not webif._allowed(method, PAGE, None)
 
 
 def test_the_decided_gap_and_time_limit():
@@ -791,3 +811,107 @@ def test_a_recorded_count_is_added_to_the_count_of_this_start():
     traffic.restore("requests", 100)
 
     assert traffic.requests == 105
+
+
+LEAF = f"{HEATING_PATH},{limit_segment(60)}"
+
+
+def has_form(text):
+    return pages.setting_form(text) is not None
+
+
+async def read_form(client):
+    """The power limit's form, read fresh as a write does."""
+    return pages.setting_form(await client.page(LEAF, has_form))
+
+
+async def test_a_save_posts_the_four_fields_in_form_order(pump, session):
+    """Live, 2026-10-02: id, stack, type and value in form order, with the
+    Referer and Origin a browser sends; only that request is proven."""
+    pump.show_power_limit(60)
+    client = connect(session, pump.host)
+    form = await read_form(client)
+    requests = client.traffic.requests
+
+    await client.save(form, 61)
+
+    base = f"http://{pump.host}"
+    assert pump.asked[-1] == ("POST", SAVE_PATH)
+    assert list(pump.saved[-1].items()) == [
+        ("id", form.id),
+        ("stack", form.stack),
+        ("type", "para_list"),
+        ("value", "61"),
+    ]
+    assert pump.save_headers[-1] == {"Referer": base + form.path, "Origin": base}
+    assert client.traffic.requests == requests + 1
+
+
+async def test_a_save_answered_with_the_login_page_is_not_saved_and_not_sent_again(
+    pump, session
+):
+    """The session was gone, so nothing was saved; a login and a second POST
+    would be a resend the owner ruled out."""
+    pump.show_power_limit(60)
+    client = connect(session, pump.host)
+    form = await read_form(client)
+    asked = len(pump.asked)
+    pump.sessions.clear()
+
+    with pytest.raises(webif.NotSaved):
+        await client.save(form, 61)
+
+    assert pump.asked[asked:] == [("POST", SAVE_PATH)]
+
+
+def _status(pump):
+    pump.failing_once[SAVE_PATH] = 500
+
+
+def _elsewhere(pump):
+    pump.save_answer = lambda: see_other(PAGE_PATH)
+
+
+def _late(pump):
+    pump.delays[SAVE_PATH] = SLOW
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [_status, _elsewhere, _late],
+    ids=["an error status", "another page", "no answer in time"],
+)
+async def test_a_save_without_a_clear_answer_raises_maybe_saved(pump, session, answer):
+    """It may have reached the EEPROM: nothing follows it in this write."""
+    pump.show_power_limit(60)
+    client = connect(session, pump.host)
+    form = await read_form(client)
+    asked = len(pump.asked)
+    answer(pump)
+
+    with short_timeout(client), pytest.raises(webif.MaybeSaved):
+        await client.save(form, 61)
+
+    assert pump.asked[asked:] == [("POST", SAVE_PATH)]
+
+
+async def test_a_save_without_a_session_sends_nothing(pump, session):
+    client = connect(session, pump.host)
+
+    with pytest.raises(webif.NotSaved):
+        await client.save(pages.setting_form(limit_leaf(60)), 61)
+
+    assert pump.asked == []
+
+
+async def test_a_closed_client_saves_nothing(pump, session):
+    pump.show_power_limit(60)
+    client = connect(session, pump.host)
+    form = await read_form(client)
+    await client.close()
+    asked = len(pump.asked)
+
+    with pytest.raises(webif.Closed):
+        await client.save(form, 61)
+
+    assert pump.asked[asked:] == []
