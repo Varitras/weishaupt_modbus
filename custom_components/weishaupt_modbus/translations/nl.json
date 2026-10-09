@@ -2014,6 +2014,39 @@
     },
     "webif_login_refused" : {
       "message" : "De webinterface heeft gebruiker en wachtwoord geweigerd."
+    },
+    "webif_write_stopped" : {
+      "message" : "Het opvragen van de webinterface is gestopt. Laad de vermelding opnieuw voordat u een waarde instelt."
+    },
+    "webif_write_login_refused" : {
+      "message" : "De webinterface heeft gebruiker en wachtwoord geweigerd. Controleer ze in de vermelding."
+    },
+    "webif_write_limit_reached" : {
+      "message" : "De limiet van vandaag van {limit} geschreven instellingen is bereikt. Deze wordt ingesteld in de opties van de webinterface-vermelding."
+    },
+    "webif_write_form_not_read" : {
+      "message" : "Het formulier van de vermogensbegrenzing verwarmen kon niet van de webinterface worden gelezen. Er is niets verzonden."
+    },
+    "webif_write_form_mismatch" : {
+      "message" : "Het formulier van de vermogensbegrenzing verwarmen past niet bij de getoonde waarde of biedt deze waarde niet aan. Er is niets verzonden."
+    },
+    "webif_write_not_saved" : {
+      "message" : "De regelaar heeft de vermogensbegrenzing verwarmen niet opgeslagen: de sessie was beëindigd. Probeer het opnieuw."
+    },
+    "webif_write_maybe_saved" : {
+      "message" : "De regelaar gaf geen duidelijk antwoord, dus het is onbekend of de vermogensbegrenzing verwarmen is opgeslagen. De volgende uitlezing toont de waarde."
+    },
+    "webif_write_other_value" : {
+      "message" : "De regelaar toont {shown} % in plaats van {target} %."
+    },
+    "webif_write_not_read_back" : {
+      "message" : "De vermogensbegrenzing verwarmen is opgeslagen, maar kon niet worden teruggelezen. De volgende uitlezing toont de waarde."
+    },
+    "webif_write_aborted" : {
+      "message" : "Het instellen van de vermogensbegrenzing verwarmen is afgebroken: de webinterface-vermelding wordt ontladen."
+    },
+    "webif_write_failed" : {
+      "message" : "Het instellen van de vermogensbegrenzing verwarmen is mislukt door een onverwachte fout; het log bevat de details."
     }
   },
   "issues" : {

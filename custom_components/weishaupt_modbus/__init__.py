@@ -21,7 +21,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.typing import UNDEFINED
-from homeassistant.util import slugify
+from homeassistant.util import dt as dt_util, slugify
 
 from .config_flow import ConfigFlow
 from .configentry import (
@@ -51,6 +51,7 @@ from .webif_sensor import REQUIRED_TITLES
 from .weishaupt_modbus_api.const import DEFAULT_PORT, MODBUS_UNIT_ID
 from .weishaupt_modbus_api.device import WeishauptHeatPump
 from .weishaupt_modbus_api.hpconst import DEVICELISTS
+from .weishaupt_modbus_api.write_budget import WriteBudget
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -237,7 +238,13 @@ async def _async_setup_web_interface(
         async_dispatcher_connect(hass, SIGNAL_CONFIG_ENTRY_CHANGED, follow_pump)
     )
     polled = polled_pages(entry.data[CONF.PAGES], entry.options, REQUIRED_TITLES)
-    coordinator = WebifCoordinator(hass, entry, client, polled)
+    # No warning: the daily limit is the guard for settings written here.
+    budget = WriteBudget(
+        warn_at=0,
+        limit=CONST.WEBIF_WRITE_LIMIT_PER_DAY,
+        today=lambda: dt_util.now().date(),
+    )
+    coordinator = WebifCoordinator(hass, entry, client, polled, budget=budget)
     entry.runtime_data = WebifData(
         coordinator=coordinator, client=client, pump_data=started_with
     )

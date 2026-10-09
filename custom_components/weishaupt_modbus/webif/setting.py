@@ -81,7 +81,7 @@ async def write_power_limit(
     heating_path: str,
     whole: Callable[[str], bool],
     target: int,
-    count_write: Callable[[], None],
+    count_write: Callable[[], object],
 ) -> str:
     """Set the power limit to `target`; the heating page as read afterwards.
 

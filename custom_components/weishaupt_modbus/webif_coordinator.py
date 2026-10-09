@@ -6,6 +6,10 @@ that round, and a fixed order would leave the last pages starving on a
 struggling pump. A page that fails keeps its last values through one failure,
 the second in a row takes them away, and the third stops all polling until
 the entry is reloaded.
+
+It also writes the one setting the integration sets, the heating power
+limit: once the requests have settled, between two pages of a round, never
+beside one.
 """
 
 import asyncio
@@ -17,18 +21,35 @@ from datetime import timedelta
 import logging
 import math
 import time
-from typing import Any
+from typing import Any, NoReturn
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import CONST
 from .webif import pages
-from .webif.client import Client, Closed, LoginRefused, Traffic, Unreachable, WebifError
+from .webif.client import (
+    Client,
+    Closed,
+    LoginRefused,
+    MaybeSaved,
+    NotSaved,
+    Traffic,
+    Unreachable,
+    WebifError,
+)
 from .webif.discovery import HEAT_PUMP_PAGE, HEATING_PAGE, PAGE_MENUS, STATISTICS_PAGE
+from .webif.setting import (
+    FormMismatch,
+    FormNotRead,
+    NotReadBack,
+    OtherValueShown,
+    write_power_limit,
+)
+from .weishaupt_modbus_api.write_budget import WriteBudget
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,6 +66,9 @@ DUE_SLACK_SECONDS = 5.0
 # second later instead.
 SHORTEST_WAIT_SECONDS = 1.0
 STOPPED_ISSUE = "webif_stopped"
+# Spec decision, 2026-10-09: a write starts after this long without a further
+# request, so arrow clicks and second thoughts make one write, of the last.
+DEBOUNCE_SECONDS = 5.0
 # Page key: the option holding its interval, and the default in minutes.
 INTERVAL_OPTIONS = {
     HEAT_PUMP_PAGE: (
@@ -151,6 +175,77 @@ def _oldest_first(reading: _Reading) -> float:
     return -math.inf if reading.read_at is None else reading.read_at
 
 
+class WriteFailed(WebifError):
+    """A write ended in a fault of this code or of a library; it is logged."""
+
+
+@dataclass
+class _Burst:
+    """Requests not written yet: the last target, and the outcome they share."""
+
+    target: int
+    outcome: asyncio.Future[None]
+
+
+def _retrieved(outcome: asyncio.Future[None]) -> None:
+    # Callers that gave up leave a failed write's outcome unread, and asyncio
+    # would log it as an error nobody handled.
+    if not outcome.cancelled():
+        outcome.exception()
+
+
+def _raise_translated(error: Exception) -> NoReturn:
+    """The way a write ended, as its callers are told it."""
+    match error:
+        case HomeAssistantError():
+            raise error
+        case FormNotRead():
+            raise HomeAssistantError(
+                translation_domain=CONST.DOMAIN,
+                translation_key="webif_write_form_not_read",
+            ) from error
+        case FormMismatch():
+            raise HomeAssistantError(
+                translation_domain=CONST.DOMAIN,
+                translation_key="webif_write_form_mismatch",
+            ) from error
+        case NotSaved():
+            raise HomeAssistantError(
+                translation_domain=CONST.DOMAIN, translation_key="webif_write_not_saved"
+            ) from error
+        case MaybeSaved():
+            raise HomeAssistantError(
+                translation_domain=CONST.DOMAIN,
+                translation_key="webif_write_maybe_saved",
+            ) from error
+        case OtherValueShown():
+            raise HomeAssistantError(
+                translation_domain=CONST.DOMAIN,
+                translation_key="webif_write_other_value",
+                translation_placeholders={
+                    "shown": str(error.shown),
+                    "target": str(error.target),
+                },
+            ) from error
+        case NotReadBack():
+            raise HomeAssistantError(
+                translation_domain=CONST.DOMAIN,
+                translation_key="webif_write_not_read_back",
+            ) from error
+        case LoginRefused():
+            raise HomeAssistantError(
+                translation_domain=CONST.DOMAIN,
+                translation_key="webif_write_login_refused",
+            ) from error
+        case Closed():
+            raise HomeAssistantError(
+                translation_domain=CONST.DOMAIN, translation_key="webif_write_aborted"
+            ) from error
+    raise HomeAssistantError(
+        translation_domain=CONST.DOMAIN, translation_key="webif_write_failed"
+    ) from error
+
+
 def _seconds_since(read_at: float | None, now: float) -> int | None:
     if read_at is None:
         return None
@@ -167,9 +262,13 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         client: Client,
         polled: list[Page],
         *,
+        budget: WriteBudget,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
-        """Each round plans the next for when the next page is due."""
+        """Each round plans the next for when the next page is due.
+
+        `budget` counts and limits the settings written.
+        """
         shortest = min(page.interval for page in polled)
         super().__init__(
             hass,
@@ -179,8 +278,10 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             update_interval=shortest,
         )
         self._shortest_interval = shortest
+        self._entry = config_entry
         self._client = client
         self._pages = polled
+        self.budget = budget
         self._readings = {page.key: _Reading() for page in polled}
         self._clock = clock
         self._stopped_by: tuple[str, str] | None = None
@@ -188,6 +289,11 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         self._traceback_logged = False
         self._no_dialog_visit = asyncio.Event()
         self._no_dialog_visit.set()
+        # Held for a round's page and for a whole write: a round request
+        # waiting on the client got in between a write's own requests.
+        self._asking = asyncio.Lock()
+        self._burst: _Burst | None = None
+        self._quiet: asyncio.TimerHandle | None = None
         self._issue = f"{STOPPED_ISSUE}_{config_entry.entry_id}"
         # The slowest answer of the last round that asked anything.
         self.answer_seconds: float | None = None
@@ -208,10 +314,119 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         finally:
             self._no_dialog_visit.set()
 
+    @property
+    def _heating(self) -> Page:
+        return next(page for page in self._pages if page.key == HEATING_PAGE)
+
     async def async_shutdown(self) -> None:
-        """Stop, and take a stop notice along: the entry it names is unloading."""
+        """Stop, and take a stop notice along: the entry it names is unloading.
+
+        A write still waiting for its requests to settle is called off.
+        """
         await super().async_shutdown()
+        if self._quiet is not None:
+            self._quiet.cancel()
+            self._quiet = None
+        if self._burst is not None:
+            self._burst.outcome.set_exception(Closed("the entry unloads"))
+            self._burst = None
         ir.async_delete_issue(self.hass, CONST.DOMAIN, self._issue)
+
+    async def set_power_limit(self, target: int) -> None:
+        """Write the heating power limit once the requests have settled.
+
+        Requests less than DEBOUNCE_SECONDS apart make one write, of the last
+        target, and each of them gets its outcome. Raises a translated
+        HomeAssistantError when the write is refused or fails.
+        """
+        self._refuse_write()
+        if self._burst is None:
+            self._burst = _Burst(target, self.hass.loop.create_future())
+            self._burst.outcome.add_done_callback(_retrieved)
+        burst = self._burst
+        burst.target = target
+        if self._quiet is not None:
+            self._quiet.cancel()
+        self._quiet = self.hass.loop.call_later(
+            DEBOUNCE_SECONDS, self._start_write, burst
+        )
+        try:
+            await asyncio.shield(burst.outcome)
+        except (WebifError, HomeAssistantError) as error:
+            _raise_translated(error)
+
+    def _refuse_write(self) -> None:
+        """Refuse a write that cannot go out, before any request."""
+        if self._stopped_by is not None:
+            raise HomeAssistantError(
+                translation_domain=CONST.DOMAIN, translation_key="webif_write_stopped"
+            )
+        if self._refused is not None:
+            raise HomeAssistantError(
+                translation_domain=CONST.DOMAIN,
+                translation_key="webif_write_login_refused",
+            )
+        if not self.budget.allows_write():
+            raise HomeAssistantError(
+                translation_domain=CONST.DOMAIN,
+                translation_key="webif_write_limit_reached",
+                translation_placeholders={"limit": str(self.budget.limit)},
+            )
+
+    @callback
+    def _start_write(self, burst: _Burst) -> None:
+        # Requests from now on wait for a write of their own.
+        self._burst = self._quiet = None
+        self._entry.async_create_background_task(
+            self.hass, self._write(burst), "weishaupt-webif power limit"
+        )
+
+    async def _write(self, burst: _Burst) -> None:
+        """One write, its outcome handed to every caller that asked for it."""
+        outcome = burst.outcome
+        try:
+            async with self._asking:
+                self._refuse_write()
+                text = await write_power_limit(
+                    self._client,
+                    self._heating.path,
+                    self._heating.is_whole,
+                    burst.target,
+                    self.budget.record_write,
+                )
+                self._publish(self._heating, text)
+        except (WebifError, HomeAssistantError) as error:
+            self._after_failed_write(error)
+            outcome.set_exception(error)
+        except Exception as error:
+            # A fault of this code or of a library, not of the pump.
+            if not self._traceback_logged:
+                self._traceback_logged = True
+                _LOGGER.exception(
+                    "Writing the power limit failed on an unexpected error"
+                )
+            outcome.set_exception(WriteFailed(type(error).__name__))
+        else:
+            outcome.set_result(None)
+        finally:
+            # Cancelled as the entry unloads: no caller may wait for good.
+            if not outcome.done():
+                outcome.set_exception(Closed("the entry unloads"))
+
+    def _after_failed_write(self, error: Exception) -> None:
+        if isinstance(error, OtherValueShown):
+            self._publish(self._heating, error.text)
+        elif isinstance(error, (MaybeSaved, NotReadBack)):
+            # Unknown what the controller holds: the next round asks.
+            self._readings[self._heating.key].asked_at = None
+        elif isinstance(error, LoginRefused):
+            self._refused = error
+
+    def _publish(self, page: Page, text: str) -> None:
+        """A page a write read counts as that page's reading, as of now."""
+        self._store(page, text)
+        self._readings[page.key].asked_at = self._readings[page.key].read_at
+        self.async_set_updated_data(self._published())
 
     @property
     def traffic(self) -> Traffic:
@@ -256,6 +471,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 translation_key="webif_stopped",
                 translation_placeholders={"page": page_name, "error": error},
             )
+        return self._published()
+
+    def _published(self) -> dict[str, Values | None]:
         return {
             key: reading.values if reading.failures <= FAILURES_KEPT else None
             for key, reading in self._readings.items()
@@ -265,7 +483,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         """Ask every due page; False when the round had to end early."""
         for page in self._due():
             await self._no_dialog_visit.wait()
-            if not await self._fetch(page):
+            async with self._asking:
+                fetched = await self._fetch(page)
+            if not fetched:
                 return False
         return True
 
@@ -331,6 +551,11 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 self._traceback_logged = True
                 _LOGGER.exception("%s failed on an unexpected error", page.key)
             return self._failed(page, type(error).__name__)
+        self._store(page, text)
+        return True
+
+    def _store(self, page: Page, text: str) -> None:
+        reading = self._readings[page.key]
         # Only what a sensor reads: the rest of a page would go into the
         # diagnostics download, an identifying entry among it maybe.
         reading.values = {
@@ -338,7 +563,6 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         }
         reading.read_at = self._clock()
         reading.failures = 0
-        return True
 
     def _failed(self, page: Page, reason: str) -> bool:
         """Count a failure of the page; False when it stopped the polling."""

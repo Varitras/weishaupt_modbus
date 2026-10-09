@@ -2014,6 +2014,39 @@
     },
     "webif_login_refused": {
       "message": "The web interface refused the user and password."
+    },
+    "webif_write_stopped": {
+      "message": "Web interface polling has stopped. Reload its entry before setting a value."
+    },
+    "webif_write_login_refused": {
+      "message": "The web interface refused the user and password. Check them in its entry."
+    },
+    "webif_write_limit_reached": {
+      "message": "Today's limit of {limit} settings written is reached. It is set in the options of the web interface entry."
+    },
+    "webif_write_form_not_read": {
+      "message": "The heating power limit's form could not be read from the web interface. Nothing was sent."
+    },
+    "webif_write_form_mismatch": {
+      "message": "The heating power limit's form does not match the value shown or does not offer this value. Nothing was sent."
+    },
+    "webif_write_not_saved": {
+      "message": "The controller did not save the heating power limit: its session had ended. Try again."
+    },
+    "webif_write_maybe_saved": {
+      "message": "The controller gave no clear answer, so it is unknown whether the heating power limit was saved. The next reading shows the value."
+    },
+    "webif_write_other_value": {
+      "message": "The controller shows {shown} % instead of {target} %."
+    },
+    "webif_write_not_read_back": {
+      "message": "The heating power limit was saved but could not be read back. The next reading shows the value."
+    },
+    "webif_write_aborted": {
+      "message": "Setting the heating power limit was called off: the web interface entry is unloading."
+    },
+    "webif_write_failed": {
+      "message": "Setting the heating power limit failed on an unexpected error; the log has the details."
     }
   },
   "issues": {

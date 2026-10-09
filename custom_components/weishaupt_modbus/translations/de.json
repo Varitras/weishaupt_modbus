@@ -2014,6 +2014,39 @@
         },
         "webif_login_refused": {
             "message": "Die Weboberfläche hat Benutzer und Passwort abgelehnt."
+        },
+        "webif_write_stopped": {
+            "message": "Der Abruf der Weboberfläche ist gestoppt. Laden Sie ihren Eintrag neu, bevor Sie einen Wert setzen."
+        },
+        "webif_write_login_refused": {
+            "message": "Die Weboberfläche hat Benutzer und Passwort abgelehnt. Prüfen Sie diese in ihrem Eintrag."
+        },
+        "webif_write_limit_reached": {
+            "message": "Die heutige Grenze von {limit} geschriebenen Einstellungen ist erreicht. Sie wird in den Optionen des Eintrags der Weboberfläche eingestellt."
+        },
+        "webif_write_form_not_read": {
+            "message": "Das Formular der Leistungsbegrenzung Heizen ließ sich nicht von der Weboberfläche lesen. Es wurde nichts gesendet."
+        },
+        "webif_write_form_mismatch": {
+            "message": "Das Formular der Leistungsbegrenzung Heizen passt nicht zum angezeigten Wert oder bietet diesen Wert nicht an. Es wurde nichts gesendet."
+        },
+        "webif_write_not_saved": {
+            "message": "Der Regler hat die Leistungsbegrenzung Heizen nicht gespeichert: Seine Sitzung war beendet. Versuchen Sie es erneut."
+        },
+        "webif_write_maybe_saved": {
+            "message": "Der Regler hat nicht eindeutig geantwortet; ob die Leistungsbegrenzung Heizen gespeichert wurde, ist unbekannt. Die nächste Abfrage zeigt den Wert."
+        },
+        "webif_write_other_value": {
+            "message": "Der Regler zeigt {shown} % statt {target} %."
+        },
+        "webif_write_not_read_back": {
+            "message": "Die Leistungsbegrenzung Heizen wurde gespeichert, ließ sich aber nicht zurücklesen. Die nächste Abfrage zeigt den Wert."
+        },
+        "webif_write_aborted": {
+            "message": "Das Setzen der Leistungsbegrenzung Heizen wurde abgebrochen: Der Eintrag der Weboberfläche wird entladen."
+        },
+        "webif_write_failed": {
+            "message": "Das Setzen der Leistungsbegrenzung Heizen ist an einem unerwarteten Fehler gescheitert; Einzelheiten stehen im Log."
         }
     },
     "issues": {
