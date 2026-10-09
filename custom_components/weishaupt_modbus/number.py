@@ -12,9 +12,10 @@ from .const import TYPES
 from .entity_helpers import build_entity_list
 from .webif_number import PowerLimitNumber
 
-# Per platform; the device's write lock is what serialises writes across
-# all of them.
-PARALLEL_UPDATES = 1
+# No limit: with one, Home Assistant queued each call behind the last, and
+# the power limit's quiet time never saw two calls to make one write of. The
+# Modbus writes are serialised by the device's write lock.
+PARALLEL_UPDATES = 0
 
 
 async def async_setup_entry(

@@ -786,7 +786,7 @@
   {
     "label": "platforms: a write platform says how many updates may run at once",
     "path": "custom_components/weishaupt_modbus/number.py",
-    "old": "PARALLEL_UPDATES = 1\n",
+    "old": "PARALLEL_UPDATES = 0\n",
     "new": "",
     "tests": "how_many_updates_may_run_at_once"
   },
@@ -3568,5 +3568,33 @@
     "old": "        limit=entry.options.get(\n            CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY, CONST.WEBIF_WRITE_LIMIT_PER_DAY\n        ),\n",
     "new": "        limit=CONST.WEBIF_WRITE_LIMIT_PER_DAY,\n",
     "tests": "option_sets_the_daily_limit"
+  },
+  {
+    "label": "power limit setup: the old sensor's registry entry stays",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        registry.async_remove(old_sensor)\n",
+    "new": "        pass\n",
+    "tests": "old_power_limit_sensor_leaves_no_entry"
+  },
+  {
+    "label": "number platform: Home Assistant queues every call behind the last",
+    "path": "custom_components/weishaupt_modbus/number.py",
+    "old": "PARALLEL_UPDATES = 0\n",
+    "new": "PARALLEL_UPDATES = 1\n",
+    "tests": "settings_made_at_once_are_one_write"
+  },
+  {
+    "label": "power limit write: a cancelled write leaves its callers waiting",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            if not outcome.done():\n                outcome.set_exception(Closed(\"the entry unloads\"))\n",
+    "new": "            pass\n",
+    "tests": "cancelled_with_its_entry_lets_its_callers_go"
+  },
+  {
+    "label": "power limit write: an unload in the quiet time leaves the callers waiting",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if self._burst is not None:\n            self._burst.outcome.set_exception(Closed(\"the entry unloads\"))\n            self._burst = None\n",
+    "new": "",
+    "tests": "unload_during_the_quiet_time_aborts_the_waiting_calls"
   }
 ]

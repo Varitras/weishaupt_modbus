@@ -1058,7 +1058,8 @@ async def test_an_unload_during_the_quiet_time_aborts_the_waiting_calls(
 
     await coordinator.async_shutdown()
 
-    assert await call == ("webif_write_aborted", None)
+    async with asyncio.timeout(HOLD_LIMIT_SECONDS):
+        assert await call == ("webif_write_aborted", None)
     await asyncio.sleep(2 * QUIET)
     assert client.asked == []
 
@@ -1150,3 +1151,28 @@ async def test_an_unexpected_error_of_a_write_logs_once(
         if record.exc_info and record.levelno >= logging.ERROR
     ]
     assert len(tracebacks) == 1
+
+
+async def test_a_write_cancelled_with_its_entry_lets_its_callers_go(
+    coordinator, client, clock, entry, quick, monkeypatch
+):
+    """Home Assistant cancels an entry's background tasks when it goes: a
+    caller must not wait for an outcome that will never be set."""
+    await first_round_showing(coordinator, client, clock)
+    started = []
+    create = entry.async_create_background_task
+
+    def noted(hass, target, name, eager_start=True):
+        task = create(hass, target, name, eager_start)
+        started.append(task)
+        return task
+
+    monkeypatch.setattr(entry, "async_create_background_task", noted)
+    client.save_gate = asyncio.Event()
+    call = asyncio.create_task(refused(coordinator.set_power_limit(61)))
+    await until(lambda: client.saved)
+
+    started[0].cancel()
+
+    async with asyncio.timeout(HOLD_LIMIT_SECONDS):
+        assert await call == ("webif_write_aborted", None)

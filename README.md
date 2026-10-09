@@ -244,8 +244,8 @@ It shows values Modbus does not carry: the refrigerant circuit (pressures,
 temperatures, superheat, valve openings), compressor speed and counters,
 target and actual output, the flow rate, energy statistics to three decimals
 including the yearly totals, and the heating power limit. The integration
-reads them in a second entry beside the heat pump. It only reads; nothing is
-written.
+reads them in a second entry beside the heat pump, and sets one of them, the
+heating power limit; nothing else is written.
 
 This part is experimental. The controller's web server is slow and now and
 then answers with an incomplete page, and heavy polling has disturbed
@@ -318,14 +318,16 @@ The entry takes the heat pump's address and follows it when the heat pump
 entry is reconfigured; when the heat pump entry is deleted, it stops. Its
 options set how often each page is read, 1 to 60 minutes: the heat pump
 page every 5 minutes by default, the statistics and the heating settings
-every 15. *Reconfigure* takes a new
+every 15. They also set how many settings it may write a day, 10 by default;
+0 switches the limit off. *Reconfigure* takes a new
 user and password and searches the pages again; a refused login asks for a
 new one by itself.
 
 ### What it reads
 
-47 sensors with the pump's values, and five about the polling itself, on a
-device of their own, *WH Web interface* (with the heat pump's postfix). Home
+46 sensors with the pump's values, the heating power limit as a number,
+five sensors about the polling itself and two counting the settings written,
+on a device of their own, *WH Web interface* (with the heat pump's postfix). Home
 Assistant gives every device to one entry, so they cannot join the heat
 pump's devices.
 
@@ -337,8 +339,12 @@ pump's devices.
 - **Statistics**: the thermal and electrical energy of today, this month and
   this year to three decimals, and the performance factors of the year and
   overall.
-- **Diagnostic**: the heating power limit and switching difference, the two
-  controller software versions and the outdoor unit variant.
+- **Diagnostic**: the heating switching difference, the two controller
+  software versions and the outdoor unit variant.
+- **Setting** (configuration): the heating power limit, 10 to 100 %; see
+  [Setting the heating power limit](#setting-the-heating-power-limit).
+- **Settings written** (diagnostic): in total and today, carried over
+  restarts; the options limit them per day.
 - **The polling itself** (diagnostic): the answer time, which is the slowest
   answer of the last round, and the counts of requests, logins, pages that
   came incomplete and failed reads. A failed read is one the web interface
@@ -356,8 +362,34 @@ unknown. The page shows an idle power or speed as `Aus`, which reads as 0
 there and as unknown on any other value. It shows the setpoint temperature
 as `--` while nothing is demanded, which reads as 0 °C like the Modbus
 setpoints, in the statistics too, but without a `demand` attribute; any
-other `--` reads as unknown. The heating power limit can be
-read here, not set.
+other `--` reads as unknown.
+
+### Setting the heating power limit
+
+The number *Heating power limit* sets *Wärmepumpe › Heizen ›
+Leistungsbegrenzung* at the controller, 10 to 100 % in steps of one.
+
+- A change waits 5 seconds for further changes, so a few clicks on the arrows
+  make one write, of the last value. A change made while a write runs is
+  written after it.
+- The write reads the heating page and the limit's own page fresh, sends the
+  form once and reads the heating page back. A value the controller already
+  shows is not written.
+- The number shows a value only once the controller shows it. A refused or
+  failed write says why at the call: the daily limit reached, polling
+  stopped, a form that does not match the value shown, or a save the
+  controller did not confirm.
+- The save is never repeated. When its outcome is unclear, the next reading
+  shows what the controller holds.
+- The controller stores the limit in its EEPROM. The options limit the
+  settings written to 10 a day by default, and two diagnostic sensors count
+  them. Nothing else is ever written through the web interface.
+
+Until 2.1.0b2 the power limit was a sensor. The entry removes it from the
+registry when it loads; automations that read `sensor.…heating_power_limit`
+move to the number. Its history stays in the recorder: *Developer tools →
+Statistics* lists its long-term statistics as having no state and offers to
+delete them. Home Assistant raises no repair notice for them.
 
 ### How gently it asks
 
@@ -389,6 +421,10 @@ read here, not set.
   included, and asks for the login again. Any other failed login, such as
   the controller reporting its database out of reach, counts like a failed
   page.
+- A write of the heating power limit asks nothing of a round between its
+  reads, its save and its read-back; a round waits for it. Its reads count
+  in the polling counts like a round's, but its failures do not stop
+  polling.
 
 The user and password are stored in Home Assistant's configuration and sent
 to the heat pump only, as plain HTTP: the controller offers nothing else, so
