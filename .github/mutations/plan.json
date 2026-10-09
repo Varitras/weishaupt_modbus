@@ -3428,5 +3428,54 @@
     "old": "                raise MaybeSaved(str(error)) from error\n",
     "new": "                return\n",
     "tests": "save_without_a_clear_answer_raises_maybe_saved"
+  },
+  {
+    "label": "power limit write: counted only once the save is answered",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    count_write()\n    await client.save(form, target)\n",
+    "new": "    await client.save(form, target)\n    count_write()\n",
+    "tests": "save_without_a_clear_answer_ends_the_write"
+  },
+  {
+    "label": "power limit write: a form of another stack is saved",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        form.stack != link_stack\n        or form.selected != shown\n",
+    "new": "        form.selected != shown\n",
+    "tests": "form_that_does_not_match_sends_nothing"
+  },
+  {
+    "label": "power limit write: a form selecting another value is saved",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        or form.selected != shown\n",
+    "new": "",
+    "tests": "form_that_does_not_match_sends_nothing"
+  },
+  {
+    "label": "power limit write: a form of another type is saved",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        or form.type != SETTING_LIST\n",
+    "new": "",
+    "tests": "form_that_does_not_match_sends_nothing"
+  },
+  {
+    "label": "power limit write: a target the form does not offer is saved",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        or target not in form.offered\n",
+    "new": "",
+    "tests": "form_that_does_not_match_sends_nothing"
+  },
+  {
+    "label": "power limit write: the value read back is not compared",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    if now_shown != target:\n",
+    "new": "    if False:\n",
+    "tests": "another_value_says_which"
+  },
+  {
+    "label": "power limit write: a target already shown is written again",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        if shown == target:\n            return heating\n",
+    "new": "",
+    "tests": "already_shows_is_not_written"
   }
 ]
