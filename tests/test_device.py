@@ -11,9 +11,11 @@ import json
 import pathlib
 
 from modbus_connection import (
+    ClientClosedError,
     IllegalDataAddressError,
     ModbusConnectionError,
     ModbusExceptionError,
+    ModbusProtocolError,
     ModbusTimeoutError,
 )
 from modbus_connection.mock import MockModbusConnection
@@ -575,6 +577,49 @@ async def test_the_daily_limit_refuses_the_write(pump, unit):
         await pump.write(row, 2)
 
     assert row.state == 1
+
+
+def _answering(error):
+    def answer(_event):
+        raise error
+
+    return answer
+
+
+@pytest.mark.parametrize(
+    "lost",
+    [
+        ModbusTimeoutError("no answer"),
+        ModbusConnectionError("Connection lost before response was received."),
+        ModbusProtocolError("garbled answer"),
+    ],
+    ids=["timeout", "connection lost", "garbled answer"],
+)
+async def test_a_write_whose_answer_is_lost_is_counted(pump, unit, lost):
+    """The request was sent and may have reached the EEPROM; only the answer
+    is missing. Uncounted, a retry before the next poll wrote it twice."""
+    unit.on_write(_answering(lost))
+
+    with pytest.raises(type(lost)):
+        await pump.write(_row(pump, PV_SETPOINT), 5)
+
+    assert (pump.write_budget.total, pump.write_budget.writes_today) == (1, 1)
+
+
+@pytest.mark.parametrize(
+    "refusal",
+    [IllegalDataAddressError(), ClientClosedError("connection is closed")],
+    ids=["exception answer", "closed client"],
+)
+async def test_a_write_that_reached_no_eeprom_is_not_counted(pump, unit, refusal):
+    """An exception answer says the controller stored nothing; a closed
+    client sends nothing at all."""
+    unit.on_write(_answering(refusal))
+
+    with pytest.raises(type(refusal)):
+        await pump.write(_row(pump, PV_SETPOINT), 5)
+
+    assert pump.write_budget.total == 0
 
 
 async def test_a_read_only_register_cannot_be_written(pump, unit):

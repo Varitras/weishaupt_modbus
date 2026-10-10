@@ -14,7 +14,12 @@ from collections.abc import Callable
 import logging
 from typing import Any
 
-from modbus_connection import ModbusExceptionError, ModbusUnit
+from modbus_connection import (
+    ClientClosedError,
+    ModbusError,
+    ModbusExceptionError,
+    ModbusUnit,
+)
 from modbus_connection.model import Component
 
 from .const import EEPROM_WRITE_RATING, SETPOINT_OFF_SIGNED
@@ -250,8 +255,20 @@ class WeishauptHeatPump:
                 f"register {item.address} not written"
             )
         component = self._components[band_of(item.address)]
-        async with self._host_lock:
-            await component.write(_field_name(item), word)
+        try:
+            async with self._host_lock:
+                await component.write(_field_name(item), word)
+        except ModbusExceptionError, ClientClosedError:
+            raise
+        except ModbusError:
+            # The request went out and only its answer is missing: it may
+            # have reached the EEPROM. A connect that failed before sending
+            # raises the same types, so that one counts too.
+            self._count_write()
+            raise
+        self._count_write()
+
+    def _count_write(self) -> None:
         if self.write_budget.record_write():
             _LOGGER.warning(
                 "%d register writes today. The EEPROM is rated for %d writes "

@@ -825,7 +825,22 @@ async def read_form(client):
     return pages.setting_form(await client.page(LEAF, has_form))
 
 
-async def test_a_save_posts_the_four_fields_in_form_order(pump, session):
+class Count:
+    """The count_write a save is given, and how often it ran."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def __call__(self):
+        self.calls += 1
+
+
+@pytest.fixture
+def count():
+    return Count()
+
+
+async def test_a_save_posts_the_four_fields_in_form_order(pump, session, count):
     """Live, 2026-10-02: id, stack, type and value in form order, with the
     Referer and Origin a browser sends; only that request is proven."""
     pump.show_power_limit(60)
@@ -833,7 +848,7 @@ async def test_a_save_posts_the_four_fields_in_form_order(pump, session):
     form = await read_form(client)
     requests = client.traffic.requests
 
-    await client.save(form, 61)
+    await client.save(form, 61, count)
 
     base = f"http://{pump.host}"
     assert pump.asked[-1] == ("POST", SAVE_PATH)
@@ -845,10 +860,11 @@ async def test_a_save_posts_the_four_fields_in_form_order(pump, session):
     ]
     assert pump.save_headers[-1] == {"Referer": base + form.path, "Origin": base}
     assert client.traffic.requests == requests + 1
+    assert count.calls == 1
 
 
 async def test_a_save_answered_with_the_login_page_is_not_saved_and_not_sent_again(
-    pump, session
+    pump, session, count
 ):
     """The session was gone, so nothing was saved; a login and a second POST
     would be a resend the owner ruled out."""
@@ -859,9 +875,10 @@ async def test_a_save_answered_with_the_login_page_is_not_saved_and_not_sent_aga
     pump.sessions.clear()
 
     with pytest.raises(webif.NotSaved):
-        await client.save(form, 61)
+        await client.save(form, 61, count)
 
     assert pump.asked[asked:] == [("POST", SAVE_PATH)]
+    assert count.calls == 1
 
 
 def _status(pump):
@@ -881,7 +898,9 @@ def _late(pump):
     [_status, _elsewhere, _late],
     ids=["an error status", "another page", "no answer in time"],
 )
-async def test_a_save_without_a_clear_answer_raises_maybe_saved(pump, session, answer):
+async def test_a_save_without_a_clear_answer_raises_maybe_saved(
+    pump, session, answer, count
+):
     """It may have reached the EEPROM: nothing follows it in this write."""
     pump.show_power_limit(60)
     client = connect(session, pump.host)
@@ -890,21 +909,23 @@ async def test_a_save_without_a_clear_answer_raises_maybe_saved(pump, session, a
     answer(pump)
 
     with short_timeout(client), pytest.raises(webif.MaybeSaved):
-        await client.save(form, 61)
+        await client.save(form, 61, count)
 
     assert pump.asked[asked:] == [("POST", SAVE_PATH)]
+    assert count.calls == 1
 
 
-async def test_a_save_without_a_session_sends_nothing(pump, session):
+async def test_a_save_without_a_session_sends_nothing(pump, session, count):
     client = connect(session, pump.host)
 
     with pytest.raises(webif.NotSaved):
-        await client.save(pages.setting_form(limit_leaf(60)), 61)
+        await client.save(pages.setting_form(limit_leaf(60)), 61, count)
 
     assert pump.asked == []
+    assert count.calls == 0
 
 
-async def test_a_closed_client_saves_nothing(pump, session):
+async def test_a_closed_client_saves_nothing(pump, session, count):
     pump.show_power_limit(60)
     client = connect(session, pump.host)
     form = await read_form(client)
@@ -912,6 +933,25 @@ async def test_a_closed_client_saves_nothing(pump, session):
     asked = len(pump.asked)
 
     with pytest.raises(webif.Closed):
-        await client.save(form, 61)
+        await client.save(form, 61, count)
 
     assert pump.asked[asked:] == []
+    assert count.calls == 0
+
+
+async def test_a_save_called_off_in_its_gap_is_not_counted(pump, session, count):
+    """Home Assistant stopping cancels a write while its save waits out the
+    gap: nothing went out, and a count there outlived the restart."""
+    pump.show_power_limit(60)
+    client = connect(session, pump.host, gap=GAP)
+    form = await read_form(client)
+    asked = len(pump.asked)
+    saving = asyncio.create_task(client.save(form, 61, count))
+    await asyncio.sleep(GAP / 2)
+
+    saving.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await saving
+    assert pump.asked[asked:] == []
+    assert count.calls == 0

@@ -7,8 +7,9 @@ from datetime import date
 class WriteBudget:
     """How many register writes went out, in total and today.
 
-    Only writes that reach the wire count; a value that is already active is
-    skipped before it gets here. The day rolls over lazily on the next call.
+    A write counts once it is sent, answered or not; one the controller
+    refused does not. A value that is already active is skipped before it
+    gets here. The day rolls over lazily on the next call.
     """
 
     def __init__(

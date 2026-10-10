@@ -951,6 +951,63 @@ async def test_an_unload_during_a_save_tells_its_caller_and_asks_nothing_more(
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
 
 
+async def test_an_unload_while_the_form_is_read_calls_the_write_off_uncounted(
+    hass, pump, quick
+):
+    """The client closed under the write before its save: counted ahead of
+    the save, it said "maybe saved" although nothing went out."""
+    pump.show_power_limit(60)
+    entry = await _start(hass, _entries(hass, pump))
+    budget = entry.runtime_data.coordinator.budget
+    leaf = f"{HEATING_PATH},{limit_segment(60)}"
+    pump.delays[leaf] = 0.5
+    setting = asyncio.create_task(_set_power_limit(hass, 61))
+    await until(lambda: ("GET", leaf) in pump.asked)
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+    with pytest.raises(HomeAssistantError) as called_off:
+        await setting
+    assert called_off.value.translation_key == "webif_write_aborted"
+    assert pump.saved == []
+    assert budget.writes_today == 0
+
+
+# Long enough to cancel the write inside the gap before its save.
+SAVE_GAP = 1.0
+
+
+async def test_a_write_cancelled_in_the_gap_before_its_save_counts_nothing(
+    hass, pump, quick, monkeypatch
+):
+    """Home Assistant stopping cancels the write while its save waits out the
+    gap: counted ahead of it, the stop kept a write that never went out."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", SAVE_GAP)
+    pump.show_power_limit(60)
+    entry = await _start(hass, _entries(hass, pump))
+    started = []
+    create = entry.async_create_background_task
+
+    def noted(hass, target, name, eager_start=True):
+        task = create(hass, target, name, eager_start)
+        started.append(task)
+        return task
+
+    monkeypatch.setattr(entry, "async_create_background_task", noted)
+    leaf = f"{HEATING_PATH},{limit_segment(60)}"
+    setting = asyncio.create_task(_set_power_limit(hass, 61))
+    await until(lambda: ("GET", leaf) in pump.asked, seconds=3 * SAVE_GAP)
+    await asyncio.sleep(SAVE_GAP / 2)
+
+    started[0].cancel()
+
+    with pytest.raises(HomeAssistantError) as called_off:
+        await setting
+    assert called_off.value.translation_key == "webif_write_aborted"
+    assert pump.saved == []
+    assert hass.states.get(_sensor(hass, "settings_written_today")).state == "0"
+
+
 async def test_the_power_limit_is_set_without_a_reading_of_the_heating_page(
     hass, pump, quick
 ):

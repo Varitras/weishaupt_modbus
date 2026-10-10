@@ -1192,8 +1192,8 @@
   {
     "label": "device: a write goes out while the web interface holds the controller",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "        async with self._host_lock:\n            await component.write(_field_name(item), word)\n",
-    "new": "        async with asyncio.Lock():\n            await component.write(_field_name(item), word)\n",
+    "old": "            async with self._host_lock:\n                await component.write(_field_name(item), word)\n",
+    "new": "            async with asyncio.Lock():\n                await component.write(_field_name(item), word)\n",
     "tests": "write_waits_while_the_web_interface_holds"
   },
   {
@@ -1206,8 +1206,8 @@
   {
     "label": "webif client: a request goes out while Modbus holds the controller",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        async with self._host_lock:\n            started = self._clock()\n",
-    "new": "        async with asyncio.Lock():\n            started = self._clock()\n",
+    "old": "        async with self._host_lock:\n            if sending is not None:\n",
+    "new": "        async with asyncio.Lock():\n            if sending is not None:\n",
     "tests": "request_waits_while_modbus_holds"
   },
   {
@@ -2333,8 +2333,8 @@
   {
     "label": "controller access: a web request goes out under a lock of its own",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        async with self._host_lock:\n            started = self._clock()\n",
-    "new": "        async with asyncio.Lock():\n            started = self._clock()\n",
+    "old": "        async with self._host_lock:\n            if sending is not None:\n",
+    "new": "        async with asyncio.Lock():\n            if sending is not None:\n",
     "tests": "every_request_to_the_controller_holds_the_host_lock"
   },
   {
@@ -2662,8 +2662,8 @@
   {
     "label": "controller access: a web request goes out under a lock merely named like it",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        async with self._host_lock:\n            started = self._clock()\n",
-    "new": "        async with self._host_lock_for_tests:\n            started = self._clock()\n",
+    "old": "        async with self._host_lock:\n            if sending is not None:\n",
+    "new": "        async with self._host_lock_for_tests:\n            if sending is not None:\n",
     "tests": "every_request_to_the_controller_holds_the_host_lock"
   },
   {
@@ -2760,8 +2760,8 @@
   {
     "label": "webif client: a refused address counts, paces and logs as a request",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        # Asked where the request goes out, so no other way out can skip it.\n        if not _allowed(method, path, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
-    "new": "        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n                if not _allowed(method, path, form):\n                    raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "old": "        # Asked where the request goes out, so no other way out can skip it.\n        if not _allowed(method, path, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            if sending is not None:\n                sending()\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
+    "new": "        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            if sending is not None:\n                sending()\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n                if not _allowed(method, path, form):\n                    raise ValueError(f\"{method} {path} is not on the positive list\")\n",
     "tests": "off_the_positive_list_is_never_asked_for"
   },
   {
@@ -2788,8 +2788,8 @@
   {
     "label": "controller access: the pump writes after letting go of the lock",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "        async with self._host_lock:\n            await component.write(_field_name(item), word)\n",
-    "new": "        async with self._host_lock:\n            writing = component.write(_field_name(item), word)\n        await writing\n",
+    "old": "            async with self._host_lock:\n                await component.write(_field_name(item), word)\n",
+    "new": "            async with self._host_lock:\n                writing = component.write(_field_name(item), word)\n            await writing\n",
     "tests": "a_write_waits_while_the_web_interface_holds_the_controller"
   },
   {
@@ -2809,29 +2809,29 @@
   {
     "label": "controller access: the client asks after letting go of the lock",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
-    "new": "        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n        if True:\n            try:\n",
+    "old": "                sending()\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
+    "new": "                sending()\n            started = self._clock()\n            outcome = \"no answer\"\n        if True:\n            try:\n",
     "tests": "request_waits_while_modbus_holds_the_controller"
   },
   {
     "label": "controller access: the dialog asks after letting go of the lock",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
-    "new": "        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n        if True:\n            try:\n",
+    "old": "                sending()\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
+    "new": "                sending()\n            started = self._clock()\n            outcome = \"no answer\"\n        if True:\n            try:\n",
     "tests": "dialog_waits_while_its_pump_is_asked"
   },
   {
     "label": "controller access: the entry asks after letting go of the lock",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
-    "new": "        async with self._host_lock:\n            started = self._clock()\n            outcome = \"no answer\"\n        if True:\n            try:\n",
+    "old": "                sending()\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
+    "new": "                sending()\n            started = self._clock()\n            outcome = \"no answer\"\n        if True:\n            try:\n",
     "tests": "web_interface_waits_while_its_pump_is_asked"
   },
   {
     "label": "controller access: a write made under the lock is sent after it",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "        async with self._host_lock:\n            await component.write(_field_name(item), word)\n",
-    "new": "        async with self._host_lock:\n            writing = component.write(_field_name(item), word)\n        await writing\n",
+    "old": "            async with self._host_lock:\n                await component.write(_field_name(item), word)\n",
+    "new": "            async with self._host_lock:\n                writing = component.write(_field_name(item), word)\n            await writing\n",
     "tests": "every_request_is_awaited_where_it_is_made"
   },
   {
@@ -3424,10 +3424,10 @@
   },
   {
     "label": "power limit write: counted only once the save is answered",
-    "path": "custom_components/weishaupt_modbus/webif/setting.py",
-    "old": "    count_write()\n    await client.save(form, target)\n",
-    "new": "    await client.save(form, target)\n    count_write()\n",
-    "tests": "save_without_a_clear_answer_ends_the_write"
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "                answer = await self._request(\n                    \"POST\", SAVE, fields, headers, sending=count_write\n                )\n",
+    "new": "                answer = await self._request(\"POST\", SAVE, fields, headers)\n                count_write()\n",
+    "tests": "save_without_a_clear_answer"
   },
   {
     "label": "power limit write: a form of another stack is saved",
@@ -3939,5 +3939,33 @@
     "old": "\"custom_components/weishaupt_modbus/webif/pages.py\" = \"py310\"",
     "new": "\"custom_components/weishaupt_modbus/webif/pages.py\" = \"py314\"",
     "tests": "formatter_keeps_what_the_tool_runs_readable_for_python_3_10"
+  },
+  {
+    "label": "power limit write: counted before the gap its save waits out",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "                answer = await self._request(\n                    \"POST\", SAVE, fields, headers, sending=count_write\n                )\n",
+    "new": "                count_write()\n                answer = await self._request(\"POST\", SAVE, fields, headers)\n",
+    "tests": "called_off_in_its_gap or cancelled_in_the_gap_before_its_save or while_the_form_is_read"
+  },
+  {
+    "label": "device: a write whose answer is lost goes uncounted",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "            self._count_write()\n            raise\n",
+    "new": "            raise\n",
+    "tests": "answer_is_lost_is_counted"
+  },
+  {
+    "label": "device: a write a closed client never sent is counted",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        except ModbusExceptionError, ClientClosedError:\n",
+    "new": "        except ModbusExceptionError:\n",
+    "tests": "reached_no_eeprom"
+  },
+  {
+    "label": "device: a write the controller refused is counted",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        except ModbusExceptionError, ClientClosedError:\n            raise\n",
+    "new": "        except ClientClosedError:\n            raise\n",
+    "tests": "reached_no_eeprom"
   }
 ]

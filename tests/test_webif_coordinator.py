@@ -118,7 +118,8 @@ class FakeClient:
         self.script[HEATING.path] = [heating_page(limit)]
         self.script[f"{HEATING.path},{limit_segment(limit)}"] = [limit_leaf(limit)]
 
-    async def save(self, form, value):
+    async def save(self, form, value, count_write):
+        count_write()
         self.asked.append(SAVE)
         self.saved.append(value)
         if self.save_gate is not None:
@@ -1060,7 +1061,8 @@ async def test_another_value_shown_is_published_and_named(
 ):
     await first_round_showing(coordinator, client, clock)
 
-    async def clamped(form, value):
+    async def clamped(form, value, count_write):
+        count_write()
         client.asked.append(SAVE)
         client.shows_power_limit(65)
 
@@ -1078,7 +1080,8 @@ def _unanswered(client):
 
 
 def _not_read_back(client):
-    async def saved_then_broken(form, value):
+    async def saved_then_broken(form, value, count_write):
+        count_write()
         client.asked.append(SAVE)
         client.answer(HEATING, Broken(HEATING.path))
 
@@ -1345,7 +1348,8 @@ async def test_after_an_unexpected_error_on_the_read_back_the_heating_page_is_du
     holds instead of showing the old value for up to an hour."""
     await first_round_showing(coordinator, client, clock)
 
-    async def saved_then_faulty(form, value):
+    async def saved_then_faulty(form, value, count_write):
+        count_write()
         client.asked.append(SAVE)
         client.answer(HEATING, RuntimeError("a fault of the parser"))
 

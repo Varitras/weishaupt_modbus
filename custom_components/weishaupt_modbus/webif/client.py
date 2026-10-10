@@ -294,8 +294,14 @@ class Client:
                 self.traffic.failed_reads += 1
                 raise
 
-    async def save(self, form: pages.SettingForm, value: int) -> None:
+    async def save(
+        self, form: pages.SettingForm, value: int, count_write: Callable[[], object]
+    ) -> None:
         """Send a setting's form with `value`, once.
+
+        `count_write` runs as the POST goes out, after the gap and the lock
+        Modbus shares: a save called off while it waits is no write, and one
+        sent may reach the EEPROM, answered or not.
 
         Raises NotSaved when the session was gone, MaybeSaved when the answer
         leaves it open. Neither is followed by a login or a second POST: the
@@ -317,7 +323,9 @@ class Client:
             # Origin; only that request is proven.
             headers = {"Referer": self._base + form.path, "Origin": self._base}
             try:
-                answer = await self._request("POST", SAVE, fields, headers)
+                answer = await self._request(
+                    "POST", SAVE, fields, headers, sending=count_write
+                )
             except Unreachable as error:
                 raise MaybeSaved(str(error)) from error
             _raise_unless_saved(form, answer)
@@ -402,10 +410,12 @@ class Client:
         path: str,
         form: dict[str, str] | None = None,
         headers: Mapping[str, str] | None = None,
+        *,
+        sending: Callable[[], object] | None = None,
     ) -> _Answer:
         async with self._pacing.lock:
             await self._pace()
-            return await self._exchange(method, path, form, headers)
+            return await self._exchange(method, path, form, headers, sending)
 
     async def _exchange(
         self,
@@ -413,13 +423,19 @@ class Client:
         path: str,
         form: dict[str, str] | None,
         headers: Mapping[str, str] | None,
+        sending: Callable[[], object] | None = None,
     ) -> _Answer:
-        """One request under the lock Modbus shares, logged however it ends."""
+        """One request under the lock Modbus shares, logged however it ends.
+
+        `sending` runs once nothing is left to wait for but the request.
+        """
         # Asked where the request goes out, so no other way out can skip it.
         if not _allowed(method, path, form):
             raise ValueError(f"{method} {path} is not on the positive list")
         cookie = {"Cookie": f"{SESSION_COOKIE}={self._cookie}"} if self._cookie else {}
         async with self._host_lock:
+            if sending is not None:
+                sending()
             started = self._clock()
             outcome = "no answer"
             try:

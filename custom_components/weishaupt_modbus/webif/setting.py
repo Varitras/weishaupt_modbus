@@ -88,8 +88,8 @@ async def write_power_limit(
     """Set the power limit to `target`; the heating page as read afterwards.
 
     `whole` is the heating page's own completeness rule. `count_write` runs
-    right before the save goes out: answered or not, it may reach the EEPROM.
-    A target the controller already shows ends the write after the first read.
+    as the save goes out, see Client.save. A target the controller already
+    shows ends the write after the first read.
 
     Raises FormNotRead or FormMismatch with nothing sent, NotSaved or
     MaybeSaved from the save, OtherValueShown or NotReadBack after it.
@@ -116,8 +116,7 @@ async def write_power_limit(
         raise FormMismatch(
             f"{POWER_LIMIT_TITLE}: the form is not the one of {shown} or lacks {target}"
         )
-    count_write()
-    await client.save(form, target)
+    await client.save(form, target, count_write)
     try:
         read_back, (now_shown, _) = await _read(client, heating_path, limit_shown)
     except (Broken, Unreachable, Closed) as error:

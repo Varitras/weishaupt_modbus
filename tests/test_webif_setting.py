@@ -52,7 +52,8 @@ class ScriptedClient:
             raise Broken(path)
         return answer
 
-    async def save(self, form, value):
+    async def save(self, form, value, count_write):
+        count_write()
         self.events.append(("save", value))
         if self.save_error is not None:
             raise self.save_error
