@@ -3348,8 +3348,8 @@
   {
     "label": "webif coordinator: the hold is let go when a dialog ends early",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        self._no_dialog_visit.clear()\n        try:\n            yield\n        finally:\n            self._no_dialog_visit.set()\n",
-    "new": "        self._no_dialog_visit.clear()\n        yield\n        self._no_dialog_visit.set()\n",
+    "old": "        try:\n            yield\n        finally:\n            self._dialog_visits -= 1\n            if not self._dialog_visits:\n                self._no_dialog_visit.set()\n",
+    "new": "        yield\n        self._dialog_visits -= 1\n        if not self._dialog_visits:\n            self._no_dialog_visit.set()\n",
     "tests": "dialog_that_ends_early_lets_the_rounds_go"
   },
   {
@@ -3995,5 +3995,12 @@
     "old": "                if page not in self._due():\n                    continue\n",
     "new": "",
     "tests": "skips_the_page_the_write_read"
+  },
+  {
+    "label": "webif coordinator: the first of two dialogs to end lets the rounds go",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            self._dialog_visits -= 1\n            if not self._dialog_visits:\n                self._no_dialog_visit.set()\n",
+    "new": "            self._dialog_visits -= 1\n            self._no_dialog_visit.set()\n",
+    "tests": "last_of_two_dialogs"
   }
 ]

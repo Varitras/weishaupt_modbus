@@ -589,6 +589,25 @@ async def test_a_round_waits_while_a_dialog_of_its_entry_visits(coordinator, cli
     assert client.asked == [HEAT_PUMP.path, STATISTICS.path, HEATING.path]
 
 
+async def test_the_rounds_wait_until_the_last_of_two_dialogs_ends(coordinator, client):
+    """Two reconfigure dialogs of one entry: the first to end let the rounds
+    go while the second still visited."""
+    first = coordinator.dialog_visiting()
+    second = coordinator.dialog_visiting()
+    await first.__aenter__()
+    await second.__aenter__()
+    await first.__aexit__(None, None, None)
+
+    polling = asyncio.create_task(coordinator._async_update_data())
+    await settle()
+    assert client.asked == []
+
+    await second.__aexit__(None, None, None)
+    async with asyncio.timeout(HOLD_LIMIT_SECONDS):
+        await polling
+    assert client.asked == [HEAT_PUMP.path, STATISTICS.path, HEATING.path]
+
+
 @pytest.mark.parametrize("ending", ["cancelled", "failed"])
 async def test_a_dialog_that_ends_early_lets_the_rounds_go(coordinator, client, ending):
     """A dialog closed mid-visit cancels the visit, and a visit can fail:

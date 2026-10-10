@@ -317,6 +317,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         # A round cut short by a timeout gives the controller a rest: no page
         # is asked before it ends, not by a round a write planned, not by hand.
         self._rest_until = -math.inf
+        # Counted: two dialogs of one entry may visit at once.
+        self._dialog_visits = 0
         self._no_dialog_visit = asyncio.Event()
         self._no_dialog_visit.set()
         # Held for a round's page and for a whole write: a round request
@@ -338,11 +340,14 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         18 requests of a reconfigure, and the dialog waited 134 s instead of
         about 90. After a visit that works out the entry reloads anyway.
         """
+        self._dialog_visits += 1
         self._no_dialog_visit.clear()
         try:
             yield
         finally:
-            self._no_dialog_visit.set()
+            self._dialog_visits -= 1
+            if not self._dialog_visits:
+                self._no_dialog_visit.set()
 
     @property
     def _heating(self) -> Page:
