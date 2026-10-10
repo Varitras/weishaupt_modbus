@@ -44,8 +44,8 @@
   {
     "label": "calculation: a performance factor without electric energy must be undefined",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/calculations.py",
-    "old": "    if electric_energy == 0:\n        return None\n",
-    "new": "    if electric_energy == 0:\n        return 0.0\n",
+    "old": "    if electric_energy < MIN_ELECTRIC_ENERGY_KWH:\n        return None\n",
+    "new": "    if electric_energy < MIN_ELECTRIC_ENERGY_KWH:\n        return 0.0\n",
     "tests": "undefined_without_electric_energy"
   },
   {
@@ -3876,5 +3876,19 @@
     "old": "    return unique_id.startswith(f\"{entry_data[CONF.PREFIX]}_\") and unique_id.endswith(\n        LEGACY_WEBIF_UNIQUE_ID_SUFFIX\n    )\n",
     "new": "    return unique_id.endswith(LEGACY_WEBIF_UNIQUE_ID_SUFFIX)\n",
     "tests": "1_0_19_go_too"
+  },
+  {
+    "label": "performance factor: shown from a single whole kWh",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/calculations.py",
+    "old": "    if electric_energy < MIN_ELECTRIC_ENERGY_KWH:\n",
+    "new": "    if electric_energy == 0:\n",
+    "tests": "few_whole_kwh"
+  },
+  {
+    "label": "performance factor: 5 kWh themselves are not enough",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/calculations.py",
+    "old": "    if electric_energy < MIN_ELECTRIC_ENERGY_KWH:\n",
+    "new": "    if electric_energy <= MIN_ELECTRIC_ENERGY_KWH:\n",
+    "tests": "few_whole_kwh"
   }
 ]

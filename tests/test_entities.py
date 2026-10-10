@@ -615,7 +615,19 @@ def test_a_user_value_becomes_the_nearest_register_word(value, divider, word):
 
 def test_the_performance_factor_is_undefined_without_electric_energy():
     assert performance_factor(12.0, 0) is None
-    assert performance_factor(12.0, 4) == 3.0
+    assert performance_factor(20.0, 5) == 4.0
+
+
+@pytest.mark.parametrize(
+    ("heat", "electric", "factor"),
+    [(7, 1, None), (12, 4, None), (22, 5, 4.4), (83, 20, 4.15)],
+)
+def test_a_performance_factor_from_a_few_whole_kwh_is_not_shown(heat, electric, factor):
+    """The registers count whole kWh: 7 kWh of heat for 1 kWh of electricity
+    read 7.00 for anything between about 3.5 and 8, and a summer day's
+    factor went into the statistics so. Below 5 kWh the factor can be off by
+    more than a fifth."""
+    assert performance_factor(heat, electric) == factor
 
 
 class RealDeviceCoordinator:

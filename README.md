@@ -468,6 +468,12 @@ already set.
   the yearly total exists only on the display, in the WEM portal and in the
   web interface (see [Web interface (experimental)](#web-interface-experimental)).
   The yearly performance factor over Modbus therefore has no value.
+- The performance factors over Modbus are heat energy divided by electric
+  energy, and both registers count whole kWh. So a factor is shown only from
+  5 kWh of electricity on - unknown before that, as on most hot-water-only
+  summer days and in the first days of a month - and even then it can be off
+  by up to a fifth; with 20 kWh by about a twentieth. The web interface's
+  statistics give the energies to three decimals.
 - The heat output is calculated from the power map, not measured. The
   electrical power is measured by the heat pump, but undocumented and
   checked on one model only.
