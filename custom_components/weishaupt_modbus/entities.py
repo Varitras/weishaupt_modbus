@@ -1,6 +1,7 @@
 """Entity classes used in this integration."""
 
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from functools import partial
 from typing import Any
 
@@ -14,6 +15,7 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.restore_state import ExtraStoredData, RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .configentry import MyConfigEntry
@@ -349,13 +351,25 @@ class MyNumberEntity(MyEntity, NumberEntity):
             self.coordinator.async_update_listeners()
 
 
-class MySetpointSwitchEntity(MyEntity, SwitchEntity):
+# Where a setpoint switch keeps the register value across restarts.
+LAST_SETTING = "last_setting"
+
+
+@dataclass
+class _KeptSetting(ExtraStoredData):
+    last_setting: int | None
+
+    def as_dict(self) -> dict[str, Any]:
+        return {LAST_SETTING: self.last_setting}
+
+
+class MySetpointSwitchEntity(MyEntity, SwitchEntity, RestoreEntity):
     """On/off for a setpoint whose off state is a register word.
 
     The controller's menu offers "Aus" beside the temperature for these
     registers; the number entity cannot express that, so this switch does.
-    Turning on restores the value the register held before, or the range's
-    minimum when none was ever seen.
+    Turning on restores the value the register held before, kept across
+    reloads and restarts, or the range's minimum when none was ever seen.
     """
 
     def __init__(
@@ -376,6 +390,28 @@ class MySetpointSwitchEntity(MyEntity, SwitchEntity):
         """Handle updated data from the coordinator."""
         self._attr_is_on = not self._api_item.is_off
         self.async_write_ha_state()
+
+    @property
+    def extra_restore_state_data(self) -> ExtraStoredData:
+        """The value to turn back on to after a restart."""
+        return _KeptSetting(self._api_item.last_setting)
+
+    async def async_added_to_hass(self) -> None:
+        """Take the kept value when the setup's first poll read the off word.
+
+        It lived in memory only: after a reload or a restart, turning on
+        wrote the range's minimum. A value read since is newer and stays.
+        """
+        await super().async_added_to_hass()
+        if self._api_item.last_setting is not None:
+            return
+        kept = await self.async_get_last_extra_data()
+        if kept is None:
+            return
+        value = kept.as_dict().get(LAST_SETTING)
+        # bool is an int to Python, never a register word.
+        if isinstance(value, int) and not isinstance(value, bool):
+            self._api_item.last_setting = value
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Write the off word."""

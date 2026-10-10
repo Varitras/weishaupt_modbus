@@ -3799,5 +3799,33 @@
     "old": "STATISTICS_ENGLISH = \"statistics\"\n",
     "new": "STATISTICS_ENGLISH = \"Statistics\"\n",
     "tests": "found_under_the_title_the_controller_shows"
+  },
+  {
+    "label": "setpoint switch: the value kept is not stored",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        return _KeptSetting(self._api_item.last_setting)\n",
+    "new": "        return _KeptSetting(None)\n",
+    "tests": "comes_back_with_its_value"
+  },
+  {
+    "label": "setpoint switch: the kept value overrides one read at the start",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        if self._api_item.last_setting is not None:\n            return\n        kept = await self.async_get_last_extra_data()\n",
+    "new": "        kept = await self.async_get_last_extra_data()\n",
+    "tests": "wins_over_the_one_kept"
+  },
+  {
+    "label": "setpoint switch: the kept value is not taken back",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "            self._api_item.last_setting = value\n",
+    "new": "            pass\n",
+    "tests": "comes_back_with"
+  },
+  {
+    "label": "setpoint switch: a kept value that is no register value is taken",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        if isinstance(value, int) and not isinstance(value, bool):\n",
+    "new": "        if value is not None:\n",
+    "tests": "comes_back_with_the_value_it_held"
   }
 ]

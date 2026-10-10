@@ -160,8 +160,9 @@ at the controller - the constant flow temperatures, the summer/winter
 switchover and the SG-Ready boost. The register then reports an "off" word
 instead of a temperature. Each of these comes as a number *and* a switch
 (`… active`): the number reads unknown while the setpoint is off, the switch
-turns it off and back on (restoring the value it held before, or the lowest
-allowed one).
+turns it off and back on. Turning on restores the value it held before, also
+after a reload or a restart; the lowest allowed one only when the switch
+never saw a value.
 
 **Reported setpoints.** The setpoints the controller only reports - room,
 flow and DHW setpoint temperature - read 0 °C while the controller

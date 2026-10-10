@@ -23,7 +23,10 @@ from modbus_connection import (
     ServerDeviceFailureError,
 )
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    mock_restore_cache_with_extra_data,
+)
 from pytest_homeassistant_custom_component.components.diagnostics import (
     get_diagnostics_for_config_entry,
 )
@@ -40,6 +43,7 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.exceptions import (
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.hpconst import DEVICELISTS
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import EntityCategory
+from homeassistant.core import State
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_registry as er, issue_registry as ir
@@ -370,6 +374,91 @@ async def test_the_number_and_its_switch_agree_right_after_a_write(hass, pump):
     )
     assert hass.states.get(switch).state == "off"
     assert hass.states.get(number).state == "unknown"
+
+
+def _boost_switch(hass):
+    return er.async_get(hass).async_get_entity_id(
+        "switch", CONST.DOMAIN, SG_READY_BOOST_UNIQUE_ID + "_active"
+    )
+
+
+async def _switch(hass, service, entity_id):
+    await hass.services.async_call(
+        "switch", service, {"entity_id": entity_id}, blocking=True
+    )
+    await hass.async_block_till_done()
+
+
+async def test_a_setpoint_switched_off_before_a_reload_comes_back_with_its_value(
+    hass, pump
+):
+    """The value it held lived in memory only: after a reload, turning the
+    setpoint on wrote the range's minimum - for the summer/winter switchover
+    3 degC, which keeps the heating off all winter."""
+    pump.load_raw({"holding": {SG_READY_BOOST: 50}})
+    entry = await _setup(hass, _entry(hass))
+    await _switch(hass, "turn_off", _boost_switch(hass))
+    # The stand-in hands each load a fresh connection from what it was given.
+    pump.load_raw({"holding": {SG_READY_BOOST: 0x8000}})
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    writes = []
+    pump.unit.on_write(writes.append)
+
+    await _switch(hass, "turn_on", _boost_switch(hass))
+
+    assert [(event.address, event.values) for event in writes] == [
+        (SG_READY_BOOST, [50])
+    ]
+
+
+@pytest.mark.parametrize(
+    ("stored", "written"),
+    [({"last_setting": 50}, 50), ({"last_setting": "50"}, 0), ({}, 0)],
+    ids=["kept", "not a register value", "none kept"],
+)
+async def test_a_setpoint_off_at_a_restart_comes_back_with_the_value_it_held(
+    hass, pump, stored, written
+):
+    """The same across a restart; a stored value that is not a register
+    value is no value, and the range's minimum stays the fallback."""
+    pump.load_raw({"holding": {SG_READY_BOOST: 0x8000}})
+    entry = await _setup(hass, _entry(hass))
+    switch = _boost_switch(hass)
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    mock_restore_cache_with_extra_data(hass, [(State(switch, "off"), stored)])
+    await _setup(hass, entry)
+    writes = []
+    pump.unit.on_write(writes.append)
+
+    await _switch(hass, "turn_on", switch)
+
+    assert [(event.address, event.values) for event in writes] == [
+        (SG_READY_BOOST, [written])
+    ]
+
+
+async def test_a_setpoint_read_at_the_start_wins_over_the_one_kept(hass, pump):
+    """What the controller shows now is newer than what was kept."""
+    pump.load_raw({"holding": {SG_READY_BOOST: 70}})
+    entry = await _setup(hass, _entry(hass))
+    switch = _boost_switch(hass)
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    mock_restore_cache_with_extra_data(
+        hass, [(State(switch, "on"), {"last_setting": 50})]
+    )
+    await _setup(hass, entry)
+    await _switch(hass, "turn_off", switch)
+    writes = []
+    pump.unit.on_write(writes.append)
+
+    await _switch(hass, "turn_on", switch)
+
+    assert [(event.address, event.values) for event in writes] == [
+        (SG_READY_BOOST, [70])
+    ]
 
 
 DHW_NORMAL = 42103
