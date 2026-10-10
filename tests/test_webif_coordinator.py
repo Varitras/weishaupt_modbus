@@ -199,7 +199,17 @@ def intervals(options):
     """Each page's interval, as the entry's options set it."""
     paths = {key: f"/{key}" for key in (HEAT_PUMP_PAGE, STATISTICS_PAGE, HEATING_PAGE)}
     required = dict.fromkeys(paths, frozenset())
-    return {page.key: page.interval for page in polled_pages(paths, options, required)}
+    english = {key: {} for key in paths}
+    polled = polled_pages(paths, options, required, english)
+    return {page.key: page.interval for page in polled}
+
+
+def test_a_page_with_english_titles_can_be_hashed():
+    """A frozen dataclass hashes every field, and the English titles, a dict,
+    made every page unhashable."""
+    page = replace(HEAT_PUMP, english={"HIGH PRESS": "Hochdruck"})
+
+    assert hash(page) == hash(replace(page))
 
 
 def test_without_options_the_pages_keep_the_default_intervals():
@@ -444,7 +454,7 @@ async def test_the_third_failure_in_a_row_stops_polling(
     )
     assert issue is not None
     assert issue.translation_placeholders == {
-        "page": "Info › Wärmepumpe",
+        "page": "Info › Wärmepumpe (information › heat pump)",
         "error": "timeout",
     }
 
@@ -670,7 +680,7 @@ async def test_the_stop_names_an_unexpected_error_by_its_kind_only(
     )
     assert issue.translation_placeholders["error"] == "RuntimeError"
     assert coordinator.diagnostics()["stopped_by"] == (
-        "Info › Wärmepumpe",
+        "Info › Wärmepumpe (information › heat pump)",
         "RuntimeError",
     )
 
@@ -727,7 +737,10 @@ async def test_the_diagnostics_name_the_page_the_brake_stopped_on(
 
     diagnostics = coordinator.diagnostics()
 
-    assert diagnostics["stopped_by"] == ("Info › Wärmepumpe", "timeout")
+    assert diagnostics["stopped_by"] == (
+        "Info › Wärmepumpe (information › heat pump)",
+        "timeout",
+    )
     assert diagnostics["login_refused"] is False
 
 

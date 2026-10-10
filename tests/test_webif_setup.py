@@ -46,6 +46,8 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from .locking import WatchedLock, until
 from .webif_stand_in import (
+    ENGLISH_HEATING,
+    GERMAN_HEATING,
     HEAT_PUMP_INFO,
     HEATING,
     HEATING_PATH,
@@ -99,20 +101,39 @@ HEATING_LINKS = {
     "Schaltdifferenz": SWITCHING_DIFFERENCE,
     "Leistungsbegrenzung": POWER_LIMIT_SEGMENT,
 }
-SITE = {
-    PAGES[HEAT_PUMP_PAGE]: column(
-        "".join(value(title, shown) for title, shown in SHOWN[HEAT_PUMP_PAGE].items())
-    ),
-    PAGES[STATISTICS_PAGE]: column(
-        "".join(value(title, shown) for title, shown in SHOWN[STATISTICS_PAGE].items())
-    ),
-    PAGES[HEATING_PAGE]: column(
-        "".join(
-            link([PUMP_MENU, HEATING, HEATING_LINKS[title]], title, shown)
-            for title, shown in SHOWN[HEATING_PAGE].items()
-        )
-    ),
-}
+
+
+def site(shown_as=lambda title: title):
+    """The three pages, each value under the title `shown_as` gives it."""
+    return {
+        PAGES[HEAT_PUMP_PAGE]: column(
+            "".join(
+                value(shown_as(title), shown)
+                for title, shown in SHOWN[HEAT_PUMP_PAGE].items()
+            )
+        ),
+        PAGES[STATISTICS_PAGE]: column(
+            "".join(
+                value(shown_as(title), shown)
+                for title, shown in SHOWN[STATISTICS_PAGE].items()
+            )
+        ),
+        PAGES[HEATING_PAGE]: column(
+            "".join(
+                link([PUMP_MENU, HEATING, HEATING_LINKS[title]], shown_as(title), shown)
+                for title, shown in SHOWN[HEATING_PAGE].items()
+            )
+        ),
+    }
+
+
+def english_site():
+    """The three pages of a controller set to English."""
+    english = {sensor.title: sensor.english_title for sensor in READ_VALUES}
+    return site(english.__getitem__)
+
+
+SITE = site()
 LOGIN = [("GET", webif.INDEX), ("POST", webif.LOGIN)]
 FIRST_ROUND = [*LOGIN, *(("GET", path) for path in PAGES.values())]
 # What the pump entry needs besides the address to run its Modbus side.
@@ -599,10 +620,25 @@ async def test_the_diagnostics_leave_out_the_login_and_the_page_addresses(hass, 
     assert coordinator["stopped_by"] is None
 
 
-async def test_the_values_become_sensors_on_a_device_of_their_own(hass, pump):
+# User wish, 2026-10-10: set to English, the controller shows the same values
+# under other titles, and the entry read none of them.
+SITES = [
+    pytest.param(SITE, id="German"),
+    pytest.param(english_site(), id="English"),
+]
+LANGUAGES = [
+    pytest.param(SITE, GERMAN_HEATING, id="German"),
+    pytest.param(english_site(), ENGLISH_HEATING, id="English"),
+]
+
+
+@pytest.mark.parametrize("site", SITES)
+async def test_the_values_become_sensors_on_a_device_of_their_own(hass, pump, site):
+    pump.site = dict(site)
     entry = await _start(hass, _entries(hass, pump))
     registry = er.async_get(hass)
 
+    assert entry.runtime_data.coordinator.data == SHOWN
     assert len(er.async_entries_for_config_entry(registry, entry.entry_id)) == len(
         EVERY_ENTITY
     )
@@ -809,9 +845,14 @@ async def _set_power_limit(hass, value):
     )
 
 
-async def test_the_power_limit_is_set_from_home_assistant(hass, pump, quick):
+@pytest.mark.parametrize(("site", "heating_titles"), LANGUAGES)
+async def test_the_power_limit_is_set_from_home_assistant(
+    hass, pump, quick, site, heating_titles
+):
     """Live, 2026-10-02, the same four requests: the heating page, the
     limit's own page, one save, the heating page again."""
+    pump.site = dict(site)
+    pump.heating_titles = heating_titles
     pump.show_power_limit(60)
     await _start(hass, _entries(hass, pump))
     assert hass.states.get(_number(hass)).state == "60"

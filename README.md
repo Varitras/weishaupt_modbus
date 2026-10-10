@@ -264,10 +264,12 @@ little and stops on its own when the answers go wrong.
 2. Open `http://<address of the heat pump>/` in a browser. On the first
    visit the page asks you to set a user name and a password; there are no
    default credentials. These two go into the integration.
-3. Keep the controller's language on **German** (*Settings → Language* on
-   the display, see the heat pump's manual). The web interface shows its
-   texts in the language set there, and the integration finds its pages and
-   values by their German titles. With another language the dialog names
+3. Keep the controller's language on **German** or **English**
+   (*Settings → Language*, see the heat pump's manual). The web interface
+   shows its texts in the language set there, and the integration finds its
+   pages and values by their titles in these two languages. A text value,
+   such as the diverter valve position, keeps the controller's wording and
+   so changes with its language. With another language the dialog names
    the menu entries it could not find and asks about the language. If your
    controller has to stay on another language, open an
    [issue](https://github.com/Varitras/weishaupt_modbus/issues) so that
@@ -358,16 +360,17 @@ The *Name topic prefix* option of the heat pump entry names these sensors
 like their Modbus siblings, with `WP_` or `ST_` in front.
 
 A value counts only in the unit the page shows for it; anything else reads as
-unknown. The page shows an idle power or speed as `Aus`, which reads as 0
-there and as unknown on any other value. It shows the setpoint temperature
-as `--` while nothing is demanded, which reads as 0 °C like the Modbus
-setpoints, in the statistics too, but without a `demand` attribute; any
-other `--` reads as unknown.
+unknown. The page shows an idle power or speed as `Aus` (in English an idle
+power as `off`), which reads as 0 there and as unknown on any other number;
+a text value keeps the word. It shows the setpoint temperature as `--` while nothing is
+demanded, which reads as 0 °C like the Modbus setpoints, in the statistics
+too, but without a `demand` attribute; any other `--` reads as unknown.
 
 ### Setting the heating power limit
 
 The number *Heating power limit* sets *Wärmepumpe › Heizen ›
-Leistungsbegrenzung* at the controller, 10 to 100 % in steps of one.
+Leistungsbegrenzung* (*heat pump › heating › output limit* in English) at
+the controller, 10 to 100 % in steps of one.
 
 - A change waits 5 seconds for further changes, so a few clicks on the arrows
   make one write, of the last value. A change made while a write runs is
@@ -467,7 +470,7 @@ already set.
 - Prefix and device postfix cannot be changed after setup.
 - Heat pumps with the separate Weishaupt Modbus module are not supported.
 - The web interface is read only with the controller's language set to
-  German.
+  German or English.
 
 ## Troubleshooting
 

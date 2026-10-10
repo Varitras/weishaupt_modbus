@@ -17,6 +17,8 @@ from custom_components.weishaupt_modbus.webif.client import (
 )
 
 from .webif_stand_in import (
+    ENGLISH_HEATING,
+    GERMAN_HEATING,
     HEATING,
     HEATING_PATH,
     PUMP_MENU,
@@ -76,12 +78,18 @@ async def write(client, target=61):
     )
 
 
-async def test_a_write_reads_the_form_saves_once_and_reads_back():
+@pytest.mark.parametrize(
+    "titles", [GERMAN_HEATING, ENGLISH_HEATING], ids=["German", "English"]
+)
+async def test_a_write_reads_the_form_saves_once_and_reads_back(titles):
     """Live, 2026-10-02: the heating page, the limit's own page, one save,
-    the heating page again showing the new value."""
-    client, events = scripted()
+    the heating page again showing the new value. Set to English, the
+    controller shows the limit as "output limit"."""
+    client, events = scripted(
+        heating=[heating_page(limit, titles=titles) for limit in (60, 61)]
+    )
 
-    assert await write(client) == heating_page(61)
+    assert await write(client) == heating_page(61, titles=titles)
     assert events == [
         ("page", HEATING_PATH),
         ("page", LEAF),

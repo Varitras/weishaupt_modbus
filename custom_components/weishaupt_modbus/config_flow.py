@@ -1,7 +1,7 @@
 """Config flow."""
 
 import asyncio
-from collections.abc import Coroutine, Mapping
+from collections.abc import Coroutine, Iterable, Mapping
 import logging
 from pathlib import Path
 from typing import Any
@@ -28,8 +28,9 @@ from .const import CONF, CONST
 from .kennfeld import get_filepath
 from .migrate_helpers import entry_unique_id
 from .webif.client import LoginRefused, Unreachable, WebifError
-from .webif.discovery import DoubledMenuEntries, MissingMenuEntries
+from .webif.discovery import ENGLISH_MENU_TITLES, DoubledMenuEntries, MissingMenuEntries
 from .webif_coordinator import INTERVAL_OPTIONS
+from .webif_sensor import ENGLISH_TITLES
 from .webif_visit import MissingTitles, UnclearValues, UnknownUnits, read_web_interface
 from .weishaupt_modbus_api.const import (
     DEFAULT_PORT,
@@ -150,12 +151,32 @@ def web_interface_error(error: WebifError) -> str:
     return "cannot_read"
 
 
+# The German titles the dialog names, as a controller set to English shows
+# them: its user looks for those.
+TITLES_IN_ENGLISH = {
+    german: english
+    for titles in (ENGLISH_MENU_TITLES, *ENGLISH_TITLES.values())
+    for english, german in titles.items()
+}
+
+
+def _in_both_languages(title: str) -> str:
+    english = TITLES_IN_ENGLISH.get(title, title)
+    if english.casefold() == title.casefold():
+        return title
+    return f"{title} ({english})"
+
+
+def _named(titles: Iterable[str]) -> str:
+    return ", ".join(_in_both_languages(title) for title in sorted(titles))
+
+
 def web_interface_error_placeholders(error: WebifError) -> dict[str, str]:
     """The placeholders of the form's error for a visit that failed."""
     if isinstance(error, MissingTitles | UnclearValues | UnknownUnits):
-        return {"page": error.page, "titles": ", ".join(sorted(error.titles))}
+        return {"page": error.page, "titles": _named(error.titles)}
     if isinstance(error, MissingMenuEntries | DoubledMenuEntries):
-        return {"titles": ", ".join(sorted(error.titles))}
+        return {"titles": _named(error.titles)}
     return {}
 
 

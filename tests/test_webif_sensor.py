@@ -11,6 +11,7 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     STATISTICS_PAGE,
 )
 from custom_components.weishaupt_modbus.webif_sensor import (
+    READ_VALUES,
     REQUIRED_TITLES,
     WEBIF_SENSORS,
     WebifSensor,
@@ -66,18 +67,19 @@ IDLE_SHOWN_AS_AUS = {
 NO_DEMAND_SHOWN_AS_DASHES = {"solltemperatur"}
 
 
+@pytest.mark.parametrize("off", ["Aus", "off"], ids=["German", "English"])
 @pytest.mark.parametrize("sensor", WEBIF_SENSORS, ids=lambda sensor: sensor.key)
-def test_aus_reads_0_only_for_an_idle_power_or_speed(sensor):
+def test_aus_reads_0_only_for_an_idle_power_or_speed(sensor, off):
     """Elsewhere "Aus" read as 0 too: on a rising total that is a meter reset
     to Home Assistant's statistics, which then count the next reading in full
     again; on the power limit it more likely means no limit. A text keeps
-    the word."""
+    the word. Set to English, the controller writes "off"."""
     if sensor.shown_unit is None:
-        assert reading(sensor, "Aus") == "Aus"
+        assert reading(sensor, off) == off
     elif sensor.key in IDLE_SHOWN_AS_AUS:
-        assert reading(sensor, "Aus") == 0.0
+        assert reading(sensor, off) == 0.0
     else:
-        assert reading(sensor, "Aus") is None
+        assert reading(sensor, off) is None
 
 
 @pytest.mark.parametrize("sensor", WEBIF_SENSORS, ids=lambda sensor: sensor.key)
@@ -111,6 +113,18 @@ def test_every_page_requires_the_titles_of_its_sensors():
         HEATING_PAGE: 2,
     }
     assert len({sensor.key for sensor in WEBIF_SENSORS}) == len(WEBIF_SENSORS)
+
+
+@pytest.mark.parametrize("page", list(REQUIRED_TITLES))
+def test_every_value_has_an_english_title_no_other_value_has(page):
+    """Set to English, the controller shows each value under a title of its
+    own; one equal to another value's title would be read as that value."""
+    values = [value for value in READ_VALUES if value.page == page]
+    titles = [value.title for value in values]
+
+    assert len({value.english_title for value in values}) == len(values)
+    for index, value in enumerate(values):
+        assert value.english_title not in titles[:index] + titles[index + 1 :]
 
 
 def test_a_sensor_shows_its_title_on_its_page():

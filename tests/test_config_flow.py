@@ -702,7 +702,8 @@ async def test_a_visit_that_fails_says_why(hass, web_interface, failure, error):
 
 async def test_a_controller_in_another_language_is_told_so(hass, web_interface):
     """It said "did not show its menus completely; try again", and trying
-    again could never help."""
+    again could never help. It named only the German entries, which a
+    controller set to English does not show."""
     pump = _pump_entry(hass)
     web_interface.outcome = MissingMenuEntries({"Statistik", "Heizen"})
     form = await _web_form(hass)
@@ -712,7 +713,9 @@ async def test_a_controller_in_another_language_is_told_so(hass, web_interface):
     )
 
     assert result["errors"] == {"base": "missing_menu_entries"}
-    assert result["description_placeholders"] == {"titles": "Heizen, Statistik"}
+    assert result["description_placeholders"] == {
+        "titles": "Heizen (heating), Statistik (statistics)"
+    }
 
 
 async def test_a_visit_failing_on_a_fault_of_its_own_says_so(
@@ -758,7 +761,7 @@ async def test_a_menu_entry_shown_twice_is_named_in_the_form(hass, web_interface
     )
 
     assert result["errors"] == {"base": "doubled_menu_entries"}
-    assert result["description_placeholders"] == {"titles": "Wärmepumpe"}
+    assert result["description_placeholders"] == {"titles": "Wärmepumpe (heat pump)"}
 
 
 async def test_a_failed_visit_leaves_a_debug_line(hass, web_interface, caplog):
@@ -788,10 +791,19 @@ async def test_a_page_the_dialog_cannot_use_is_named_in_the_form(
     hass, web_interface, fault, error
 ):
     """Which page, and which of its titles: the only hint a user of another
-    model has before the brake would stop every page."""
+    model has before the brake would stop every page. A title the English
+    controller shows alike, or only in other case, is named once."""
     pump = _pump_entry(hass)
     web_interface.outcome = fault(
-        "Info › Wärmepumpe", frozenset({"EVI Sauggastemperatur", "Verdichter"})
+        "Info › Wärmepumpe",
+        frozenset(
+            {
+                "EVI Sauggastemperatur",
+                "Verdichter",
+                "Version WWP-EC WBB",
+                "Version WWP-SG",
+            }
+        ),
     )
     form = await _web_form(hass)
 
@@ -802,7 +814,10 @@ async def test_a_page_the_dialog_cannot_use_is_named_in_the_form(
     assert result["errors"] == {"base": error}
     assert result["description_placeholders"] == {
         "page": "Info › Wärmepumpe",
-        "titles": "EVI Sauggastemperatur, Verdichter",
+        "titles": (
+            "EVI Sauggastemperatur (EVI SUC G T), Verdichter (compressor), "
+            "Version WWP-EC WBB, Version WWP-SG"
+        ),
     }
 
 
@@ -816,7 +831,7 @@ async def test_a_reconfigure_names_a_page_it_cannot_use(hass, web_interface):
     assert result["errors"] == {"base": "missing_titles"}
     assert result["description_placeholders"] == {
         "page": "Info › Statistik",
-        "titles": "JAZ Jahr",
+        "titles": "JAZ Jahr (COP YEAR)",
     }
 
 

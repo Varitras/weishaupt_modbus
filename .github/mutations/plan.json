@@ -1479,15 +1479,15 @@
   {
     "label": "webif sensor: Aus is no reading instead of 0",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "    if shown == pages.OFF and description.off_is_zero:\n        return 0.0\n",
+    "old": "    if shown in pages.OFF_WORDS and description.off_is_zero:\n        return 0.0\n",
     "new": "",
     "tests": "aus_reads_0_only"
   },
   {
     "label": "webif sensor: Aus reads 0 on a rising total or a limit too",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "    if shown == pages.OFF and description.off_is_zero:\n",
-    "new": "    if shown == pages.OFF:\n",
+    "old": "    if shown in pages.OFF_WORDS and description.off_is_zero:\n",
+    "new": "    if shown in pages.OFF_WORDS:\n",
     "tests": "aus_reads_0_only"
   },
   {
@@ -1711,21 +1711,21 @@
     "label": "webif sensor: Aus on the setpoint temperature reads 0",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
     "old": "    if shown == pages.NO_VALUE and description.no_value_is_zero:\n",
-    "new": "    if shown in (pages.NO_VALUE, pages.OFF) and description.no_value_is_zero:\n",
+    "new": "    if (shown == pages.NO_VALUE or shown in pages.OFF_WORDS) and description.no_value_is_zero:\n",
     "tests": "aus_reads_0_only_for_an_idle_power_or_speed"
   },
   {
     "label": "webif sensor: Aus on a temperature reads 0",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "    _temperature(\"druckgastemperatur\", \"Druckgastemperatur\"),\n",
-    "new": "    _temperature(\"druckgastemperatur\", \"Druckgastemperatur\", off_is_zero=True),\n",
+    "old": "    _temperature(\"druckgastemperatur\", \"Druckgastemperatur\", \"PR GAS TEMP\"),\n",
+    "new": "    _temperature(\"druckgastemperatur\", \"Druckgastemperatur\", \"PR GAS TEMP\", off_is_zero=True),\n",
     "tests": "aus_reads_0_only_for_an_idle_power_or_speed"
   },
   {
     "label": "webif sensor: -- on another temperature reads 0",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "    _temperature(\"oelsumpftemperatur\", \"Ölsumpftemperatur\"),\n",
-    "new": "    _temperature(\"oelsumpftemperatur\", \"Ölsumpftemperatur\", no_value_is_zero=True),\n",
+    "old": "    _temperature(\"oelsumpftemperatur\", \"Ölsumpftemperatur\", \"OIL SUMP T\"),\n",
+    "new": "    _temperature(\"oelsumpftemperatur\", \"Ölsumpftemperatur\", \"OIL SUMP T\", no_value_is_zero=True),\n",
     "tests": "no_value_reads_0_only_for_the_setpoint_temperature"
   },
   {
@@ -1738,8 +1738,8 @@
   {
     "label": "webif sensor: the setpoint temperature reads -- as unknown",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "    _temperature(\"solltemperatur\", \"Solltemperatur\", no_value_is_zero=True),\n",
-    "new": "    _temperature(\"solltemperatur\", \"Solltemperatur\"),\n",
+    "old": "    _temperature(\"solltemperatur\", \"Solltemperatur\", \"setpoint\", no_value_is_zero=True),\n",
+    "new": "    _temperature(\"solltemperatur\", \"Solltemperatur\", \"setpoint\"),\n",
     "tests": "no_value_reads_0_only"
   },
   {
@@ -1752,8 +1752,8 @@
   {
     "label": "webif sensor: an idle pump reads unknown",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "    _percentage(\"drehzahl_pumpe_m1\", \"Drehzahl Pumpe M1\", off_is_zero=True),\n",
-    "new": "    _percentage(\"drehzahl_pumpe_m1\", \"Drehzahl Pumpe M1\"),\n",
+    "old": "        \"drehzahl_pumpe_m1\", \"Drehzahl Pumpe M1\", \"pump speed\", off_is_zero=True\n",
+    "new": "        \"drehzahl_pumpe_m1\", \"Drehzahl Pumpe M1\", \"pump speed\"\n",
     "tests": "aus_reads_0_only"
   },
   {
@@ -2046,8 +2046,8 @@
   {
     "label": "config flow: the form does not say which page lacks which titles",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "    return {\"page\": error.page, \"titles\": \", \".join(sorted(error.titles))}\n",
-    "new": "    return {}\n",
+    "old": "        return {\"page\": error.page, \"titles\": _named(error.titles)}\n",
+    "new": "        return {}\n",
     "tests": "cannot_use"
   },
   {
@@ -2431,7 +2431,7 @@
   {
     "label": "webif sensor: no value and off read as an unknown unit",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "        and shown not in (pages.NO_VALUE, pages.OFF)\n",
+    "old": "        and shown != pages.NO_VALUE\n        and shown not in pages.OFF_WORDS\n",
     "new": "",
     "tests": "no_value_and_off_are_no_unknown_unit"
   },
@@ -2613,8 +2613,8 @@
   {
     "label": "webif discovery: what a first answer showed piles onto the second",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        shown[:] = read(text)\n",
-    "new": "        shown.extend(read(text))\n",
+    "old": "        shown[:] = [\n            (ENGLISH_MENU_TITLES.get(title, title), link) for title, link in read(text)\n        ]\n",
+    "new": "        shown.extend(\n            (ENGLISH_MENU_TITLES.get(title, title), link) for title, link in read(text)\n        )\n",
     "tests": "served_half_once_is_read_from_its_second_answer"
   },
   {
@@ -3680,5 +3680,124 @@
     "old": "        if not self.coordinator.last_update_success:\n            return None\n",
     "new": "",
     "tests": "stopped_polling_shows_no_frozen_value"
+  },
+  {
+    "label": "webif english: the menus' English titles are not taken for the German ones",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "            (ENGLISH_MENU_TITLES.get(title, title), link) for title, link in read(text)\n",
+    "new": "            (title, link) for title, link in read(text)\n",
+    "tests": "reads_each_page_it_found_once"
+  },
+  {
+    "label": "webif english: the power limit is found under its German title only",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        if entry.title in (POWER_LIMIT_TITLE, POWER_LIMIT_ENGLISH_TITLE)\n",
+    "new": "        if entry.title == POWER_LIMIT_TITLE\n",
+    "tests": "reads_the_form_saves_once"
+  },
+  {
+    "label": "webif english: a page is read under the titles it shows",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        return [(self.english.get(title, title), shown) for title, shown in found]\n",
+    "new": "        return found\n",
+    "tests": "reads_each_page_it_found_once or become_sensors_on_a_device or power_limit_is_set_from_home_assistant or reads_the_form_saves_once"
+  },
+  {
+    "label": "webif english: the heat pump page gets no English titles",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            english=english[HEAT_PUMP_PAGE],\n",
+    "new": "",
+    "tests": "reads_each_page_it_found_once or become_sensors_on_a_device or power_limit_is_set_from_home_assistant or reads_the_form_saves_once"
+  },
+  {
+    "label": "webif english: the statistics page gets no English titles",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            english=english[STATISTICS_PAGE],\n",
+    "new": "",
+    "tests": "reads_each_page_it_found_once or become_sensors_on_a_device or power_limit_is_set_from_home_assistant or reads_the_form_saves_once"
+  },
+  {
+    "label": "webif english: the heating page gets no English titles",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            english=english[HEATING_PAGE],\n",
+    "new": "",
+    "tests": "reads_each_page_it_found_once or become_sensors_on_a_device or power_limit_is_set_from_home_assistant or reads_the_form_saves_once"
+  },
+  {
+    "label": "webif english: the running entry polls without the English titles",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        entry.data[CONF.PAGES], entry.options, REQUIRED_TITLES, ENGLISH_TITLES\n",
+    "new": "        entry.data[CONF.PAGES], entry.options, REQUIRED_TITLES, {key: {} for key in REQUIRED_TITLES}\n",
+    "tests": "become_sensors_on_a_device or power_limit_is_set_from_home_assistant"
+  },
+  {
+    "label": "webif english: the dialog reads the pages without the English titles",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "old": "    for page in polled_pages(found, {}, REQUIRED_TITLES, ENGLISH_TITLES):\n",
+    "new": "    for page in polled_pages(found, {}, REQUIRED_TITLES, {key: {} for key in REQUIRED_TITLES}):\n",
+    "tests": "reads_each_page_it_found_once"
+  },
+  {
+    "label": "webif english: the English word for off is not known",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "OFF_WORDS = frozenset({\"Aus\", \"off\"})\n",
+    "new": "OFF_WORDS = frozenset({\"Aus\"})\n",
+    "tests": "aus_reads_0_only or no_value_and_off_are_no_unknown_unit"
+  },
+  {
+    "label": "webif english: off reads as an unknown unit",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        and shown not in pages.OFF_WORDS\n",
+    "new": "",
+    "tests": "no_value_and_off_are_no_unknown_unit"
+  },
+  {
+    "label": "webif english: the dialog names the titles in German only",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    english = TITLES_IN_ENGLISH.get(title, title)\n",
+    "new": "    english = title\n",
+    "tests": "another_language_is_told_so or menu_entry_shown_twice_is_named or cannot_use"
+  },
+  {
+    "label": "webif english: a page is named by its German menus only",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "    HEAT_PUMP_PAGE: f\"{INFO} › {HEAT_PUMP} ({INFO_ENGLISH} › {HEAT_PUMP_ENGLISH})\",\n",
+    "new": "    HEAT_PUMP_PAGE: f\"{INFO} › {HEAT_PUMP}\",\n",
+    "tests": "without_a_title_its_sensors_read or third_failure_in_a_row"
+  },
+  {
+    "label": "webif english: a page with English titles cannot be hashed",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "    english: Mapping[str, str] = field(default_factory=dict, hash=False)\n",
+    "new": "    english: Mapping[str, str] = field(default_factory=dict)\n",
+    "tests": "can_be_hashed"
+  },
+  {
+    "label": "webif english: a title shown alike in both languages is named twice",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    if english.casefold() == title.casefold():\n        return title\n",
+    "new": "",
+    "tests": "cannot_use"
+  },
+  {
+    "label": "webif english: a title differing only in case is named twice",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    if english.casefold() == title.casefold():\n",
+    "new": "    if english == title:\n",
+    "tests": "cannot_use"
+  },
+  {
+    "label": "webif english: two pressures of the same unit swap their English titles",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    _pressure(\"niederdruck\", \"Niederdruck\", \"LOW PRESS\"),\n    _pressure(\"hochdruck\", \"Hochdruck\", \"HIGH PRESS\"),\n",
+    "new": "    _pressure(\"niederdruck\", \"Niederdruck\", \"HIGH PRESS\"),\n    _pressure(\"hochdruck\", \"Hochdruck\", \"LOW PRESS\"),\n",
+    "tests": "read_under_the_titles_and_unit"
+  },
+  {
+    "label": "webif english: a menu entry under an English title the controller does not show",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "STATISTICS_ENGLISH = \"statistics\"\n",
+    "new": "STATISTICS_ENGLISH = \"Statistics\"\n",
+    "tests": "found_under_the_title_the_controller_shows"
   }
 ]

@@ -3,7 +3,8 @@
 A page's address is made of the controller's own codes, so it is read from
 the menus rather than written down here. Three menu pages are asked for: the
 overview, Info, and the heat pump's main menu. Nothing else is opened on the
-way; the heat pump menu also lists Reset.
+way; the heat pump menu also lists Reset. The titles are German; a
+controller set to English shows its own, which stand for them.
 """
 
 from collections import Counter
@@ -16,15 +17,27 @@ INFO = "Info"
 HEAT_PUMP = "Wärmepumpe"
 STATISTICS = "Statistik"
 HEATING = "Heizen"
+# As a controller set to English showed them, 2026-10-10.
+INFO_ENGLISH = "information"
+HEAT_PUMP_ENGLISH = "heat pump"
+STATISTICS_ENGLISH = "statistics"
+HEATING_ENGLISH = "heating"
+ENGLISH_MENU_TITLES = {
+    INFO_ENGLISH: INFO,
+    HEAT_PUMP_ENGLISH: HEAT_PUMP,
+    STATISTICS_ENGLISH: STATISTICS,
+    HEATING_ENGLISH: HEATING,
+}
 
 HEAT_PUMP_PAGE = "heat_pump"
 STATISTICS_PAGE = "statistics"
 HEATING_PAGE = "heating"
-# Where each page sits in the controller's menus, as its user finds it there.
+# Where each page sits in the controller's menus, as its user finds it there
+# in German and in English.
 PAGE_MENUS = {
-    HEAT_PUMP_PAGE: f"{INFO} › {HEAT_PUMP}",
-    STATISTICS_PAGE: f"{INFO} › {STATISTICS}",
-    HEATING_PAGE: f"{HEAT_PUMP} › {HEATING}",
+    HEAT_PUMP_PAGE: f"{INFO} › {HEAT_PUMP} ({INFO_ENGLISH} › {HEAT_PUMP_ENGLISH})",
+    STATISTICS_PAGE: f"{INFO} › {STATISTICS} ({INFO_ENGLISH} › {STATISTICS_ENGLISH})",
+    HEATING_PAGE: f"{HEAT_PUMP} › {HEATING} ({HEAT_PUMP_ENGLISH} › {HEATING_ENGLISH})",
 }
 
 
@@ -84,7 +97,9 @@ async def _entries(
     shown: list[tuple[str, str]] = []
 
     def complete(text: str) -> bool:
-        shown[:] = read(text)
+        shown[:] = [
+            (ENGLISH_MENU_TITLES.get(title, title), link) for title, link in read(text)
+        ]
         counts = Counter(title for title, _ in shown)
         # A wanted title shown twice leaves two links to pick from.
         return all(counts[title] == 1 for title in wanted)

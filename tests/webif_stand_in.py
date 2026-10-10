@@ -72,10 +72,34 @@ def column(inner):
     )
 
 
-MAIN_MENUS = column(link([INFO], "Info") + link([PUMP_MENU], "Wärmepumpe"))
+GERMAN_MENUS = {
+    "info": "Info",
+    "heat_pump": "Wärmepumpe",
+    "statistics": "Statistik",
+    "heating": "Heizen",
+    "reset": "Reset",
+}
+# As a controller set to English showed them, 2026-10-10.
+ENGLISH_MENUS = {
+    "info": "information",
+    "heat_pump": "heat pump",
+    "statistics": "statistics",
+    "heating": "heating",
+    "reset": "reset",
+}
+
+
+def main_menus(titles=GERMAN_MENUS):
+    return column(link([INFO], titles["info"]) + link([PUMP_MENU], titles["heat_pump"]))
+
+
+MAIN_MENUS = main_menus()
 HEATING_PATH = STACK + f"{PUMP_MENU},{HEATING}"
 SWITCHING_DIFFERENCE = "64001805000000002D40000A0B030011010401"
 LIMIT_OPTIONS = range(10, 101)
+# The switching difference's and the power limit's titles.
+GERMAN_HEATING = ("Schaltdifferenz", "Leistungsbegrenzung")
+ENGLISH_HEATING = ("switching difference", "output limit")
 
 
 def limit_segment(limit):
@@ -83,13 +107,14 @@ def limit_segment(limit):
     return f"6400180700000000{limit:02X}40000A0B030011010401"
 
 
-def heating_page(limit, switching="4.5 K"):
+def heating_page(limit, switching="4.5 K", titles=GERMAN_HEATING):
     """Wärmepumpe › Heizen with the power limit and the switching difference."""
+    switching_title, limit_title = titles
     return MAIN_MENUS + column(
-        link([PUMP_MENU, HEATING, SWITCHING_DIFFERENCE], "Schaltdifferenz", switching)
+        link([PUMP_MENU, HEATING, SWITCHING_DIFFERENCE], switching_title, switching)
         + link(
             [PUMP_MENU, HEATING, limit_segment(limit)],
-            "Leistungsbegrenzung",
+            limit_title,
             f"{limit} %",
         )
     )
@@ -114,18 +139,20 @@ def limit_leaf(limit, offered=LIMIT_OPTIONS):
     )
 
 
-def menu_site():
+def menu_site(titles=GERMAN_MENUS):
     """The overview, Info and the heat pump menu, by the address asked for."""
+    main = main_menus(titles)
     return {
-        PAGE_PATH: MAIN_MENUS,
-        STACK + INFO: MAIN_MENUS
+        PAGE_PATH: main,
+        STACK + INFO: main
         + column(
-            link([INFO, HEAT_PUMP_INFO], "Wärmepumpe")
-            + link([INFO, STATISTICS_INFO], "Statistik")
+            link([INFO, HEAT_PUMP_INFO], titles["heat_pump"])
+            + link([INFO, STATISTICS_INFO], titles["statistics"])
         ),
-        STACK + PUMP_MENU: MAIN_MENUS
+        STACK + PUMP_MENU: main
         + column(
-            link([PUMP_MENU, HEATING], "Heizen") + link([PUMP_MENU, RESET], "Reset")
+            link([PUMP_MENU, HEATING], titles["heating"])
+            + link([PUMP_MENU, RESET], titles["reset"])
         ),
     }
 
@@ -142,7 +169,8 @@ class StandInPump:
     character at once, and the rest after that many seconds; one in
     `trickles` sends one character every that many seconds. With
     `watched_lock` set, `held` notes for every request whether that lock was
-    held when it arrived.
+    held when it arrived. `heating_titles` are the titles `show_power_limit`
+    puts on the heating page.
     """
 
     def __init__(self):
@@ -167,6 +195,7 @@ class StandInPump:
         self.saved = []
         self.save_headers = []
         self.save_answer = None
+        self.heating_titles = GERMAN_HEATING
 
     def application(self):
         @web.middleware
@@ -216,7 +245,7 @@ class StandInPump:
         """The heating page and the power limit's own page, for a limit."""
         for path in [path for path in self.site if path.startswith(HEATING_PATH + ",")]:
             del self.site[path]
-        self.site[HEATING_PATH] = heating_page(limit)
+        self.site[HEATING_PATH] = heating_page(limit, titles=self.heating_titles)
         self.site[f"{HEATING_PATH},{limit_segment(limit)}"] = limit_leaf(limit)
 
     async def save(self, request):

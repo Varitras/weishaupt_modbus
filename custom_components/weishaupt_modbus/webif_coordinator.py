@@ -16,7 +16,7 @@ import asyncio
 from collections import Counter
 from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import asynccontextmanager
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import timedelta
 import logging
 import math
@@ -93,6 +93,8 @@ class Page:
     """A page to keep fresh: where it is, what it must show, how often.
 
     A menu page is read for the values its entries show one level down.
+    `english` maps the titles a controller set to English shows to the
+    German ones everything else goes by.
     """
 
     key: str
@@ -100,14 +102,18 @@ class Page:
     required: frozenset[str]
     interval: timedelta
     menu: bool = False
+    # Left out of the hash: a dict has none, and every page lost its own.
+    english: Mapping[str, str] = field(default_factory=dict, hash=False)
 
     def read(self, text: str) -> list[tuple[str, str]]:
-        """The titles and values the page shows."""
+        """The titles and values the page shows, English titles made German."""
         if self.menu:
-            return [
+            found = [
                 (entry.title, entry.text) for entry in pages.children(text, self.path)
             ]
-        return pages.values(text)
+        else:
+            found = pages.values(text)
+        return [(self.english.get(title, title), shown) for title, shown in found]
 
     def is_whole(self, text: str) -> bool:
         """Every required title is there once, and no value is left blank."""
@@ -130,10 +136,12 @@ def polled_pages(
     paths: Mapping[str, str],
     options: Mapping[str, Any],
     required: Mapping[str, frozenset[str]],
+    english: Mapping[str, Mapping[str, str]],
 ) -> list[Page]:
     """The pages at `paths`, each on the interval its option sets.
 
-    `required` are the titles each page must show, those of its sensors.
+    `required` are the titles each page must show, those of its sensors;
+    `english` maps each page's English titles to them.
     """
 
     def every(key: str) -> timedelta:
@@ -146,12 +154,14 @@ def polled_pages(
             paths[HEAT_PUMP_PAGE],
             required[HEAT_PUMP_PAGE],
             every(HEAT_PUMP_PAGE),
+            english=english[HEAT_PUMP_PAGE],
         ),
         Page(
             STATISTICS_PAGE,
             paths[STATISTICS_PAGE],
             required[STATISTICS_PAGE],
             every(STATISTICS_PAGE),
+            english=english[STATISTICS_PAGE],
         ),
         Page(
             HEATING_PAGE,
@@ -159,6 +169,7 @@ def polled_pages(
             required[HEATING_PAGE],
             every(HEATING_PAGE),
             menu=True,
+            english=english[HEATING_PAGE],
         ),
     ]
 
