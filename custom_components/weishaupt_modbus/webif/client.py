@@ -53,6 +53,22 @@ MAX_PAGE_BYTES = 512 * 1024
 class WebifError(Exception):
     """The web interface did not give what was asked for."""
 
+    def __init__(self, message: str, cause: str = "") -> None:
+        """Keep the message for the debug log, the cause for what is shared.
+
+        The message names the page asked for and may quote the controller's
+        answer. `cause` names what went wrong without either: it goes into
+        the repair notice and the diagnostics a user posts.
+        """
+        super().__init__(message)
+        self.cause = cause
+
+    @property
+    def summary(self) -> str:
+        """The kind of failure and its cause, nothing of the page or answer."""
+        kind = type(self).__name__
+        return f"{kind} ({self.cause})" if self.cause else kind
+
 
 class Unreachable(WebifError):
     """The server struggles.
@@ -209,7 +225,10 @@ def _page_text(path: str, answer: _Answer) -> str:
     # Not a page served half: the server could not serve it, or dropped the
     # session it had just given, and asking further pages only adds load.
     if answer.status != HTTPStatus.OK:
-        raise Unreachable(f"{path}: HTTP {answer.status} to {answer.location or '-'}")
+        raise Unreachable(
+            f"{path}: HTTP {answer.status} to {answer.location or '-'}",
+            f"HTTP {answer.status}",
+        )
     return answer.text
 
 
@@ -227,7 +246,7 @@ def _raise_for_error_status(path: str, answer: _Answer) -> None:
     # error status says the same: the server cannot serve, and anything
     # asked after it only adds load.
     if answer.status >= HTTPStatus.BAD_REQUEST:
-        raise Unreachable(f"{path}: HTTP {answer.status}")
+        raise Unreachable(f"{path}: HTTP {answer.status}", f"HTTP {answer.status}")
 
 
 class Client:
@@ -403,7 +422,8 @@ class Client:
             # Its database out of reach (#nocon), an error status, no session:
             # the controller struggles, and the credentials may well be right.
             raise Unreachable(
-                f"POST {LOGIN}: HTTP {answer.status} to {answer.location or '-'}"
+                f"POST {LOGIN}: HTTP {answer.status} to {answer.location or '-'}",
+                f"HTTP {answer.status}",
             )
         self._cookie = answer.cookie
         self._logged_in_at = self._clock()
@@ -461,7 +481,8 @@ class Client:
                     if body is None:
                         outcome += f", more than {MAX_PAGE_BYTES} bytes"
                         raise Unreachable(
-                            f"{method} {path}: more than {MAX_PAGE_BYTES} bytes"
+                            f"{method} {path}: more than {MAX_PAGE_BYTES} bytes",
+                            f"more than {MAX_PAGE_BYTES} bytes",
                         )
                     answer = _Answer(
                         response.status,
@@ -474,7 +495,7 @@ class Client:
             except (TimeoutError, aiohttp.ClientError) as error:
                 # The kind only: aiohttp's own text names the pump's address.
                 outcome = type(error).__name__
-                raise Unreachable(f"{method} {path}: {outcome}") from error
+                raise Unreachable(f"{method} {path}: {outcome}", outcome) from error
             except asyncio.CancelledError:
                 # A dialog closed mid-visit: cancelled while the page came,
                 # the line read as a whole answer.

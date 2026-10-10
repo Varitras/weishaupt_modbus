@@ -450,9 +450,11 @@ delete them. Home Assistant raises no repair notice for them.
 The user and password are stored in Home Assistant's configuration and sent
 to the heat pump only, as plain HTTP: the controller offers nothing else, so
 keep it on a network you trust. The diagnostics download leaves them out, and
-the page addresses the entry stores; after a stop, the reason it gives can
-name the address that failed, never the heat pump's. Of each page it holds
-only the values the sensors show.
+the page addresses the entry stores; after a stop, the reason it and the
+repair notice give is the kind of failure and its cause, such as
+`Unreachable (TimeoutError)` or `Unreachable (HTTP 500)`, never a page
+address or text the controller sent. Of each page it holds only the values
+the sensors show.
 
 ## Actions
 

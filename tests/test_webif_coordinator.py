@@ -445,7 +445,7 @@ async def test_the_third_failure_in_a_row_stops_polling(
 ):
     """The notice names the page as its user finds it in the menus; it said
     "heat_pump", the integration's own key."""
-    client.answer(HEAT_PUMP, Unreachable("timeout"))
+    client.answer(HEAT_PUMP, Unreachable("GET /x: TimeoutError", "TimeoutError"))
     for quarter in range(3):
         await round_at(coordinator, clock, quarter * 15 * 60)
 
@@ -457,7 +457,7 @@ async def test_the_third_failure_in_a_row_stops_polling(
     assert issue is not None
     assert issue.translation_placeholders == {
         "page": "Info › Wärmepumpe (information › heat pump)",
-        "error": "timeout",
+        "error": "Unreachable (TimeoutError)",
     }
 
     client.asked.clear()
@@ -752,7 +752,7 @@ async def test_the_diagnostics_name_the_page_the_brake_stopped_on(
 ):
     """Support could not tell the brake, a refused login and an outage apart;
     the download says what stopped the polling, and where."""
-    client.answer(HEAT_PUMP, Unreachable("timeout"))
+    client.answer(HEAT_PUMP, Unreachable("GET /x: TimeoutError", "TimeoutError"))
     for quarter in range(3):
         await round_at(coordinator, clock, quarter * 15 * 60)
 
@@ -760,7 +760,7 @@ async def test_the_diagnostics_name_the_page_the_brake_stopped_on(
 
     assert diagnostics["stopped_by"] == (
         "Info › Wärmepumpe (information › heat pump)",
-        "timeout",
+        "Unreachable (TimeoutError)",
     )
     assert diagnostics["login_refused"] is False
 

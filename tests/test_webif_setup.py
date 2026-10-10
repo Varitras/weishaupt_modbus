@@ -6,7 +6,9 @@ integration.
 
 import asyncio
 from itertools import pairwise
+import time
 
+import aiohttp
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -41,7 +43,11 @@ from homeassistant.config_entries import ConfigEntryDisabler, ConfigEntryState
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP, EntityCategory
 from homeassistant.core import State
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import (
+    device_registry as dr,
+    entity_registry as er,
+    issue_registry as ir,
+)
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from .locking import WatchedLock, until
@@ -619,6 +625,83 @@ async def test_the_diagnostics_leave_out_the_login_and_the_page_addresses(hass, 
     assert coordinator["traffic"]["requests"] == len(FIRST_ROUND)
     assert coordinator["page_states"][HEAT_PUMP_PAGE]["failures"] == 0
     assert coordinator["stopped_by"] is None
+
+
+class Clock:
+    def __init__(self):
+        self.now = time.monotonic()
+
+    def __call__(self):
+        return self.now
+
+
+async def _until_stopped(entry):
+    """Rounds three hours apart until the brake stops the polling."""
+    coordinator = entry.runtime_data.coordinator
+    clock = Clock()
+    coordinator._clock = clock
+    for _ in range(webif_coordinator.FAILURES_TO_STOP):
+        clock.now += 3 * 3600
+        await coordinator.async_refresh()
+    assert coordinator._stopped_by is not None, "the brake did not stop"
+
+
+def _stop_notice(hass, entry):
+    return ir.async_get(hass).async_get_issue(
+        CONST.DOMAIN, f"{webif_coordinator.STOPPED_ISSUE}_{entry.entry_id}"
+    )
+
+
+def _error_status(pump, entry):
+    pump.failing[PAGES[HEAT_PUMP_PAGE]] = 500
+
+
+def _served_half(pump, entry):
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = "<p>half</p>"
+
+
+def _no_answer_in_time(pump, entry):
+    pump.delays[PAGES[HEAT_PUMP_PAGE]] = 0.5
+    entry.runtime_data.client._timeout = aiohttp.ClientTimeout(total=0.1)
+
+
+@pytest.mark.parametrize(
+    ("failing", "reason"),
+    [
+        (_error_status, "Unreachable (HTTP 500)"),
+        (_served_half, "Broken"),
+        (_no_answer_in_time, "Unreachable (TimeoutError)"),
+    ],
+    ids=["an error status", "a page served half", "no answer in time"],
+)
+async def test_a_stop_keeps_the_page_address_out_of_the_download(
+    hass, pump, failing, reason
+):
+    """The reason was the client's own text, the page's full address in it:
+    the download for an issue carried it, and the ERROR line in the log."""
+    entry = await _start(hass, _entries(hass, pump))
+    failing(pump, entry)
+
+    await _until_stopped(entry)
+
+    diagnostics = str(await async_get_config_entry_diagnostics(hass, entry))
+    assert "stack=" not in diagnostics
+    assert "0A0B" not in diagnostics
+    assert _stop_notice(hass, entry).translation_placeholders["error"] == reason
+
+
+async def test_a_redirect_writes_nothing_of_its_own_into_the_stop_notice(hass, pump):
+    """The notice is Markdown: a redirect's location in it was a link, or a
+    picture loaded from anywhere, on any device that opened the notice."""
+    pump.login_answer = lambda: see_other(
+        "/x [click](http://e.invalid/) ![p](http://e.invalid/p.png)"
+    )
+    entry = await _start(hass, _entries(hass, pump))
+
+    await _until_stopped(entry)
+
+    notice = _stop_notice(hass, entry)
+    assert notice.translation_placeholders["error"] == "Unreachable (HTTP 303)"
 
 
 # User wish, 2026-10-10: set to English, the controller shows the same values

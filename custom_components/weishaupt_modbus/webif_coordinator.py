@@ -603,7 +603,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             # and nothing to ask any more.
             return False
         except WebifError as error:
-            if not self._failed(page, str(error)):
+            _LOGGER.debug("%s: %s", page.key, error)
+            if not self._failed(page, error.summary):
                 return False
             # A struggling server gets no further request in this round.
             return not isinstance(error, Unreachable)
