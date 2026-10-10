@@ -3890,5 +3890,40 @@
     "old": "device=DEVICES.ST, params={\"enabled_by_default\": False}, translation_key=\"adr36801\"),",
     "new": "device=DEVICES.ST, translation_key=\"adr36801\"),",
     "tests": "rows_without_a_meaning_of_their_own_start_disabled"
+  },
+  {
+    "label": "capture starter: a download with another hash is run all the same",
+    "path": "tools/webif_capture.bat",
+    "old": "    if ($hash -ne $PythonSha256) {\n",
+    "new": "    if ($false) {\n",
+    "tests": "not_the_published_one_is_never_run"
+  },
+  {
+    "label": "capture starter: a refused download stays on disk",
+    "path": "tools/webif_capture.bat",
+    "old": "        Remove-Item -LiteralPath $download\n        Write-Host \"The download",
+    "new": "        Write-Host \"The download",
+    "tests": "not_the_published_one_is_never_run"
+  },
+  {
+    "label": "capture starter: every start downloads Python again",
+    "path": "tools/webif_capture.bat",
+    "old": "if (-not (Test-Path -LiteralPath $python)) {\n",
+    "new": "if ($true) {\n",
+    "tests": "second_start_downloads_nothing"
+  },
+  {
+    "label": "capture starter: downloads without the capture beside it",
+    "path": "tools/webif_capture.bat",
+    "old": "if (-not (Test-Path -LiteralPath $capture)) {\n",
+    "new": "if ($false) {\n",
+    "tests": "without_the_capture_beside_it"
+  },
+  {
+    "label": "capture starter: the address does not reach the capture",
+    "path": "tools/webif_capture.bat",
+    "old": "& $python $capture $HostName\n",
+    "new": "& $python $capture\n",
+    "tests": "reaches_the_capture_as_typed or runs_with_the_python_the_starter_checked"
   }
 ]

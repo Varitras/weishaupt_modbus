@@ -27,7 +27,8 @@ controller keeps failing takes up to about three quarters of an hour before
 the tool gives up.
 
 Needs Python 3.10 or newer and a copy of the whole repository: the titles are
-read with the integration's own page parser.
+read with the integration's own page parser. On Windows, webif_capture.bat
+beside it brings a portable Python of its own.
 """
 
 import argparse

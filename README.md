@@ -281,9 +281,15 @@ little and stops on its own when the answers go wrong.
    [issue](https://github.com/Varitras/weishaupt_modbus/issues) so that it
    can be added: the integration needs its menu and value titles.
    [`tools/webif_capture.py`](tools/webif_capture.py) collects them.
-   Download the repository (*Code → Download ZIP*), unpack it and run
-   `python tools/webif_capture.py <address of the heat pump>` on a computer
-   in the same network (Python 3.10 or newer). It asks for the user and the
+   Download the repository (*Code → Download ZIP*) and unpack it on a
+   computer in the same network. On Windows double-click
+   `tools\webif_capture.bat` and enter the heat pump's address: no Python is
+   needed. On its first start it downloads the official portable Python from
+   python.org (about 11 MB) into `tools\python`, checks it against the
+   checksum python.org publishes and runs nothing else; nothing is
+   installed, and deleting that folder removes it. Elsewhere run
+   `python tools/webif_capture.py <address of the heat pump>` (Python 3.10
+   or newer). It asks for the user and the
    password and opens six pages: it finds the menu entries the integration
    reads by their codes, else by their German titles, else you pick them by
    number and confirm each pick; Reset, Service and the time programs are
@@ -292,7 +298,8 @@ little and stops on its own when the answers go wrong.
    about a minute, one the controller keeps failing up to about three
    quarters of an hour before the tool gives up. The file it writes holds
    the titles, and the values of the three pages the integration reads; the
-   tool adds no address, credentials or page address. The values are what
+   tool adds no address, credentials or page address, and lands in the
+   folder the tool ran in (`tools` for the batch file). The values are what
    those pages show: check the file for a serial number, an access code or
    a network address before you attach it to the issue.
 
