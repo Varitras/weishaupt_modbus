@@ -3834,5 +3834,12 @@
     "old": "        stop restored today's count as 0, freeing the daily limit again.\n        \"\"\"\n        return True\n",
     "new": "        stop restored today's count as 0, freeing the daily limit again.\n        \"\"\"\n        return super().available\n",
     "tests": "survives_a_reload_while_polling_fails or survives_the_reload_after_a_stop"
+  },
+  {
+    "label": "config flow: a dialog left open after an error keeps its postfix",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "            self._reservations().pop(self.flow_id, None)\n        return errors\n",
+    "new": "            pass\n        return errors\n",
+    "tests": "left_open_after_an_error"
   }
 ]

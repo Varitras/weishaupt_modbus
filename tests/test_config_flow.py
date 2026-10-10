@@ -227,6 +227,25 @@ async def test_a_flow_still_probing_holds_its_postfix_against_a_second_one(
     assert refused["errors"] == {"base": "postfix_required"}
 
 
+async def test_a_dialog_left_open_after_an_error_holds_no_postfix(hass, monkeypatch):
+    """A dialog whose probe failed, its tab then closed, stayed open until the
+    restart and held its postfix: the next dialog asked for a postfix of its
+    own although no pump existed, and that postfix cannot be changed later."""
+
+    async def answers(_hass, _data):
+        return answering
+
+    monkeypatch.setattr(config_flow, "pump_answers", answers)
+    answering = False
+    failed = await _create(hass, dict(PAGE_ONE))
+    assert failed["errors"] == {"base": "cannot_connect"}
+
+    answering = True
+    created = await _create(hass, {**PAGE_ONE, CONF.HOST: "192.0.2.11"})
+
+    assert created["type"] is FlowResultType.CREATE_ENTRY
+
+
 async def test_reconfigure_updates_the_entry_in_place(hass):
     entry = MockConfigEntry(domain=CONST.DOMAIN, data=PAGE_ONE, version=9)
     entry.add_to_hass(hass)

@@ -240,9 +240,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         }
 
     def _reservations(self) -> dict[str, str]:
-        """Postfix each open flow is probing with, by flow id, kept on hass.
+        """Postfix each open flow reserved, by flow id, kept on hass.
 
-        Two dialogs submitted together both passed the namespace check before
+        Held while the flow probes and, once it passed, until it ends: two
+        dialogs submitted together both passed the namespace check before
         either entry existed. The flow's typed context has no room for it.
         """
         reservations: dict[str, str] = self.hass.data.setdefault(RESERVED_POSTFIXES, {})
@@ -265,6 +266,15 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         self._reservations()[self.flow_id] = str(
             user_input.get(CONF.DEVICE_POSTFIX, "")
         ).strip()
+        errors = await self._reserved_objection(user_input)
+        if errors:
+            # A dialog left open after an error, its tab closed, held its
+            # postfix against every later one until the restart.
+            self._reservations().pop(self.flow_id, None)
+        return errors
+
+    async def _reserved_objection(self, user_input: dict[str, Any]) -> dict[str, str]:
+        """The objections checked while this flow's postfix is reserved."""
         reason = namespace_error(
             self.hass, user_input, pending=self._postfixes_of_other_flows()
         )
