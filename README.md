@@ -491,8 +491,8 @@ drop-outs, which keep the last values, show only in the debug log.
 currently allows, or the daily write limit from the [Options](#options) is
 reached.
 
-**The recorder warns about a changed unit after an upgrade.** See
-[Upgrading from 1.x](#upgrading-from-1x).
+**The recorder warns about a changed unit or a removed state class after an
+upgrade.** See [Upgrading from 1.x](#upgrading-from-1x).
 
 **Debug logging.** On the integration's page choose *Enable debug logging*,
 reproduce the problem, then *Disable debug logging*; the log file is
@@ -530,8 +530,8 @@ opens a client of its own. The wire is handled by the
 library (tmodbus backend), which Home Assistant installs with its `modbus`
 integration.
 
-What stays the same: the entities, their unique ids and history, the entity
-ids you chose, the options (poll interval, EEPROM write warning and limit), the
+What stays the same: the entities, their unique ids and history (except
+where the recorder notices below say otherwise), the entity ids you chose, the options (poll interval, EEPROM write warning and limit), the
 power map and the write counters. What is gone: this integration's own
 `pymodbus` requirement, the `pygal` requirement (the preview picture is drawn
 by the compile script, not at runtime), its reconnect and back-off logic, and
@@ -541,20 +541,40 @@ one read.
 New in 2.0: a switch beside every setpoint the controller can switch off
 (see [Entities](#entities)). New entities, nothing existing is renamed.
 
-One state string changed: operating status 0 (undefined) used to be
-published as `..._pvmode`; it is `..._undefined` now. An automation that
-matched on that state needs the new name.
+Some state strings changed. An automation that matched on an old one needs
+the new name; Home Assistant raises no notice for them:
+
+- Operating status (30006): 0 (undefined) was `system_operationmode_pvmode`,
+  now `system_operationmode_undefined`; 10 (utility lock) was
+  `system_operationmode_sgtariff`, now `system_operationmode_evu`; 37 and 39
+  (heating and hot water in SG-Ready mode) were `..._heating_sgr` and
+  `..._hotwater_sgr`, now `..._heating_sgr3` and `..._hotwater_sgr3`.
+- Heat pump operation (33101): 36 was `heatpump_operationmode_bereitschaft`,
+  now `heatpump_operationmode_regenerativ`; 37 and 39 changed from `_sgr` to
+  `_sgr3` as above.
+- SG-Ready 1 and 2 (35101, 35102) showed their input as a number, 0 or 1;
+  they now read off and on. Their long-term statistics end there, without a
+  notice.
 
 Upgrading: install 2.0 and restart. Existing entries migrate on first start
 (entry version 11); an entry keeps the host and port you configured. If the
 controller does not answer during setup, Home Assistant retries.
 
-After the upgrade the recorder warns once per sensor whose unit changed:
-the three relabelled second-heat-source counters (hours and cycles had
-swapped names), the H1.x inputs (now °C, as the data-point list says) and
-a few unit-less rows (an empty unit became none). Open *Developer tools ->
-Statistics*, and for each listed entity choose to update the unit of the
-recorded statistics - the history is the register's and stays.
+After the upgrade the recorder raises a notice once per sensor whose
+statistics changed; open *Developer tools -> Statistics* to settle each:
+
+- A changed unit on the three relabelled second-heat-source counters (hours
+  and cycles had swapped names) and a few unit-less rows (an empty unit
+  became none): choose to update the unit of the recorded statistics - the
+  history is the register's and stays.
+- A changed unit on H1.2 to H1.5 (now °C, as the data-point list says): 1.x
+  recorded their raw register words - tenths of a degree, and 32768 without
+  a sensor - so delete their old statistics instead; with the unit updated
+  they would read ten times too high.
+- A removed state class on the seven "... yesterday" energy sensors: a
+  yesterday's value is no growing total, so they keep no long-term
+  statistics any more. Delete their old statistics; the matching "... today"
+  sensors keep them.
 
 ## Removal
 

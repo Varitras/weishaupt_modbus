@@ -69,9 +69,9 @@ LIST_NAMES = [
 ]
 
 # Status lists where two numbers share one translation key, so the entity
-# cannot tell them apart: EVU lock (10) and SG tariff (11) both read as
-# `system_operationmode_sgtariff`. Kept as-is on adoption - a fix changes a
-# state string automations may match on.
+# cannot tell them apart. None is left: EVU lock (10) and SG tariff (11),
+# both `system_operationmode_sgtariff` in 1.x, were split in 2.0, a changed
+# state string the README lists under upgrading.
 KNOWN_SHARED_STATUS_KEYS: set[tuple[str, str]] = set()
 
 
