@@ -314,6 +314,14 @@ async def test_the_readme_picture_url_serves_the_published_preview(
             '<svg xmlns="http://www.w3.org/2000/svg"><style>@import url(https://e.invalid/x.css)</style></svg>',
             "stylesheet import",
         ),
+        (
+            '<svg xmlns="http://www.w3.org/2000/svg"><style><g/>svg{background:url(https://e.invalid/p.png)}</style></svg>',
+            "stylesheet after a child element, which ElementTree files as its tail",
+        ),
+        (
+            '<svg xmlns="http://www.w3.org/2000/svg"><style>.a{}<desc>x</desc>svg{background:url(//e.invalid/p.png)}</style></svg>',
+            "stylesheet after a child element's own text",
+        ),
         ("<!DOCTYPE svg [<!ENTITY x 'y'>]><svg>&x;</svg>", "entity declaration"),
         ("<svg><path d='M0 0'", "not even XML"),
     ],

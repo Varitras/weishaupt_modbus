@@ -160,7 +160,9 @@ def _element_is_static(element: ET.Element) -> bool:
     tag = str(element.tag).rsplit("}", 1)[-1].lower()
     if tag not in STATIC_ELEMENTS:
         return False
-    if tag == "style" and not _css_is_static(element.text or ""):
+    # A browser takes a stylesheet from all of its text, also the text after a
+    # child element, which ElementTree files as that child's tail.
+    if tag == "style" and (len(element) or not _css_is_static(element.text or "")):
         return False
     return all(
         _attribute_is_static(name.rsplit("}", 1)[-1].lower(), value)
