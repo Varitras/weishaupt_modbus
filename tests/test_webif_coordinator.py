@@ -11,6 +11,7 @@ import json
 import logging
 import pathlib
 import re
+import time
 
 import pytest
 from pytest_homeassistant_custom_component.common import (
@@ -836,10 +837,9 @@ def test_the_stop_notice_names_the_page_and_the_error(name):
     assert set(re.findall(r"\{(\w+)\}", notice["description"])) == {"page", "error"}
 
 
-# Short enough for a test, long enough that the calls a test spaces out
-# shorter than it still fall inside it on a busy machine.
+# Short enough for a test. Where the spacing of the calls matters, the tests
+# run the real quiet time on the test's clock instead.
 QUIET = 0.2
-INSIDE_QUIET = 0.12
 
 
 @pytest.fixture
@@ -866,16 +866,25 @@ async def refused(call):
 
 
 async def test_a_burst_of_changes_writes_the_last_value_once(
-    coordinator, client, clock, quick
+    hass, coordinator, client, clock, freezer
 ):
     """Spec decision, 2026-10-09: each request restarts the quiet time, so
-    arrow clicks a little apart are one write, of the last value."""
+    arrow clicks a little apart are one write, of the last value. On the
+    test's clock: on the machine's, standing still 0.1 s split the burst."""
     await first_round_showing(coordinator, client, clock)
+    inside_quiet = timedelta(seconds=webif_coordinator.DEBOUNCE_SECONDS - 1)
 
     calls = [asyncio.create_task(coordinator.set_power_limit(61))]
     for target in (65, 70):
-        await asyncio.sleep(INSIDE_QUIET)
+        await settle()
+        freezer.tick(inside_quiet)
+        async_fire_time_changed(hass)
+        await settle()
+        assert client.saved == [], "written before the quiet time was over"
         calls.append(asyncio.create_task(coordinator.set_power_limit(target)))
+    await settle()
+    freezer.tick(timedelta(seconds=webif_coordinator.DEBOUNCE_SECONDS))
+    async_fire_time_changed(hass)
     await asyncio.gather(*calls)
 
     assert client.saved == [70]
@@ -1055,17 +1064,22 @@ async def test_a_write_is_refused_before_any_request(
     assert client.asked == []
 
 
+@pytest.mark.parametrize("stall", [0, 0.3])
 async def test_a_write_is_refused_again_when_its_quiet_time_ends(
-    coordinator, client, clock, quick
+    hass, coordinator, client, clock, freezer, stall
 ):
     """The limit was free when asked, and used up by the time the requests
-    had settled."""
+    had settled. On the test's clock: the machine standing still longer than
+    the margin let the quiet time end before the limit was used up."""
     await first_round_showing(coordinator, client, clock)
     coordinator.budget.limit = 1
     call = asyncio.create_task(refused(coordinator.set_power_limit(61)))
+    hass.loop.call_soon(time.sleep, stall)
     await settle()
 
     coordinator.budget.record_write()
+    freezer.tick(timedelta(seconds=webif_coordinator.DEBOUNCE_SECONDS))
+    async_fire_time_changed(hass)
 
     assert await call == ("webif_write_limit_reached", {"limit": "1"})
     assert client.asked == []
@@ -1164,18 +1178,25 @@ async def test_a_write_without_a_reading_still_reads_fresh(coordinator, client, 
     assert client.saved == [61]
 
 
+@pytest.mark.parametrize("stall", [0, 0.3])
 async def test_an_unload_during_the_quiet_time_aborts_the_waiting_calls(
-    coordinator, client, clock, quick
+    hass, coordinator, client, clock, freezer, stall
 ):
+    """On the test's clock: the machine standing still longer than the margin
+    let the quiet time end before the unload."""
     await first_round_showing(coordinator, client, clock)
     call = asyncio.create_task(refused(coordinator.set_power_limit(61)))
+    hass.loop.call_soon(time.sleep, stall)
     await settle()
 
     await coordinator.async_shutdown()
+    await settle()
 
-    async with asyncio.timeout(HOLD_LIMIT_SECONDS):
-        assert await call == ("webif_write_aborted", None)
-    await asyncio.sleep(2 * QUIET)
+    assert call.done(), "the waiting call outlived the unload"
+    assert await call == ("webif_write_aborted", None)
+    freezer.tick(timedelta(seconds=webif_coordinator.DEBOUNCE_SECONDS))
+    async_fire_time_changed(hass)
+    await settle()
     assert client.asked == []
 
 
