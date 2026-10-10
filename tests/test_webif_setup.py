@@ -63,6 +63,7 @@ from .webif_stand_in import (
     limit_segment,
     link,
     menu_site,
+    see_other,
     serving,
     value,
 )
@@ -971,6 +972,34 @@ async def test_an_unload_while_the_form_is_read_calls_the_write_off_uncounted(
     assert called_off.value.translation_key == "webif_write_aborted"
     assert pump.saved == []
     assert budget.writes_today == 0
+
+
+async def test_a_login_refused_on_the_read_back_says_saved_and_is_not_repeated(
+    hass, pump, quick
+):
+    """The save went out in the session it had; the read-back's new login was
+    refused. "Login refused" alone hid that the controller may hold the
+    value, and the next round sent the refused login once more."""
+    pump.show_power_limit(60)
+    entry = await _start(hass, _entries(hass, pump))
+
+    def saved_then_refused():
+        pump.show_power_limit(61)
+        pump.sessions.clear()
+        pump.login_answer = lambda: see_other("/index.html#wrongpassword")
+        return see_other(HEATING_PATH)
+
+    pump.save_answer = saved_then_refused
+
+    with pytest.raises(HomeAssistantError) as raised:
+        await _set_power_limit(hass, 61)
+    assert raised.value.translation_key == "webif_write_not_read_back"
+    logins = len(pump.forms)
+
+    await entry.runtime_data.coordinator.async_refresh()
+
+    assert len(pump.forms) == logins
+    assert entry.async_get_active_flows(hass, {"reauth"})
 
 
 # Long enough to cancel the write inside the gap before its save.

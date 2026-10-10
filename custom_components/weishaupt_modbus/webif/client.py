@@ -276,6 +276,7 @@ class Client:
         self._logged_in_at: float | None = None
         self._cookie: str | None = None
         self._closed = False
+        self._refused_by: str | None = None
         self.traffic = Traffic()
         self._slowest: float | None = None
 
@@ -385,10 +386,16 @@ class Client:
         _raise_for_error_status(LOGOUT, await self._request("GET", LOGOUT))
 
     async def _login(self) -> None:
+        if self._refused_by is not None:
+            # A round that waited for a write, and the read-back after a
+            # save, sent the refused password once more. A reauth builds a
+            # new client.
+            raise LoginRefused(self._refused_by)
         _raise_for_error_status(INDEX, await self._request("GET", INDEX))
         answer = await self._request("POST", LOGIN, self._credentials)
         if answer.wrong_password:
-            raise LoginRefused(f"HTTP {answer.status} to {answer.location}")
+            self._refused_by = f"HTTP {answer.status} to {answer.location}"
+            raise LoginRefused(self._refused_by)
         accepted = (
             answer.status == HTTPStatus.SEE_OTHER
             and answer.location == LOGIN_TARGET

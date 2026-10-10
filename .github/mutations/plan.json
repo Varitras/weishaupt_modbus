@@ -1974,11 +1974,11 @@
     "tests": "served_half_twice_is_searched_once_more or served_half_on_every_ask_is_not_called_unsupported"
   },
   {
-    "label": "config flow: a refused login is tried twice",
+    "label": "config flow: a failure other than a page served half is searched twice",
     "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "    except Broken as error:\n        if type(error) not in SEARCHED_AGAIN:\n",
     "new": "    except WebifError as error:\n        if isinstance(error, MissingTitles):\n",
-    "tests": "refused_login_is_not_tried_twice"
+    "tests": "refused_login_is_not_tried_twice or an_error_status_is_not_searched_once_more"
   },
   {
     "label": "webif client: each client keeps the gap only to itself",
@@ -3614,9 +3614,9 @@
   {
     "label": "power limit write: a client closed after the save reads as called off",
     "path": "custom_components/weishaupt_modbus/webif/setting.py",
-    "old": "    except (Broken, Unreachable, Closed) as error:\n",
-    "new": "    except (Broken, Unreachable) as error:\n",
-    "tests": "read_back_that_fails_is_reported_as_saved_but_not_read"
+    "old": "    except WebifError as error:\n        # The save went out",
+    "new": "    except (Broken, Unreachable) as error:\n        # The save went out",
+    "tests": "read_back_that_fails_is_reported_as_saved_but_not_read or refused_on_the_read_back_says_saved"
   },
   {
     "label": "power limit write: a write cancelled after its save reads as called off",
@@ -3967,5 +3967,19 @@
     "old": "        except ModbusExceptionError, ClientClosedError:\n            raise\n",
     "new": "        except ClientClosedError:\n            raise\n",
     "tests": "reached_no_eeprom"
+  },
+  {
+    "label": "webif client: a refused login is sent again",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        if self._refused_by is not None:\n",
+    "new": "        if False:\n",
+    "tests": "refused_login_is_never_sent_again or refused_on_the_read_back_says_saved"
+  },
+  {
+    "label": "webif client: a refused login is not remembered",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "            self._refused_by = f\"HTTP {answer.status} to {answer.location}\"\n            raise LoginRefused(self._refused_by)\n",
+    "new": "            raise LoginRefused(f\"HTTP {answer.status} to {answer.location}\")\n",
+    "tests": "refused_login_is_never_sent_again or refused_on_the_read_back_says_saved"
   }
 ]

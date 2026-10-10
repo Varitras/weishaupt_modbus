@@ -9,7 +9,7 @@ moves it.
 from collections.abc import Callable
 
 from . import pages
-from .client import SETTING_LIST, Broken, Client, Closed, Unreachable, WebifError
+from .client import SETTING_LIST, Broken, Client, Unreachable, WebifError
 
 POWER_LIMIT_TITLE = "Leistungsbegrenzung"
 # Its title on a controller set to English, as shown there 2026-10-10.
@@ -91,8 +91,9 @@ async def write_power_limit(
     as the save goes out, see Client.save. A target the controller already
     shows ends the write after the first read.
 
-    Raises FormNotRead or FormMismatch with nothing sent, NotSaved or
-    MaybeSaved from the save, OtherValueShown or NotReadBack after it.
+    Raises FormNotRead or FormMismatch with nothing sent, LoginRefused or
+    Closed from the reads before the save, NotSaved, MaybeSaved or Closed
+    from the save, OtherValueShown or NotReadBack after it.
     """
 
     def limit_shown(text: str) -> tuple[int, str] | None:
@@ -119,9 +120,9 @@ async def write_power_limit(
     await client.save(form, target, count_write)
     try:
         read_back, (now_shown, _) = await _read(client, heating_path, limit_shown)
-    except (Broken, Unreachable, Closed) as error:
-        # Closed too: the save went out, and "called off" would invite the
-        # user to save again a value the controller may already hold.
+    except WebifError as error:
+        # The save went out: "called off" or "login refused" alone would
+        # invite the user to save again a value the controller may hold.
         raise NotReadBack(str(error)) from error
     if now_shown != target:
         raise OtherValueShown(read_back, now_shown, target)

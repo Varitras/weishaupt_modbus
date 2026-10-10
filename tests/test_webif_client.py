@@ -284,6 +284,21 @@ async def test_wrong_credentials_end_the_round_at_the_login(pump, session):
     assert pump.asked == LOGIN
 
 
+async def test_a_refused_login_is_never_sent_again(pump, session):
+    """A round that waited for a write, and the read-back after a save, asked
+    again and sent the refused password once more. Only a reauth may try
+    another, and it builds a new client."""
+    client = connect(session, pump.host, password="wrong")
+    with pytest.raises(webif.LoginRefused):
+        await client.page(PAGE, whole)
+    asked = len(pump.asked)
+
+    with pytest.raises(webif.LoginRefused):
+        await client.page(PAGE, whole)
+
+    assert pump.asked[asked:] == []
+
+
 async def test_a_session_id_with_a_slash_keeps_its_session(pump, session):
     """Live, 2026-10-02 and 03: the controller's session ids carry + and /,
     aiohttp's cookie jar sent one with a slash back in quotes, and the
