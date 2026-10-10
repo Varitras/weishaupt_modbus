@@ -48,6 +48,7 @@ from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_registry as er, issue_registry as ir
 from homeassistant.helpers.update_coordinator import UpdateFailed
+from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
 
 pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
 
@@ -145,6 +146,44 @@ async def test_a_calculated_sensor_starts_from_the_first_refresh(hass, pump):
 
     assert entity_id, "the spread got no entity"
     assert float(hass.states.get(entity_id).state) == 5.0
+
+
+async def test_temperature_differences_are_not_converted_as_temperatures(hass, pump):
+    """Declared as temperatures, a 5 K spread read 41 degF in US units and
+    278.15 K to whoever chose kelvin, and the SG-Ready boost offered 32 to
+    86 degF and refused a raise of 5. A difference keeps its unit unless the
+    user picks another, which then converts it as a difference."""
+    hass.config.units = US_CUSTOMARY_SYSTEM
+    pump.load_raw(
+        {
+            "input": {FLOW_TEMPERATURE: 350, RETURN_TEMPERATURE: 300},
+            "holding": {SG_READY_BOOST: 0},
+        }
+    )
+    await _setup(hass, _entry(hass))
+    registry = er.async_get(hass)
+    spread = registry.async_get_entity_id("sensor", CONST.DOMAIN, SPREAD_UNIQUE_ID)
+    boost = registry.async_get_entity_id(
+        "number", CONST.DOMAIN, SG_READY_BOOST_UNIQUE_ID
+    )
+    writes = []
+    pump.unit.on_write(writes.append)
+
+    await hass.services.async_call(
+        "number", "set_value", {"entity_id": boost, "value": 5}, blocking=True
+    )
+
+    shown = hass.states.get(spread)
+    assert (shown.state, shown.attributes["unit_of_measurement"]) == ("5.0", "°C")
+    assert hass.states.get(boost).attributes["max"] == 30.0
+    assert [(event.address, event.values) for event in writes] == [
+        (SG_READY_BOOST, [50])
+    ]
+    registry.async_update_entity_options(
+        spread, "sensor", {"unit_of_measurement": "°F"}
+    )
+    await hass.async_block_till_done()
+    assert float(hass.states.get(spread).state) == 9.0
 
 
 async def test_the_configured_port_reaches_the_client(hass, mock_modbus):

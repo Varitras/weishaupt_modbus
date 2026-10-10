@@ -3848,5 +3848,19 @@
     "old": "        curves = [partial(np.interp, xp=known_x, fp=ys) for ys in known_y]\n",
     "new": "        curves = [partial(np.interp, xp=known_x, fp=[ys[0]] * len(ys)) for ys in known_y]\n",
     "tests": "between_its_points"
+  },
+  {
+    "label": "table: the SG-Ready boost is a temperature, not a raise",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "    \"divider\": 10,\n    \"deviceclass\": SensorDeviceClass.TEMPERATURE_DELTA,\n",
+    "new": "    \"divider\": 10,\n    \"deviceclass\": SensorDeviceClass.TEMPERATURE,\n",
+    "tests": "not_converted_as_temperatures"
+  },
+  {
+    "label": "table: the spread is a temperature, not a difference",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "    \"operands\": (\"rl_temp\",),\n    \"deviceclass\": SensorDeviceClass.TEMPERATURE_DELTA,\n",
+    "new": "    \"operands\": (\"rl_temp\",),\n    \"deviceclass\": SensorDeviceClass.TEMPERATURE,\n",
+    "tests": "not_converted_as_temperatures"
   }
 ]
