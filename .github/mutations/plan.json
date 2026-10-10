@@ -1276,8 +1276,8 @@
   {
     "label": "webif coordinator: a stopped coordinator still asks by hand",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        if self._stopped_by is None:\n            self._round_finished = await self._round()\n",
-    "new": "        if True:\n            self._round_finished = await self._round()\n",
+    "old": "        if self._stopped_by is None:\n            if not await self._round():\n",
+    "new": "        if True:\n            if not await self._round():\n",
     "tests": "third_failure_in_a_row_stops"
   },
   {
@@ -1433,13 +1433,6 @@
     "old": "    entry.async_create_background_task(\n        hass, coordinator.async_refresh(), \"weishaupt-webif first round\"\n    )\n",
     "new": "    await coordinator.async_refresh()\n",
     "tests": "start_does_not_wait_for_the_first_round"
-  },
-  {
-    "label": "setup: the first round goes around the refresh lock",
-    "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "        hass, coordinator.async_refresh(), \"weishaupt-webif first round\"\n",
-    "new": "        hass, coordinator._async_refresh(), \"weishaupt-webif first round\"\n",
-    "tests": "during_the_first_round_adds_no_round"
   },
   {
     "label": "webif sensor: a sensor added before the first round breaks",
@@ -2368,8 +2361,8 @@
   {
     "label": "webif coordinator: a round ended by a timeout is followed at once",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            wait = max(wait, self._shortest_interval.total_seconds())\n",
-    "new": "            wait = min(wait, self._shortest_interval.total_seconds())\n",
+    "old": "            if not await self._round():\n                self._rest()\n",
+    "new": "            if not await self._round():\n                pass\n",
     "tests": "round_ended_by_a_timeout_gives_the_controller_a_rest"
   },
   {
@@ -3488,8 +3481,8 @@
   {
     "label": "power limit write: a round page is fetched beside a write",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            async with self._asking:\n                fetched = await self._fetch(page)\n",
-    "new": "            fetched = await self._fetch(page)\n",
+    "old": "            async with self._asking:\n                # The write the round waited for",
+    "new": "            if True:\n                # The write the round waited for",
     "tests": "no_round_request_lands_between_the_write_requests"
   },
   {
@@ -3628,7 +3621,7 @@
   {
     "label": "power limit write: the next round is not planned again after a write",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        self._plan_next_round(self._round_finished)\n        self.async_set_updated_data(self._published())\n",
+    "old": "        self._plan_next_round()\n        self.async_set_updated_data(self._published())\n",
     "new": "        self.async_set_updated_data(self._published())\n",
     "tests": "keeps_the_next_round_when_it_is_due"
   },
@@ -3647,17 +3640,17 @@
     "tests": "called_by_the_power_limit_write_only"
   },
   {
-    "label": "power limit write: planned as after a whole round, the rest after a timeout is lost",
+    "label": "webif coordinator: the next round is planned without the rest a timeout gave",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        self._plan_next_round(self._round_finished)\n        self.async_set_updated_data(self._published())\n",
-    "new": "        self._plan_next_round(True)\n        self.async_set_updated_data(self._published())\n",
-    "tests": "keeps_the_rest_a_timeout_gave_the_controller"
+    "old": "            self._rest_until - now,\n",
+    "new": "",
+    "tests": "keeps_the_rest_a_timeout_gave_the_controller or leaves_the_controller_its_rest or between_two_pages_of_a_round_cut_short"
   },
   {
     "label": "power limit write: the next round planned after Home Assistant restarted its timer",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        self._plan_next_round(self._round_finished)\n        self.async_set_updated_data(self._published())\n",
-    "new": "        self.async_set_updated_data(self._published())\n        self._plan_next_round(self._round_finished)\n",
+    "old": "        self._plan_next_round()\n        self.async_set_updated_data(self._published())\n",
+    "new": "        self.async_set_updated_data(self._published())\n        self._plan_next_round()\n",
     "tests": "next_round_comes_when_its_page_is_due"
   },
   {
@@ -3981,5 +3974,26 @@
     "old": "            self._refused_by = f\"HTTP {answer.status} to {answer.location}\"\n            raise LoginRefused(self._refused_by)\n",
     "new": "            raise LoginRefused(f\"HTTP {answer.status} to {answer.location}\")\n",
     "tests": "refused_login_is_never_sent_again or refused_on_the_read_back_says_saved"
+  },
+  {
+    "label": "webif coordinator: a page is due during the controller's rest",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if self._rest_until - now > DUE_SLACK_SECONDS:\n            return []\n",
+    "new": "",
+    "tests": "leaves_the_controller_its_rest or between_two_pages_of_a_round_cut_short"
+  },
+  {
+    "label": "power limit write: a timeout under a write gives no rest",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if isinstance(error.__cause__, Unreachable):\n            self._rest()\n",
+    "new": "",
+    "tests": "timeout_under_a_write_gives_the_controller_a_rest"
+  },
+  {
+    "label": "webif coordinator: a round that waited for a write asks what it read",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                if page not in self._due():\n                    continue\n",
+    "new": "",
+    "tests": "skips_the_page_the_write_read"
   }
 ]

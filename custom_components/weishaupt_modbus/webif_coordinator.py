@@ -314,9 +314,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         # A write's own: its message sends the user to the log, also after a
         # round's traceback was logged.
         self._write_traceback_logged = False
-        # Whether the last round reached every due page; one cut short by a
-        # timeout leaves the controller a rest a write must not take away.
-        self._round_finished = True
+        # A round cut short by a timeout gives the controller a rest: no page
+        # is asked before it ends, not by a round a write planned, not by hand.
+        self._rest_until = -math.inf
         self._no_dialog_visit = asyncio.Event()
         self._no_dialog_visit.set()
         # Held for a round's page and for a whole write: a round request
@@ -462,6 +462,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 outcome.set_exception(_cut_off(counted=counted))
 
     def _after_failed_write(self, error: Exception) -> None:
+        if isinstance(error.__cause__, Unreachable):
+            self._rest()
         if isinstance(error, OtherValueShown):
             self._publish(self._heating, error.text)
         elif isinstance(error, (MaybeSaved, NotReadBack)):
@@ -476,7 +478,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         self._readings[page.key].asked_at = self._readings[page.key].read_at
         # Home Assistant restarts its refresh timer here, with the wait the
         # last round planned: the next page due would come that much late.
-        self._plan_next_round(self._round_finished)
+        self._plan_next_round()
         self.async_set_updated_data(self._published())
 
     @property
@@ -509,8 +511,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 translation_domain=CONST.DOMAIN, translation_key="webif_login_refused"
             ) from self._refused
         if self._stopped_by is None:
-            self._round_finished = await self._round()
-            self._plan_next_round(self._round_finished)
+            if not await self._round():
+                self._rest()
+            self._plan_next_round()
         if (slowest := self._client.take_slowest_answer()) is not None:
             self.answer_seconds = slowest
         if self._stopped_by is not None:
@@ -535,12 +538,19 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         for page in self._due():
             await self._no_dialog_visit.wait()
             async with self._asking:
+                # The write the round waited for may have read the page, or
+                # run into a timeout.
+                if page not in self._due():
+                    continue
                 fetched = await self._fetch(page)
             if not fetched:
                 return False
         return True
 
-    def _plan_next_round(self, finished: bool) -> None:
+    def _rest(self) -> None:
+        self._rest_until = self._clock() + self._shortest_interval.total_seconds()
+
+    def _plan_next_round(self) -> None:
         # Home Assistant plans the next round from the end of every refresh,
         # one requested by hand included: on a fixed interval, an update just
         # before a page was due put that page off by a whole round.
@@ -549,16 +559,15 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         now = self._clock()
         wait = max(
             min(self._due_in(page, now) for page in self._pages),
+            self._rest_until - now,
             SHORTEST_WAIT_SECONDS,
         )
-        if not finished:
-            # The pages the round did not reach are due at once; the
-            # struggling controller gets the shortest interval to recover.
-            wait = max(wait, self._shortest_interval.total_seconds())
         self.update_interval = timedelta(seconds=wait)
 
     def _due(self) -> list[Page]:
         now = self._clock()
+        if self._rest_until - now > DUE_SLACK_SECONDS:
+            return []
         due = [
             page for page in self._pages if self._due_in(page, now) <= DUE_SLACK_SECONDS
         ]

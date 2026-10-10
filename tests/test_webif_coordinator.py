@@ -973,6 +973,32 @@ async def test_no_round_request_lands_between_the_write_requests(
     assert HEAT_PUMP.path in client.asked[4:]
 
 
+async def test_a_round_that_waited_for_a_write_skips_the_page_the_write_read(
+    coordinator, client, clock, quick
+):
+    """The round had picked its pages before it waited: the heating page the
+    write had just read back was asked once more."""
+    await first_round_showing(coordinator, client, clock)
+    client.save_gate = asyncio.Event()
+    writing = asyncio.create_task(coordinator.set_power_limit(61))
+    await until(lambda: client.saved)
+
+    clock.now = 2 * 60 * 60
+    polling = asyncio.create_task(coordinator._async_update_data())
+    await settle()
+    client.save_gate.set()
+    await asyncio.gather(writing, polling)
+
+    assert client.asked == [
+        HEATING.path,
+        leaf(60),
+        SAVE,
+        HEATING.path,
+        HEAT_PUMP.path,
+        STATISTICS.path,
+    ]
+
+
 async def _stopped(coordinator, client, clock):
     client.answer(HEAT_PUMP, Unreachable("timeout"))
     for quarter in range(3):
@@ -1338,7 +1364,7 @@ async def test_a_write_keeps_the_rest_a_timeout_gave_the_controller(
     await hass.async_block_till_done(wait_background_tasks=True)
 
     assert client.asked == []
-    assert listened.update_interval == QUARTER_HOUR
+    assert listened.update_interval == QUARTER_HOUR - timedelta(seconds=60)
 
 
 async def test_after_an_unexpected_error_on_the_read_back_the_heating_page_is_due(
@@ -1361,3 +1387,93 @@ async def test_after_an_unexpected_error_on_the_read_back_the_heating_page_is_du
     await round_at(coordinator, clock, 60)
 
     assert client.asked == [HEATING.path]
+
+
+class GatedClient(FakeClient):
+    """Holds a page once on a gate the test opens."""
+
+    def __init__(self):
+        super().__init__()
+        self.hold = {}
+        self.waiting = set()
+
+    async def page(self, path, complete):
+        gate = self.hold.pop(path, None)
+        if gate is not None:
+            self.waiting.add(path)
+            await gate.wait()
+            self.waiting.discard(path)
+        return await super().page(path, complete)
+
+
+async def test_an_update_by_hand_right_after_a_timeout_leaves_the_controller_its_rest(
+    hass, listened, client, clock
+):
+    """The rest lived only in the refresh timer: an update requested by hand
+    asked the pages the timeout had kept the round from at once."""
+    client.answer(HEAT_PUMP, Unreachable("timeout"))
+    await round_at(listened, clock, 0)
+    client.asked.clear()
+    clock.now = 10
+
+    await listened.async_request_refresh()
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert client.asked == []
+    assert listened.update_interval == QUARTER_HOUR - timedelta(seconds=10)
+
+
+async def test_a_write_between_two_pages_of_a_round_cut_short_keeps_the_rest(
+    hass, entry, clock, quick
+):
+    """Published mid-round, the write planned the next round a second later,
+    from the round before; its timer ran out while the round still read,
+    and once a timeout ended the round the pages it had not reached were
+    asked at once."""
+    client = GatedClient()
+    polled = [HEATING, replace(HEAT_PUMP, interval=HOUR), STATISTICS]
+    coordinator = WebifCoordinator(
+        hass, entry, client, polled, budget=WriteBudget(0, 10), clock=clock
+    )
+    stop_listening = coordinator.async_add_listener(lambda: None)
+    client.shows_power_limit(60)
+    await round_at(coordinator, clock, 0)
+    client.asked.clear()
+    heating_gate, pump_gate = asyncio.Event(), asyncio.Event()
+    client.hold = {HEATING.path: heating_gate, HEAT_PUMP.path: pump_gate}
+    clock.now = 60 * 60
+    polling = asyncio.create_task(coordinator.async_refresh())
+    await until(lambda: HEATING.path in client.waiting)
+    writing = asyncio.create_task(coordinator.set_power_limit(61))
+    await asyncio.sleep(2 * QUIET)
+    heating_gate.set()
+    await until(lambda: HEAT_PUMP.path in client.waiting)
+    await writing
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2))
+    await settle()
+    client.answer(HEAT_PUMP, Unreachable("timeout"))
+    pump_gate.set()
+    await polling
+    await hass.async_block_till_done(wait_background_tasks=True)
+    stop_listening()
+
+    assert client.asked[-1] == HEAT_PUMP.path
+    assert STATISTICS.path not in client.asked
+
+
+async def test_a_timeout_under_a_write_gives_the_controller_a_rest(
+    coordinator, client, clock, quick
+):
+    """A round came a second after the controller had not answered the write."""
+    await first_round_showing(coordinator, client, clock)
+    clock.now = 15 * 60 - 2
+    client.answer(HEATING, Unreachable("timeout"))
+    assert (await refused(coordinator.set_power_limit(61)))[0] == (
+        "webif_write_form_not_read"
+    )
+    client.asked.clear()
+
+    await round_at(coordinator, clock, 15 * 60)
+
+    assert client.asked == []

@@ -429,7 +429,9 @@ delete them. Home Assistant raises no repair notice for them.
   wait for it; the sensors show unavailable until it is done.
 - A page that arrived whole but wrong is asked for once more. After a
   timeout, a broken connection, an error status or a session dropped right
-  after the login, nothing more is asked in that round.
+  after the login, nothing more is asked in that round, and no page before
+  the shortest page interval has passed: not by an update requested by hand,
+  and not after a write. A write that meets one of these gives the same rest.
 - A page that fails keeps its values once; the second failure in a row makes
   them unavailable; the third stops polling and raises a repair notice.
   A failed page is asked for again only after its own interval. Check the
