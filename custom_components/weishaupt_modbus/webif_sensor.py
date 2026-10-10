@@ -59,7 +59,7 @@ class WebifSensorDescription(SensorEntityDescription):
     `topic` is the pump device whose short name the name prefix option puts
     in front, as for the Modbus sensors of the same subject.
     `off_is_zero` marks a power or speed, which the controller shows as "Aus"
-    when idle; anywhere else "Aus" reads unknown, since a 0 on a rising total
+    or "off" when idle; anywhere else they read unknown, since a 0 on a rising total
     resets it in Home Assistant's statistics.
     `no_value_is_zero` marks the setpoint temperature, which the controller
     shows as "--" while nothing is demanded; unknown left a gap in the
@@ -402,7 +402,7 @@ def reading(description: WebifSensorDescription, shown: str | None) -> Any:
         return None
     if description.shown_unit is None:
         return shown
-    if shown == pages.OFF and description.off_is_zero:
+    if shown in pages.OFF_WORDS and description.off_is_zero:
         return 0.0
     if pages.unit(shown) != description.shown_unit:
         return None
@@ -412,14 +412,16 @@ def reading(description: WebifSensorDescription, shown: str | None) -> Any:
 def shown_in_unknown_units(page: str, found: list[tuple[str, str]]) -> frozenset[str]:
     """The titles of the page whose sensor cannot read the value shown.
 
-    "--" and "Aus" are the controller's own words for no value, not a unit.
+    "--", "Aus" and "off" are the controller's own words for no value, not a
+    unit.
     """
     sensors = {value.title: value for value in READ_VALUES if value.page == page}
     return frozenset(
         title
         for title, shown in found
         if title in sensors
-        and shown not in (pages.NO_VALUE, pages.OFF)
+        and shown != pages.NO_VALUE
+        and shown not in pages.OFF_WORDS
         and reading(sensors[title], shown) is None
     )
 

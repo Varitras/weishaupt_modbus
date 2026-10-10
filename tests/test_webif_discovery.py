@@ -413,12 +413,15 @@ async def test_a_heating_menu_served_half_on_every_ask_is_not_called_unsupported
     assert pump.asked.count(("GET", PAGE_PATH)) == 2, "searched once more"
 
 
-async def test_no_value_and_off_are_no_unknown_unit(hass, pump, monkeypatch):
-    """The controller's own words for no value and for an idle power."""
+@pytest.mark.parametrize("off", ["Aus", "off"], ids=["German", "English"])
+async def test_no_value_and_off_are_no_unknown_unit(hass, pump, monkeypatch, off):
+    """The controller's own words for no value and for an idle power; set to
+    English it writes "off", and the dialog refused an idle pump. On a value
+    that does not read it as 0, the word is no reading, not another unit."""
     monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    shown_instead = {"Hochdruck": "--", "Ist Leistung": off, "Mitteldruck": off}
     entries = [
-        (title, {"Hochdruck": "--", "Ist Leistung": "Aus"}.get(title, shown))
-        for title, shown in HEAT_PUMP_SHOWN
+        (title, shown_instead.get(title, shown)) for title, shown in HEAT_PUMP_SHOWN
     ]
     pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(entries)
 

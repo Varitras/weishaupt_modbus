@@ -1479,15 +1479,15 @@
   {
     "label": "webif sensor: Aus is no reading instead of 0",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "    if shown == pages.OFF and description.off_is_zero:\n        return 0.0\n",
+    "old": "    if shown in pages.OFF_WORDS and description.off_is_zero:\n        return 0.0\n",
     "new": "",
     "tests": "aus_reads_0_only"
   },
   {
     "label": "webif sensor: Aus reads 0 on a rising total or a limit too",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "    if shown == pages.OFF and description.off_is_zero:\n",
-    "new": "    if shown == pages.OFF:\n",
+    "old": "    if shown in pages.OFF_WORDS and description.off_is_zero:\n",
+    "new": "    if shown in pages.OFF_WORDS:\n",
     "tests": "aus_reads_0_only"
   },
   {
@@ -1711,7 +1711,7 @@
     "label": "webif sensor: Aus on the setpoint temperature reads 0",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
     "old": "    if shown == pages.NO_VALUE and description.no_value_is_zero:\n",
-    "new": "    if shown in (pages.NO_VALUE, pages.OFF) and description.no_value_is_zero:\n",
+    "new": "    if (shown == pages.NO_VALUE or shown in pages.OFF_WORDS) and description.no_value_is_zero:\n",
     "tests": "aus_reads_0_only_for_an_idle_power_or_speed"
   },
   {
@@ -2431,7 +2431,7 @@
   {
     "label": "webif sensor: no value and off read as an unknown unit",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "        and shown not in (pages.NO_VALUE, pages.OFF)\n",
+    "old": "        and shown != pages.NO_VALUE\n        and shown not in pages.OFF_WORDS\n",
     "new": "",
     "tests": "no_value_and_off_are_no_unknown_unit"
   },
@@ -3736,5 +3736,19 @@
     "old": "    for page in polled_pages(found, {}, REQUIRED_TITLES, ENGLISH_TITLES):\n",
     "new": "    for page in polled_pages(found, {}, REQUIRED_TITLES, {key: {} for key in REQUIRED_TITLES}):\n",
     "tests": "set_to_english_is_found_and_read"
+  },
+  {
+    "label": "webif english: the English word for off is not known",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "OFF_WORDS = frozenset({\"Aus\", \"off\"})\n",
+    "new": "OFF_WORDS = frozenset({\"Aus\"})\n",
+    "tests": "aus_reads_0_only or no_value_and_off_are_no_unknown_unit"
+  },
+  {
+    "label": "webif english: off reads as an unknown unit",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        and shown not in pages.OFF_WORDS\n",
+    "new": "",
+    "tests": "no_value_and_off_are_no_unknown_unit"
   }
 ]

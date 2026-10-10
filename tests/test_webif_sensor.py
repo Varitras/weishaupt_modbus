@@ -67,18 +67,19 @@ IDLE_SHOWN_AS_AUS = {
 NO_DEMAND_SHOWN_AS_DASHES = {"solltemperatur"}
 
 
+@pytest.mark.parametrize("off", ["Aus", "off"], ids=["German", "English"])
 @pytest.mark.parametrize("sensor", WEBIF_SENSORS, ids=lambda sensor: sensor.key)
-def test_aus_reads_0_only_for_an_idle_power_or_speed(sensor):
+def test_aus_reads_0_only_for_an_idle_power_or_speed(sensor, off):
     """Elsewhere "Aus" read as 0 too: on a rising total that is a meter reset
     to Home Assistant's statistics, which then count the next reading in full
     again; on the power limit it more likely means no limit. A text keeps
-    the word."""
+    the word. Set to English, the controller writes "off"."""
     if sensor.shown_unit is None:
-        assert reading(sensor, "Aus") == "Aus"
+        assert reading(sensor, off) == off
     elif sensor.key in IDLE_SHOWN_AS_AUS:
-        assert reading(sensor, "Aus") == 0.0
+        assert reading(sensor, off) == 0.0
     else:
-        assert reading(sensor, "Aus") is None
+        assert reading(sensor, off) is None
 
 
 @pytest.mark.parametrize("sensor", WEBIF_SENSORS, ids=lambda sensor: sensor.key)

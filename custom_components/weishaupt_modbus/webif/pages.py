@@ -30,8 +30,9 @@ STACK_LINK = re.compile(
 # deep while they keep their old depth.
 SEGMENT_DEPTH = slice(26, 28)
 NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
-# The controller writes "Aus" for an idle power, power request or speed.
-OFF = "Aus"
+# The controller writes "Aus" for an idle power, power request or speed;
+# set to English, "off" (shown 2026-10-10).
+OFF_WORDS = frozenset({"Aus", "off"})
 NO_VALUE = "--"
 # A setting's own page saves it with one form: three hidden fields and the
 # value chosen from a list.

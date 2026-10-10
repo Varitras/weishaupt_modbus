@@ -360,8 +360,8 @@ The *Name topic prefix* option of the heat pump entry names these sensors
 like their Modbus siblings, with `WP_` or `ST_` in front.
 
 A value counts only in the unit the page shows for it; anything else reads as
-unknown. The page shows an idle power or speed as `Aus`, which reads as 0
-there and as unknown on any other value. It shows the setpoint temperature
+unknown. The page shows an idle power or speed as `Aus` (`off` in English),
+which reads as 0 there and as unknown on any other value. It shows the setpoint temperature
 as `--` while nothing is demanded, which reads as 0 °C like the Modbus
 setpoints, in the statistics too, but without a `demand` attribute; any
 other `--` reads as unknown.
