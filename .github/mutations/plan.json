@@ -1031,8 +1031,8 @@
   {
     "label": "webif client: a closed client raises a plain error",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "                raise Closed(f\"{path}: the client is closed\")\n",
-    "new": "                raise WebifError(f\"{path}: the client is closed\")\n",
+    "old": "            raise Closed(f\"{path}: the client is closed\")\n",
+    "new": "            raise WebifError(f\"{path}: the client is closed\")\n",
     "tests": "closed_client_says_so"
   },
   {
@@ -1171,8 +1171,8 @@
   {
     "label": "webif client: pages asked for at once overlap",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        async with self._lock:\n            if self._closed:\n                raise Closed(f\"{path}: the client is closed\")\n",
-    "new": "        async with asyncio.Lock():\n            if self._closed:\n                raise Closed(f\"{path}: the client is closed\")\n",
+    "old": "        async with self._lock:\n            try:\n                return await self._read(path, complete)\n",
+    "new": "        async with asyncio.Lock():\n            try:\n                return await self._read(path, complete)\n",
     "tests": "served_one_after_the_other"
   },
   {
@@ -1839,13 +1839,6 @@
     "old": "            return self.async_abort(reason=\"pump_removed\")\n",
     "new": "            return self.async_abort(reason=\"no_pump\")\n",
     "tests": "whose_pump_was_removed"
-  },
-  {
-    "label": "webif client: a closed client logs in again",
-    "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "            if self._closed:\n                raise Closed(f\"{path}: the client is closed\")\n",
-    "new": "",
-    "tests": "logs_in_no_more"
   },
   {
     "label": "webif client: a redirected page hides where it was sent",
@@ -2753,8 +2746,8 @@
   {
     "label": "webif client: a refused address counts, paces and logs as a request",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        # Asked where the request goes out, so no other way out can skip it.\n        if not _allowed(method, path, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            if sending is not None:\n                sending()\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
-    "new": "        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            if sending is not None:\n                sending()\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n                if not _allowed(method, path, form):\n                    raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "old": "        # Asked where the request goes out, so no other way out can skip it.\n        if not _allowed(method, path, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n        # Here and not only where a page starts: a renewed login or a page\n        # asked again ran on after the close, up to a minute late.\n        if self._closed and path != LOGOUT:\n            raise Closed(f\"{path}: the client is closed\")\n        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            if sending is not None:\n                sending()\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
+    "new": "        # Here and not only where a page starts: a renewed login or a page\n        # asked again ran on after the close, up to a minute late.\n        if self._closed and path != LOGOUT:\n            raise Closed(f\"{path}: the client is closed\")\n        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            if sending is not None:\n                sending()\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n                if not _allowed(method, path, form):\n                    raise ValueError(f\"{method} {path} is not on the positive list\")\n",
     "tests": "off_the_positive_list_is_never_asked_for"
   },
   {
@@ -4002,5 +3995,19 @@
     "old": "            self._dialog_visits -= 1\n            if not self._dialog_visits:\n                self._no_dialog_visit.set()\n",
     "new": "            self._dialog_visits -= 1\n            self._no_dialog_visit.set()\n",
     "tests": "last_of_two_dialogs"
+  },
+  {
+    "label": "webif client: a closed client renews its login and asks a page again",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        if self._closed and path != LOGOUT:\n            raise Closed(f\"{path}: the client is closed\")\n",
+    "new": "",
+    "tests": "lost_at_close_is_not_renewed or wrong_once_at_close_is_not_asked_again or logs_in_no_more"
+  },
+  {
+    "label": "webif client: a closed client cannot even log out",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        if self._closed and path != LOGOUT:\n",
+    "new": "        if self._closed:\n",
+    "tests": "wrong_once_at_close_is_not_asked_again or unloading_stops_and_logs_out"
   }
 ]

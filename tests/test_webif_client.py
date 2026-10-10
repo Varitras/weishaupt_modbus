@@ -954,6 +954,40 @@ async def test_a_closed_client_saves_nothing(pump, session, count):
     assert count.calls == 0
 
 
+async def test_a_session_lost_at_close_is_not_renewed(pump, session):
+    """The renewal ran inside the page: after the close it logged in, asked
+    the page again and only then logged out, up to a minute late."""
+    client = connect(session, pump.host)
+    await client.page(PAGE, whole)
+    pump.sessions.clear()
+    pump.delays[PAGE] = SLOW
+    pump.asked.clear()
+    reading = asyncio.create_task(client.page(PAGE, whole))
+    await until(lambda: pump.asked)
+
+    await client.close()
+
+    with pytest.raises(webif.Closed):
+        await reading
+    assert pump.asked == [("GET", PAGE)]
+
+
+async def test_a_page_wrong_once_at_close_is_not_asked_again(pump, session):
+    client = connect(session, pump.host)
+    await client.page(PAGE, whole)
+    pump.pages = [BROKEN, WHOLE]
+    pump.delays[PAGE] = SLOW
+    pump.asked.clear()
+    reading = asyncio.create_task(client.page(PAGE, whole))
+    await until(lambda: pump.asked)
+
+    await client.close()
+
+    with pytest.raises(webif.Closed):
+        await reading
+    assert pump.asked == [("GET", PAGE), ("GET", webif.LOGOUT)]
+
+
 async def test_a_save_called_off_in_its_gap_is_not_counted(pump, session, count):
     """Home Assistant stopping cancels a write while its save waits out the
     gap: nothing went out, and a count there outlived the restart."""
