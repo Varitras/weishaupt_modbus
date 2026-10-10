@@ -1,9 +1,10 @@
 """Home Assistant integration initialization."""
 
+from collections.abc import Mapping
 import copy
 import logging
 import re
-from typing import cast
+from typing import Any, cast
 
 import aiohttp
 from modbus_connection import ModbusError, ModbusTcpParams
@@ -74,6 +75,9 @@ LEGACY_WEBIF_KEYS = (
     "Poll Statistik",
 )
 LEGACY_WEBIF_UNIQUE_ID_PREFIX = "webif_"
+# 1.0.18 and 1.0.19 named them prefix, "_", name, postfix and this. A pump's
+# own id has no "_" between prefix and name, so a postfix "webif" stays.
+LEGACY_WEBIF_UNIQUE_ID_SUFFIX = "_webif"
 
 # Version 10 relabelled three 2nd-heat-source registers (see hpconst.py).
 # The unique id carries the item name, so every recorded entity has to move
@@ -297,6 +301,15 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     )  # list of entry_ids created for file
 
 
+def _is_legacy_web_interface(unique_id: str, entry_data: Mapping[str, Any]) -> bool:
+    """An entity the web interface of 1.x registered, never one of the pump's."""
+    if unique_id.startswith(LEGACY_WEBIF_UNIQUE_ID_PREFIX):
+        return True
+    return unique_id.startswith(f"{entry_data[CONF.PREFIX]}_") and unique_id.endswith(
+        LEGACY_WEBIF_UNIQUE_ID_SUFFIX
+    )
+
+
 async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) -> bool:
     """Migrate old entry."""
     if is_web_interface(config_entry):
@@ -341,7 +354,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) 
         for registry_entry in er.async_entries_for_config_entry(
             registry, config_entry.entry_id
         ):
-            if registry_entry.unique_id.startswith(LEGACY_WEBIF_UNIQUE_ID_PREFIX):
+            if _is_legacy_web_interface(registry_entry.unique_id, new_data):
                 registry.async_remove(registry_entry.entity_id)
 
     if config_entry.version < 10:

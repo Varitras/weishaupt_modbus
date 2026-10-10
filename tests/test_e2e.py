@@ -1136,6 +1136,49 @@ async def test_a_web_interface_entry_is_stripped_of_its_settings_and_entities(ha
     ), "the web-interface entity was left in the registry"
 
 
+@pytest.mark.parametrize(
+    ("postfix", "web_interface_id", "pump_id"),
+    [
+        ("", "weishaupt_wbb_Außentemperatur_webif", OUTSIDE_TEMPERATURE_UNIQUE_ID),
+        (
+            "webif",
+            "weishaupt_wbb_Außentemperatur_webif_webif",
+            OUTSIDE_TEMPERATURE_UNIQUE_ID + "_webif",
+        ),
+    ],
+    ids=["no postfix", "postfix webif"],
+)
+async def test_the_web_interface_entities_of_1_0_19_go_too(
+    hass, postfix, web_interface_id, pump_id
+):
+    """1.0.18 and 1.0.19 named them prefix, "_", name, postfix and "_webif";
+    version 9 looked for the "webif_" of a later pre-release only, and they
+    stayed unavailable for good. A pump whose postfix is "webif" keeps its
+    own entities, whose ids end the same way."""
+    entry = _entry(hass, data={**BASE_DATA, CONF.DEVICE_POSTFIX: postfix}, version=8)
+    registry = er.async_get(hass)
+    web_interface = registry.async_get_or_create(
+        "sensor", CONST.DOMAIN, web_interface_id, config_entry=entry
+    ).entity_id
+    pump_entity = registry.async_get_or_create(
+        "sensor", CONST.DOMAIN, pump_id, config_entry=entry
+    ).entity_id
+    # Removed and added again by the setup, an entity is back in the registry
+    # at once; the removal is what shows.
+    removed = []
+
+    def note_removal(event):
+        if event.data["action"] == "remove":
+            removed.append(event.data["entity_id"])
+
+    hass.bus.async_listen(er.EVENT_ENTITY_REGISTRY_UPDATED, note_removal)
+
+    await _setup(hass, entry)
+
+    assert removed == [web_interface]
+    assert registry.async_get_entity_id("sensor", CONST.DOMAIN, pump_id) == pump_entity
+
+
 # The three 2nd-heat-source entities as version 9 registered them on an
 # English Home Assistant: unique id from the old item name, entity id from the
 # device and the old label.

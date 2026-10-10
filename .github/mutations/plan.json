@@ -3862,5 +3862,19 @@
     "old": "    \"operands\": (\"rl_temp\",),\n    \"deviceclass\": SensorDeviceClass.TEMPERATURE_DELTA,\n",
     "new": "    \"operands\": (\"rl_temp\",),\n    \"deviceclass\": SensorDeviceClass.TEMPERATURE,\n",
     "tests": "not_converted_as_temperatures"
+  },
+  {
+    "label": "migration: the web interface entities of 1.0.19 stay",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    return unique_id.startswith(f\"{entry_data[CONF.PREFIX]}_\") and unique_id.endswith(\n        LEGACY_WEBIF_UNIQUE_ID_SUFFIX\n    )\n",
+    "new": "    return False\n",
+    "tests": "1_0_19_go_too"
+  },
+  {
+    "label": "migration: any id ending in _webif goes, a pump's with postfix webif too",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    return unique_id.startswith(f\"{entry_data[CONF.PREFIX]}_\") and unique_id.endswith(\n        LEGACY_WEBIF_UNIQUE_ID_SUFFIX\n    )\n",
+    "new": "    return unique_id.endswith(LEGACY_WEBIF_UNIQUE_ID_SUFFIX)\n",
+    "tests": "1_0_19_go_too"
   }
 ]
