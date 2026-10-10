@@ -47,6 +47,7 @@ from homeassistant.core import State
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_registry as er, issue_registry as ir
+from homeassistant.helpers.update_coordinator import UpdateFailed
 
 pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
 
@@ -1348,6 +1349,23 @@ async def test_the_write_counters_survive_a_restart(hass):
     assert entry.runtime_data.coordinator.device.write_budget.total == 1, (
         "the sensor shows the old number but the client counts from zero again"
     )
+
+
+async def test_todays_write_count_survives_a_reload_while_polling_fails(hass):
+    """The counter went unavailable with the polling, and its day with it: a
+    reload restored today's count as 0, and the daily limit was free again."""
+    entry = await _setup(hass, _entry(hass))
+    device = entry.runtime_data.coordinator.device
+    setpoint = next(row for row in device.items if row.address == PV_SETPOINT)
+    await device.write(setpoint, 5)
+    await hass.async_block_till_done()
+    entry.runtime_data.coordinator.async_set_update_error(UpdateFailed("link down"))
+    await hass.async_block_till_done()
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.runtime_data.coordinator.device.write_budget.writes_today == 1
 
 
 PV_SETPOINT_UNIQUE_ID = "weishaupt_wbbSollwertPV"

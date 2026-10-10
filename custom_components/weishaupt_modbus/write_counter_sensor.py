@@ -86,6 +86,15 @@ class WriteCounterSensor(CoordinatorEntity[DataUpdateCoordinator[Any]], RestoreS
         self._attr_device_info = device
 
     @property
+    def available(self) -> bool:
+        """Also while the polling fails: the count is this side's own.
+
+        Unavailable, its day was not recorded, and the reload that ends a
+        stop restored today's count as 0, freeing the daily limit again.
+        """
+        return True
+
+    @property
     def native_value(self) -> int:
         """The counter as the budget holds it now."""
         if self.entity_description.daily:

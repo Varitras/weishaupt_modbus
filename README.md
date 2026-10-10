@@ -193,8 +193,9 @@ after the next poll.
 
 **Write counters.** Writes go to the heat pump's EEPROM, which Weishaupt
 rates for 100 000 writes over its lifetime. Two diagnostic sensors on the
-System device count the writes that actually went out, in total and today;
-the [Options](#options) set a warning threshold and a daily limit.
+System device count the writes that actually went out, in total and today,
+and stay shown while the polling fails; the [Options](#options) set a
+warning threshold and a daily limit.
 
 ### The power map
 
@@ -347,7 +348,8 @@ pump's devices.
 - **Setting** (configuration): the heating power limit, 10 to 100 %; see
   [Setting the heating power limit](#setting-the-heating-power-limit).
 - **Settings written** (diagnostic): in total and today, carried over
-  restarts; the options limit them per day.
+  restarts and shown while the polling has stopped; the options limit them
+  per day.
 - **The polling itself** (diagnostic): the answer time, which is the slowest
   answer of the last round, and the counts of requests, logins, pages that
   came incomplete and failed reads. A failed read is one the web interface

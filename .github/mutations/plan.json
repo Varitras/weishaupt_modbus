@@ -3827,5 +3827,12 @@
     "old": "        if isinstance(value, int) and not isinstance(value, bool):\n",
     "new": "        if value is not None:\n",
     "tests": "comes_back_with_the_value_it_held"
+  },
+  {
+    "label": "write counter: unavailable with its coordinator, it loses today's count on the reload",
+    "path": "custom_components/weishaupt_modbus/write_counter_sensor.py",
+    "old": "        stop restored today's count as 0, freeing the daily limit again.\n        \"\"\"\n        return True\n",
+    "new": "        stop restored today's count as 0, freeing the daily limit again.\n        \"\"\"\n        return super().available\n",
+    "tests": "survives_a_reload_while_polling_fails or survives_the_reload_after_a_stop"
   }
 ]

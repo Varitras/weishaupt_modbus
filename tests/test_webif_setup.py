@@ -811,6 +811,23 @@ async def test_the_web_write_counters_carry_over_a_reload(hass, pump):
     assert entry.runtime_data.coordinator.budget.total == 1
 
 
+async def test_todays_web_write_count_survives_the_reload_after_a_stop(hass, pump):
+    """The counter went unavailable with the polling, and its day with it:
+    the reload the stop notice asks for restored today's count as 0, and the
+    daily limit was free again."""
+    entry = await _start(hass, _entries(hass, pump))
+    entry.runtime_data.coordinator.budget.record_write()
+    await hass.async_block_till_done()
+    entry.runtime_data.coordinator.async_set_update_error(UpdateFailed("stopped"))
+    await hass.async_block_till_done()
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert hass.states.get(_sensor(hass, "settings_written_today")).state == "1"
+    assert entry.runtime_data.coordinator.budget.writes_today == 1
+
+
 @pytest.mark.parametrize(("chosen", "limit"), [(None, 10), (1, 1), (0, 0)])
 async def test_the_option_sets_the_daily_limit(hass, pump, chosen, limit):
     options = {} if chosen is None else {CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY: chosen}
