@@ -3841,5 +3841,12 @@
     "old": "            self._reservations().pop(self.flow_id, None)\n        return errors\n",
     "new": "            pass\n        return errors\n",
     "tests": "left_open_after_an_error"
+  },
+  {
+    "label": "power map compiler: without scipy the curve does not meet its points",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "        curves = [partial(np.interp, xp=known_x, fp=ys) for ys in known_y]\n",
+    "new": "        curves = [partial(np.interp, xp=known_x, fp=[ys[0]] * len(ys)) for ys in known_y]\n",
+    "tests": "between_its_points"
   }
 ]

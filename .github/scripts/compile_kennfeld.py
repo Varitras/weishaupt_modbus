@@ -2,8 +2,9 @@
 
 A raw grid names a few points per flow-temperature curve (known_x, known_y,
 known_t); the integration reads a compiled_grid with a value per 0.1 °C of
-outside temperature. Compiling needs numpy (scipy makes the curve smoother),
-which is why it happens here, once, and not on every user's machine.
+outside temperature. Compiling needs numpy; with scipy the curve between the
+points is a smooth spline, without it a straight line. It happens here,
+once, and not on every user's machine.
 
     python .github/scripts/compile_kennfeld.py custom_components/weishaupt_modbus/kennfeld/my_kennfeld.json
 
@@ -12,6 +13,7 @@ integration only copies that picture under www/ and refuses one that
 carries script.
 """
 
+from functools import partial
 import json
 from pathlib import Path
 import sys
@@ -40,10 +42,12 @@ def compile_grid(data: dict) -> dict[str, list[float]]:
 
         curves = [CubicSpline(known_x, ys, bc_type="natural") for ys in known_y]
     except ImportError:
-        from numpy.polynomial import Chebyshev  # noqa: PLC0415
+        import numpy as np  # noqa: PLC0415
 
-        print("scipy not installed - using a Chebyshev fit", file=sys.stderr)
-        curves = [Chebyshev.fit(known_x, ys, deg=8) for ys in known_y]
+        # Not a polynomial fit: one of order 8 through a few points swung far
+        # between them, below 0 W, and shipped that as the heat output.
+        print("scipy not installed - joining the points by lines", file=sys.stderr)
+        curves = [partial(np.interp, xp=known_x, fp=ys) for ys in known_y]
     assert len(curves) == len(known_t), "one curve per flow temperature"
     return {
         str(raw): [round(float(curve(raw / 10.0)), 1) for curve in curves]

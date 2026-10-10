@@ -400,6 +400,44 @@ def _compile_script():
     return module
 
 
+def test_without_scipy_a_grid_stays_between_its_points(monkeypatch):
+    """A fit of order 8 through four points swung far between them, below 0 W
+    with another input, and the integration took the values as the heat
+    output; only a RankWarning on stderr told of it."""
+    monkeypatch.setitem(sys.modules, "scipy.interpolate", None)
+    data = {
+        "known_x": [-20, -10, 0, 10],
+        "known_t": [35],
+        "known_y": [[5000, 6000, 7000, 8000]],
+    }
+
+    grid = _compile_script().compile_grid(data)
+
+    assert [grid[str(x * 10)][0] for x in data["known_x"]] == [
+        5000.0,
+        6000.0,
+        7000.0,
+        8000.0,
+    ]
+    assert grid["-150"] == [5500.0]
+    assert all(5000 <= values[0] <= 8000 for values in grid.values())
+
+
+def test_every_shipped_grid_meets_its_points():
+    """The compiled values are what the integration reads; a compile that
+    misses the documented points ships a power the manual never gave."""
+    missed = {}
+    for path in sorted(KENNFELD.glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        grid = data["compiled_grid"]
+        for index, curve in enumerate(data["known_y"]):
+            for x, y in zip(data["known_x"], curve, strict=True):
+                if abs(grid[str(round(x * 10))][index] - y) > 0.1:
+                    missed.setdefault(path.name, []).append((x, data["known_t"][index]))
+
+    assert missed == {}
+
+
 def test_the_compile_script_keeps_each_curve_with_its_flow_temperature():
     """It sorted known_t and left known_y in file order: an unsorted raw grid
     got its curves swapped."""

@@ -226,7 +226,8 @@ dropping to 0 W, which used to halve the interpolated power for 45 °C flow.
 Pick the file matching your model. If yours is missing, copy the closest
 one, adjust `known_x`, `known_y` and `known_t` from your documentation and
 compile it once with `.github/scripts/compile_kennfeld.py` (needs `numpy`;
-`scipy` gives a smoother curve, `pygal` draws the preview picture). The
+with `scipy` the curve between your points is smooth, without it a straight
+line; `pygal` draws the preview picture). The
 integration only reads compiled grids. Contributions of new grids are welcome.
 A map compiled before 2.0.2 carries its file name in the picture's title;
 compile it again if that name should not be public.
