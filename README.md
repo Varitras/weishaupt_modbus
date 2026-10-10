@@ -150,10 +150,11 @@ device postfix:
 | Input/output | SG-Ready 1 and 2, inputs H1.2 - H1.5, DE1 and DE2, and their configuration |
 
 The entity types are sensors (read-only values), numbers (writable
-setpoints), selects (writable modes) and switches. The undocumented
-register 31106 (`Adr. 31106`, per circuit) repeats the circuit's operating
-mode and is created disabled; one that already exists stays enabled or
-disabled as it was.
+setpoints), selects (writable modes) and switches. Two undocumented
+registers are created disabled: 31106 (`Adr. 31106`, per circuit) repeats
+the circuit's operating mode, and 36801 (`Adr. 36801`) has no known meaning
+and read 0 on every controller seen. One that already exists stays enabled
+or disabled as it was.
 
 **Setpoints that can be switched off.** Some setpoints can be switched off
 at the controller - the constant flow temperatures, the summer/winter

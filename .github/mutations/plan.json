@@ -1495,28 +1495,21 @@
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
     "old": "device=DEVICES.HZ, params={\"enabled_by_default\": False}, translation_key=\"adr31106\"",
     "new": "device=DEVICES.HZ, translation_key=\"adr31106\"",
-    "tests": "copies_of_the_operating_mode_start_disabled"
+    "tests": "rows_without_a_meaning_of_their_own_start_disabled"
   },
   {
     "label": "entities: no row can start disabled",
     "path": "custom_components/weishaupt_modbus/entities.py",
     "old": "        self._attr_entity_registry_enabled_default = self._api_item.params.get(\n            \"enabled_by_default\", True\n        )\n",
     "new": "",
-    "tests": "copies_of_the_operating_mode_start_disabled"
+    "tests": "rows_without_a_meaning_of_their_own_start_disabled"
   },
   {
     "label": "entities: every row starts disabled",
     "path": "custom_components/weishaupt_modbus/entities.py",
     "old": "            \"enabled_by_default\", True\n",
     "new": "            \"enabled_by_default\", False\n",
-    "tests": "copies_of_the_operating_mode_start_disabled"
-  },
-  {
-    "label": "table: the other undocumented row starts disabled too",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
-    "old": "device=DEVICES.ST, translation_key=\"adr36801\"",
-    "new": "device=DEVICES.ST, params={\"enabled_by_default\": False}, translation_key=\"adr36801\"",
-    "tests": "copies_of_the_operating_mode_start_disabled"
+    "tests": "rows_without_a_meaning_of_their_own_start_disabled"
   },
   {
     "label": "table: a row sets a params key nothing reads",
@@ -3890,5 +3883,12 @@
     "old": "    if electric_energy < MIN_ELECTRIC_ENERGY_KWH:\n",
     "new": "    if electric_energy <= MIN_ELECTRIC_ENERGY_KWH:\n",
     "tests": "few_whole_kwh"
+  },
+  {
+    "label": "table: 36801 starts enabled",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "device=DEVICES.ST, params={\"enabled_by_default\": False}, translation_key=\"adr36801\"),",
+    "new": "device=DEVICES.ST, translation_key=\"adr36801\"),",
+    "tests": "rows_without_a_meaning_of_their_own_start_disabled"
   }
 ]

@@ -638,10 +638,11 @@ async def test_settings_the_pump_only_reports_are_diagnostic(hass):
     assert registry.async_get(setpoint).entity_category is None
 
 
-async def test_only_the_copies_of_the_operating_mode_start_disabled(hass):
+async def test_only_the_rows_without_a_meaning_of_their_own_start_disabled(hass):
     """31106 repeats the circuit's operating mode (41103) on every controller
     seen; enabled, it put the select's raw number on the device page as a
-    sensor named by its address. Held by the outside temperature alone, every
+    sensor named by its address. 36801 is in no data-point list and read 0 on
+    every controller seen. Held by the outside temperature alone, every
     diagnostic row could start disabled unnoticed."""
     rows = [
         row
@@ -649,7 +650,9 @@ async def test_only_the_copies_of_the_operating_mode_start_disabled(hass):
         for row in device
         if row.params.get("enabled_by_default") is False
     ]
-    assert {row.address for row in rows} == {31106 + 100 * n for n in range(5)}
+    assert {row.address for row in rows} == {31106 + 100 * n for n in range(5)} | {
+        36801
+    }
     await _setup(hass, _entry(hass, data=ALL_CIRCUITS))
 
     disabled = {
