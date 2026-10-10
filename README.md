@@ -264,10 +264,12 @@ little and stops on its own when the answers go wrong.
 2. Open `http://<address of the heat pump>/` in a browser. On the first
    visit the page asks you to set a user name and a password; there are no
    default credentials. These two go into the integration.
-3. Keep the controller's language on **German** (*Settings → Language* on
-   the display, see the heat pump's manual). The web interface shows its
-   texts in the language set there, and the integration finds its pages and
-   values by their German titles. With another language the dialog names
+3. Keep the controller's language on **German** or **English**
+   (*Settings → Language*, see the heat pump's manual). The web interface
+   shows its texts in the language set there, and the integration finds its
+   pages and values by their titles in these two languages. A text value,
+   such as the diverter valve position, keeps the controller's wording and
+   so changes with its language. With another language the dialog names
    the menu entries it could not find and asks about the language. If your
    controller has to stay on another language, open an
    [issue](https://github.com/Varitras/weishaupt_modbus/issues) so that
@@ -467,7 +469,7 @@ already set.
 - Prefix and device postfix cannot be changed after setup.
 - Heat pumps with the separate Weishaupt Modbus module are not supported.
 - The web interface is read only with the controller's language set to
-  German.
+  German or English.
 
 ## Troubleshooting
 

@@ -1717,15 +1717,15 @@
   {
     "label": "webif sensor: Aus on a temperature reads 0",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "    _temperature(\"druckgastemperatur\", \"Druckgastemperatur\"),\n",
-    "new": "    _temperature(\"druckgastemperatur\", \"Druckgastemperatur\", off_is_zero=True),\n",
+    "old": "    _temperature(\"druckgastemperatur\", \"Druckgastemperatur\", \"PR GAS TEMP\"),\n",
+    "new": "    _temperature(\"druckgastemperatur\", \"Druckgastemperatur\", \"PR GAS TEMP\", off_is_zero=True),\n",
     "tests": "aus_reads_0_only_for_an_idle_power_or_speed"
   },
   {
     "label": "webif sensor: -- on another temperature reads 0",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "    _temperature(\"oelsumpftemperatur\", \"Ölsumpftemperatur\"),\n",
-    "new": "    _temperature(\"oelsumpftemperatur\", \"Ölsumpftemperatur\", no_value_is_zero=True),\n",
+    "old": "    _temperature(\"oelsumpftemperatur\", \"Ölsumpftemperatur\", \"OIL SUMP T\"),\n",
+    "new": "    _temperature(\"oelsumpftemperatur\", \"Ölsumpftemperatur\", \"OIL SUMP T\", no_value_is_zero=True),\n",
     "tests": "no_value_reads_0_only_for_the_setpoint_temperature"
   },
   {
@@ -1738,8 +1738,8 @@
   {
     "label": "webif sensor: the setpoint temperature reads -- as unknown",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "    _temperature(\"solltemperatur\", \"Solltemperatur\", no_value_is_zero=True),\n",
-    "new": "    _temperature(\"solltemperatur\", \"Solltemperatur\"),\n",
+    "old": "    _temperature(\"solltemperatur\", \"Solltemperatur\", \"setpoint\", no_value_is_zero=True),\n",
+    "new": "    _temperature(\"solltemperatur\", \"Solltemperatur\", \"setpoint\"),\n",
     "tests": "no_value_reads_0_only"
   },
   {
@@ -1752,8 +1752,8 @@
   {
     "label": "webif sensor: an idle pump reads unknown",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "    _percentage(\"drehzahl_pumpe_m1\", \"Drehzahl Pumpe M1\", off_is_zero=True),\n",
-    "new": "    _percentage(\"drehzahl_pumpe_m1\", \"Drehzahl Pumpe M1\"),\n",
+    "old": "        \"drehzahl_pumpe_m1\", \"Drehzahl Pumpe M1\", \"pump speed\", off_is_zero=True\n",
+    "new": "        \"drehzahl_pumpe_m1\", \"Drehzahl Pumpe M1\", \"pump speed\"\n",
     "tests": "aus_reads_0_only"
   },
   {
@@ -2613,8 +2613,8 @@
   {
     "label": "webif discovery: what a first answer showed piles onto the second",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        shown[:] = read(text)\n",
-    "new": "        shown.extend(read(text))\n",
+    "old": "        shown[:] = [\n            (ENGLISH_MENU_TITLES.get(title, title), link) for title, link in read(text)\n        ]\n",
+    "new": "        shown.extend(\n            (ENGLISH_MENU_TITLES.get(title, title), link) for title, link in read(text)\n        )\n",
     "tests": "served_half_once_is_read_from_its_second_answer"
   },
   {
@@ -3680,5 +3680,61 @@
     "old": "        if not self.coordinator.last_update_success:\n            return None\n",
     "new": "",
     "tests": "stopped_polling_shows_no_frozen_value"
+  },
+  {
+    "label": "webif english: the menus' English titles are not taken for the German ones",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "            (ENGLISH_MENU_TITLES.get(title, title), link) for title, link in read(text)\n",
+    "new": "            (title, link) for title, link in read(text)\n",
+    "tests": "set_to_english_is_found_and_read"
+  },
+  {
+    "label": "webif english: the power limit is found under its German title only",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        if entry.title in (POWER_LIMIT_TITLE, POWER_LIMIT_ENGLISH_TITLE)\n",
+    "new": "        if entry.title == POWER_LIMIT_TITLE\n",
+    "tests": "set_to_english_has_its_limit_written"
+  },
+  {
+    "label": "webif english: a page is read under the titles it shows",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        return [(self.english.get(title, title), shown) for title, shown in found]\n",
+    "new": "        return found\n",
+    "tests": "set_to_english"
+  },
+  {
+    "label": "webif english: the heat pump page gets no English titles",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            english=english[HEAT_PUMP_PAGE],\n",
+    "new": "",
+    "tests": "set_to_english"
+  },
+  {
+    "label": "webif english: the statistics page gets no English titles",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            english=english[STATISTICS_PAGE],\n",
+    "new": "",
+    "tests": "set_to_english"
+  },
+  {
+    "label": "webif english: the heating page gets no English titles",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            english=english[HEATING_PAGE],\n",
+    "new": "",
+    "tests": "set_to_english"
+  },
+  {
+    "label": "webif english: the running entry polls without the English titles",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        entry.data[CONF.PAGES], entry.options, REQUIRED_TITLES, ENGLISH_TITLES\n",
+    "new": "        entry.data[CONF.PAGES], entry.options, REQUIRED_TITLES, {key: {} for key in REQUIRED_TITLES}\n",
+    "tests": "set_to_english_is_read_and_written"
+  },
+  {
+    "label": "webif english: the dialog reads the pages without the English titles",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "old": "    for page in polled_pages(found, {}, REQUIRED_TITLES, ENGLISH_TITLES):\n",
+    "new": "    for page in polled_pages(found, {}, REQUIRED_TITLES, {key: {} for key in REQUIRED_TITLES}):\n",
+    "tests": "set_to_english_is_found_and_read"
   }
 ]

@@ -34,7 +34,7 @@ from .migrate_helpers import unique_id_from_parts
 from .webif import pages
 from .webif.client import Traffic
 from .webif.discovery import HEAT_PUMP_PAGE, HEATING_PAGE, STATISTICS_PAGE
-from .webif.setting import POWER_LIMIT_TITLE
+from .webif.setting import POWER_LIMIT_ENGLISH_TITLE, POWER_LIMIT_TITLE
 from .webif_coordinator import WebifCoordinator
 
 # The unit texts the controller shows after a number.
@@ -53,6 +53,8 @@ NO_UNIT = ""
 class WebifSensorDescription(SensorEntityDescription):
     """A value of a web interface page: its page, its title, its unit there.
 
+    `english_title` is the title a controller set to English shows instead,
+    as it showed it on 2026-10-10: cut at 25 characters, typing errors kept.
     `shown_unit` is the text after the number; None for a value that is text.
     `topic` is the pump device whose short name the name prefix option puts
     in front, as for the Modbus sensors of the same subject.
@@ -66,6 +68,7 @@ class WebifSensorDescription(SensorEntityDescription):
 
     page: str
     title: str
+    english_title: str
     shown_unit: str | None
     topic: str = DEVICES.WP
     off_is_zero: bool = False
@@ -75,6 +78,7 @@ class WebifSensorDescription(SensorEntityDescription):
 def _sensor(
     key: str,
     title: str,
+    english_title: str,
     shown_unit: str | None,
     page: str = HEAT_PUMP_PAGE,
     **attributes: Any,
@@ -84,15 +88,19 @@ def _sensor(
         translation_key=f"webif_{key}",
         page=page,
         title=title,
+        english_title=english_title,
         shown_unit=shown_unit,
         **attributes,
     )
 
 
-def _temperature(key: str, title: str, **attributes: Any) -> WebifSensorDescription:
+def _temperature(
+    key: str, title: str, english_title: str, **attributes: Any
+) -> WebifSensorDescription:
     return _sensor(
         key,
         title,
+        english_title,
         CELSIUS,
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
@@ -103,11 +111,16 @@ def _temperature(key: str, title: str, **attributes: Any) -> WebifSensorDescript
 
 
 def _difference(
-    key: str, title: str, page: str = HEAT_PUMP_PAGE, **attributes: Any
+    key: str,
+    title: str,
+    english_title: str,
+    page: str = HEAT_PUMP_PAGE,
+    **attributes: Any,
 ) -> WebifSensorDescription:
     return _sensor(
         key,
         title,
+        english_title,
         KELVIN,
         page,
         device_class=SensorDeviceClass.TEMPERATURE_DELTA,
@@ -118,10 +131,11 @@ def _difference(
     )
 
 
-def _pressure(key: str, title: str) -> WebifSensorDescription:
+def _pressure(key: str, title: str, english_title: str) -> WebifSensorDescription:
     return _sensor(
         key,
         title,
+        english_title,
         BAR,
         device_class=SensorDeviceClass.PRESSURE,
         native_unit_of_measurement=UnitOfPressure.BAR,
@@ -131,11 +145,16 @@ def _pressure(key: str, title: str) -> WebifSensorDescription:
 
 
 def _percentage(
-    key: str, title: str, page: str = HEAT_PUMP_PAGE, **attributes: Any
+    key: str,
+    title: str,
+    english_title: str,
+    page: str = HEAT_PUMP_PAGE,
+    **attributes: Any,
 ) -> WebifSensorDescription:
     return _sensor(
         key,
         title,
+        english_title,
         PERCENTAGE,
         page,
         native_unit_of_measurement=PERCENTAGE,
@@ -145,10 +164,11 @@ def _percentage(
     )
 
 
-def _power(key: str, title: str) -> WebifSensorDescription:
+def _power(key: str, title: str, english_title: str) -> WebifSensorDescription:
     return _sensor(
         key,
         title,
+        english_title,
         KILOWATT,
         off_is_zero=True,
         device_class=SensorDeviceClass.POWER,
@@ -158,27 +178,31 @@ def _power(key: str, title: str) -> WebifSensorDescription:
     )
 
 
-def _count(key: str, title: str) -> WebifSensorDescription:
+def _count(key: str, title: str, english_title: str) -> WebifSensorDescription:
     return _sensor(
         key,
         title,
+        english_title,
         NO_UNIT,
         state_class=SensorStateClass.TOTAL_INCREASING,
         suggested_display_precision=0,
     )
 
 
-def _text(key: str, title: str, **attributes: Any) -> WebifSensorDescription:
-    return _sensor(key, title, None, **attributes)
+def _text(
+    key: str, title: str, english_title: str, **attributes: Any
+) -> WebifSensorDescription:
+    return _sensor(key, title, english_title, None, **attributes)
 
 
-def _energy(key: str, title: str) -> WebifSensorDescription:
+def _energy(key: str, title: str, english_title: str) -> WebifSensorDescription:
     # Day, month and year start again from zero; a rising total reads the
     # drop as a new period, not as a loss. Three decimals, as the page shows
     # them: their finer resolution is why these values are read here at all.
     return _sensor(
         key,
         title,
+        english_title,
         KILOWATT_HOURS,
         STATISTICS_PAGE,
         topic=DEVICES.ST,
@@ -189,10 +213,11 @@ def _energy(key: str, title: str) -> WebifSensorDescription:
     )
 
 
-def _performance(key: str, title: str) -> WebifSensorDescription:
+def _performance(key: str, title: str, english_title: str) -> WebifSensorDescription:
     return _sensor(
         key,
         title,
+        english_title,
         NO_UNIT,
         STATISTICS_PAGE,
         topic=DEVICES.ST,
@@ -203,41 +228,53 @@ def _performance(key: str, title: str) -> WebifSensorDescription:
 
 # Info > Wärmepumpe: the 31 values Modbus does not carry.
 HEAT_PUMP_SENSORS = (
-    _temperature("solltemperatur", "Solltemperatur", no_value_is_zero=True),
-    _difference("schaltdifferenz_dynamisch", "Schaltdifferenz dynamisch"),
-    _percentage("drehzahl_pumpe_m1", "Drehzahl Pumpe M1", off_is_zero=True),
+    _temperature("solltemperatur", "Solltemperatur", "setpoint", no_value_is_zero=True),
+    _difference(
+        "schaltdifferenz_dynamisch", "Schaltdifferenz dynamisch", "dynamic switching"
+    ),
+    _percentage(
+        "drehzahl_pumpe_m1", "Drehzahl Pumpe M1", "pump speed", off_is_zero=True
+    ),
     _sensor(
         "volumenstrom",
         "Volumenstrom",
+        "volume flow",
         CUBIC_METRES_PER_HOUR,
         device_class=SensorDeviceClass.VOLUME_FLOW_RATE,
         native_unit_of_measurement=UnitOfVolumeFlowRate.CUBIC_METERS_PER_HOUR,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,
     ),
-    _text("stellung_umschaltventil", "Stellung Umschaltventil"),
-    _power("soll_leistung", "Soll Leistung"),
-    _power("ist_leistung", "Ist Leistung"),
-    _temperature("expansionsventil_ag_eintritt", "Expansionsventil AG Eintr"),
-    _temperature("waermetauscher_ag_austritt", "Wärmetauscher AG Austrit"),
-    _temperature("evi_sauggastemperatur", "EVI Sauggastemperatur"),
-    _temperature("kaeltemittel_ig_austritt", "Kältemittel IG Austritt"),
-    _temperature("oelsumpftemperatur", "Ölsumpftemperatur"),
-    _temperature("druckgastemperatur", "Druckgastemperatur"),
-    _pressure("niederdruck", "Niederdruck"),
-    _pressure("hochdruck", "Hochdruck"),
-    _pressure("mitteldruck", "Mitteldruck"),
-    _temperature("kondensationstemperatur", "Kondensationstemperatur"),
-    _temperature("saettigungstemperatur_evi", "Sättigungstemperatur EVI"),
-    _difference("ueberhitzung_heizen", "Überhitzung Heizen"),
-    _difference("ueberhitzung_verdichter", "Überhitzung Verdichter"),
-    _difference("ueberhitzung_evi", "Überhitzung EVI"),
-    _percentage("oeffnungsgrad_exv_heizen", "Öffnungsgrad EXV Heizen"),
-    _percentage("oeffnungsgrad_exv_kuehlen", "Öffnungsgrad EXV Kühlen"),
-    _percentage("oeffnungsgrad_evi", "Öffnungsgrad EVI"),
+    _text("stellung_umschaltventil", "Stellung Umschaltventil", "change valve"),
+    _power("soll_leistung", "Soll Leistung", "power set"),
+    _power("ist_leistung", "Ist Leistung", "power actual"),
+    _temperature(
+        "expansionsventil_ag_eintritt", "Expansionsventil AG Eintr", "INLET TEMP"
+    ),
+    _temperature(
+        "waermetauscher_ag_austritt", "Wärmetauscher AG Austrit", "OUTLET TEMP"
+    ),
+    _temperature("evi_sauggastemperatur", "EVI Sauggastemperatur", "EVI SUC G T"),
+    _temperature("kaeltemittel_ig_austritt", "Kältemittel IG Austritt", "COOLA OUTLET"),
+    _temperature("oelsumpftemperatur", "Ölsumpftemperatur", "OIL SUMP T"),
+    _temperature("druckgastemperatur", "Druckgastemperatur", "PR GAS TEMP"),
+    _pressure("niederdruck", "Niederdruck", "LOW PRESS"),
+    _pressure("hochdruck", "Hochdruck", "HIGH PRESS"),
+    _pressure("mitteldruck", "Mitteldruck", "AVER PRESS"),
+    _temperature("kondensationstemperatur", "Kondensationstemperatur", "CONDENS TEMP"),
+    _temperature(
+        "saettigungstemperatur_evi", "Sättigungstemperatur EVI", "SATURAT TEMP"
+    ),
+    _difference("ueberhitzung_heizen", "Überhitzung Heizen", "EXCESS HEAT"),
+    _difference("ueberhitzung_verdichter", "Überhitzung Verdichter", "EXCESS H COM"),
+    _difference("ueberhitzung_evi", "Überhitzung EVI", "EXCESS H EVI"),
+    _percentage("oeffnungsgrad_exv_heizen", "Öffnungsgrad EXV Heizen", "DEG OP EXV H"),
+    _percentage("oeffnungsgrad_exv_kuehlen", "Öffnungsgrad EXV Kühlen", "DEGOPEXVCOOL"),
+    _percentage("oeffnungsgrad_evi", "Öffnungsgrad EVI", "DEG OP EVI"),
     _sensor(
         "verdichter_drehzahl",
         "Verdichter",
+        "compressor",
         RPM,
         off_is_zero=True,
         native_unit_of_measurement=REVOLUTIONS_PER_MINUTE,
@@ -247,45 +284,57 @@ HEAT_PUMP_SENSORS = (
     _sensor(
         "betriebsstunden_verdichter",
         "Betriebsstd. Verdichter",
+        "operating hours compresso",
         HOURS,
         device_class=SensorDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.HOURS,
         state_class=SensorStateClass.TOTAL_INCREASING,
         suggested_display_precision=0,
     ),
-    _count("schaltspiele_verdichter", "Schaltspiele Verdichter"),
-    _count("schaltspiele_abtauen", "Schaltspiele Abtauen"),
+    _count(
+        "schaltspiele_verdichter", "Schaltspiele Verdichter", "switchings compressor"
+    ),
+    _count("schaltspiele_abtauen", "Schaltspiele Abtauen", "switching defrost"),
     _text(
-        "version_wwp_sg", "Version WWP-SG", entity_category=EntityCategory.DIAGNOSTIC
+        "version_wwp_sg",
+        "Version WWP-SG",
+        "Version WWP-SG",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     _text(
         "version_wwp_ec_wbb",
         "Version WWP-EC WBB",
+        "version WWP-EC WBB",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     _text(
         "aussengeraet_variante",
         "Außengerät Variante",
+        "variant",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
 )
 
 # Info > Statistik: day and month finer than Modbus, the year Modbus reads as 0.
 STATISTICS_SENSORS = (
-    _energy("th_energie_heizen_tag", "th. Energie Heizen Tag"),
-    _energy("th_energie_ww_tag", "th. Energie WW Tag"),
-    _energy("th_energie_gesamt_tag", "th. Energie gesamt Tag"),
-    _energy("el_energie_tag", "elektrische Energie Tag"),
-    _energy("th_energie_heizen_monat", "th. Energie Heizen Monat"),
-    _energy("th_energie_ww_monat", "th. Energie WW Monat"),
-    _energy("th_energie_gesamt_monat", "th. Energie gesamt Monat"),
-    _energy("el_energie_monat", "elektrische Energie Monat"),
-    _energy("th_energie_heizen_jahr", "th. Energie Heizen Jahr"),
-    _energy("th_energie_ww_jahr", "th. Energie WW Jahr"),
-    _energy("th_energie_gesamt_jahr", "th. Energie gesamt Jahr"),
-    _energy("el_energie_jahr", "elektrische Energie Jahr"),
-    _performance("jaz_jahr", "JAZ Jahr"),
-    _performance("jaz_gesamt", "JAZ gesamt"),
+    _energy("th_energie_heizen_tag", "th. Energie Heizen Tag", "heat consuption day"),
+    _energy("th_energie_ww_tag", "th. Energie WW Tag", "hot water consuption day"),
+    _energy("th_energie_gesamt_tag", "th. Energie gesamt Tag", "consuption day"),
+    _energy("el_energie_tag", "elektrische Energie Tag", "ELECTRICAL ENERGY DAY"),
+    _energy(
+        "th_energie_heizen_monat", "th. Energie Heizen Monat", "heat consuption month"
+    ),
+    _energy("th_energie_ww_monat", "th. Energie WW Monat", "hot water consuption mont"),
+    _energy("th_energie_gesamt_monat", "th. Energie gesamt Monat", "consuption months"),
+    _energy("el_energie_monat", "elektrische Energie Monat", "ELECTRICAL ENERGY MONTH"),
+    _energy(
+        "th_energie_heizen_jahr", "th. Energie Heizen Jahr", "heat consuption year"
+    ),
+    _energy("th_energie_ww_jahr", "th. Energie WW Jahr", "hot water consuption year"),
+    _energy("th_energie_gesamt_jahr", "th. Energie gesamt Jahr", "consuption year"),
+    _energy("el_energie_jahr", "elektrische Energie Jahr", "ELECTRICAL ENERGY YEAR"),
+    _performance("jaz_jahr", "JAZ Jahr", "COP YEAR"),
+    _performance("jaz_gesamt", "JAZ gesamt", "JAZ"),
 )
 
 # Wärmepumpe > Heizen: the switching difference, read here and not written.
@@ -293,6 +342,7 @@ HEATING_SENSORS = (
     _difference(
         "schaltdifferenz_heizen",
         "Schaltdifferenz",
+        "switching difference",
         HEATING_PAGE,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
@@ -301,13 +351,25 @@ HEATING_SENSORS = (
 WEBIF_SENSORS = HEAT_PUMP_SENSORS + STATISTICS_SENSORS + HEATING_SENSORS
 # Beside it on the heating page, the power limit: a number (webif_number.py),
 # read from the page by the same rules as the sensors.
-POWER_LIMIT = _percentage("leistungsbegrenzung_heizen", POWER_LIMIT_TITLE, HEATING_PAGE)
+POWER_LIMIT = _percentage(
+    "leistungsbegrenzung_heizen",
+    POWER_LIMIT_TITLE,
+    POWER_LIMIT_ENGLISH_TITLE,
+    HEATING_PAGE,
+)
 READ_VALUES = (*WEBIF_SENSORS, POWER_LIMIT)
 
 # A page counts as whole only with the title of every value read from it.
 REQUIRED_TITLES = {
     page: frozenset(value.title for value in READ_VALUES if value.page == page)
     for page in (HEAT_PUMP_PAGE, STATISTICS_PAGE, HEATING_PAGE)
+}
+# Each page's English titles, to the German ones the values are kept under.
+ENGLISH_TITLES = {
+    page: {
+        value.english_title: value.title for value in READ_VALUES if value.page == page
+    }
+    for page in REQUIRED_TITLES
 }
 
 # User wish, 2026-10-03: whether the access gets worse over time shows in

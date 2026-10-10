@@ -14,7 +14,7 @@ from .configentry import host_lock, host_pacing
 from .webif.client import Broken, Client, WebifError
 from .webif.discovery import PAGE_MENUS, DoubledMenuEntries, find_pages
 from .webif_coordinator import Page, polled_pages
-from .webif_sensor import REQUIRED_TITLES, shown_in_unknown_units
+from .webif_sensor import ENGLISH_TITLES, REQUIRED_TITLES, shown_in_unknown_units
 
 
 class MissingTitles(Broken):
@@ -116,7 +116,7 @@ async def _visit(client: Client) -> dict[str, str]:
     not in the brake ten minutes after the entry was added.
     """
     found = await find_pages(client)
-    for page in polled_pages(found, {}, REQUIRED_TITLES):
+    for page in polled_pages(found, {}, REQUIRED_TITLES, ENGLISH_TITLES):
         await _read_whole(client, page)
     return found
 

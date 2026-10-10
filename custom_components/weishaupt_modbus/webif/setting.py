@@ -12,6 +12,8 @@ from . import pages
 from .client import SETTING_LIST, Broken, Client, Closed, Unreachable, WebifError
 
 POWER_LIMIT_TITLE = "Leistungsbegrenzung"
+# Its title on a controller set to English, as shown there 2026-10-10.
+POWER_LIMIT_ENGLISH_TITLE = "output limit"
 PERCENT = "%"
 
 
@@ -51,7 +53,7 @@ def _limit_entry(page: str, heating_path: str) -> tuple[int, str] | None:
     found = [
         (shown, entry.href)
         for entry in pages.children(page, heating_path)
-        if entry.title == POWER_LIMIT_TITLE
+        if entry.title in (POWER_LIMIT_TITLE, POWER_LIMIT_ENGLISH_TITLE)
         and entry.href is not None
         and (shown := shown_percent(entry.text)) is not None
     ]

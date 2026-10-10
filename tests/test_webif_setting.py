@@ -17,6 +17,7 @@ from custom_components.weishaupt_modbus.webif.client import (
 )
 
 from .webif_stand_in import (
+    ENGLISH_HEATING,
     HEATING,
     HEATING_PATH,
     PUMP_MENU,
@@ -74,6 +75,16 @@ async def write(client, target=61):
         target,
         lambda: client.events.append(("count",)),
     )
+
+
+async def test_a_controller_set_to_english_has_its_limit_written():
+    """Its heating page shows the limit as "output limit"."""
+    client, events = scripted(
+        heating=[heating_page(limit, titles=ENGLISH_HEATING) for limit in (60, 61)]
+    )
+
+    assert await write(client) == heating_page(61, titles=ENGLISH_HEATING)
+    assert ("save", 61) in events
 
 
 async def test_a_write_reads_the_form_saves_once_and_reads_back():

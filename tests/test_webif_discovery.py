@@ -25,8 +25,9 @@ from custom_components.weishaupt_modbus.webif_visit import (
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .locking import WatchedLock, until
-from .test_webif_setup import PAGES, SHOWN, SITE
+from .test_webif_setup import PAGES, SHOWN, SITE, english_site
 from .webif_stand_in import (
+    ENGLISH_MENUS,
     HEAT_PUMP_INFO,
     HEATING,
     INFO,
@@ -159,6 +160,15 @@ async def test_the_menu_entries_not_found_are_named(pump, client):
         await find_pages(client)
 
     assert raised.value.titles == {"Statistik"}
+
+
+async def test_a_controller_set_to_english_is_found_and_read(hass, pump, monkeypatch):
+    """User wish, 2026-10-10: set to English, the controller shows its menus
+    and values under other titles, and the dialog found none of them."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    pump.site = {**menu_site(ENGLISH_MENUS), **english_site()}
+
+    assert await read_web_interface(hass, pump.host, USER, PASSWORD) == PAGES
 
 
 async def test_the_dialog_finds_the_pages_and_logs_out_again(hass, pump, monkeypatch):

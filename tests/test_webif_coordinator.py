@@ -199,7 +199,9 @@ def intervals(options):
     """Each page's interval, as the entry's options set it."""
     paths = {key: f"/{key}" for key in (HEAT_PUMP_PAGE, STATISTICS_PAGE, HEATING_PAGE)}
     required = dict.fromkeys(paths, frozenset())
-    return {page.key: page.interval for page in polled_pages(paths, options, required)}
+    english = {key: {} for key in paths}
+    polled = polled_pages(paths, options, required, english)
+    return {page.key: page.interval for page in polled}
 
 
 def test_without_options_the_pages_keep_the_default_intervals():
