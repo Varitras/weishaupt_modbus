@@ -1,9 +1,9 @@
-"""Record the titles a heat pump's web interface shows, for another language.
+"""Record the titles a heat pump's web interface shows, for another language or model.
 
-The integration finds its pages and values by their German or English titles.
-With the controller set to another language, run this once and attach the
-file it writes to an issue: the titles in it are what the integration has to
-learn.
+The integration finds its pages and values by their German or English titles,
+as a WBB shows them. With the controller set to another language, or on a
+model whose pages show other values, run this once and attach the file it
+writes to an issue: the titles in it are what the integration has to learn.
 
     python tools/webif_capture.py <address of the heat pump>
 

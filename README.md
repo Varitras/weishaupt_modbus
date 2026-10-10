@@ -274,10 +274,12 @@ little and stops on its own when the answers go wrong.
    pages and values by their titles in these two languages. A text value,
    such as the diverter valve position, keeps the controller's wording and
    so changes with its language. With another language the dialog names
-   the menu entries it could not find and asks about the language. If your
-   controller has to stay on another language, open an
-   [issue](https://github.com/Varitras/weishaupt_modbus/issues) so that
-   language can be added: the integration needs its menu and value titles.
+   the menu entries it could not find and asks about the language. Another
+   model may show other values on its pages; the dialog then says the
+   controller is not supported yet. In either case - a language that has to
+   stay, or a model the integration does not know - open an
+   [issue](https://github.com/Varitras/weishaupt_modbus/issues) so that it
+   can be added: the integration needs its menu and value titles.
    [`tools/webif_capture.py`](tools/webif_capture.py) collects them.
    Download the repository (*Code → Download ZIP*), unpack it and run
    `python tools/webif_capture.py <address of the heat pump>` on a computer
@@ -481,7 +483,8 @@ already set.
 - Prefix and device postfix cannot be changed after setup.
 - Heat pumps with the separate Weishaupt Modbus module are not supported.
 - The web interface is read only with the controller's language set to
-  German or English.
+  German or English, and its values are those of a WBB; another model may
+  show other rows, and the dialog then says it is not supported yet.
 
 ## Troubleshooting
 

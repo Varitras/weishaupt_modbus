@@ -1,7 +1,8 @@
-"""The title capture for another language: six pages, read only, nothing personal.
+"""The title capture for another language or model: six pages, read only, nothing personal.
 
 tools/webif_capture.py is handed to people whose controller has to stay on
-a language the integration cannot read yet. It runs against a pump nobody
+a language the integration cannot read yet, or is a model it does not know
+yet. It runs against a pump nobody
 here has seen, and the file it writes goes to a public issue - so what it
 asks the pump for and what it writes down are held by these tests, against
 the stand-in on the loopback address.
