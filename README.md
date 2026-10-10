@@ -361,15 +361,16 @@ like their Modbus siblings, with `WP_` or `ST_` in front.
 
 A value counts only in the unit the page shows for it; anything else reads as
 unknown. The page shows an idle power or speed as `Aus` (`off` in English),
-which reads as 0 there and as unknown on any other value. It shows the setpoint temperature
-as `--` while nothing is demanded, which reads as 0 °C like the Modbus
-setpoints, in the statistics too, but without a `demand` attribute; any
-other `--` reads as unknown.
+which reads as 0 there and as unknown on any other number; a text value
+keeps the word. It shows the setpoint temperature as `--` while nothing is
+demanded, which reads as 0 °C like the Modbus setpoints, in the statistics
+too, but without a `demand` attribute; any other `--` reads as unknown.
 
 ### Setting the heating power limit
 
 The number *Heating power limit* sets *Wärmepumpe › Heizen ›
-Leistungsbegrenzung* at the controller, 10 to 100 % in steps of one.
+Leistungsbegrenzung* (*heat pump › heating › output limit* in English) at
+the controller, 10 to 100 % in steps of one.
 
 - A change waits 5 seconds for further changes, so a few clicks on the arrows
   make one write, of the last value. A change made while a write runs is

@@ -102,10 +102,11 @@ class Page:
     required: frozenset[str]
     interval: timedelta
     menu: bool = False
-    english: Mapping[str, str] = field(default_factory=dict)
+    # Left out of the hash: a dict has none, and every page lost its own.
+    english: Mapping[str, str] = field(default_factory=dict, hash=False)
 
     def read(self, text: str) -> list[tuple[str, str]]:
-        """The titles and values the page shows, the titles in German."""
+        """The titles and values the page shows, English titles made German."""
         if self.menu:
             found = [
                 (entry.title, entry.text) for entry in pages.children(text, self.path)

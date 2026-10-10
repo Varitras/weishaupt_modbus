@@ -47,6 +47,7 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 from .locking import WatchedLock, until
 from .webif_stand_in import (
     ENGLISH_HEATING,
+    GERMAN_HEATING,
     HEAT_PUMP_INFO,
     HEATING,
     HEATING_PATH,
@@ -619,7 +620,19 @@ async def test_the_diagnostics_leave_out_the_login_and_the_page_addresses(hass, 
     assert coordinator["stopped_by"] is None
 
 
-async def test_the_values_become_sensors_on_a_device_of_their_own(hass, pump):
+# User wish, 2026-10-10: set to English, the controller shows the same values
+# under other titles, and the entry read none of them.
+LANGUAGES = [
+    pytest.param(SITE, GERMAN_HEATING, id="German"),
+    pytest.param(english_site(), ENGLISH_HEATING, id="English"),
+]
+
+
+@pytest.mark.parametrize(("site", "heating_titles"), LANGUAGES)
+async def test_the_values_become_sensors_on_a_device_of_their_own(
+    hass, pump, site, heating_titles
+):
+    pump.site = dict(site)
     entry = await _start(hass, _entries(hass, pump))
     registry = er.async_get(hass)
 
@@ -829,9 +842,14 @@ async def _set_power_limit(hass, value):
     )
 
 
-async def test_the_power_limit_is_set_from_home_assistant(hass, pump, quick):
+@pytest.mark.parametrize(("site", "heating_titles"), LANGUAGES)
+async def test_the_power_limit_is_set_from_home_assistant(
+    hass, pump, quick, site, heating_titles
+):
     """Live, 2026-10-02, the same four requests: the heating page, the
     limit's own page, one save, the heating page again."""
+    pump.site = dict(site)
+    pump.heating_titles = heating_titles
     pump.show_power_limit(60)
     await _start(hass, _entries(hass, pump))
     assert hass.states.get(_number(hass)).state == "60"
@@ -848,21 +866,6 @@ async def test_the_power_limit_is_set_from_home_assistant(hass, pump, quick):
         ("POST", SAVE_PATH),
         ("GET", HEATING_PATH),
     ]
-
-
-async def test_a_controller_set_to_english_is_read_and_written(hass, pump, quick):
-    """User wish, 2026-10-10: set to English, the controller shows the same
-    values under other titles, and the entry read none of them."""
-    pump.site = english_site()
-    pump.heating_titles = ENGLISH_HEATING
-    pump.show_power_limit(60)
-    await _start(hass, _entries(hass, pump))
-    assert hass.states.get(_sensor(hass, "hochdruck")).state == "12.0"
-    assert hass.states.get(_number(hass)).state == "60"
-
-    await _set_power_limit(hass, 61)
-
-    assert hass.states.get(_number(hass)).state == "61"
 
 
 async def test_settings_made_at_once_are_one_write(hass, pump, quick):

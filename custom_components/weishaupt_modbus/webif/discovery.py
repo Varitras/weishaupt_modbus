@@ -18,21 +18,26 @@ HEAT_PUMP = "Wärmepumpe"
 STATISTICS = "Statistik"
 HEATING = "Heizen"
 # As a controller set to English showed them, 2026-10-10.
+INFO_ENGLISH = "information"
+HEAT_PUMP_ENGLISH = "heat pump"
+STATISTICS_ENGLISH = "statistics"
+HEATING_ENGLISH = "heating"
 ENGLISH_MENU_TITLES = {
-    "information": INFO,
-    "heat pump": HEAT_PUMP,
-    "statistics": STATISTICS,
-    "heating": HEATING,
+    INFO_ENGLISH: INFO,
+    HEAT_PUMP_ENGLISH: HEAT_PUMP,
+    STATISTICS_ENGLISH: STATISTICS,
+    HEATING_ENGLISH: HEATING,
 }
 
 HEAT_PUMP_PAGE = "heat_pump"
 STATISTICS_PAGE = "statistics"
 HEATING_PAGE = "heating"
-# Where each page sits in the controller's menus, as its user finds it there.
+# Where each page sits in the controller's menus, as its user finds it there
+# in German and in English.
 PAGE_MENUS = {
-    HEAT_PUMP_PAGE: f"{INFO} › {HEAT_PUMP}",
-    STATISTICS_PAGE: f"{INFO} › {STATISTICS}",
-    HEATING_PAGE: f"{HEAT_PUMP} › {HEATING}",
+    HEAT_PUMP_PAGE: f"{INFO} › {HEAT_PUMP} ({INFO_ENGLISH} › {HEAT_PUMP_ENGLISH})",
+    STATISTICS_PAGE: f"{INFO} › {STATISTICS} ({INFO_ENGLISH} › {STATISTICS_ENGLISH})",
+    HEATING_PAGE: f"{HEAT_PUMP} › {HEATING} ({HEAT_PUMP_ENGLISH} › {HEATING_ENGLISH})",
 }
 
 

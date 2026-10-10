@@ -2046,8 +2046,8 @@
   {
     "label": "config flow: the form does not say which page lacks which titles",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "    return {\"page\": error.page, \"titles\": \", \".join(sorted(error.titles))}\n",
-    "new": "    return {}\n",
+    "old": "        return {\"page\": error.page, \"titles\": _named(error.titles)}\n",
+    "new": "        return {}\n",
     "tests": "cannot_use"
   },
   {
@@ -3686,56 +3686,56 @@
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
     "old": "            (ENGLISH_MENU_TITLES.get(title, title), link) for title, link in read(text)\n",
     "new": "            (title, link) for title, link in read(text)\n",
-    "tests": "set_to_english_is_found_and_read"
+    "tests": "reads_each_page_it_found_once"
   },
   {
     "label": "webif english: the power limit is found under its German title only",
     "path": "custom_components/weishaupt_modbus/webif/setting.py",
     "old": "        if entry.title in (POWER_LIMIT_TITLE, POWER_LIMIT_ENGLISH_TITLE)\n",
     "new": "        if entry.title == POWER_LIMIT_TITLE\n",
-    "tests": "set_to_english_has_its_limit_written"
+    "tests": "reads_the_form_saves_once"
   },
   {
     "label": "webif english: a page is read under the titles it shows",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
     "old": "        return [(self.english.get(title, title), shown) for title, shown in found]\n",
     "new": "        return found\n",
-    "tests": "set_to_english"
+    "tests": "reads_each_page_it_found_once or become_sensors_on_a_device or power_limit_is_set_from_home_assistant or reads_the_form_saves_once"
   },
   {
     "label": "webif english: the heat pump page gets no English titles",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
     "old": "            english=english[HEAT_PUMP_PAGE],\n",
     "new": "",
-    "tests": "set_to_english"
+    "tests": "reads_each_page_it_found_once or become_sensors_on_a_device or power_limit_is_set_from_home_assistant or reads_the_form_saves_once"
   },
   {
     "label": "webif english: the statistics page gets no English titles",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
     "old": "            english=english[STATISTICS_PAGE],\n",
     "new": "",
-    "tests": "set_to_english"
+    "tests": "reads_each_page_it_found_once or become_sensors_on_a_device or power_limit_is_set_from_home_assistant or reads_the_form_saves_once"
   },
   {
     "label": "webif english: the heating page gets no English titles",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
     "old": "            english=english[HEATING_PAGE],\n",
     "new": "",
-    "tests": "set_to_english"
+    "tests": "reads_each_page_it_found_once or become_sensors_on_a_device or power_limit_is_set_from_home_assistant or reads_the_form_saves_once"
   },
   {
     "label": "webif english: the running entry polls without the English titles",
     "path": "custom_components/weishaupt_modbus/__init__.py",
     "old": "        entry.data[CONF.PAGES], entry.options, REQUIRED_TITLES, ENGLISH_TITLES\n",
     "new": "        entry.data[CONF.PAGES], entry.options, REQUIRED_TITLES, {key: {} for key in REQUIRED_TITLES}\n",
-    "tests": "set_to_english_is_read_and_written"
+    "tests": "become_sensors_on_a_device or power_limit_is_set_from_home_assistant"
   },
   {
     "label": "webif english: the dialog reads the pages without the English titles",
     "path": "custom_components/weishaupt_modbus/webif_visit.py",
     "old": "    for page in polled_pages(found, {}, REQUIRED_TITLES, ENGLISH_TITLES):\n",
     "new": "    for page in polled_pages(found, {}, REQUIRED_TITLES, {key: {} for key in REQUIRED_TITLES}):\n",
-    "tests": "set_to_english_is_found_and_read"
+    "tests": "reads_each_page_it_found_once"
   },
   {
     "label": "webif english: the English word for off is not known",
@@ -3750,5 +3750,33 @@
     "old": "        and shown not in pages.OFF_WORDS\n",
     "new": "",
     "tests": "no_value_and_off_are_no_unknown_unit"
+  },
+  {
+    "label": "webif english: the dialog names the titles in German only",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    english = TITLES_IN_ENGLISH.get(title, title)\n",
+    "new": "    english = title\n",
+    "tests": "another_language_is_told_so or menu_entry_shown_twice_is_named or cannot_use"
+  },
+  {
+    "label": "webif english: a page is named by its German menus only",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "    HEAT_PUMP_PAGE: f\"{INFO} › {HEAT_PUMP} ({INFO_ENGLISH} › {HEAT_PUMP_ENGLISH})\",\n",
+    "new": "    HEAT_PUMP_PAGE: f\"{INFO} › {HEAT_PUMP}\",\n",
+    "tests": "without_a_title_its_sensors_read or third_failure_in_a_row"
+  },
+  {
+    "label": "webif english: a page with English titles cannot be hashed",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "    english: Mapping[str, str] = field(default_factory=dict, hash=False)\n",
+    "new": "    english: Mapping[str, str] = field(default_factory=dict)\n",
+    "tests": "can_be_hashed"
+  },
+  {
+    "label": "webif english: a title shown alike in both languages is named twice",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    if english == title:\n        return title\n",
+    "new": "",
+    "tests": "cannot_use"
   }
 ]

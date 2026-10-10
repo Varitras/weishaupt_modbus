@@ -162,15 +162,6 @@ async def test_the_menu_entries_not_found_are_named(pump, client):
     assert raised.value.titles == {"Statistik"}
 
 
-async def test_a_controller_set_to_english_is_found_and_read(hass, pump, monkeypatch):
-    """User wish, 2026-10-10: set to English, the controller shows its menus
-    and values under other titles, and the dialog found none of them."""
-    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
-    pump.site = {**menu_site(ENGLISH_MENUS), **english_site()}
-
-    assert await read_web_interface(hass, pump.host, USER, PASSWORD) == PAGES
-
-
 async def test_the_dialog_finds_the_pages_and_logs_out_again(hass, pump, monkeypatch):
     """The dialog's own short visit, with a session of its own."""
     monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
@@ -200,14 +191,25 @@ async def test_the_dialog_waits_while_its_pump_is_asked(hass, pump, monkeypatch)
     assert all(pump.held), "the dialog asked without its pump's lock"
 
 
-async def test_the_dialog_reads_each_page_it_found_once(hass, pump, monkeypatch):
+LANGUAGES = [
+    pytest.param({**menu_site(), **SITE}, id="German"),
+    pytest.param({**menu_site(ENGLISH_MENUS), **english_site()}, id="English"),
+]
+
+
+@pytest.mark.parametrize("site", LANGUAGES)
+async def test_the_dialog_reads_each_page_it_found_once(hass, pump, monkeypatch, site):
     """User decision, 2026-10-03: the dialog reads the pages it will poll, so
     a page another model shows differently fails there and not ten minutes
-    later in the brake."""
+    later in the brake. User wish, 2026-10-10: set to English, the controller
+    shows its menus and values under other titles, and the dialog found none
+    of them."""
     monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    pump.site = dict(site)
 
     found = await read_web_interface(hass, pump.host, USER, PASSWORD)
 
+    assert found == PAGES
     assert pump.asked == [
         *LOGIN,
         ("GET", PAGE_PATH),
@@ -237,7 +239,7 @@ async def test_a_page_without_a_title_its_sensors_read_is_named(
     with pytest.raises(MissingTitles) as raised:
         await read_web_interface(hass, pump.host, USER, PASSWORD)
 
-    assert raised.value.page == "Info › Wärmepumpe"
+    assert raised.value.page == "Info › Wärmepumpe (information › heat pump)"
     assert raised.value.titles == {missing}
     assert pump.asked.count(("GET", PAGE_PATH)) == 1, "a second search cannot help"
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
@@ -256,7 +258,7 @@ async def test_a_heating_menu_with_other_entries_is_named(hass, pump, monkeypatc
     with pytest.raises(MissingTitles) as raised:
         await read_web_interface(hass, pump.host, USER, PASSWORD)
 
-    assert raised.value.page == "Wärmepumpe › Heizen"
+    assert raised.value.page == "Wärmepumpe › Heizen (heat pump › heating)"
     assert raised.value.titles == set(SHOWN[HEATING_PAGE])
 
 
@@ -374,7 +376,7 @@ async def test_values_shown_empty_or_twice_are_named(
     with pytest.raises(UnclearValues) as raised:
         await read_web_interface(hass, pump.host, USER, PASSWORD)
 
-    assert raised.value.page == "Info › Wärmepumpe"
+    assert raised.value.page == "Info › Wärmepumpe (information › heat pump)"
     assert raised.value.titles == unclear
     assert pump.asked.count(("GET", PAGE_PATH)) == 2, "searched once more"
 
@@ -392,7 +394,7 @@ async def test_a_value_in_a_unit_its_sensor_does_not_read_is_named(
     with pytest.raises(UnknownUnits) as raised:
         await read_web_interface(hass, pump.host, USER, PASSWORD)
 
-    assert raised.value.page == "Info › Wärmepumpe"
+    assert raised.value.page == "Info › Wärmepumpe (information › heat pump)"
     assert raised.value.titles == {"Hochdruck"}
     assert pump.asked.count(("GET", PAGE_PATH)) == 1
 
