@@ -44,6 +44,9 @@ required-version = ">=0.11.0"
 # The Python the supported Home Assistant runs on; the mypy section below
 # targets the same version and the two have to agree.
 target-version = "py314"
+# The title capture runs on the Python its user has: 3.10 and up, 3.13 from
+# the Windows starter. It loads webif/pages.py by path, so that file too.
+per-file-target-version = { "tools/*.py" = "py310", "custom_components/weishaupt_modbus/webif/pages.py" = "py310" }
 
 [tool.ruff.lint]
 select = [

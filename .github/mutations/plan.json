@@ -3925,5 +3925,19 @@
     "old": "& $python $capture $HostName\n",
     "new": "& $python $capture\n",
     "tests": "reaches_the_capture_as_typed or runs_with_the_python_the_starter_checked"
+  },
+  {
+    "label": "capture: ruff must format the tool for the Python it promises",
+    "path": "pyproject.toml",
+    "old": "\"tools/*.py\" = \"py310\"",
+    "new": "\"tools/*.py\" = \"py314\"",
+    "tests": "formatter_keeps_what_the_tool_runs_readable_for_python_3_10"
+  },
+  {
+    "label": "capture: ruff must format the page parser the tool loads for that Python too",
+    "path": "pyproject.toml",
+    "old": "\"custom_components/weishaupt_modbus/webif/pages.py\" = \"py310\"",
+    "new": "\"custom_components/weishaupt_modbus/webif/pages.py\" = \"py314\"",
+    "tests": "formatter_keeps_what_the_tool_runs_readable_for_python_3_10"
   }
 ]

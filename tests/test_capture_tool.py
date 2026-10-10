@@ -722,6 +722,44 @@ def test_the_tool_alone_says_it_needs_the_repository(tmp_path):
     assert "Traceback" not in result.stderr
 
 
+def _run_on_the_users_python() -> list[pathlib.Path]:
+    """The tool and every file it loads by path: all run on the user's Python."""
+    loaded = [
+        value
+        for name, value in vars(capture_tool).items()
+        if name.endswith("_PATH") and isinstance(value, pathlib.Path)
+    ]
+    return [REPO / "tools" / "webif_capture.py", *loaded]
+
+
+@pytest.mark.parametrize("path", _run_on_the_users_python(), ids=lambda path: path.name)
+def test_the_formatter_keeps_what_the_tool_runs_readable_for_python_3_10(path):
+    """The tool promises Python 3.10, the Windows starter brings 3.13; ruff
+    otherwise writes for the Home Assistant's Python and drops these brackets,
+    a form no Python before 3.14 can read."""
+    source = "try:\n    pass\nexcept (ValueError, TypeError):\n    pass\n"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ruff",
+            "format",
+            "--stdin-filename",
+            str(path),
+            "-",
+        ],
+        input=source,
+        capture_output=True,
+        text=True,
+        cwd=REPO,
+        timeout=60,
+        check=True,
+    )
+
+    assert result.stdout == source
+
+
 def test_the_file_lands_where_the_tool_runs(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("builtins.input", lambda _prompt: USER)
