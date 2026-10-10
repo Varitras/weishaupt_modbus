@@ -165,12 +165,14 @@ on the machine that made them; it is skipped unless pointed at them:
 WEISHAUPT_WEBIF_RECORDINGS=<capture folder of the probe tool> pytest tests/test_webif_recordings.py -m ""
 ```
 
+`test_webif_titles.py` runs in CI: `webif_titles.json` lists the titles of
+the pages and menus the integration reads, German and English side by side
+as one controller showed them, with each row's unit and no value; every
+value's titles and unit and every English menu title must match it.
 `test_webif_captures.py` does the same with the files `tools/webif_capture.py`
 writes, in German and in English: every value read is on its page in the
-unit its sensor expects, and with captures in both languages each English
-title, of the values and of the menu entries the pages are found by, stands
-in the row of its German one. It fails when pointed at a folder without
-captures:
+unit its sensor expects, and `webif_titles.json` lists each captured page
+row by row. It fails when pointed at a folder without captures:
 
 ```
 WEISHAUPT_WEBIF_CAPTURES=<folder of webif_titles_*.json files> pytest tests/test_webif_captures.py -m ""

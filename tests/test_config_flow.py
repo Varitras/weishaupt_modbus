@@ -791,11 +791,19 @@ async def test_a_page_the_dialog_cannot_use_is_named_in_the_form(
     hass, web_interface, fault, error
 ):
     """Which page, and which of its titles: the only hint a user of another
-    model has before the brake would stop every page."""
+    model has before the brake would stop every page. A title the English
+    controller shows alike, or only in other case, is named once."""
     pump = _pump_entry(hass)
     web_interface.outcome = fault(
         "Info › Wärmepumpe",
-        frozenset({"EVI Sauggastemperatur", "Verdichter", "Version WWP-SG"}),
+        frozenset(
+            {
+                "EVI Sauggastemperatur",
+                "Verdichter",
+                "Version WWP-EC WBB",
+                "Version WWP-SG",
+            }
+        ),
     )
     form = await _web_form(hass)
 
@@ -808,7 +816,7 @@ async def test_a_page_the_dialog_cannot_use_is_named_in_the_form(
         "page": "Info › Wärmepumpe",
         "titles": (
             "EVI Sauggastemperatur (EVI SUC G T), Verdichter (compressor), "
-            "Version WWP-SG"
+            "Version WWP-EC WBB, Version WWP-SG"
         ),
     }
 

@@ -3775,8 +3775,29 @@
   {
     "label": "webif english: a title shown alike in both languages is named twice",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "    if english == title:\n        return title\n",
+    "old": "    if english.casefold() == title.casefold():\n        return title\n",
     "new": "",
     "tests": "cannot_use"
+  },
+  {
+    "label": "webif english: a title differing only in case is named twice",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    if english.casefold() == title.casefold():\n",
+    "new": "    if english == title:\n",
+    "tests": "cannot_use"
+  },
+  {
+    "label": "webif english: two pressures of the same unit swap their English titles",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    _pressure(\"niederdruck\", \"Niederdruck\", \"LOW PRESS\"),\n    _pressure(\"hochdruck\", \"Hochdruck\", \"HIGH PRESS\"),\n",
+    "new": "    _pressure(\"niederdruck\", \"Niederdruck\", \"HIGH PRESS\"),\n    _pressure(\"hochdruck\", \"Hochdruck\", \"LOW PRESS\"),\n",
+    "tests": "read_under_the_titles_and_unit"
+  },
+  {
+    "label": "webif english: a menu entry under an English title the controller does not show",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "STATISTICS_ENGLISH = \"statistics\"\n",
+    "new": "STATISTICS_ENGLISH = \"Statistics\"\n",
+    "tests": "found_under_the_title_the_controller_shows"
   }
 ]

@@ -4,7 +4,8 @@ The other tests read pages built from the catalogue itself, so a title the
 controller shows otherwise, in German or in English, passes them all and
 fails only live. Opt in by pointing WEISHAUPT_WEBIF_CAPTURES at a folder of
 such files; without it the test is skipped. The files never enter the
-repository: they hold a real controller's readings.
+repository: they hold a real controller's readings. What CI checks the
+catalogue against, webif_titles.json, is checked against them here.
 """
 
 import json
@@ -13,7 +14,7 @@ import pathlib
 
 import pytest
 
-from custom_components.weishaupt_modbus.webif import discovery
+from custom_components.weishaupt_modbus.webif import pages
 from custom_components.weishaupt_modbus.webif.discovery import (
     HEAT_PUMP_PAGE,
     HEATING_PAGE,
@@ -22,7 +23,6 @@ from custom_components.weishaupt_modbus.webif.discovery import (
 from custom_components.weishaupt_modbus.webif_coordinator import polled_pages
 from custom_components.weishaupt_modbus.webif_sensor import (
     ENGLISH_TITLES,
-    READ_VALUES,
     REQUIRED_TITLES,
     shown_in_unknown_units,
 )
@@ -49,12 +49,9 @@ PATHS = {
     STATISTICS_PAGE: "/statistics",
     HEATING_PAGE: HEATING_PATH,
 }
-# The menu pages a capture holds, and the entries the pages are found by.
-MENUS = {
-    "overview": {discovery.INFO, discovery.HEAT_PUMP},
-    "info": {discovery.HEAT_PUMP, discovery.STATISTICS},
-    "heat_pump_menu": {discovery.HEATING},
-}
+TITLES = json.loads(
+    (pathlib.Path(__file__).parent / "webif_titles.json").read_text(encoding="utf-8")
+)
 
 
 def _page(capture: pathlib.Path, key: str) -> dict:
@@ -107,60 +104,27 @@ def test_the_catalogue_reads_the_captured_page(capture, key):
     assert not shown_in_unknown_units(key, page.read(text))
 
 
-def _unpaired(key: str, pairs: dict[str, str]) -> dict[str, set[int]]:
-    """The pairs of a German and an English title that are none, by the rows
-    they stand in over all captures.
+@pytest.mark.parametrize("capture", CAPTURED, ids=lambda capture: capture.stem)
+@pytest.mark.parametrize("key", [*TITLES["pages"], *TITLES["menus"]])
+def test_the_titles_file_lists_the_captured_rows(capture, key):
+    """Row by row, in one of its two languages: a pair in the file that the
+    controller does not show so would let CI vouch for a wrong pairing."""
+    rows = TITLES["pages"].get(key) or TITLES["menus"][key]
 
-    Both languages list the same rows in the same order, so a true pair
-    stands in one row. One standing in two rows, or whose English title no
-    English capture shows, is not a pair. A capture without any of the
-    German titles counts as English.
-    """
-    differing = {german for german, english in pairs.items() if german != english}
-    rows: dict[str, set[int]] = {german: set() for german in pairs}
-    shown_in_english: set[str] = set()
-    english_captures = 0
-    for capture in CAPTURED:
-        titles = _titles(capture, key)
-        if not differing & set(titles):
-            english_captures += 1
-            shown_in_english.update(titles)
-        for german, english in pairs.items():
-            rows[german].update(
-                index
-                for index, title in enumerate(titles)
-                if title in (german, english)
-            )
-    if english_captures in (0, len(CAPTURED)):
-        pytest.skip("pairs need a capture in German and one in English")
-    return {
-        german: row
-        for german, row in rows.items()
-        if len(row) != 1 or pairs[german] not in shown_in_english
-    }
+    assert _titles(capture, key) in (
+        [row[0] for row in rows],
+        [row[1] for row in rows],
+    )
 
 
-@pytest.mark.parametrize("key", list(PATHS))
-def test_each_english_title_stands_where_its_german_one_does(key):
-    """An English title paired with another value of the same unit passed
-    every other test, and its sensor would show that value."""
-    pairs = {
-        sensor.title: sensor.english_title
-        for sensor in READ_VALUES
-        if sensor.page == key
-    }
+@pytest.mark.parametrize("capture", CAPTURED, ids=lambda capture: capture.stem)
+@pytest.mark.parametrize("key", list(TITLES["pages"]))
+def test_the_titles_file_names_the_captured_units(capture, key):
+    entries = _page(capture, key)["entries"]
+    rows = TITLES["pages"][key]
 
-    assert _unpaired(key, pairs) == {}
-
-
-@pytest.mark.parametrize("key", list(MENUS))
-def test_each_english_menu_entry_stands_where_its_german_one_does(key):
-    """The menu entries the pages are found by, in both languages."""
-    pairs = {
-        german: english
-        for english, german in discovery.ENGLISH_MENU_TITLES.items()
-        if german in MENUS[key]
-    }
-
-    assert set(pairs) == MENUS[key]
-    assert _unpaired(key, pairs) == {}
+    assert {
+        title: pages.unit(shown)
+        for (title, shown), (_, _, unit) in zip(entries, rows, strict=True)
+        if pages.number(shown) is not None and pages.unit(shown) != unit
+    } == {}

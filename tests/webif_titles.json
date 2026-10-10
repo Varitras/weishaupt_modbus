@@ -1,0 +1,100 @@
+{
+  "pages": {
+    "heat_pump": [
+      ["Betrieb", "operation", null],
+      ["Störmeldung", "fault message", null],
+      ["Warmwassertemperatur", "hot water temperature", "°C"],
+      ["Leistungsanforderung", "power requirement", "%"],
+      ["Solltemperatur", "setpoint", "°C"],
+      ["Schaltdifferenz dynamisch", "dynamic switching", "K"],
+      ["Vorlauftemperatur", "flow temperature", "°C"],
+      ["Rücklauftemperatur", "return temperature", "°C"],
+      ["Drehzahl Pumpe M1", "pump speed", "%"],
+      ["Volumenstrom", "volume flow", "m3/h"],
+      ["Stellung Umschaltventil", "change valve", null],
+      ["Version WWP-SG", "Version WWP-SG", null],
+      ["Version WWP-EC WBB", "version WWP-EC WBB", null],
+      ["Soll Leistung", "power set", "KW"],
+      ["Ist Leistung", "power actual", "KW"],
+      ["Expansionsventil AG Eintr", "INLET TEMP", "°C"],
+      ["Luftansaugtemperatur", "AIR INL TEMP", "°C"],
+      ["Wärmetauscher AG Austrit", "OUTLET TEMP", "°C"],
+      ["Verdichtersauggastemp.", "SUC GAS TEMP", "°C"],
+      ["EVI Sauggastemperatur", "EVI SUC G T", "°C"],
+      ["Kältemittel IG Austritt", "COOLA OUTLET", "°C"],
+      ["Ölsumpftemperatur", "OIL SUMP T", "°C"],
+      ["Druckgastemperatur", "PR GAS TEMP", "°C"],
+      ["Niederdruck", "LOW PRESS", "BAR"],
+      ["Verdampfungstemperatur", "VAPOUR TEMP", "°C"],
+      ["Hochdruck", "HIGH PRESS", "BAR"],
+      ["Kondensationstemperatur", "CONDENS TEMP", "°C"],
+      ["Mitteldruck", "AVER PRESS", "BAR"],
+      ["Sättigungstemperatur EVI", "SATURAT TEMP", "°C"],
+      ["Überhitzung Heizen", "EXCESS HEAT", "K"],
+      ["Öffnungsgrad EXV Heizen", "DEG OP EXV H", "%"],
+      ["Überhitzung Verdichter", "EXCESS H COM", "K"],
+      ["Öffnungsgrad EXV Kühlen", "DEGOPEXVCOOL", "%"],
+      ["Überhitzung EVI", "EXCESS H EVI", "K"],
+      ["Öffnungsgrad EVI", "DEG OP EVI", "%"],
+      ["Betriebsstd. Verdichter", "operating hours compresso", "h"],
+      ["Schaltspiele Verdichter", "switchings compressor", ""],
+      ["Schaltspiele Abtauen", "switching defrost", ""],
+      ["Verdichter", "compressor", "rpm"],
+      ["Außengerät Variante", "variant", null]
+    ],
+    "statistics": [
+      ["th. Energie Heizen Tag", "heat consuption day", "KWh"],
+      ["th. Energie WW Tag", "hot water consuption day", "KWh"],
+      ["th. Energie gesamt Tag", "consuption day", "KWh"],
+      ["elektrische Energie Tag", "ELECTRICAL ENERGY DAY", "KWh"],
+      ["th. Energie Heizen Monat", "heat consuption month", "KWh"],
+      ["th. Energie WW Monat", "hot water consuption mont", "KWh"],
+      ["th. Energie gesamt Monat", "consuption months", "KWh"],
+      ["elektrische Energie Monat", "ELECTRICAL ENERGY MONTH", "KWh"],
+      ["th. Energie Heizen Jahr", "heat consuption year", "KWh"],
+      ["th. Energie WW Jahr", "hot water consuption year", "KWh"],
+      ["th. Energie gesamt Jahr", "consuption year", "KWh"],
+      ["elektrische Energie Jahr", "ELECTRICAL ENERGY YEAR", "KWh"],
+      ["JAZ Jahr", "COP YEAR", ""],
+      ["JAZ gesamt", "JAZ", ""]
+    ],
+    "heating": [
+      ["Schaltdifferenz", "switching difference", "K"],
+      ["Leistungsbegrenzung", "output limit", "%"]
+    ]
+  },
+  "menus": {
+    "overview": [
+      ["Info", "information"],
+      ["Systembetriebsart", "operation mode"],
+      ["Heizkreis 1", "heating circuit 1"],
+      ["Heizkreis 2", "heating circuit 2"],
+      ["Heizkreis 3", "heating circuit 3"],
+      ["Warmwasser", "hot water"],
+      ["Wärmepumpe", "heat pump"],
+      ["2. WEZ", "2. WEZ"],
+      ["Eingänge", "inputs"],
+      ["Ausgänge", "OUTPUTS"],
+      ["Einstellungen", "settings"],
+      ["Fehlerspeicher", "error memory"],
+      ["Energiemanagement", "ENERGY MANAGEMENT"]
+    ],
+    "info": [
+      ["Heizkreis 1", "heating circuit 1"],
+      ["Wärmepumpe", "heat pump"],
+      ["2. WEZ", "2. WEZ"],
+      ["Statistik", "statistics"]
+    ],
+    "heat_pump_menu": [
+      ["Service", "service"],
+      ["Einstellungen", "settings"],
+      ["Ventilator", "fan"],
+      ["Modulation", "modulation"],
+      ["Pumpe", "pump"],
+      ["Heizen", "heating"],
+      ["Kühlen", "cooling"],
+      ["Warmwasser", "hot water"],
+      ["Reset", "reset"]
+    ]
+  }
+}

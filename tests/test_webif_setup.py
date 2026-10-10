@@ -622,20 +622,23 @@ async def test_the_diagnostics_leave_out_the_login_and_the_page_addresses(hass, 
 
 # User wish, 2026-10-10: set to English, the controller shows the same values
 # under other titles, and the entry read none of them.
+SITES = [
+    pytest.param(SITE, id="German"),
+    pytest.param(english_site(), id="English"),
+]
 LANGUAGES = [
     pytest.param(SITE, GERMAN_HEATING, id="German"),
     pytest.param(english_site(), ENGLISH_HEATING, id="English"),
 ]
 
 
-@pytest.mark.parametrize(("site", "heating_titles"), LANGUAGES)
-async def test_the_values_become_sensors_on_a_device_of_their_own(
-    hass, pump, site, heating_titles
-):
+@pytest.mark.parametrize("site", SITES)
+async def test_the_values_become_sensors_on_a_device_of_their_own(hass, pump, site):
     pump.site = dict(site)
     entry = await _start(hass, _entries(hass, pump))
     registry = er.async_get(hass)
 
+    assert entry.runtime_data.coordinator.data == SHOWN
     assert len(er.async_entries_for_config_entry(registry, entry.entry_id)) == len(
         EVERY_ENTITY
     )

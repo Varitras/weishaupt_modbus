@@ -59,8 +59,9 @@ class WebifSensorDescription(SensorEntityDescription):
     `topic` is the pump device whose short name the name prefix option puts
     in front, as for the Modbus sensors of the same subject.
     `off_is_zero` marks a power or speed, which the controller shows as "Aus"
-    or "off" when idle. On any other number they read unknown, since a 0 on a
-    rising total resets it in Home Assistant's statistics; a text keeps them.
+    when idle; set to English, an idle power as "off". On any other number
+    they read unknown, since a 0 on a rising total resets it in Home
+    Assistant's statistics; a text keeps them.
     `no_value_is_zero` marks the setpoint temperature, which the controller
     shows as "--" while nothing is demanded; unknown left a gap in the
     history. Anywhere else "--" is no value.

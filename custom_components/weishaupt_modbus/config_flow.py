@@ -162,7 +162,7 @@ TITLES_IN_ENGLISH = {
 
 def _in_both_languages(title: str) -> str:
     english = TITLES_IN_ENGLISH.get(title, title)
-    if english == title:
+    if english.casefold() == title.casefold():
         return title
     return f"{title} ({english})"
 
