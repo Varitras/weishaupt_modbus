@@ -742,6 +742,39 @@ async def test_a_write_whose_answer_is_lost_is_counted(pump, unit, lost):
     assert (pump.write_budget.total, pump.write_budget.writes_today) == (1, 1)
 
 
+async def test_a_write_cancelled_on_its_way_is_counted_but_not_one_still_waiting(
+    unit, monkeypatch
+):
+    """A script stopped while its write was on the wire skipped the count; a
+    script stopped while the web interface held the controller sent nothing."""
+    host_lock = WatchedLock()
+    pump = WeishauptHeatPump(
+        unit, _all_items(), WriteBudget(warn_at=0, limit=0), host_lock
+    )
+    sent = asyncio.Event()
+
+    async def no_answer(_address, _value):
+        sent.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(unit, "write_register", no_answer)
+
+    async with host_lock:
+        waiting = asyncio.create_task(pump.write(_row(pump, PV_SETPOINT), 5))
+        await until(lambda: host_lock.waited)
+        waiting.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await waiting
+    assert pump.write_budget.total == 0
+
+    on_its_way = asyncio.create_task(pump.write(_row(pump, PV_SETPOINT), 5))
+    await sent.wait()
+    on_its_way.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await on_its_way
+    assert (pump.write_budget.total, pump.write_budget.writes_today) == (1, 1)
+
+
 @pytest.mark.parametrize(
     "refusal",
     [IllegalDataAddressError(), ClientClosedError("connection is closed")],

@@ -258,17 +258,19 @@ class WeishauptHeatPump:
         if not self.write_budget.allows_write():
             raise WriteError(self.write_budget.limit, item.address)
         component = self._components[band_of(item.address)]
-        try:
-            async with self._host_lock:
+        # A caller cancelled while waiting for the lock sent nothing.
+        async with self._host_lock:
+            try:
                 await component.write(_field_name(item), word)
-        except ModbusExceptionError, ClientClosedError:
-            raise
-        except ModbusError:
-            # The request went out and only its answer is missing: it may
-            # have reached the EEPROM. A connect that failed before sending
-            # raises the same types, so that one counts too.
-            self._count_write()
-            raise
+            except ModbusExceptionError, ClientClosedError:
+                raise
+            except ModbusError, asyncio.CancelledError:
+                # The request went out and only its answer is missing, or the
+                # caller stopped waiting for it: it may have reached the
+                # EEPROM. A connect that failed before sending raises the same
+                # types, so that one counts too.
+                self._count_write()
+                raise
         self._count_write()
 
     def _count_write(self) -> None:

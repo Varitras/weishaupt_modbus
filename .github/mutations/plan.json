@@ -1171,8 +1171,8 @@
   {
     "label": "device: a write goes out while the web interface holds the controller",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "            async with self._host_lock:\n                await component.write(_field_name(item), word)\n",
-    "new": "            async with asyncio.Lock():\n                await component.write(_field_name(item), word)\n",
+    "old": "        async with self._host_lock:\n            try:\n",
+    "new": "        async with asyncio.Lock():\n            try:\n",
     "tests": "write_waits_while_the_web_interface_holds"
   },
   {
@@ -2753,8 +2753,8 @@
   {
     "label": "controller access: the pump writes after letting go of the lock",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "            async with self._host_lock:\n                await component.write(_field_name(item), word)\n",
-    "new": "            async with self._host_lock:\n                writing = component.write(_field_name(item), word)\n            await writing\n",
+    "old": "        async with self._host_lock:\n            try:\n                await component.write(_field_name(item), word)\n",
+    "new": "        async with self._host_lock:\n            writing = component.write(_field_name(item), word)\n        if True:\n            try:\n                await writing\n",
     "tests": "a_write_waits_while_the_web_interface_holds_the_controller"
   },
   {
@@ -2795,8 +2795,8 @@
   {
     "label": "controller access: a write made under the lock is sent after it",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "            async with self._host_lock:\n                await component.write(_field_name(item), word)\n",
-    "new": "            async with self._host_lock:\n                writing = component.write(_field_name(item), word)\n            await writing\n",
+    "old": "        async with self._host_lock:\n            try:\n                await component.write(_field_name(item), word)\n",
+    "new": "        async with self._host_lock:\n            writing = component.write(_field_name(item), word)\n        if True:\n            try:\n                await writing\n",
     "tests": "every_request_is_awaited_where_it_is_made"
   },
   {
@@ -3915,8 +3915,8 @@
   {
     "label": "device: a write whose answer is lost goes uncounted",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "            self._count_write()\n            raise\n",
-    "new": "            raise\n",
+    "old": "                self._count_write()\n                raise\n",
+    "new": "                raise\n",
     "tests": "answer_is_lost_is_counted"
   },
   {
@@ -3929,8 +3929,8 @@
   {
     "label": "device: a write the controller refused is counted",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "        except ModbusExceptionError, ClientClosedError:\n            raise\n",
-    "new": "        except ClientClosedError:\n            raise\n",
+    "old": "            except ModbusExceptionError, ClientClosedError:\n                raise\n",
+    "new": "            except ClientClosedError:\n                raise\n",
     "tests": "reached_no_eeprom"
   },
   {
@@ -4513,5 +4513,12 @@
     "old": "            check = partial(self._refuse_outside_current_bounds, wanted)\n",
     "new": "            check = partial(self._refuse_outside_current_bounds, round(wanted * 2) / 2)\n",
     "tests": "bound_beside_the_step"
+  },
+  {
+    "label": "device: a write cancelled on its way goes uncounted",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "            except ModbusError, asyncio.CancelledError:\n",
+    "new": "            except ModbusError:\n",
+    "tests": "cancelled_on_its_way"
   }
 ]

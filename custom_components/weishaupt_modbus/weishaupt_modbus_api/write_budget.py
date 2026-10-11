@@ -13,8 +13,9 @@ DAY = "day"
 class WriteBudget:
     """How many register writes went out, in total and today.
 
-    A write counts once it is sent, answered or not; one the controller
-    refused does not. A value that is already active is skipped before it
+    A write counts once it may have reached the controller: answered, its
+    answer lost or no longer waited for, or a connect that failed, which
+    looks the same as a lost answer. One the controller refused does not. A value that is already active is skipped before it
     gets here. The day rolls over lazily on the next call.
     """
 
