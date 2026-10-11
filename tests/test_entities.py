@@ -354,19 +354,26 @@ def test_status_state_is_the_translation_key_not_the_text():
     )
 
 
-def test_an_unknown_status_number_is_reported_not_hidden():
+def test_an_unknown_status_number_is_reported_by_its_sensor():
+    """A code newer firmware added showed as unknown, as if nothing were read.
+
+    Accepted: a select still shows it as unknown, as Home Assistant takes
+    only an option from its list.
+    """
     item = ModbusItem(
-        40001,
+        33101,
         "x",
         FORMATS.STATUS,
-        TYPES.SELECT,
+        TYPES.SENSOR,
         DEVICES.SYS,
         "k",
         resultlist=SYS_BETRIEBSART,
     )
-    select = entities.MySelectEntity(_entry(), item, FakeCoordinator())
+    item.state = 9999
 
-    assert select.translate_val(9999) == "9999"
+    sensor = entities.MySensorEntity(_entry(), item, FakeCoordinator())
+
+    assert sensor.native_value == "9999"
 
 
 def test_select_options_are_the_status_translation_keys():
