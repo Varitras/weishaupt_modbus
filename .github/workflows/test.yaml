@@ -43,8 +43,8 @@ jobs:
           python-version: "3.14"
       # Pinned. An unpinned install means the CI enforces whatever Ruff
       # decided this week, and a release that reflows differently would fail
-      # a build nobody changed. Raise it deliberately, together with the local
-      # run.
+      # a build nobody changed. Raise it deliberately, in requirements_gates.txt,
+      # which the local run installs too.
       - name: Install Ruff
         run: pip install -c requirements_gates.txt ruff
       - name: Lint

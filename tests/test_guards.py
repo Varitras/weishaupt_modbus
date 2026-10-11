@@ -392,8 +392,7 @@ def _gitattributes_patterns() -> list[str]:
 
 
 def test_every_gitattributes_rule_names_files_the_repository_has():
-    """A rule for .githooks/ outlived the hooks leaving the repository, and a
-    stray carriage return made a comment line read as the pattern "."."""
+    """A rule for .githooks/ outlived the hooks leaving the repository."""
     dead = [
         pattern
         for pattern in _gitattributes_patterns()

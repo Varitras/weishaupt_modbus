@@ -319,7 +319,8 @@ class Client:
 
         `count_write` runs as the POST goes out, after the gap and the lock
         Modbus shares: a save called off while it waits is no write, and one
-        sent may reach the EEPROM, answered or not.
+        sent may reach the EEPROM, answered or not. A connect that fails
+        cannot be told from a lost answer, so that one counts too.
 
         Raises NotSaved when the session was gone, MaybeSaved when the answer
         leaves it open. Neither is followed by a login or a second POST: the

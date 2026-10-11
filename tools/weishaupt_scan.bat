@@ -53,7 +53,7 @@ $ExceptionFlag = 0x80
 $IllegalDataAddress = 2
 # A pump that drops this many requests in a row is gone, not slow.
 $MaxTimeoutsInRow = 5
-# A short answer is as unusable as none: the same handling and the same note.
+# A short answer is as unusable as none, and handled the same way.
 $MalformedAnswer = 'The pump sent a malformed answer.'
 
 $script:client = $null

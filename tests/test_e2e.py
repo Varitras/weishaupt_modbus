@@ -1347,9 +1347,9 @@ async def test_a_renamed_entity_keeps_its_id_across_a_restart(hass):
 
 
 async def test_reconfigure_reloads_the_entry_once(hass, mock_modbus, caplog):
-    """Issue #180: Home Assistant warns - and from 2026.12 refuses - when a
-    flow schedules a reload itself while the entry also has an update
-    listener, because that reloads twice. The flow is the one path here."""
+    """Issue #180: a flow that reloads the entry itself beside an update
+    listener reloaded it twice, which Home Assistant warns of and from
+    2026.12 refuses. The flow reloads once, and no second path does."""
     entry = await _setup(hass, _entry(hass))
 
     result = await hass.config_entries.flow.async_init(
@@ -1501,8 +1501,9 @@ async def test_the_write_counters_survive_a_restart(hass):
 
 
 async def test_todays_write_count_survives_a_reload_while_polling_fails(hass):
-    """The counter went unavailable with the polling, and its day with it: a
-    reload restored today's count as 0, and the daily limit was free again."""
+    """The daily count is the entry's, not its sensor's: while the counter
+    sensor followed the failing polling, a reload restored today's count as
+    0, and the daily limit was free again."""
     entry = await _setup(hass, _entry(hass))
     device = entry.runtime_data.coordinator.device
     setpoint = next(row for row in device.items if row.address == PV_SETPOINT)

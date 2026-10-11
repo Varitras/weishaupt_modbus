@@ -21,8 +21,8 @@ pytest-timeout
 # check.sh spreads the suite over the cores with it (`-n auto`); declared
 # rather than inherited, like pytest-timeout.
 pytest-xdist
-# The gates check.sh runs, at the versions CI pins - a formatter that
-# reflows differently from CI's is a red build nobody changed.
+# The gates check.sh runs, from the one file CI installs against too - a
+# formatter that reflows differently from CI's is a red build nobody changed.
 -r requirements_gates.txt
 # compile_kennfeld.py draws the preview picture with it; the integration
 # itself never imports it.
