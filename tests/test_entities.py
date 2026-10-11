@@ -463,36 +463,65 @@ async def test_a_number_write_lands_on_the_row_step(wanted, word):
     assert coordinator.writes == [(41001, word)]
 
 
-async def test_a_value_at_a_bound_beside_the_step_is_written_not_refused():
-    """Normal room setpoint at 21.3, as Home Assistant wrote it before the
-    rounding: lowering to 21.3 rounded to 21.5 first and was refused as
-    "21.5 outside 16-21.3", a value nobody had entered."""
+@pytest.mark.parametrize(
+    ("address", "key", "bound", "neighbour", "entered", "word", "outside"),
+    [
+        (
+            41107,
+            "raum_soll_temp_absenk",
+            "dynamic_max",
+            "raum_soll_temp_normal",
+            21.3,
+            213,
+            21.4,
+        ),
+        (
+            41105,
+            "raum_soll_temp_normal",
+            "dynamic_min",
+            "raum_soll_temp_absenk",
+            21.2,
+            211,
+            21.0,
+        ),
+    ],
+    ids=["upper", "lower"],
+)
+async def test_a_value_at_a_bound_beside_the_step_is_written_not_refused(
+    address, key, bound, neighbour, entered, word, outside
+):
+    """A neighbour setpoint at 21.3 or 21.1, as Home Assistant wrote it before
+    the rounding: 21.3 rounded to 21.5 first and was refused as "21.5 outside
+    16-21.3", a value nobody had entered; below, the rounding went under the
+    bound unseen."""
     item = ModbusItem(
-        41107,
-        "Raumsolltemperatur Absenk",
+        address,
+        "Raumsolltemperatur",
         FORMATS.TEMPERATURE,
         TYPES.NUMBER,
         DEVICES.HZ,
-        "raum_soll_temp_absenk",
+        key,
         params={
             "unit": "°C",
             "divider": 10,
             "step": 0.5,
             "min": 16,
             "max": 30,
-            "dynamic_max": "raum_soll_temp_normal",
+            bound: neighbour,
         },
     )
-    coordinator = FakeCoordinator(values={"raum_soll_temp_normal": 213})
+    coordinator = FakeCoordinator(
+        values={neighbour: 213 if bound == "dynamic_max" else 211}
+    )
     number = entities.MyNumberEntity(_entry(), item, coordinator)
     number.async_write_ha_state = lambda: None
 
-    await number.async_set_native_value(21.3)
+    await number.async_set_native_value(entered)
     with pytest.raises(ServiceValidationError) as refused:
-        await number.async_set_native_value(21.4)
+        await number.async_set_native_value(outside)
 
-    assert coordinator.writes == [(41107, 213)]
-    assert refused.value.translation_placeholders["value"] == "21.4"
+    assert coordinator.writes == [(address, word)]
+    assert refused.value.translation_placeholders["value"] == str(outside)
 
 
 async def test_a_number_write_of_nan_is_refused_as_out_of_range():

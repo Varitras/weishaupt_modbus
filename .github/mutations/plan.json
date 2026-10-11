@@ -4386,7 +4386,7 @@
     "path": "custom_components/weishaupt_modbus/write_counts.py",
     "old": "    budget.load(counts)\n",
     "new": "",
-    "tests": "sensors_disabled or taken_over_once or write_counters_survive_a_restart or reads_the_counts_from_the_file"
+    "tests": "sensors_disabled or taken_over_once or write_counters_survive_a_reload or reads_the_counts_from_the_file"
   },
   {
     "label": "write counts: a counted write is never saved",
@@ -4414,7 +4414,7 @@
     "path": "custom_components/weishaupt_modbus/write_counts.py",
     "old": "    if entry_id not in stores:\n",
     "new": "    if True:\n",
-    "tests": "sensors_disabled or taken_over_once or write_counters_survive_a_restart"
+    "tests": "sensors_disabled or taken_over_once or write_counters_survive_a_reload"
   },
   {
     "label": "write counts: removing the entry leaves its counts",
@@ -4597,5 +4597,19 @@
     "old": "          echo \"${GITLEAKS_SHA256}  gitleaks.tar.gz\" | sha256sum -c -\n",
     "new": "",
     "tests": "only_the_gitleaks_archive_the_release_lists"
+  },
+  {
+    "label": "entity: a value at a lower bound beside the step is rounded under it",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        return max(low, min(word, high))\n",
+    "new": "        return min(word, high)\n",
+    "tests": "bound_beside_the_step"
+  },
+  {
+    "label": "power limit write: only an unread form gives the controller a rest",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if isinstance(error.__cause__, Unreachable):\n            self._rest()\n",
+    "new": "        if isinstance(error, FormNotRead) and isinstance(error.__cause__, Unreachable):\n            self._rest()\n",
+    "tests": "timeout_under_a_write_gives_the_controller_a_rest"
   }
 ]

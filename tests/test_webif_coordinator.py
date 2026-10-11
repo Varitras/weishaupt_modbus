@@ -1004,25 +1004,34 @@ async def test_changes_while_a_write_runs_are_one_write_after_it(
 
 
 async def test_a_change_as_a_write_ends_still_waits_its_quiet_time(
-    coordinator, client, clock, quick
+    hass, coordinator, client, clock, freezer
 ):
     """The write waiting for the running one took its changes the moment that
     ended, though the last of them had just restarted the quiet time: the
-    value still being changed went out, one EEPROM write more."""
+    value still being changed went out, one EEPROM write more. On the test's
+    clock: on the machine's, a busy runner missed the window."""
     await first_round_showing(coordinator, client, clock)
     client.save_gate = asyncio.Event()
-    first = asyncio.create_task(coordinator.set_power_limit(61))
-    await until(lambda: client.saved)
-    second = asyncio.create_task(coordinator.set_power_limit(62))
-    await asyncio.sleep(2 * QUIET)
+    quiet = timedelta(seconds=webif_coordinator.DEBOUNCE_SECONDS)
 
-    third = asyncio.create_task(coordinator.set_power_limit(63))
-    await asyncio.sleep(0)
+    async def quiet_time_passes(passed=quiet):
+        await settle()
+        freezer.tick(passed)
+        async_fire_time_changed(hass)
+        await settle()
+
+    calls = [asyncio.create_task(coordinator.set_power_limit(61))]
+    await quiet_time_passes()
+    assert client.saved == [61]
+    calls.append(asyncio.create_task(coordinator.set_power_limit(62)))
+    await quiet_time_passes()
+    calls.append(asyncio.create_task(coordinator.set_power_limit(63)))
+    await settle()
     client.save_gate.set()
-    await first
-    await asyncio.sleep(QUIET / 2)
-    fourth = asyncio.create_task(coordinator.set_power_limit(64))
-    await asyncio.gather(second, third, fourth)
+    await quiet_time_passes(quiet - timedelta(seconds=1))
+    calls.append(asyncio.create_task(coordinator.set_power_limit(64)))
+    await quiet_time_passes()
+    await asyncio.gather(*calls)
 
     assert client.saved == [61, 64]
 
@@ -1217,8 +1226,24 @@ async def test_another_value_shown_is_published_and_named(
     assert coordinator.data["heating"] == {"Leistungsbegrenzung": "65 %"}
 
 
+def _answered_elsewhere(client):
+    client.save_error = MaybeSaved("POST /pro_save.html: HTTP 200 to -")
+
+
 def _unanswered(client):
-    client.save_error = MaybeSaved("POST /pro_save.html: TimeoutError")
+    """As the client raises it: the timeout is the cause."""
+    error = MaybeSaved("POST /pro_save.html: TimeoutError")
+    error.__cause__ = Unreachable("POST /pro_save.html: TimeoutError")
+    client.save_error = error
+
+
+def _not_read_back_in_time(client):
+    async def saved_then_unanswered(form, value, count_write):
+        count_write()
+        client.asked.append(SAVE)
+        client.answer(HEATING, Unreachable("timeout"))
+
+    client.save = saved_then_unanswered
 
 
 def _not_read_back(client):
@@ -1233,7 +1258,7 @@ def _not_read_back(client):
 @pytest.mark.parametrize(
     ("unclear", "key"),
     [
-        (_unanswered, "webif_write_maybe_saved"),
+        (_answered_elsewhere, "webif_write_maybe_saved"),
         (_not_read_back, "webif_write_not_read_back"),
     ],
 )
@@ -1609,16 +1634,28 @@ async def test_a_write_between_two_pages_of_a_round_cut_short_keeps_the_rest(
     assert STATISTICS.path not in client.asked
 
 
+def _form_unanswered(client):
+    client.answer(HEATING, Unreachable("timeout"))
+
+
+@pytest.mark.parametrize(
+    ("unanswered", "key"),
+    [
+        (_form_unanswered, "webif_write_form_not_read"),
+        (_unanswered, "webif_write_maybe_saved"),
+        (_not_read_back_in_time, "webif_write_not_read_back"),
+    ],
+    ids=["form", "save", "read-back"],
+)
 async def test_a_timeout_under_a_write_gives_the_controller_a_rest(
-    coordinator, client, clock, quick
+    coordinator, client, clock, quick, unanswered, key
 ):
-    """A round came a second after the controller had not answered the write."""
+    """A round came a second after the controller had not answered the write,
+    at any of its requests."""
     await first_round_showing(coordinator, client, clock)
     clock.now = 15 * 60 - 2
-    client.answer(HEATING, Unreachable("timeout"))
-    assert (await refused(coordinator.set_power_limit(61)))[0] == (
-        "webif_write_form_not_read"
-    )
+    unanswered(client)
+    assert (await refused(coordinator.set_power_limit(61)))[0] == key
     client.asked.clear()
 
     await round_at(coordinator, clock, 15 * 60)

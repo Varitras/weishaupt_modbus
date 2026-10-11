@@ -1468,9 +1468,10 @@ WRITES_TOTAL_UNIQUE_ID = "weishaupt_wbbeeprom_writes_total"
 WRITES_TODAY_UNIQUE_ID = "weishaupt_wbbeeprom_writes_today"
 
 
-async def test_the_write_counters_survive_a_restart(hass):
+async def test_the_write_counters_survive_a_reload(hass):
     """Issue #187: a counter that starts at zero on every restart tells the
-    user nothing about the 100 000 writes the EEPROM is rated for."""
+    user nothing about the 100 000 writes the EEPROM is rated for. A reload
+    here; the restart reads the file, held by the test of the file below."""
     entry = await _setup(hass, _entry(hass))
     registry = er.async_get(hass)
     total_id = registry.async_get_entity_id(
