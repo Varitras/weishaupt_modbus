@@ -58,8 +58,8 @@
   {
     "label": "entity: a number write must be scaled by the divider",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "            val = self._on_step(to_register_value(wanted, self._divider))\n",
-    "new": "            val = self._on_step(to_register_value(wanted, 1))\n",
+    "old": "        word = round(to_register_value(wanted, self._divider) / step) * step\n",
+    "new": "        word = round(to_register_value(wanted, 1) / step) * step\n",
     "tests": "number_write_is_scaled"
   },
   {
@@ -541,8 +541,8 @@
   {
     "label": "entity: current bounds must be checked inside the write lock",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "            check = partial(self._refuse_outside_current_bounds, val / self._divider)",
-    "new": "            self._refuse_outside_current_bounds(val / self._divider)",
+    "old": "            check = partial(self._refuse_outside_current_bounds, wanted)\n",
+    "new": "            self._refuse_outside_current_bounds(wanted)\n",
     "tests": "setpoints_written_together"
   },
   {
@@ -4279,8 +4279,8 @@
   {
     "label": "entity: a number write goes out beside its step",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "        return round(word / step) * step\n",
-    "new": "        return word\n",
+    "old": "        word = round(to_register_value(wanted, self._divider) / step) * step\n",
+    "new": "        word = to_register_value(wanted, self._divider)\n",
     "tests": "lands_on_the_row_step"
   },
   {
@@ -4293,8 +4293,8 @@
   {
     "label": "entity: a NaN number write reaches the word conversion",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "            if not math.isfinite(wanted):\n",
-    "new": "            if False:\n",
+    "old": "            check = partial(self._refuse_outside_current_bounds, wanted)\n",
+    "new": "            check = None\n",
     "tests": "nan_is_refused_as_out_of_range"
   },
   {
@@ -4499,5 +4499,19 @@
     "old": "                _raise_for_error_status(SAVE, answer)\n",
     "new": "",
     "tests": "error_status_on_the_save_gives_the_controller_its_rest"
+  },
+  {
+    "label": "entity: a value at a bound beside the step is rounded past it",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        return max(low, min(word, high))\n",
+    "new": "        return word\n",
+    "tests": "bound_beside_the_step"
+  },
+  {
+    "label": "entity: a refused number names the rounded value, not the entered one",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "            check = partial(self._refuse_outside_current_bounds, wanted)\n",
+    "new": "            check = partial(self._refuse_outside_current_bounds, round(wanted * 2) / 2)\n",
+    "tests": "bound_beside_the_step"
   }
 ]

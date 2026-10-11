@@ -3,7 +3,6 @@
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from functools import partial
-import math
 from typing import Any, NoReturn
 
 from modbus_connection import ModbusError
@@ -215,29 +214,34 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
                 },
             )
 
-    def _on_step(self, word: int) -> int:
+    def _on_step(self, wanted: float) -> int:
         """The nearest word on the row's step, the grid the controller's menu offers.
 
         Home Assistant checks only the range. A row without a step of its own
         is not rounded further: Home Assistant's default of 1 would round
-        21.5 at divider 10 to 22.
+        21.5 at divider 10 to 22. A related setpoint may hold a bound beside
+        the step, written before this rounding; a value next to it goes to
+        the bound, which the controller holds already.
         """
         params = self._api_item.params
         step = to_register_value(params.get("step", 1 / self._divider), self._divider)
-        return round(word / step) * step
+        word = round(to_register_value(wanted, self._divider) / step) * step
+        low = to_register_value(self._attr_native_min_value, self._divider)
+        high = to_register_value(self._attr_native_max_value, self._divider)
+        return max(low, min(word, high))
 
     async def set_translate_val(self, value: str | float) -> int | None:
         """Translate and write a value directly to the Modbus client."""
         check: Callable[[], None] | None = None
+        val: int | Callable[[], int] | None
         if self._api_item.format == FORMATS.STATUS:
             val = self._api_item.get_number_from_translation_key(str(value))
         else:
             wanted = float(value)
-            if not math.isfinite(wanted):
-                # Home Assistant's range check lets NaN through; it has no word.
-                self._refuse_outside_current_bounds(wanted)
-            val = self._on_step(to_register_value(wanted, self._divider))
-            check = partial(self._refuse_outside_current_bounds, val / self._divider)
+            # Checked as entered, before the rounding: Home Assistant's range
+            # check lets NaN through, which has no word.
+            check = partial(self._refuse_outside_current_bounds, wanted)
+            val = partial(self._on_step, wanted)
 
         if val is None:
             return None
@@ -257,7 +261,7 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
                     "error": str(err),
                 },
             ) from err
-        return val
+        return int(self._api_item.state)
 
 
 class MySensorEntity(MyEntity, SensorEntity):

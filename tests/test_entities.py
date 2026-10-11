@@ -456,6 +456,38 @@ async def test_a_number_write_lands_on_the_row_step(wanted, word):
     assert coordinator.writes == [(41001, word)]
 
 
+async def test_a_value_at_a_bound_beside_the_step_is_written_not_refused():
+    """Normal room setpoint at 21.3, as Home Assistant wrote it before the
+    rounding: lowering to 21.3 rounded to 21.5 first and was refused as
+    "21.5 outside 16-21.3", a value nobody had entered."""
+    item = ModbusItem(
+        41107,
+        "Raumsolltemperatur Absenk",
+        FORMATS.TEMPERATURE,
+        TYPES.NUMBER,
+        DEVICES.HZ,
+        "raum_soll_temp_absenk",
+        params={
+            "unit": "°C",
+            "divider": 10,
+            "step": 0.5,
+            "min": 16,
+            "max": 30,
+            "dynamic_max": "raum_soll_temp_normal",
+        },
+    )
+    coordinator = FakeCoordinator(values={"raum_soll_temp_normal": 213})
+    number = entities.MyNumberEntity(_entry(), item, coordinator)
+    number.async_write_ha_state = lambda: None
+
+    await number.async_set_native_value(21.3)
+    with pytest.raises(ServiceValidationError) as refused:
+        await number.async_set_native_value(21.4)
+
+    assert coordinator.writes == [(41107, 213)]
+    assert refused.value.translation_placeholders["value"] == "21.4"
+
+
 async def test_a_number_write_of_nan_is_refused_as_out_of_range():
     """Home Assistant's range check lets NaN through; the conversion to a
     register word then raised a bare ValueError."""
