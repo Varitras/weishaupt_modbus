@@ -1,5 +1,5 @@
 {
-  "source": "Weishaupt data-point list 83807301 (1/2025-11) and the manufacturer xlsx (2022), transcribed by hand. Addresses only - this is the oracle the BANDS in device.py are checked against, so it must not be generated from them. Heating circuits 2-5 are the circuit-1 registers plus 100, 200, 300 and 400, as the data-point list states.",
+  "source": "Weishaupt data-point list 83807301 (1/2025-11) and the manufacturer xlsx (2022), transcribed by hand; 31106 (and its copies 31206-31506), 33126 and 36801 are in neither list and come from a register scan of a WBB (2026-07). Addresses only - this is the oracle the BANDS in device.py are checked against, so it must not be generated from them. Heating circuits 2-5 are the circuit-1 registers plus 100, 200, 300 and 400, as the data-point list states.",
   "addresses": [
     30001,
     30002,

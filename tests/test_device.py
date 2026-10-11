@@ -76,7 +76,7 @@ def pump(unit):
 
 
 def _documented_registers() -> set[int]:
-    """Every address the manufacturer documents, from the checked-in list.
+    """Every address the manufacturer documents or the scan found, from the checked-in list.
 
     Read from a file rather than derived from BANDS: a guard whose oracle
     is the thing it guards passes whatever BANDS happens to say. Changing a
