@@ -354,8 +354,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 title=self._stored_data[CONF.HOST], data=self._stored_data
             )
 
-        # Define Schema for Page 1
-        schema_page1 = vol.Schema(
+        schema = vol.Schema(
             schema={
                 vol.Required(
                     schema=CONF.HOST,
@@ -406,9 +405,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
             }
         )
 
-        return self.async_show_form(
-            step_id="user", data_schema=schema_page1, errors=errors
-        )
+        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
     async def async_step_webif(
         self, user_input: dict[str, Any] | None = None
@@ -623,7 +620,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         if is_web_interface(self._reconfigure_entry):
             return await self.async_step_reconfigure_webif()
 
-        # Pre-seed internal state dictionary with the current saved entry data
         if not self._stored_data:
             self._stored_data.update(self._reconfigure_entry.data)
 

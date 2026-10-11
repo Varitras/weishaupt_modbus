@@ -458,10 +458,6 @@ IO_KONFIG_IN: list[StatusItem] = [
     StatusItem(number=65535, translation_key="io_konf_in_65535"),
 ]
 
-#####################################################
-# Description of physical units via the status list #
-#####################################################
-
 ##############################################################################################################################
 # A row's parameters. Every key is optional; test_item_register refuses one not listed here.
 # "min": the lowest value the user can set on a read/write entity
@@ -831,26 +827,22 @@ PARAMS_COUNT: dict = {"stateclass": SensorStateClass.TOTAL_INCREASING, "counter"
 ##############################################################################################################################
 
 ##############################################################################################################################
-# Here are some lists that represent the entities of each device that will be created.
-# Every list contains of some ModbusItem objects that have a constructor with the following parameters:
+# One list per device of the ModbusItem objects that become its entities. A row takes:
 #
-# address: The Modbus addres as it is mentioned in the heatpump's documentation
-# name:    The entity name. Please note: This entry today only is used to automatically generate translation files.
-#          It will be removed in future versions
-# mformat: One of the formats defined in FORMATS as they are TEMPERATURE, PERCENTAGE, NUMBER, STATUS or UNKNOWN
-#          The format is used to control the conversion of the modbus register entry to the entity variable and back
-# mtype:   The type of entity. Currently supported are:
+# `address`: The Modbus address as the heat pump's documentation gives it
+# `name`:    The register's name. The unique id is built from it (migrate_helpers.py), so a renamed name orphans the
+#            entity's history unless an entry migration moves it (see version 10 in __init__.py)
+# `format`:  One of FORMATS - TEMPERATURE, PERCENTAGE, NUMBER, STATUS or UNKNOWN: how the register word is read and written
+# `type`:    The kind of entity:
 #              SENSOR: A standard sensor entity
-#              SENSOR_CALC: A "calculated" sensor. That means, the content of this entity is derived from other entities
-#                           of this integration. The definition of the calculation is done in params
+#              SENSOR_CALC: A sensor computed from other entities of this integration; params name the calculation
 #              SELECT: A select entity
-#              NUMBER: A number entity. The value of this entity can be changed by the user interface
-#              NUMBER_RO: In principle, this is also a number entity that ir writable. But to avoid damages at the heatpump
-#                         we decided to make this entity read only.
-# device: The devise this entity is assigned to. DEVICES are used here to group the entities in a meaningful way
-# params: Parameters to control the behavior of the entity, see description of the params lists
-# translation_key: The identifier that points to the right translation key. Therefore, the files strings.json and the
-#                  language specific files in the subfolder "translations" have to be up-to-date
+#              NUMBER: A number entity the user can set
+#              NUMBER_RO: A register the controller would accept writes to, shown read only to spare the heat pump
+# `device`:  The device this entity is assigned to (DEVICES)
+# `translation_key`: The key of the entity's texts in strings.json and in the files under translations/
+# `resultlist`: For a STATUS row, the values the register can hold (StatusItem)
+# `params`:  Parameters to control the behavior of the entity, see the description of the params above
 ##############################################################################################################################
 
 # fmt: off

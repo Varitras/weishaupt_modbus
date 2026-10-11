@@ -341,49 +341,34 @@ class PowerMap:
         if not self._compiled_grid:
             return None
 
-        # Convert flow temp to actual °C for fractional interpolation
-        flow_temp = flow_temp_raw / 10
-
         air_raw = max(
             self._out_range_raw[0],
             min(round(air_intake_raw), self._out_range_raw[1]),
         )
         flow_temp = max(
-            float(self._known_t[0]), min(flow_temp, float(self._known_t[-1]))
+            float(self._known_t[0]), min(flow_temp_raw / 10, float(self._known_t[-1]))
         )
 
         vals = self._compiled_grid.get(str(air_raw))
         if not vals:
             return None
 
-        # 2. Find surrounding Flow Temp curve intervals in known_t
+        # Clamped to the curves, the flow temperature always lies between two.
         y0_idx = 0
         for i in range(len(self._known_t) - 1):
             if self._known_t[i] <= flow_temp <= self._known_t[i + 1]:
                 y0_idx = i
                 break
-        else:
-            if flow_temp < self._known_t[0]:
-                y0_idx = 0
-            else:
-                y0_idx = len(self._known_t) - 2
         y1_idx = y0_idx + 1
-
-        # 3. Grab the 2 flow temp boundary values at this air intake temperature
-        p0 = vals[y0_idx]  # flow y0
-        p1 = vals[y1_idx]  # flow y1
-
-        # Calculate fractional flow temp delta
+        p0, p1 = vals[y0_idx], vals[y1_idx]
         dy = (flow_temp - self._known_t[y0_idx]) / (
             self._known_t[y1_idx] - self._known_t[y0_idx]
         )
-
-        # 1D Linear Interpolation between the curves
         return p0 + dy * (p1 - p0)
 
 
 def get_filepath(hass: HomeAssistant) -> Path:
-    """Get the filepath to the custom component directory."""
+    """The power maps' folder: the config directory's copy if there is one, else the package's."""
     filepath = Path(
         f"{hass.config.config_dir}/custom_components/{CONST.DOMAIN}/kennfeld"
     )

@@ -164,7 +164,7 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         api_items: list[ModbusItem],
         config_entry: MyConfigEntry,
     ) -> None:
-        """Initialize the coordinator without synchronization overhead."""
+        """Poll the entry's pump at the interval its options give."""
         super().__init__(
             hass,
             _LOGGER,

@@ -272,14 +272,12 @@ class MySensorEntity(MyEntity, SensorEntity):
         """Initialize of MySensorEntity."""
         super().__init__(coordinator, config_entry, modbus_item)
 
-        # Set sensor-specific state class
         if modbus_item.format in [
             FORMATS.TEMPERATURE,
             FORMATS.PERCENTAGE,
             FORMATS.NUMBER,
             FORMATS.UNKNOWN,
         ]:
-            # default state class to record all entities by default
             self._attr_state_class = modbus_item.params.get(
                 "stateclass", SensorStateClass.MEASUREMENT
             )
@@ -501,7 +499,6 @@ class MySelectEntity(MyEntity, SelectEntity):
     ) -> None:
         """Initialize MySelectEntity."""
         super().__init__(coordinator, config_entry, modbus_item)
-        # option list build from the status list of the ModbusItem
         self._attr_options: list[str] = []
         for item in self._api_item.resultlist or []:
             self._attr_options.append(item.translation_key)

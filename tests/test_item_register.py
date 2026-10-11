@@ -13,6 +13,7 @@ by name so the NEXT one fails.
 
 import ast
 from collections import Counter
+import dataclasses
 import json
 import pathlib
 import re
@@ -415,6 +416,27 @@ def test_every_params_key_a_row_sets_is_documented_and_read():
 
 def test_the_params_doc_block_lists_exactly_the_keys_the_code_reads():
     assert _params_keys_read() == _documented_params_keys()
+
+
+def _documented_row_fields() -> set[str]:
+    """The fields the row doc block lists, one ``# `field`:`` line each.
+
+    In backticks: a comment line opening with "type:" is a type comment to
+    mypy, and the whole module stops type-checking on it.
+    """
+    source = pathlib.Path(hpconst.__file__).read_text(encoding="utf-8")
+    start = source.index("ModbusItem objects")
+    block = source[start : source.index("# fmt: off", start)]
+    return set(re.findall(r"^# `(\w+)`:", block, re.MULTILINE))
+
+
+def test_the_row_doc_block_names_the_fields_a_row_takes():
+    """It named mformat and mtype, which ModbusItem never took, left out
+    resultlist, and called name removable although the unique id is
+    built from it."""
+    taken = {field.name for field in dataclasses.fields(ModbusItem) if field.init}
+
+    assert _documented_row_fields() == taken
 
 
 def test_the_signature_sees_a_changed_field():
