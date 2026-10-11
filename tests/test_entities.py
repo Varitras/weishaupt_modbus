@@ -30,6 +30,7 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.hpconst import (
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.write_budget import (
     WriteBudget,
 )
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.exceptions import ServiceValidationError
 
 
@@ -86,6 +87,30 @@ def _temperature(params=None, address=30001):
         "aussentemp",
         params=params or {"unit": "°C", "divider": 10, "precision": 1},
     )
+
+
+@pytest.mark.parametrize(
+    ("address", "device_class", "state_class"),
+    [
+        (34102, SensorDeviceClass.DURATION, SensorStateClass.TOTAL_INCREASING),
+        (34106, SensorDeviceClass.DURATION, SensorStateClass.TOTAL_INCREASING),
+        (34107, SensorDeviceClass.DURATION, SensorStateClass.TOTAL_INCREASING),
+        (34103, None, SensorStateClass.TOTAL_INCREASING),
+        (31103, SensorDeviceClass.HUMIDITY, SensorStateClass.MEASUREMENT),
+        (43108, SensorDeviceClass.VOLUME_FLOW_RATE, SensorStateClass.MEASUREMENT),
+    ],
+)
+def test_counters_and_measures_carry_the_classes_the_statistics_need(
+    address, device_class, state_class
+):
+    """Hours and cycles were averaged, so the statistics had no change per
+    day; humidity and flow rate had no class, so no icon and no unit choice."""
+    item = next(
+        item for group in DEVICELISTS for item in group if item.address == address
+    )
+    sensor = entities.MySensorEntity(_entry(), copy.deepcopy(item), FakeCoordinator())
+
+    assert (sensor.device_class, sensor.state_class) == (device_class, state_class)
 
 
 def test_a_row_without_params_is_a_whole_number_without_a_unit():

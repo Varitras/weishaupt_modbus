@@ -11,7 +11,9 @@ from typing import Any
 from modbus_connection.model.fields import NumberField
 
 from .const import (
+    COUNTER_NO_VALUE_WORDS,
     PERCENTAGE_NO_VALUE,
+    PERCENTAGE_RAW_MAX,
     SETPOINT_NO_DEMAND_WORDS,
     SETPOINT_RAW_MIN,
     TEMPERATURE_NO_SENSOR,
@@ -51,7 +53,8 @@ class RegisterWord(NumberField[int]):
     ``absent`` is the word that means "no sensor" (the entity goes
     unavailable); ``no_reading`` is the closed range of words that mean "a
     sensor, but no usable value" (the entity stays, with no state);
-    ``plausible`` is the closed range a decoded value may lie in - outside
+    ``no_value`` names single words with the same meaning, for a register
+    whose range they cannot cut off; ``plausible`` is the closed range a decoded value may lie in - outside
     it the word is a status or garbage, not a reading; ``off`` is the word a
     setpoint reports when it is switched off (the entity stays, the switch
     beside it reads off).
@@ -65,6 +68,7 @@ class RegisterWord(NumberField[int]):
         writable: bool,
         absent: int | None = None,
         no_reading: tuple[int, int] | None = None,
+        no_value: tuple[int, ...] = (),
         plausible: tuple[int, int] | None = None,
         off: int | tuple[int, ...] | None = None,
     ) -> None:
@@ -72,6 +76,7 @@ class RegisterWord(NumberField[int]):
         super().__init__(address, signed=signed, writable=writable)
         self.absent = absent
         self.no_reading = no_reading
+        self.no_value = no_value
         self.plausible = plausible
         self.off = off if isinstance(off, tuple) or off is None else (off,)
 
@@ -82,6 +87,8 @@ class RegisterWord(NumberField[int]):
             return OFF
         if raw == self.absent:
             return NO_SENSOR
+        if raw in self.no_value:
+            return None
         if (
             self.no_reading is not None
             and self.no_reading[0] <= raw <= self.no_reading[1]
@@ -123,6 +130,17 @@ def field_for(item: ModbusItem) -> RegisterWord:
         )
     if item.format == FORMATS.PERCENTAGE:
         return RegisterWord(
-            item.address, signed=False, writable=writable, absent=PERCENTAGE_NO_VALUE
+            item.address,
+            signed=False,
+            writable=writable,
+            absent=PERCENTAGE_NO_VALUE,
+            plausible=(0, PERCENTAGE_RAW_MAX),
+        )
+    if item.params.get("counter"):
+        return RegisterWord(
+            item.address,
+            signed=False,
+            writable=writable,
+            no_value=COUNTER_NO_VALUE_WORDS,
         )
     return RegisterWord(item.address, signed=False, writable=writable)

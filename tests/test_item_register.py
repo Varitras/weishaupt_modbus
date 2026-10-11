@@ -301,7 +301,7 @@ def test_the_second_heat_source_counters_carry_the_register_lists_labels():
     assert by_address[34107].name == "Betriebsstunden E2"
     for hours in (34102, 34106, 34107):
         assert by_address[hours].params == hpconst.PARAMS_TIME_H, hours
-    assert not by_address[34103].params, "a cycle count has no unit"
+    assert "unit" not in by_address[34103].params, "a cycle count has no unit"
 
 
 def test_a_pump_without_a_second_heat_source_has_a_state_for_it():

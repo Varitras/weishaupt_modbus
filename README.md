@@ -185,6 +185,13 @@ as 32 °F with US customary units. An automation that waited for
 `unknown`, which 2.0.2 showed for no demand, should look at `demand`
 instead.
 
+**Counters.** The second heat source's operating hours and switching cycles
+are totals: the long-term statistics count hours and cycles per period.
+Before 2.1 they were averaged; that older statistic stays in the database,
+but graphs no longer show it, and Home Assistant raises no notice. A counter
+that reads 0x8000 or 0xFFFF, and a percentage above 100, reads as unknown:
+in a total such a word would stay in the sum for good.
+
 **Electrical power.** Register 33126 is in no Weishaupt data-point list.
 Checked against an external meter on one WBB 12 it is the heat pump's own
 electrical draw in watts; the circulation pump and the controller are not

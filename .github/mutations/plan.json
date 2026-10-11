@@ -4338,5 +4338,68 @@
     "old": "        return status.translation_key if status else str(val)\n",
     "new": "        return status.translation_key if status else f\"unbekannt <{val}>\"\n",
     "tests": "unknown_number_names_itself or unknown_status_number_is_reported"
+  },
+  {
+    "label": "fields: a counter's no-value word reads as a count",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/fields.py",
+    "old": "        if raw in self.no_value:\n            return None\n",
+    "new": "",
+    "tests": "counter_at_a_no_value_word"
+  },
+  {
+    "label": "fields: a counter gets no field of its own",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/fields.py",
+    "old": "    if item.params.get(\"counter\"):\n",
+    "new": "    if False:\n",
+    "tests": "counter_at_a_no_value_word"
+  },
+  {
+    "label": "fields: a percentage above 100 reads as a share",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/fields.py",
+    "old": "            plausible=(0, PERCENTAGE_RAW_MAX),\n",
+    "new": "",
+    "tests": "percentage_above_100"
+  },
+  {
+    "label": "fields: a full 100 percent reads as no value",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/const.py",
+    "old": "PERCENTAGE_RAW_MAX = 100\n",
+    "new": "PERCENTAGE_RAW_MAX = 99\n",
+    "tests": "percentage_of_100_is_a_reading"
+  },
+  {
+    "label": "register table: an energy counter takes its no-value words as kWh",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "    \"unit\": UnitOfEnergy.KILO_WATT_HOUR,\n    \"stateclass\": SensorStateClass.TOTAL_INCREASING,\n    \"counter\": True,\n",
+    "new": "    \"unit\": UnitOfEnergy.KILO_WATT_HOUR,\n    \"stateclass\": SensorStateClass.TOTAL_INCREASING,\n",
+    "tests": "counter_at_a_no_value_word"
+  },
+  {
+    "label": "register table: operating hours are averaged",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "    \"deviceclass\": SensorDeviceClass.DURATION,\n    \"stateclass\": SensorStateClass.TOTAL_INCREASING,\n",
+    "new": "    \"deviceclass\": SensorDeviceClass.DURATION,\n    \"stateclass\": SensorStateClass.MEASUREMENT,\n",
+    "tests": "classes_the_statistics_need"
+  },
+  {
+    "label": "register table: switching cycles take their no-value words as counts",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "PARAMS_COUNT: dict = {\"stateclass\": SensorStateClass.TOTAL_INCREASING, \"counter\": True}\n",
+    "new": "PARAMS_COUNT: dict = {\"stateclass\": SensorStateClass.TOTAL_INCREASING}\n",
+    "tests": "counter_at_a_no_value_word"
+  },
+  {
+    "label": "register table: room humidity has no device class",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "    \"deviceclass\": SensorDeviceClass.HUMIDITY,\n",
+    "new": "",
+    "tests": "classes_the_statistics_need"
+  },
+  {
+    "label": "register table: a flow rate has no device class",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "    \"deviceclass\": SensorDeviceClass.VOLUME_FLOW_RATE,\n",
+    "new": "",
+    "tests": "classes_the_statistics_need"
   }
 ]

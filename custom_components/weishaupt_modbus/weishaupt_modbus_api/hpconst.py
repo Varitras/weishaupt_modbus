@@ -475,6 +475,7 @@ IO_KONFIG_IN: list[StatusItem] = [
 # "precision": number of digits after the decimal point
 # "unit": the unit of the sensor. When ever possible, use one of the pre-defined units of HomeAssistant
 # "stateclass": one of the SensorStateClass types to control storage of the entity in the recorder database
+# "counter": a count or total (energy, hours, cycles); 0x8000 and 0xFFFF read as no value, not as a count
 # "setpoint": a setpoint the controller only reports: no demand (1, 0x8000) reads 0, "demand" says so; < 5.0 degC no reading
 # "off_is_a_setting": the menu offers "Aus" beside the value, reported as 0x8000; a switch sets it
 # "only_if_served": no entity when the first poll finds the register refused (firmware without it)
@@ -492,6 +493,10 @@ PARAMS_PERCENTAGE: dict[str, Any] = {
     "max": 100,
     "precision": 0,
     "unit": PERCENTAGE,
+}
+PARAMS_HUMIDITY: dict[str, Any] = {
+    **PARAMS_PERCENTAGE,
+    "deviceclass": SensorDeviceClass.HUMIDITY,
 }
 
 PARAMS_ROOMTEMP: dict[str, Any] = {
@@ -707,6 +712,7 @@ PARAMS_FLOWRATE: dict = {
     "divider": 100,
     "precision": 2,
     "unit": UnitOfVolumeFlowRate.CUBIC_METERS_PER_HOUR,
+    "deviceclass": SensorDeviceClass.VOLUME_FLOW_RATE,
     "stateclass": SensorStateClass.MEASUREMENT,
 }
 
@@ -717,6 +723,7 @@ PARAMS_ENERGY: dict[str, Any] = {
     "precision": 0,
     "unit": UnitOfEnergy.KILO_WATT_HOUR,
     "stateclass": SensorStateClass.TOTAL_INCREASING,
+    "counter": True,
 }
 # Yesterday's total is a snapshot that changes once a day and may fall. As a
 # TOTAL_INCREASING sensor every fall counted as a meter reset, and the energy
@@ -806,7 +813,14 @@ PARAMS_PV: dict = {
     "stateclass": SensorStateClass.MEASUREMENT,
 }
 
-PARAMS_TIME_H: dict = {"unit": UnitOfTime.HOURS}
+# Lifetime totals: averaged, the statistics showed no hours or cycles per day.
+PARAMS_TIME_H: dict = {
+    "unit": UnitOfTime.HOURS,
+    "deviceclass": SensorDeviceClass.DURATION,
+    "stateclass": SensorStateClass.TOTAL_INCREASING,
+    "counter": True,
+}
+PARAMS_COUNT: dict = {"stateclass": SensorStateClass.TOTAL_INCREASING, "counter": True}
 
 
 # pylint: disable=line-too-long
@@ -887,7 +901,7 @@ MODBUS_WP_ITEMS: list[ModbusItem] = [
 MODBUS_HZ_ITEMS = [
     ModbusItem(address=31101, name="Raumsolltemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.HZ, params={**PARAMS_ROOMTEMP, "setpoint": True}, translation_key="raum_soll_temp"),
     ModbusItem(address=31102, name="Raumtemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.HZ, params=PARAMS_ROOMTEMP, translation_key="raum_temp"),
-    ModbusItem(address=31103, name="Raumfeuchte", format=FORMATS.PERCENTAGE, type=TYPES.SENSOR, device=DEVICES.HZ, params=PARAMS_PERCENTAGE, translation_key="raum_feuchte"),
+    ModbusItem(address=31103, name="Raumfeuchte", format=FORMATS.PERCENTAGE, type=TYPES.SENSOR, device=DEVICES.HZ, params=PARAMS_HUMIDITY, translation_key="raum_feuchte"),
     ModbusItem(address=31104, name="Vorlaufsolltemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.HZ, params={**PARAMS_STDTEMP, "setpoint": True}, translation_key="hz_vl_solltemp"),
     ModbusItem(address=31105, name="HZ_Vorlauftemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.HZ, params=PARAMS_STDTEMP, translation_key="hz_vl_temp"),
     ModbusItem(address=31106, name="Adr. 31106", format=FORMATS.UNKNOWN, type=TYPES.SENSOR, device=DEVICES.HZ, params={"enabled_by_default": False}, translation_key="adr31106"),
@@ -985,7 +999,7 @@ MODBUS_WW_ITEMS: list[ModbusItem] = [
 MODBUS_W2_ITEMS: list[ModbusItem] = [
     ModbusItem(address=34101, name="Status 2. WEZ", format=FORMATS.STATUS, type=TYPES.SENSOR, device=DEVICES.W2, resultlist=W2_STATUS, translation_key="status_2_wez"),
     ModbusItem(address=34102, name="Betriebsstunden 2. WEZ", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.W2, params=PARAMS_TIME_H, translation_key="betriebss_2wez"),
-    ModbusItem(address=34103, name="Schaltspiele 2. WEZ", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.W2, translation_key="schaltsp_2wez"),
+    ModbusItem(address=34103, name="Schaltspiele 2. WEZ", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.W2, params=PARAMS_COUNT, translation_key="schaltsp_2wez"),
     ModbusItem(address=34104, name="Status E-Heizung 1", format=FORMATS.STATUS, type=TYPES.SENSOR, device=DEVICES.W2, resultlist=W2_STATUS, translation_key="status_e1"),
     ModbusItem(address=34105, name="Status E-Heizung 2", format=FORMATS.STATUS, type=TYPES.SENSOR, device=DEVICES.W2, resultlist=W2_STATUS, translation_key="status_e2"),
     ModbusItem(address=34106, name="Betriebsstunden E1", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.W2, params=PARAMS_TIME_H, translation_key="betriebss_e1"),

@@ -191,6 +191,56 @@ async def test_a_temperature_word_outside_the_documented_domain_is_no_reading(
     assert _row(pump, OUTSIDE_TEMPERATURE).is_invalid is False
 
 
+ENERGY_TODAY = 36101
+SECOND_HEAT_SOURCE_HOURS = 34102
+SECOND_HEAT_SOURCE_CYCLES = 34103
+ROOM_HUMIDITY = 31103
+
+
+@pytest.mark.parametrize(
+    "address", [ENERGY_TODAY, SECOND_HEAT_SOURCE_HOURS, SECOND_HEAT_SOURCE_CYCLES]
+)
+@pytest.mark.parametrize("word", [0x8000, 0xFFFF])
+async def test_a_counter_at_a_no_value_word_is_no_reading(pump, unit, address, word):
+    """A total keeps what it summed: one 0xFFFF in an energy counter put
+    65 535 kWh into the energy dashboard for good, the fall back after it
+    read as a meter reset."""
+    unit.load_raw({"input": {address: word}})
+
+    await pump.async_update()
+
+    assert _row(pump, address).state is None
+
+
+async def test_a_counter_past_the_sign_bit_is_still_a_reading(pump, unit):
+    """Hours run past 32767 on an old pump: only the two words mean no value."""
+    unit.load_raw({"input": {SECOND_HEAT_SOURCE_HOURS: 40000}})
+
+    await pump.async_update()
+
+    assert _row(pump, SECOND_HEAT_SOURCE_HOURS).state == 40000
+
+
+@pytest.mark.parametrize("word", [101, 0x8000])
+async def test_a_percentage_above_100_is_no_reading(pump, unit, word):
+    """32768 % showed as the power request, and the heat output computed
+    from it came to 3.3 MW."""
+    unit.load_raw({"input": {POWER_REQUEST: word, ROOM_HUMIDITY: word}})
+
+    await pump.async_update()
+
+    assert _row(pump, POWER_REQUEST).state is None
+    assert _row(pump, ROOM_HUMIDITY).state is None
+
+
+async def test_a_percentage_of_100_is_a_reading(pump, unit):
+    unit.load_raw({"input": {POWER_REQUEST: 100}})
+
+    await pump.async_update()
+
+    assert _row(pump, POWER_REQUEST).state == 100
+
+
 async def test_a_setpoint_at_its_off_word_is_off_not_absent(pump, unit):
     """Live: 41111 and 42105 read 0x8000, and the controller's menu shows
     "Aus" for them. Treated as a missing sensor, the entity went unavailable
