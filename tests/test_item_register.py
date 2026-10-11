@@ -506,6 +506,25 @@ def test_every_language_has_exactly_the_keys_of_strings_json(path):
     )
 
 
+def test_strings_json_says_what_the_english_translation_says():
+    """Home Assistant shows translations/en.json; strings.json is its source.
+    A fix to the English texts reached only en.json, and regenerating it
+    from strings.json would have taken the fix back."""
+    english = PACKAGE / "translations" / "en.json"
+
+    assert json.loads(STRINGS.read_text(encoding="utf-8")) == json.loads(
+        english.read_text(encoding="utf-8")
+    )
+
+
+@pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
+def test_an_error_code_reads_the_same_as_error_and_as_warning(path):
+    """Both sensors show the same code list; Dutch named one code two ways."""
+    sensors = json.loads(path.read_text(encoding="utf-8"))["entity"]["sensor"]
+
+    assert sensors["fehler"]["state"] == sensors["warnung"]["state"]
+
+
 LEGACY_UNIQUE_IDS = pathlib.Path(__file__).parent / "legacy_unique_ids.json"
 
 
