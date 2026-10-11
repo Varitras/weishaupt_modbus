@@ -247,8 +247,8 @@
   {
     "label": "device: an unchanged value must not be written again",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "        if item.state is not None and item.state == value:\n",
-    "new": "        if False:\n",
+    "old": "            unchanged = item.state is not None and item.state == value\n",
+    "new": "            unchanged = False\n",
     "tests": "unchanged_value_is_not_written_again"
   },
   {
@@ -4268,5 +4268,26 @@
     "old": "        async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):\n            words = await self._unit.read_holding_registers(address, 1)\n",
     "new": "        async with self._host_lock:\n            words = await self._unit.read_holding_registers(address, 1)\n",
     "tests": "circuit_configuration_read_that_never_answers"
+  },
+  {
+    "label": "device: a write is dropped on the last poll's value alone",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "            if unchanged and await self._holds(item.address, value):\n",
+    "new": "            if unchanged:\n",
+    "tests": "changed_at_the_panel_since_the_last_poll or switched_off_at_the_panel"
+  },
+  {
+    "label": "device: a switch-off is dropped on the last poll's state alone",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "            if item.is_off and await self._holds(item.address, SETPOINT_OFF_SIGNED):\n",
+    "new": "            if item.is_off:\n",
+    "tests": "switched_on_at_the_panel_is_switched_off_again"
+  },
+  {
+    "label": "device: a negative value never matches its register",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        return await self._read_word(address) == value & WORD_MASK\n",
+    "new": "        return await self._read_word(address) == value\n",
+    "tests": "setpoint_off_writes_the_off_word"
   }
 ]

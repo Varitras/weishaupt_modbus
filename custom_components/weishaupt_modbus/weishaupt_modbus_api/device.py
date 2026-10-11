@@ -71,6 +71,8 @@ SYSTEM_BAND: Band = (30001, 30006)
 # link cannot serve, so a healthy read never comes near it. Timed inside the
 # controller's lock: waiting for the web interface is not the link failing.
 BAND_TIMEOUT_SECONDS = 60
+# A register holds 16 bits; a negative value goes in as its two's complement.
+WORD_MASK = 0xFFFF
 
 
 def band_of(address: int) -> Band:
@@ -228,7 +230,8 @@ class WeishauptHeatPump:
                 check()
             if callable(value):
                 value = value()
-            if item.state is not None and item.state == value:
+            unchanged = item.state is not None and item.state == value
+            if unchanged and await self._holds(item.address, value):
                 _LOGGER.debug(
                     "Register %d already holds %d, not written", item.address, value
                 )
@@ -243,7 +246,7 @@ class WeishauptHeatPump:
     async def write_off(self, item: ModbusItem) -> bool:
         """Switch a setpoint off (its off word); False when it already was."""
         async with self._write_lock:
-            if item.is_off:
+            if item.is_off and await self._holds(item.address, SETPOINT_OFF_SIGNED):
                 return False
             await self._write_word(item, SETPOINT_OFF_SIGNED)
             item.state = None
@@ -295,6 +298,14 @@ class WeishauptHeatPump:
             except ModbusExceptionError:
                 configurations[circuit] = None
         return configurations
+
+    async def _holds(self, address: int, value: int) -> bool:
+        """Whether the controller holds the value now, not as last polled.
+
+        Asked only before a write is dropped as unchanged: a change made at
+        the controller's panel since the last poll is not in the cache.
+        """
+        return await self._read_word(address) == value & WORD_MASK
 
     async def _read_word(self, address: int) -> int:
         """One holding register, under the controller's lock like a band read."""

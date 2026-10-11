@@ -575,6 +575,7 @@ async def test_a_changed_value_is_written_and_remembered(pump, unit):
 async def test_an_unchanged_value_is_not_written_again(pump, unit):
     writes = []
     unit.on_write(writes.append)
+    unit.load_raw({"holding": {PV_SETPOINT: 42}})
     row = _row(pump, PV_SETPOINT)
     row.state = 42
 
@@ -582,6 +583,41 @@ async def test_an_unchanged_value_is_not_written_again(pump, unit):
 
     assert writes == []
     assert pump.write_budget.total == 0
+
+
+async def test_a_value_changed_at_the_panel_since_the_last_poll_is_written_back(
+    pump, unit
+):
+    """The write compared with the last poll: 200 set at the panel to 220
+    and set back to 200 from Home Assistant reported success and wrote
+    nothing."""
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 200}})
+    await pump.async_update()
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 220}})
+
+    assert await pump.write(_row(pump, CONSTANT_LOWERING), 200) is True
+
+    assert await unit.read_holding_registers(CONSTANT_LOWERING, 1) == [200]
+
+
+async def test_a_setpoint_switched_off_at_the_panel_is_switched_back_on(pump, unit):
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 200}})
+    await pump.async_update()
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 0x8000}})
+
+    assert await pump.write(_row(pump, CONSTANT_LOWERING), 200) is True
+
+    assert await unit.read_holding_registers(CONSTANT_LOWERING, 1) == [200]
+
+
+async def test_a_setpoint_switched_on_at_the_panel_is_switched_off_again(pump, unit):
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 0x8000}})
+    await pump.async_update()
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 215}})
+
+    assert await pump.write_off(_row(pump, CONSTANT_LOWERING)) is True
+
+    assert await unit.read_holding_registers(CONSTANT_LOWERING, 1) == [0x8000]
 
 
 async def test_a_negative_temperature_is_written_as_twos_complement(pump, unit):

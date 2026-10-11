@@ -136,7 +136,9 @@ registers 30001-30006 is not treated as a heat pump with missing modules:
 that poll fails.
 
 A write goes out immediately and only if the value differs from what the
-controller holds.
+controller holds. When the last poll shows the same value, the register is
+read once more first, so a change made at the controller's panel since then
+is not missed.
 
 ## Entities
 
