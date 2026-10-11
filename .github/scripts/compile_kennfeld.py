@@ -2,7 +2,7 @@
 
 A raw grid names a few points per flow-temperature curve (known_x, known_y,
 known_t); the integration reads a compiled_grid with a value per 0.1 °C of
-outside temperature. Compiling needs numpy; with scipy the curve between the
+air intake temperature. Compiling needs numpy; with scipy the curve between the
 points is a smooth spline, without it a straight line. It happens here,
 once, and not on every user's machine.
 
@@ -34,7 +34,7 @@ def sorted_curves(known_t: list, known_y: list) -> tuple[list, list]:
 
 
 def compile_grid(data: dict) -> dict[str, list[float]]:
-    """A value per 0.1 °C of outside temperature for every flow curve."""
+    """A value per 0.1 °C of air intake temperature for every flow curve."""
     known_x = data["known_x"]
     # numpy joins the points in the order given; an unsorted known_x gave
     # curves that miss their own points, without a word.
@@ -142,7 +142,7 @@ def main(argv: list[str]) -> int:
     data["known_t"], data["known_y"] = sorted_curves(data["known_t"], data["known_y"])
     data["compiled_grid"] = compile_grid(data)
     path.write_text(json.dumps(data, separators=(",", ":")) + "\n", encoding="utf-8")
-    print(f"compiled {path.name}: {len(data['compiled_grid'])} outside temperatures")
+    print(f"compiled {path.name}: {len(data['compiled_grid'])} air intake temperatures")
     if draw_preview(data, path.with_suffix(".svg")):
         print(f"drew {path.with_suffix('.svg').name}")
     return 0

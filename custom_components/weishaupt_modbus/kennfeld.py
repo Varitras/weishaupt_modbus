@@ -1,7 +1,8 @@
-"""The power map: rated heating power over outside and flow temperature.
+"""The power map: rated heating power over air intake and flow temperature.
 
-Every grid ships compiled (see .github/scripts/compile_kennfeld.py for how
-a new one is made); at runtime it is only read, interpolated and drawn.
+Every grid ships compiled, with its picture (see
+.github/scripts/compile_kennfeld.py for how a new one is made); at runtime
+it is only read and interpolated, and the picture copied.
 """
 
 from collections.abc import Mapping
@@ -281,7 +282,7 @@ class PowerMap:
         if not _looks_like_a_grid(data):
             _LOGGER.error(
                 "Power map %s is not a compiled grid (known_t with at least two "
-                "flow temperatures, one value per curve and outside temperature). "
+                "flow temperatures, one value per curve and air intake temperature). "
                 "The heat power stays unknown",
                 filepath.name,
             )
@@ -331,8 +332,8 @@ class PowerMap:
                 "Failed to publish the power map image under www/local: %s", err
             )
 
-    def map(self, outside_temp_raw: float, flow_temp_raw: float) -> float | None:
-        """Rated power at an outside and flow temperature (raw tenths), interpolated.
+    def map(self, air_intake_raw: float, flow_temp_raw: float) -> float | None:
+        """Rated power at an air intake and flow temperature (raw tenths), interpolated.
 
         None without a map: 0 W here became a recorded heat output of zero for
         a configuration problem.
@@ -343,17 +344,15 @@ class PowerMap:
         # Convert flow temp to actual °C for fractional interpolation
         flow_temp = flow_temp_raw / 10
 
-        # Clamp raw outside temperature and actual flow temperature
-        outside_raw = max(
+        air_raw = max(
             self._out_range_raw[0],
-            min(round(outside_temp_raw), self._out_range_raw[1]),
+            min(round(air_intake_raw), self._out_range_raw[1]),
         )
         flow_temp = max(
             float(self._known_t[0]), min(flow_temp, float(self._known_t[-1]))
         )
 
-        # 1. Direct O(1) outside temperature key lookup
-        vals = self._compiled_grid.get(str(outside_raw))
+        vals = self._compiled_grid.get(str(air_raw))
         if not vals:
             return None
 
@@ -370,7 +369,7 @@ class PowerMap:
                 y0_idx = len(self._known_t) - 2
         y1_idx = y0_idx + 1
 
-        # 3. Grab the 2 flow temp boundary values at this outside temperature
+        # 3. Grab the 2 flow temp boundary values at this air intake temperature
         p0 = vals[y0_idx]  # flow y0
         p1 = vals[y1_idx]  # flow y1
 

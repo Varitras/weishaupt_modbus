@@ -11,8 +11,8 @@ from typing import Protocol
 class PowerMap(Protocol):
     """What a formula needs from the power map: the rated power at a point."""
 
-    def map(self, outside_temp_raw: float, flow_temp_raw: float) -> float | None:
-        """Rated heating power in W at an outside and a flow temperature (raw tenths); None without a map."""
+    def map(self, air_intake_raw: float, flow_temp_raw: float) -> float | None:
+        """Rated heating power in W at an air intake and a flow temperature (raw tenths); None without a map."""
 
 
 def heat_output(

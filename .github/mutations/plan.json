@@ -4092,7 +4092,7 @@
     "path": ".github/scripts/compile_kennfeld.py",
     "old": "    if known_x != sorted(set(known_x)):\n",
     "new": "    if False:\n",
-    "tests": "outside_temperatures_out_of_order"
+    "tests": "air_temperatures_out_of_order"
   },
   {
     "label": "compile script: bounds go into range() unrounded",

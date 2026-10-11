@@ -219,7 +219,8 @@ disabled too, and go when the entry is removed.
 ### The power map
 
 The heat power (*Wärmeleistung*) is calculated from the power request,
-the outside temperature and the flow temperature. That relation is model
+the air intake temperature (register 30002, the air the heat pump draws
+its heat from) and the flow temperature. That relation is model
 specific; the integration ships a precompiled grid per model, read from the
 graphs in the Weishaupt documentation:
 

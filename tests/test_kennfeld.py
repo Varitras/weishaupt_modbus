@@ -54,7 +54,7 @@ def test_flow_temperature_is_clamped_to_the_known_curves():
     assert _power_map().map(0, 100) == 6000.0
 
 
-def test_outside_temperature_is_clamped_to_the_grid():
+def test_air_intake_temperature_is_clamped_to_the_grid():
     assert _power_map().map(500, 350) == 6000.0
     assert _power_map().map(-999, 350) == 5000.0
 
@@ -407,7 +407,7 @@ def test_shipped_plots_are_static_pictures():
         ("[1, 2, 3]", "not an object"),
         (
             '{"known_t": [35, 55], "known_x": [], "compiled_grid": {"0": [1.0, 2.0]}}',
-            "no outside temperatures",
+            "no air intake temperatures",
         ),
         (
             '{"known_t": [35, {}], "known_x": [0], "compiled_grid": {"0": [1.0, 2.0]}}',
@@ -525,7 +525,7 @@ def test_the_compile_script_takes_bounds_written_as_floats(monkeypatch):
     assert data["compiled_grid"]["-125"] == [1.0, 4.0]
 
 
-def test_the_compile_script_refuses_outside_temperatures_out_of_order(monkeypatch):
+def test_the_compile_script_refuses_air_temperatures_out_of_order(monkeypatch):
     """Without scipy, numpy took an unsorted known_x without a word and
     compiled curves that miss their own points."""
     monkeypatch.setitem(sys.modules, "scipy.interpolate", None)
@@ -686,7 +686,7 @@ async def test_bounds_written_as_integral_floats_still_reach_the_curve(
     hass, tmp_path, monkeypatch
 ):
     """known_x of -10.0 clamped to the key "-100.0", which no compiled grid
-    has: every outside temperature below the boundary read as unknown."""
+    has: every air intake temperature below the boundary read as unknown."""
     grid = {
         "known_t": [35, 55],
         "known_x": [-10.0, 10.0],
