@@ -457,6 +457,7 @@ delete them. Home Assistant raises no repair notice for them.
   after the login, nothing more is asked in that round, and no page before
   the shortest page interval has passed: not by an update requested by hand,
   and not after a write. A write that meets one of these gives the same rest.
+  A power limit you set during the rest still goes out.
 - A page that fails keeps its values once; the second failure in a row makes
   them unavailable; the third stops polling and raises a repair notice.
   A failed page is asked for again only after its own interval. Check the

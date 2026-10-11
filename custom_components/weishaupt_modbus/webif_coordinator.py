@@ -314,8 +314,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         # A write's own: its message sends the user to the log, also after a
         # round's traceback was logged.
         self._write_traceback_logged = False
-        # A round cut short by a timeout gives the controller a rest: no page
-        # is asked before it ends, not by a round a write planned, not by hand.
+        # A round cut short by a timeout gives the controller a rest: no round
+        # asks a page before it ends, not one a write planned, not one asked
+        # for by hand. A write the user asks for still goes out.
         self._rest_until = -math.inf
         # Counted: two dialogs of one entry may visit at once.
         self._dialog_visits = 0
