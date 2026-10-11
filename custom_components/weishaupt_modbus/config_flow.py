@@ -57,7 +57,8 @@ def _kennfeld_files(folder: Path) -> list[str]:
 
 async def build_kennfeld_list(hass: HomeAssistant) -> list[str]:
     """The power-map files a user can pick from."""
-    return await hass.async_add_executor_job(_kennfeld_files, get_filepath(hass))
+    folder = await hass.async_add_executor_job(get_filepath, hass)
+    return await hass.async_add_executor_job(_kennfeld_files, folder)
 
 
 # The outside temperature: every model serves it, so one read of it says

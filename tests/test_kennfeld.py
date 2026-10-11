@@ -1,6 +1,7 @@
 """The power map: interpolation on the compiled grid, and the shipped grids."""
 
 import ast
+import asyncio
 import importlib
 import importlib.util
 import json
@@ -12,7 +13,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from custom_components.weishaupt_modbus import kennfeld
+from custom_components.weishaupt_modbus import config_flow, kennfeld
 from custom_components.weishaupt_modbus.const import CONF, CONST
 from custom_components.weishaupt_modbus.kennfeld import PowerMap, get_filepath
 
@@ -74,6 +75,52 @@ def test_the_fallback_path_is_the_shipped_grid_folder():
     hass = SimpleNamespace(config=SimpleNamespace(config_dir="/nowhere"))
 
     assert get_filepath(hass) == KENNFELD
+
+
+def _off_the_event_loop(folder, called):
+    """A get_filepath that fails when it runs in the event loop."""
+
+    def lookup(_hass):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            called.append(True)
+            return folder
+        raise AssertionError("the grid folder was looked up in the event loop")
+
+    return lookup
+
+
+async def test_setup_looks_for_the_grid_folder_off_the_event_loop(
+    hass, tmp_path, monkeypatch
+):
+    """The lookup asks the disk whether a folder exists, a blocking call
+    Home Assistant keeps out of its event loop."""
+    called = []
+    monkeypatch.setattr(kennfeld, "get_filepath", _off_the_event_loop(tmp_path, called))
+    entry = SimpleNamespace(
+        data={
+            CONF.KENNFELD_FILE: _grid_file(tmp_path, "own_kennfeld"),
+            CONF.DEVICE_POSTFIX: "",
+        }
+    )
+    hass.config.config_dir = str(tmp_path)
+
+    await PowerMap(entry, hass).initialize()
+
+    assert called
+
+
+async def test_the_dialog_looks_for_the_grid_folder_off_the_event_loop(
+    hass, tmp_path, monkeypatch
+):
+    called = []
+    monkeypatch.setattr(
+        config_flow, "get_filepath", _off_the_event_loop(tmp_path, called)
+    )
+
+    assert await config_flow.build_kennfeld_list(hass) == [CONST.DEF_KENNFELDFILE]
+    assert called
 
 
 def test_the_default_grid_ships_compiled_with_its_plot():

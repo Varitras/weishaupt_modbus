@@ -4128,5 +4128,19 @@
     "old": "    if not isinstance(grid, dict):\n        return False\n",
     "new": "",
     "tests": "broken_grid_file_disables_the_heat_power_only"
+  },
+  {
+    "label": "power map: setup looks for the grid folder in the event loop",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "        folder = await self.hass.async_add_executor_job(get_filepath, self.hass)\n",
+    "new": "        folder = get_filepath(self.hass)\n",
+    "tests": "off_the_event_loop"
+  },
+  {
+    "label": "config flow: the dialog looks for the grid folder in the event loop",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    folder = await hass.async_add_executor_job(get_filepath, hass)\n",
+    "new": "    folder = get_filepath(hass)\n",
+    "tests": "off_the_event_loop"
   }
 ]

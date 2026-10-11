@@ -261,9 +261,8 @@ class PowerMap:
         successful load left the previous map's curve on the dashboard while
         the heat power had already gone unknown.
         """
-        filepath = Path(
-            get_filepath(self.hass) / self._config_entry.data[CONF.KENNFELD_FILE]
-        )
+        folder = await self.hass.async_add_executor_job(get_filepath, self.hass)
+        filepath = folder / self._config_entry.data[CONF.KENNFELD_FILE]
         loaded = await self._load_grid(filepath)
         www_dir = Path(f"{self.hass.config.config_dir}/www/local")
         await self.hass.async_add_executor_job(
