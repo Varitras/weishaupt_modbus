@@ -197,9 +197,7 @@ Checked against an external meter on one WBB 12 it is the heat pump's own
 electrical draw in watts; the circulation pump and the controller are not
 in it (about 80 W there). Firmware that does not serve the register gets no
 entity - decided at the first poll after the integration starts, so after a
-firmware update reload the integration. A register the controller refuses
-at that poll for another reason, such as a device failure, also gets no
-entity until the next reload.
+firmware update reload the integration.
 
 **System operating mode.** *Automatic* and *Cooling* work only when cooling
 is enabled at the controller (the heating circuit's *Freigabe Kühlbetrieb*,
