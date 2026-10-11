@@ -458,12 +458,13 @@ class Client:
         # Asked where the request goes out, so no other way out can skip it.
         if not _allowed(method, path, form):
             raise ValueError(f"{method} {path} is not on the positive list")
-        # Here and not only where a page starts: a renewed login or a page
-        # asked again ran on after the close, up to a minute late.
-        if self._closed and path != LOGOUT:
-            raise Closed(f"{path}: the client is closed")
         cookie = {"Cookie": f"{SESSION_COOKIE}={self._cookie}"} if self._cookie else {}
         async with self._host_lock:
+            # Here and not only where a page starts: a renewed login or a page
+            # asked again ran on after the close, up to a minute late, and so
+            # did a request that waited for Modbus while the client closed.
+            if self._closed and path != LOGOUT:
+                raise Closed(f"{path}: the client is closed")
             if sending is not None:
                 sending()
             started = self._clock()

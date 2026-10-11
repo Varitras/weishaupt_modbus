@@ -946,6 +946,35 @@ async def test_an_error_status_on_the_save_gives_the_controller_its_rest(
     assert isinstance(raised.value.__cause__, webif.Unreachable)
 
 
+@pytest.mark.parametrize("operation", ["page", "save"])
+async def test_a_request_waiting_for_modbus_is_not_sent_once_the_client_closes(
+    pump, session, count, operation
+):
+    """Home Assistant's stop closed the client while a request waited for the
+    lock Modbus shares; once that was free, the request went out after all."""
+    pump.show_power_limit(60)
+    host_lock = WatchedLock()
+    client = connect(session, pump.host, host_lock=host_lock)
+    form = await read_form(client)
+    asked = len(pump.asked)
+
+    async with host_lock:
+        if operation == "page":
+            request = client.page(PAGE, whole)
+        else:
+            request = client.save(form, 61, count)
+        waiting = asyncio.create_task(request)
+        await until(lambda: host_lock.waited)
+        closing = asyncio.create_task(client.close())
+        await asyncio.sleep(0)
+    with pytest.raises(webif.Closed):
+        await waiting
+    await closing
+
+    assert pump.asked[asked:] == [("GET", webif.LOGOUT)]
+    assert count.calls == 0
+
+
 async def test_a_save_without_a_session_sends_nothing(pump, session, count):
     client = connect(session, pump.host)
 

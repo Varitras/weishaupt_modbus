@@ -1185,8 +1185,8 @@
   {
     "label": "webif client: a request goes out while Modbus holds the controller",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        async with self._host_lock:\n            if sending is not None:\n",
-    "new": "        async with asyncio.Lock():\n            if sending is not None:\n",
+    "old": "        async with self._host_lock:\n            # Here and not only where a page starts: a renewed login or a page\n            # asked again ran on after the close, up to a minute late, and so\n            # did a request that waited for Modbus while the client closed.\n",
+    "new": "        async with asyncio.Lock():\n            # Here and not only where a page starts: a renewed login or a page\n            # asked again ran on after the close, up to a minute late, and so\n            # did a request that waited for Modbus while the client closed.\n",
     "tests": "request_waits_while_modbus_holds"
   },
   {
@@ -2298,8 +2298,8 @@
   {
     "label": "controller access: a web request goes out under a lock of its own",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        async with self._host_lock:\n            if sending is not None:\n",
-    "new": "        async with asyncio.Lock():\n            if sending is not None:\n",
+    "old": "        async with self._host_lock:\n            # Here and not only where a page starts: a renewed login or a page\n            # asked again ran on after the close, up to a minute late, and so\n            # did a request that waited for Modbus while the client closed.\n",
+    "new": "        async with asyncio.Lock():\n            # Here and not only where a page starts: a renewed login or a page\n            # asked again ran on after the close, up to a minute late, and so\n            # did a request that waited for Modbus while the client closed.\n",
     "tests": "every_request_to_the_controller_holds_the_host_lock"
   },
   {
@@ -2627,8 +2627,8 @@
   {
     "label": "controller access: a web request goes out under a lock merely named like it",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        async with self._host_lock:\n            if sending is not None:\n",
-    "new": "        async with self._host_lock_for_tests:\n            if sending is not None:\n",
+    "old": "        async with self._host_lock:\n            # Here and not only where a page starts: a renewed login or a page\n            # asked again ran on after the close, up to a minute late, and so\n            # did a request that waited for Modbus while the client closed.\n",
+    "new": "        async with self._host_lock_for_tests:\n            # Here and not only where a page starts: a renewed login or a page\n            # asked again ran on after the close, up to a minute late, and so\n            # did a request that waited for Modbus while the client closed.\n",
     "tests": "every_request_to_the_controller_holds_the_host_lock"
   },
   {
@@ -2725,8 +2725,8 @@
   {
     "label": "webif client: a refused address counts, paces and logs as a request",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        # Asked where the request goes out, so no other way out can skip it.\n        if not _allowed(method, path, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n        # Here and not only where a page starts: a renewed login or a page\n        # asked again ran on after the close, up to a minute late.\n        if self._closed and path != LOGOUT:\n            raise Closed(f\"{path}: the client is closed\")\n        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            if sending is not None:\n                sending()\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
-    "new": "        # Here and not only where a page starts: a renewed login or a page\n        # asked again ran on after the close, up to a minute late.\n        if self._closed and path != LOGOUT:\n            raise Closed(f\"{path}: the client is closed\")\n        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            if sending is not None:\n                sending()\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n                if not _allowed(method, path, form):\n                    raise ValueError(f\"{method} {path} is not on the positive list\")\n",
+    "old": "        # Asked where the request goes out, so no other way out can skip it.\n        if not _allowed(method, path, form):\n            raise ValueError(f\"{method} {path} is not on the positive list\")\n        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            # Here and not only where a page starts: a renewed login or a page\n            # asked again ran on after the close, up to a minute late, and so\n            # did a request that waited for Modbus while the client closed.\n            if self._closed and path != LOGOUT:\n                raise Closed(f\"{path}: the client is closed\")\n            if sending is not None:\n                sending()\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n",
+    "new": "        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            # Here and not only where a page starts: a renewed login or a page\n            # asked again ran on after the close, up to a minute late, and so\n            # did a request that waited for Modbus while the client closed.\n            if self._closed and path != LOGOUT:\n                raise Closed(f\"{path}: the client is closed\")\n            if sending is not None:\n                sending()\n            started = self._clock()\n            outcome = \"no answer\"\n            try:\n                if not _allowed(method, path, form):\n                    raise ValueError(f\"{method} {path} is not on the positive list\")\n",
     "tests": "off_the_positive_list_is_never_asked_for"
   },
   {
@@ -3978,8 +3978,8 @@
   {
     "label": "webif client: a closed client renews its login and asks a page again",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        if self._closed and path != LOGOUT:\n            raise Closed(f\"{path}: the client is closed\")\n",
-    "new": "",
+    "old": "            # Here and not only where a page starts: a renewed login or a page\n            # asked again ran on after the close, up to a minute late, and so\n            # did a request that waited for Modbus while the client closed.\n            if self._closed and path != LOGOUT:\n                raise Closed(f\"{path}: the client is closed\")\n",
+    "new": "            # Here and not only where a page starts: a renewed login or a page\n            # asked again ran on after the close, up to a minute late, and so\n            # did a request that waited for Modbus while the client closed.\n",
     "tests": "lost_at_close_is_not_renewed or wrong_once_at_close_is_not_asked_again or logs_in_no_more"
   },
   {
@@ -4555,5 +4555,12 @@
     "old": "        if isinstance(error.__cause__, LoginRefused):\n",
     "new": "        if False:\n",
     "tests": "refused_reading_back_a_save"
+  },
+  {
+    "label": "webif client: a request waiting for Modbus goes out after the close",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            # Here and not only where a page starts: a renewed login or a page\n            # asked again ran on after the close, up to a minute late, and so\n            # did a request that waited for Modbus while the client closed.\n            if self._closed and path != LOGOUT:\n                raise Closed(f\"{path}: the client is closed\")\n",
+    "new": "        if self._closed and path != LOGOUT:\n            raise Closed(f\"{path}: the client is closed\")\n        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n",
+    "tests": "waiting_for_modbus_is_not_sent_once_the_client_closes"
   }
 ]
