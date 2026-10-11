@@ -508,6 +508,10 @@ already set.
 [Prerequisites](#prerequisites)), that its network and netmask admit the
 Home Assistant host, and that the port matches.
 
+**Setup says a device answers but refuses the value.** The network is fine,
+but the device at that address and port is not the heat pump's Modbus TCP
+server, or not a Weishaupt one: check the address and the port.
+
 **All entities are unavailable.** Four polls in a row failed. The heat pump
 is off the network or does not answer; the entities come back with the next
 good poll. The log shows one error when they go; their return is logged at

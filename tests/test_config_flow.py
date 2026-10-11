@@ -12,7 +12,7 @@ import pathlib
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
-from modbus_connection import ModbusConnectionError
+from modbus_connection import ModbusConnectionError, ModbusExceptionError
 from modbus_connection.mock import MockModbusUnit
 from probatio import UNDEFINED, to_field_list
 import pytest
@@ -392,6 +392,23 @@ async def test_a_host_without_a_pump_is_reported(hass, mock_modbus):
 
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "cannot_connect"}
+
+
+async def test_a_device_that_refuses_the_probe_is_not_called_unreachable(
+    hass, mock_modbus, caplog
+):
+    """A device that answered with a Modbus exception was reported as
+    unreachable, and the README then sent the user to check the network."""
+    mock_modbus.fail_requests(ModbusExceptionError(0x02))
+    started = await _start(hass)
+
+    with caplog.at_level(logging.DEBUG, logger=config_flow.__name__):
+        result = await hass.config_entries.flow.async_configure(
+            started["flow_id"], {**PAGE_ONE, CONF.HOST: "192.0.2.99"}
+        )
+
+    assert result["errors"] == {"base": "probe_refused"}
+    assert "ModbusExceptionError" in caplog.text
 
 
 async def test_the_probe_waits_while_the_controller_is_busy(hass, monkeypatch):

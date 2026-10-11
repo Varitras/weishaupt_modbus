@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from modbus_connection import ModbusError, ModbusTcpParams
+from modbus_connection import ModbusError, ModbusExceptionError, ModbusTcpParams
 import probatio as vol
 
 from homeassistant import config_entries, exceptions
@@ -75,7 +75,10 @@ RESERVED_POSTFIXES = f"{CONST.DOMAIN}_reserved_postfixes"
 
 
 async def pump_answers(hass: HomeAssistant, data: dict[str, Any]) -> bool:
-    """Whether a controller answers at the host and port the user entered."""
+    """Whether a controller answers at the host and port the user entered.
+
+    A Modbus exception it answers with is raised: the link works.
+    """
     params = ModbusTcpParams(
         host=data[CONF.HOST], port=int(data.get(CONF.PORT, DEFAULT_PORT))
     )
@@ -86,7 +89,11 @@ async def pump_answers(hass: HomeAssistant, data: dict[str, Any]) -> bool:
             async_get_temporary_unit(hass, params, MODBUS_UNIT_ID) as unit,
         ):
             await unit.read_input_registers(PROBE_REGISTER, 1)
-    except ModbusError, OSError, TimeoutError:
+    except ModbusExceptionError:
+        # Something answered: the link is fine, the device is not the pump.
+        raise
+    except (ModbusError, OSError, TimeoutError) as error:
+        _LOGGER.debug("The heat pump probe failed: %s", type(error).__name__)
         return False
     return True
 
@@ -95,6 +102,9 @@ async def _probe_error(hass: HomeAssistant, data: dict[str, Any]) -> str | None:
     """The form's error for the probe of the heat pump; None when it answers."""
     try:
         answers = await pump_answers(hass, data)
+    except ModbusExceptionError as error:
+        _LOGGER.debug("The heat pump probe was refused: %r", error)
+        return "probe_refused"
     except Exception:
         # A fault of this code: Home Assistant would end the dialog in a bare
         # "Unknown error", with no form to try again in and a log line that

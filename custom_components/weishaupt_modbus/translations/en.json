@@ -12,6 +12,7 @@
     },
     "error": {
       "cannot_connect": "Failed to connect",
+      "probe_refused": "A device answers at this address but refuses the value every Weishaupt heat pump serves. Check the address and the port.",
       "invalid_host": "Enter the address of the heat pump (name or IP, no spaces)",
       "postfix_in_use": "Another heat pump already uses this device postfix",
       "postfix_required": "A second heat pump needs a device postfix",

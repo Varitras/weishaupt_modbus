@@ -268,8 +268,8 @@
   {
     "label": "config flow: a host without a pump must be refused",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "    except ModbusError, OSError, TimeoutError:\n        return False\n",
-    "new": "    except ModbusError, OSError, TimeoutError:\n        return True\n",
+    "old": "        _LOGGER.debug(\"The heat pump probe failed: %s\", type(error).__name__)\n        return False\n",
+    "new": "        _LOGGER.debug(\"The heat pump probe failed: %s\", type(error).__name__)\n        return True\n",
     "tests": "host_without_a_pump_is_reported"
   },
   {
@@ -2942,8 +2942,8 @@
   {
     "label": "config flow: a probe failing on a fault of its own ends the dialog",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "    try:\n        answers = await pump_answers(hass, data)\n    except Exception:\n        # A fault of this code: Home Assistant would end the dialog in a bare\n        # \"Unknown error\", with no form to try again in and a log line that\n        # does not say it was the probe.\n        _LOGGER.exception(\"The heat pump probe failed on an unexpected error\")\n        return \"unknown\"\n",
-    "new": "    answers = await pump_answers(hass, data)\n",
+    "old": "    except Exception:\n        # A fault of this code: Home Assistant would end the dialog in a bare\n        # \"Unknown error\", with no form to try again in and a log line that\n        # does not say it was the probe.\n        _LOGGER.exception(\"The heat pump probe failed on an unexpected error\")\n        return \"unknown\"\n",
+    "new": "",
     "tests": "probe_failing_on_a_fault_of_its_own_says_so"
   },
   {
@@ -4170,5 +4170,19 @@
     "old": "    if entry.title != entry.data[CONF.HOST]:\n        return entry.title\n",
     "new": "",
     "tests": "keeps_a_title_the_user_gave"
+  },
+  {
+    "label": "config flow: a device refusing the probe reads as unreachable",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "    except ModbusExceptionError:\n        # Something answered: the link is fine, the device is not the pump.\n        raise\n",
+    "new": "",
+    "tests": "refuses_the_probe_is_not_called_unreachable"
+  },
+  {
+    "label": "config flow: a refused probe leaves no line in the log",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        _LOGGER.debug(\"The heat pump probe was refused: %r\", error)\n",
+    "new": "",
+    "tests": "refuses_the_probe_is_not_called_unreachable"
   }
 ]

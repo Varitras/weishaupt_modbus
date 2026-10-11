@@ -12,6 +12,7 @@
         },
         "error": {
             "cannot_connect": "Verbindung fehlgeschlagen",
+            "probe_refused": "Unter dieser Adresse antwortet ein Gerät, verweigert aber den Wert, den jede Weishaupt-Wärmepumpe liefert. Prüfen Sie Adresse und Port.",
             "invalid_host": "Adresse der Wärmepumpe eingeben (Name oder IP, ohne Leerzeichen)",
             "postfix_in_use": "Dieses Geräte-Postfix wird schon von einer anderen Wärmepumpe verwendet",
             "postfix_required": "Eine zweite Wärmepumpe braucht ein Geräte-Postfix",
