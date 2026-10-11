@@ -177,7 +177,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     # It's done by calling the `async_setup_entry` function in each platform module.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    _LOGGER.info("Init done")
+    _LOGGER.debug("Init done")
 
     return True
 
@@ -315,29 +315,29 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) 
         return True
 
     new_data = {**config_entry.data}
-    _LOGGER.warning(
+    _LOGGER.debug(
         "Starting config migration process. Current version: %s", config_entry.version
     )
 
     if config_entry.version < 2:
-        _LOGGER.warning("Version <2 detected")
+        _LOGGER.debug("Version <2 detected")
         new_data[CONF.PORT] = DEFAULT_PORT
         new_data[CONF.PREFIX] = CONST.DEF_PREFIX
         new_data[CONF.DEVICE_POSTFIX] = ""
         new_data[CONF.KENNFELD_FILE] = CONST.DEF_KENNFELDFILE
     if config_entry.version < 3:
-        _LOGGER.warning("Version <3 detected")
+        _LOGGER.debug("Version <3 detected")
         new_data[CONF.HK2] = False
         new_data[CONF.HK3] = False
         new_data[CONF.HK4] = False
         new_data[CONF.HK5] = False
     if config_entry.version < 4:
-        _LOGGER.warning("Version <4 detected")
+        _LOGGER.debug("Version <4 detected")
         new_data[CONF.NAME_DEVICE_PREFIX] = False
         new_data[CONF.NAME_TOPIC_PREFIX] = False
 
     if config_entry.version < 9:
-        _LOGGER.warning("Version <9 detected")
+        _LOGGER.debug("Version <9 detected")
         # Versions 5 to 8 added the web-interface settings; the web interface
         # is gone, and so are its keys and the entities it registered.
         for key in LEGACY_WEBIF_KEYS:
@@ -350,7 +350,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) 
                 registry.async_remove(registry_entry.entity_id)
 
     if config_entry.version < 10:
-        _LOGGER.warning("Version <10 detected")
+        _LOGGER.debug("Version <10 detected")
         _move_relabelled_entities(hass, new_data)
 
     # Version 11: the entry gets its identity (host:port), so a pump cannot
@@ -377,7 +377,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) 
         version=11,
         unique_id=unique_id,
     )
-    _LOGGER.warning("Config entries updated to version 11")
+    _LOGGER.debug("Config entries updated to version 11")
     return True
 
 

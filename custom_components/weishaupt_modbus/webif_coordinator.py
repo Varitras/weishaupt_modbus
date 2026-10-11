@@ -628,6 +628,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             title: shown for title, shown in page.read(text) if title in page.required
         }
         reading.read_at = self._clock()
+        if reading.failures > FAILURES_KEPT:
+            _LOGGER.info("%s read again", page.key)
         reading.failures = 0
 
     def _failed(self, page: Page, reason: str) -> bool:
@@ -635,6 +637,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         reading = self._readings[page.key]
         reading.failures += 1
         _LOGGER.debug("%s failed, %d in a row: %s", page.key, reading.failures, reason)
+        if reading.failures == FAILURES_KEPT + 1:
+            _LOGGER.info("%s unavailable: %s", page.key, reason)
         if reading.failures < FAILURES_TO_STOP:
             return True
         self._stop(page, reason)

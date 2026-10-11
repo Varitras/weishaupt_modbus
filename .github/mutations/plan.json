@@ -205,8 +205,8 @@
   {
     "label": "migration: the entry must get its identity",
     "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "        unique_id=unique_id,\n    )\n    _LOGGER.warning(\"Config entries updated to version 11\")\n",
-    "new": "        unique_id=None,\n    )\n    _LOGGER.warning(\"Config entries updated to version 11\")\n",
+    "old": "        unique_id=unique_id,\n    )\n    _LOGGER.debug(\"Config entries updated to version 11\")\n",
+    "new": "        unique_id=None,\n    )\n    _LOGGER.debug(\"Config entries updated to version 11\")\n",
     "tests": "old_entry_migrates_to_the_current_version"
   },
   {
@@ -849,8 +849,8 @@
   {
     "label": "config flow: an unreadable map folder falls back to the default map",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "    except OSError:\n        found = []\n",
-    "new": "    except KeyError:\n        found = []\n",
+    "old": "    except OSError as error:\n",
+    "new": "    except KeyError as error:\n",
     "tests": "power_map_choice_falls_back"
   },
   {
@@ -4184,5 +4184,61 @@
     "old": "        _LOGGER.debug(\"The heat pump probe was refused: %r\", error)\n",
     "new": "",
     "tests": "refuses_the_probe_is_not_called_unreachable"
+  },
+  {
+    "label": "webif coordinator: a page going unavailable is told at debug only",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            _LOGGER.info(\"%s unavailable: %s\", page.key, reason)\n",
+    "new": "            _LOGGER.debug(\"%s unavailable: %s\", page.key, reason)\n",
+    "tests": "going_and_coming_back_is_logged_once_each"
+  },
+  {
+    "label": "webif coordinator: a page going unavailable is told on every failure",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if reading.failures == FAILURES_KEPT + 1:\n",
+    "new": "        if reading.failures > FAILURES_KEPT:\n",
+    "tests": "going_and_coming_back_is_logged_once_each or until_the_stop_is_told"
+  },
+  {
+    "label": "webif coordinator: a page read again is not told",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            _LOGGER.info(\"%s read again\", page.key)\n",
+    "new": "            pass\n",
+    "tests": "going_and_coming_back_is_logged_once_each"
+  },
+  {
+    "label": "webif coordinator: every page read is told as read again",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if reading.failures > FAILURES_KEPT:\n            _LOGGER.info(\"%s read again\", page.key)\n",
+    "new": "        if True:\n            _LOGGER.info(\"%s read again\", page.key)\n",
+    "tests": "going_and_coming_back_is_logged_once_each"
+  },
+  {
+    "label": "device: a band refused is told at debug only",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "                    _LOGGER.info(\"Registers %d-%d not served: %s\", *band, kind)\n",
+    "new": "                    _LOGGER.debug(\"Registers %d-%d not served: %s\", *band, kind)\n",
+    "tests": "going_and_coming_back_is_logged_once_each"
+  },
+  {
+    "label": "device: every band served is told as served again",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        if not self.present[band]:\n            _LOGGER.info(\"Registers %d-%d served again\", *band)\n",
+    "new": "        if True:\n            _LOGGER.info(\"Registers %d-%d served again\", *band)\n",
+    "tests": "going_and_coming_back_is_logged_once_each"
+  },
+  {
+    "label": "migration: a routine migration ends in a warning",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    _LOGGER.debug(\"Config entries updated to version 11\")\n",
+    "new": "    _LOGGER.warning(\"Config entries updated to version 11\")\n",
+    "tests": "routine_migration_and_setup_warn_of_nothing"
+  },
+  {
+    "label": "config flow: an unreadable map folder leaves no trace",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        _LOGGER.debug(\"Power map folder not read: %s\", type(error).__name__)\n",
+    "new": "",
+    "tests": "unreadable_map_folder"
   }
 ]

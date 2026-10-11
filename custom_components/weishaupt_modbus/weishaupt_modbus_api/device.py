@@ -163,7 +163,8 @@ class WeishauptHeatPump:
                 # Any code: the controller answers a refused block with a
                 # malformed exception frame whose code is not meaningful.
                 if self.present[band]:
-                    _LOGGER.debug("Registers %d-%d not served: %s", *band, err)
+                    kind = type(err).__name__
+                    _LOGGER.info("Registers %d-%d not served: %s", *band, kind)
                 served[band] = None
                 continue
             served[band] = component
@@ -180,6 +181,8 @@ class WeishauptHeatPump:
         if answered is None:
             self._mark_absent(band)
             return
+        if not self.present[band]:
+            _LOGGER.info("Registers %d-%d served again", *band)
         self.present[band] = True
         for row in self._rows[band]:
             if self._superseded(row):

@@ -329,6 +329,14 @@ def test_the_power_map_choice_falls_back_to_the_default_map(tmp_path):
     ]
 
 
+def test_an_unreadable_map_folder_leaves_a_line_in_the_debug_log(tmp_path, caplog):
+    """The fallback hid why a custom map was not offered."""
+    with caplog.at_level(logging.DEBUG, logger=config_flow.__name__):
+        config_flow._kennfeld_files(tmp_path / "missing")
+
+    assert "FileNotFoundError" in caplog.text
+
+
 def test_the_power_map_choice_offers_only_map_files(tmp_path):
     """A folder or a backup whose name merely contained kennfeld.json was
     offered as a map and failed only after it was picked."""

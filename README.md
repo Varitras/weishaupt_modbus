@@ -516,7 +516,10 @@ server, or not a Weishaupt one: check the address and the port.
 is off the network or does not answer; the entities come back with the next
 good poll. The log shows one error when they go; their return is logged at
 info level, which Home Assistant's default log level hides. Shorter
-drop-outs, which keep the last values, show only in the debug log.
+drop-outs, which keep the last values, show only in the debug log. A
+register range the controller stops serving, and a web interface page whose
+values go unavailable, are logged at info level as they go and as they
+come back.
 
 **A write is refused.** The value is outside the range the controller
 currently allows, or the daily write limit from the [Options](#options) is

@@ -548,6 +548,24 @@ async def test_dhw_setpoints_keep_their_own_floor_and_the_latest_neighbour(hass,
     assert [(event.address, event.values) for event in writes] == [(DHW_NORMAL, [400])]
 
 
+@pytest.mark.parametrize("version", [2, 9, 10])
+async def test_a_routine_migration_and_setup_warn_of_nothing(
+    hass, pump, caplog, version
+):
+    """Up to seven warnings told of a migration that asks nothing of the
+    user, and every setup ended in "Init done" at info."""
+    with caplog.at_level(logging.INFO, logger="custom_components.weishaupt_modbus"):
+        await _setup(hass, _entry(hass, version=version))
+
+    ours = [
+        record
+        for record in caplog.records
+        if record.name.startswith("custom_components.weishaupt_modbus")
+    ]
+    assert not [record for record in ours if record.levelno >= logging.WARNING]
+    assert "Init done" not in [record.getMessage() for record in ours]
+
+
 async def test_a_taken_entity_id_does_not_stop_the_relabel_migration(hass, pump):
     """An unrelated entity already owned the id the relabel wanted; the
     registry raised and the entry ended in MIGRATION_ERROR, retry after retry."""

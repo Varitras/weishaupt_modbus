@@ -50,7 +50,8 @@ def _kennfeld_files(folder: Path) -> list[str]:
             for p in folder.iterdir()
             if p.name.endswith("kennfeld.json") and p.is_file()
         )
-    except OSError:
+    except OSError as error:
+        _LOGGER.debug("Power map folder not read: %s", type(error).__name__)
         found = []
     return found or [CONST.DEF_KENNFELDFILE]
 

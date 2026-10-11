@@ -8,6 +8,7 @@ import asyncio
 import copy
 import itertools
 import json
+import logging
 import pathlib
 
 from modbus_connection import (
@@ -360,6 +361,30 @@ async def test_a_band_that_answers_again_is_present_again(pump, unit):
 
     assert pump.present[band_of(SECOND_HEAT_SOURCE_STATUS)] is True
     assert _row(pump, SECOND_HEAT_SOURCE_STATUS).state == 3
+
+
+async def test_a_band_going_and_coming_back_is_logged_once_each(pump, unit, caplog):
+    """The refusal was at debug only, the way back not even there."""
+    caplog.set_level(logging.INFO, logger=device.__name__)
+    unit.fail_read(
+        SECOND_HEAT_SOURCE_STATUS, IllegalDataAddressError(), register_type="input"
+    )
+    await pump.async_update()
+    await pump.async_update()
+    unit.fail_read(SECOND_HEAT_SOURCE_STATUS, None, register_type="input")
+    await pump.async_update()
+    await pump.async_update()
+
+    first, last = band_of(SECOND_HEAT_SOURCE_STATUS)
+    told = [
+        record.getMessage()
+        for record in caplog.records
+        if record.levelno == logging.INFO and record.name == device.__name__
+    ]
+    assert told == [
+        f"Registers {first}-{last} not served: IllegalDataAddressError",
+        f"Registers {first}-{last} served again",
+    ]
 
 
 async def test_a_dead_link_is_raised_not_swallowed(pump, unit):

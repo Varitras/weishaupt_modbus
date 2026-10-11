@@ -432,6 +432,44 @@ async def test_one_failure_keeps_the_values_and_the_second_takes_them_away(
     assert coordinator.data["heat_pump"] == kept
 
 
+async def test_a_page_going_and_coming_back_is_logged_once_each(
+    coordinator, client, clock, caplog
+):
+    """Both were at debug only, the way back not even there: the log did not
+    say why the sensors had been unavailable for a quarter of an hour."""
+    await round_at(coordinator, clock, 0)
+    client.answer(HEAT_PUMP, BLANK_VALUE, BLANK_VALUE, WHOLE[HEAT_PUMP.path])
+    caplog.set_level(logging.INFO, logger=webif_coordinator.__name__)
+
+    for minutes in (15, 30, 45, 60):
+        await round_at(coordinator, clock, minutes * 60)
+
+    told = [
+        record.getMessage()
+        for record in caplog.records
+        if record.levelno == logging.INFO and record.name == webif_coordinator.__name__
+    ]
+    assert told == ["heat_pump unavailable: Broken", "heat_pump read again"]
+
+
+async def test_a_page_failing_until_the_stop_is_told_unavailable_once(
+    coordinator, client, clock, caplog
+):
+    await round_at(coordinator, clock, 0)
+    client.answer(HEAT_PUMP, BLANK_VALUE, BLANK_VALUE, BLANK_VALUE)
+    caplog.set_level(logging.INFO, logger=webif_coordinator.__name__)
+
+    for minutes in (15, 30, 45):
+        await round_at(coordinator, clock, minutes * 60)
+
+    told = [
+        record.getMessage()
+        for record in caplog.records
+        if record.levelno == logging.INFO and record.name == webif_coordinator.__name__
+    ]
+    assert told == ["heat_pump unavailable: Broken"]
+
+
 async def test_a_page_never_read_has_no_values_to_keep(coordinator, client, clock):
     client.answer(HEAT_PUMP, BLANK_VALUE)
 
