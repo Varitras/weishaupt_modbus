@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .configentry import MyConfigEntry
 from .const import TYPES
@@ -17,7 +17,7 @@ PARALLEL_UPDATES = 1
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: MyConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Select entry setup."""
     coordinator = config_entry.runtime_data.coordinator
