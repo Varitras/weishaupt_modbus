@@ -196,8 +196,10 @@ in a total such a word would stay in the sum for good.
 Checked against an external meter on one WBB 12 it is the heat pump's own
 electrical draw in watts; the circulation pump and the controller are not
 in it (about 80 W there). Firmware that does not serve the register gets no
-entity - decided when the integration starts, so after a firmware update
-reload the integration.
+entity - decided at the first poll after the integration starts, so after a
+firmware update reload the integration. A register the controller refuses
+at that poll for another reason, such as a device failure, also gets no
+entity until the next reload.
 
 **System operating mode.** *Automatic* and *Cooling* work only when cooling
 is enabled at the controller (the heating circuit's *Freigabe Kühlbetrieb*,
@@ -381,7 +383,8 @@ pump's devices.
   restarts and shown while the polling has stopped; the options limit them
   per day.
 - **The polling itself** (diagnostic): the answer time, which is the slowest
-  answer of the last round, and the counts of requests, logins, pages that
+  answer since the round before - a setting written in between counts too -
+  and the counts of requests, logins, pages that
   came incomplete and failed reads. A failed read is one the web interface
   failed; an error in the integration itself is not counted there. The
   counts carry over restarts, so Home Assistant's statistics show over weeks
@@ -583,15 +586,22 @@ library (tmodbus backend), which Home Assistant installs with its `modbus`
 integration.
 
 What stays the same: the entities, their unique ids and history (except
-where the recorder notices below say otherwise), the entity ids you chose, the options (poll interval, EEPROM write warning and limit), the
-power map and the write counters. What is gone: this integration's own
+where the recorder notices below say otherwise), the entity ids you chose
+(one exception: an id of the three relabelled second-heat-source counters
+that ends in the old label, such as `..._switching_cycles_e_heating_2`,
+takes the new label - also when you chose it) and the shipped power map you
+selected. A power map of your own has to be compiled once (see
+[The power map](#the-power-map)); until then the heat power reads unknown.
+What is gone: this integration's own
 `pymodbus` requirement, the `pygal` requirement (the preview picture is drawn
 by the compile script, not at runtime), its reconnect and back-off logic, and
 the five-register block limit - the controller serves each address band in
 one read.
 
 New in 2.0: a switch beside every setpoint the controller can switch off
-(see [Entities](#entities)). New entities, nothing existing is renamed.
+(see [Entities](#entities)), the [Options](#options) dialog (poll interval,
+EEPROM write warning and limit) and the write counters. New entities,
+nothing existing is renamed.
 
 Some state strings changed. An automation that matched on an old one needs
 the new name; Home Assistant raises no notice for them:

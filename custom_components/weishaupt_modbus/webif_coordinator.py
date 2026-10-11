@@ -327,7 +327,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         self._burst: _Burst | None = None
         self._quiet: asyncio.TimerHandle | None = None
         self._issue = f"{STOPPED_ISSUE}_{config_entry.entry_id}"
-        # The slowest answer of the last round that asked anything.
+        # The slowest answer since the last round that asked anything: a write
+        # in between asks through the same client, and its answers count too.
         self.answer_seconds: float | None = None
         # Reloading the entry is how polling resumes after a stop.
         ir.async_delete_issue(hass, CONST.DOMAIN, self._issue)

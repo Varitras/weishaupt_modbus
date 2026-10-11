@@ -494,11 +494,11 @@ class _PollingSensor(_WebifEntity):
 
 
 class AnswerTimeSensor(_PollingSensor):
-    """How long the controller took for the slowest answer of the last round."""
+    """How long the controller took for its slowest answer since the last round."""
 
     @property
     def native_value(self) -> float | None:
-        """The slowest answer of the last round that asked anything."""
+        """The slowest answer since the last round that asked anything, a write's too."""
         return self.coordinator.answer_seconds
 
 

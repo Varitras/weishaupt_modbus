@@ -25,3 +25,11 @@ credentials or the network configuration of the installation.
 
 Registers are written only on an explicit user action, and the controller's
 EEPROM has a limited write budget, which the integration counts and caps.
+
+Its optional web interface entry logs in to the controller's web interface
+over plain HTTP - the controller offers nothing else - and reads pages; the
+only thing it writes there is the heating power limit, on an explicit user
+action and under a daily limit. In scope there too: the user and password
+going anywhere but the controller, a setting written that the user did not
+ask for, and a power map picture that loads or runs anything once copied
+under `www/`.

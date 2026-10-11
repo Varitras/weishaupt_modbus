@@ -90,7 +90,8 @@ LEGACY_WEBIF_UNIQUE_ID_SUFFIX = "_webif"
 # The unique id carries the item name, so every recorded entity has to move
 # to the new id. Each row: old item name, new item name, and the old and
 # new display name per language - an entity id that still carries the old
-# auto-generated slug is renamed along, a user-chosen one is left alone.
+# auto-generated slug is renamed along. A user-chosen one is left alone
+# unless it ends in the old label too: the registry does not say who chose.
 # The ORDER is load-bearing: 34103 gives up "Betriebsstunden E1" before
 # 34106 claims it.
 RENAMED_ITEMS = (

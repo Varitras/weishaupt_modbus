@@ -1281,6 +1281,26 @@ async def test_a_hand_made_id_that_merely_contains_the_old_words_is_kept(hass):
     )
 
 
+async def test_a_hand_made_id_that_ends_in_the_old_label_follows_it(hass):
+    """The registry does not say who chose an id: one of the user's that ends
+    like the generated one is renamed with it, as the README now says."""
+    entry = _entry(hass, version=9)
+    registry = _register_v9_second_heat_source(hass, entry)
+    registry.async_update_entity(
+        "sensor.wh_2nd_heat_source_switching_cycles_e_heating_2",
+        new_entity_id="sensor.boiler_switching_cycles_e_heating_2",
+    )
+
+    await _setup(hass, entry)
+
+    assert (
+        registry.async_get_entity_id(
+            "sensor", CONST.DOMAIN, "weishaupt_wbbBetriebsstunden E1"
+        )
+        == "sensor.boiler_operation_hours_e1"
+    )
+
+
 async def test_a_hand_renamed_entity_keeps_its_id_through_the_relabelling(hass, caplog):
     entry = _entry(hass, version=9)
     registry = _register_v9_second_heat_source(hass, entry)
