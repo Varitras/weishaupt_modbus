@@ -128,37 +128,37 @@
   },
   "device" : {
     "dev_system" : {
-      "name" : "Systeem{postfix}"
+      "name" : "WH Systeem{postfix}"
     },
     "dev_waermepumpe" : {
-      "name" : "Warmtepomp{postfix}"
+      "name" : "WH Warmtepomp{postfix}"
     },
     "dev_warmwasser" : {
-      "name" : "Warmwater{postfix}"
+      "name" : "WH Warmwater{postfix}"
     },
     "dev_heizkreis" : {
-      "name" : "Verwarmingscircuit{postfix}"
+      "name" : "WH Verwarmingscircuit{postfix}"
     },
     "dev_heizkreis2" : {
-      "name" : "Verwarmingscircuit2{postfix}"
+      "name" : "WH Verwarmingscircuit2{postfix}"
     },
     "dev_heizkreis3" : {
-      "name" : "Verwarmingscircuit3{postfix}"
+      "name" : "WH Verwarmingscircuit3{postfix}"
     },
     "dev_heizkreis4" : {
-      "name" : "Verwarmingscircuit4{postfix}"
+      "name" : "WH Verwarmingscircuit4{postfix}"
     },
     "dev_heizkreis5" : {
-      "name" : "Verwarmingscircuit5{postfix}"
+      "name" : "WH Verwarmingscircuit5{postfix}"
     },
     "dev_waermeerzeuger2" : {
-      "name" : "2de warmtebron{postfix}"
+      "name" : "WH 2de warmtebron{postfix}"
     },
     "dev_statistik" : {
-      "name" : "Statistieken{postfix}"
+      "name" : "WH Statistieken{postfix}"
     },
     "dev_ein_aus" : {
-      "name" : "Ingangen/Uitgangen{postfix}"
+      "name" : "WH Ingangen/Uitgangen{postfix}"
     },
     "dev_webif" : {
       "name" : "WH Webinterface{postfix}"
@@ -1192,7 +1192,7 @@
         "name" : "{prefix}Verwarmingscircuit-aanvoertemperatuur 5"
       },
       "konf_ausg_h12" : {
-        "name" : "{prefix}Conf. Output H1.2",
+        "name" : "{prefix}Configuratie uitgang H1.2",
         "state" : {
           "io_konf_0" : "0",
           "io_konf_1" : "1",
@@ -1206,7 +1206,7 @@
         }
       },
       "konf_ausg_h13" : {
-        "name" : "{prefix}Conf. Output  H1.3",
+        "name" : "{prefix}Configuratie uitgang H1.3",
         "state" : {
           "io_konf_0" : "0",
           "io_konf_1" : "1",
@@ -1220,7 +1220,7 @@
         }
       },
       "konf_ausg_h14" : {
-        "name" : "{prefix}Conf. Output  H1.4",
+        "name" : "{prefix}Configuratie uitgang H1.4",
         "state" : {
           "io_konf_0" : "0",
           "io_konf_1" : "1",
@@ -1234,7 +1234,7 @@
         }
       },
       "konf_ausg_h15" : {
-        "name" : "{prefix}Conf. Output  H1.5",
+        "name" : "{prefix}Configuratie uitgang H1.5",
         "state" : {
           "io_konf_0" : "0",
           "io_konf_1" : "1",
@@ -1248,7 +1248,7 @@
         }
       },
       "konf_eing_de1" : {
-        "name" : "{prefix}Conf. Input DE1",
+        "name" : "{prefix}Configuratie ingang DE1",
         "state" : {
           "io_konf_in_0" : "SG Klaar",
           "io_konf_in_1" : "EVU-blokkering",
@@ -1276,7 +1276,7 @@
         }
       },
       "konf_eing_de2" : {
-        "name" : "{prefix}Conf. Input DE2",
+        "name" : "{prefix}Configuratie ingang DE2",
         "state" : {
           "io_konf_in_0" : "SG Klaar",
           "io_konf_in_1" : "EVU-blokkering",
@@ -1304,7 +1304,7 @@
         }
       },
       "konf_eing_sgr1" : {
-        "name" : "{prefix}Conf. Input SGR1",
+        "name" : "{prefix}Configuratie ingang SGR1",
         "state" : {
           "io_konf_in_0" : "SG Klaar",
           "io_konf_in_1" : "EVU-blokkering",
@@ -1332,7 +1332,7 @@
         }
       },
       "konf_eing_sgr2" : {
-        "name" : "{prefix}Conf. Input SGR2",
+        "name" : "{prefix}Configuratie ingang SGR2",
         "state" : {
           "io_konf_in_0" : "SG Klaar",
           "io_konf_in_1" : "EVU-blokkering",
@@ -1665,10 +1665,10 @@
         }
       },
       "weichen_temp" : {
-        "name" : "{prefix}Switch temperature"
+        "name" : "{prefix}Temperatuur open verdeler"
       },
       "wp_betrieb" : {
-        "name" : "{prefix}Operation",
+        "name" : "{prefix}Bedrijf",
         "state" : {
           "heatpump_operationmode_undefined" : "Ongedefinieerd",
           "heatpump_operationmode_relaistest" : "relais-test",

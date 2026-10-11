@@ -20,6 +20,7 @@ import re
 import pytest
 
 from custom_components.weishaupt_modbus.const import DEVICES, FORMATS, TYPES
+from custom_components.weishaupt_modbus.entities import SWITCH_SUFFIX
 from custom_components.weishaupt_modbus.items import ModbusItem
 from custom_components.weishaupt_modbus.webif_sensor import (
     ANSWER_TIME,
@@ -121,6 +122,106 @@ def test_every_item_has_a_translated_name(path):
     )
 
 
+def _switch_keys() -> set[tuple[str, str]]:
+    """The switch of every setpoint whose off word is a setting."""
+    return {
+        ("switch", f"{item.translation_key}{SWITCH_SUFFIX}")
+        for item in _items(hpconst)
+        if item.type == TYPES.NUMBER and item.params.get("off_is_a_setting")
+    }
+
+
+@pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
+def test_a_setpoint_switch_without_a_name_is_caught(path):
+    """PLATFORM_OF knows no switch: a switch key renamed in every file left
+    the suite green, and the switch showed only its device's name."""
+    translations = _entity_translations(path).get("switch", {})
+    unnamed = sorted(key for _, key in _switch_keys() if key not in translations)
+
+    assert not unnamed, f"{path.name}: switch(es) without a name: {unnamed}"
+
+
+# Every device name starts with it: the entity ids made from the device names
+# stay apart from other integrations' that way.
+DEVICE_NAME_PREFIX = "WH "
+
+
+@pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
+def test_a_device_name_without_the_wh_prefix_is_caught(path):
+    """Dutch named twelve devices without it; the README promises it for all."""
+    devices = json.loads(path.read_text(encoding="utf-8"))["device"]
+    bare = sorted(
+        key
+        for key, texts in devices.items()
+        if not texts["name"].startswith(DEVICE_NAME_PREFIX)
+    )
+
+    assert not bare, f"{path.name}: device name(s) without the prefix: {bare}"
+
+
+@pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
+def test_a_device_without_a_name_is_caught(path):
+    """A device key renamed in every file left the suite green, and the device
+    showed its raw key as its name."""
+    named = set(json.loads(path.read_text(encoding="utf-8"))["device"])
+    devices = set(hpconst.reverse_device_list)
+
+    assert named == devices, (
+        f"{path.name}: without a name {sorted(devices - named)}, "
+        f"named but no device {sorted(named - devices)}"
+    )
+
+
+@pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
+def test_an_entity_name_with_a_double_space_is_caught(path):
+    """The outputs H1.3 to H1.5 read "Output  H1.3". The item name keeps its
+    double space: it is part of the unique id."""
+    doubled = sorted(
+        f"{platform}.{key}"
+        for platform, keys in _entity_translations(path).items()
+        for key, texts in keys.items()
+        if "  " in texts["name"]
+    )
+
+    assert not doubled, f"{path.name}: name(s) with a double space: {doubled}"
+
+
+# Names that read the same in every language: addresses and product terms.
+SAME_IN_EVERY_LANGUAGE = {
+    "adr31106",
+    "adr311062",
+    "adr311063",
+    "adr311064",
+    "adr311065",
+    "adr36801",
+    "party_pause",
+    "party_pause2",
+    "party_pause3",
+    "party_pause4",
+    "party_pause5",
+    "sgr1",
+    "sgr2",
+}
+
+
+@pytest.mark.parametrize(
+    ("language", "source"), [("en.json", "de.json"), ("nl.json", "en.json")]
+)
+def test_a_name_left_in_another_language_is_caught(language, source):
+    """English read "Fehler"; Dutch kept ten English names."""
+    translated = _entity_translations(PACKAGE / "translations" / language)
+    original = _entity_translations(PACKAGE / "translations" / source)
+    left = sorted(
+        f"{platform}.{key}"
+        for platform, keys in translated.items()
+        for key, texts in keys.items()
+        if key not in SAME_IN_EVERY_LANGUAGE
+        and texts["name"] == original[platform][key]["name"]
+    )
+
+    assert not left, f"{language}: name(s) still as in {source}: {left}"
+
+
 @pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
 def test_no_translation_outlives_its_item(path):
     """The other direction: an entry nothing refers to is a name nobody sees
@@ -142,10 +243,13 @@ def test_no_translation_outlives_its_item(path):
     }
     # The one setting the web interface writes is a number.
     known.add(("number", POWER_LIMIT.translation_key))
+    known |= _switch_keys()
+    # Every platform the file names, not the ones PLATFORM_OF knows: the
+    # switches went unchecked that way.
     orphaned = sorted(
         f"{platform}.{key}"
-        for platform in sorted(set(PLATFORM_OF.values()))
-        for key in translations.get(platform, {})
+        for platform, keys in sorted(translations.items())
+        for key in keys
         if (platform, key) not in known
     )
 

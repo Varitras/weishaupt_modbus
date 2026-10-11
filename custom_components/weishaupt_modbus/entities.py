@@ -32,6 +32,9 @@ DEMAND_ATTRIBUTE = "demand"
 # What a reported setpoint shows while nothing is demanded: unknown left a
 # gap in the history for every hour without demand.
 NO_DEMAND_VALUE = 0.0
+# A setpoint's switch: in its unique id and its translation key, so it
+# never changes.
+SWITCH_SUFFIX = "_active"
 
 
 def entity_category(item: ModbusItem) -> EntityCategory | None:
@@ -401,8 +404,8 @@ class MySetpointSwitchEntity(MyEntity, SwitchEntity, RestoreEntity):
     ) -> None:
         """Share the number's row; own id and translation key."""
         super().__init__(coordinator, config_entry, modbus_item)
-        self._attr_unique_id = f"{self._attr_unique_id}_active"
-        self._attr_translation_key = f"{modbus_item.translation_key}_active"
+        self._attr_unique_id = f"{self._attr_unique_id}{SWITCH_SUFFIX}"
+        self._attr_translation_key = f"{modbus_item.translation_key}{SWITCH_SUFFIX}"
         self._attr_device_class = SwitchDeviceClass.SWITCH
         self._attr_is_on = not modbus_item.is_off
 

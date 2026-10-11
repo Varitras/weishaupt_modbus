@@ -950,7 +950,7 @@
         "name": "{prefix}Electr. energy month"
       },
       "fehler": {
-        "name": "{prefix}Fehler",
+        "name": "{prefix}Error",
         "state": {
           "sys_fehler_1": "Refrigerant sensor expansion valve inlet (T1)",
           "sys_fehler_10": "High pressure sensor (P2)",
@@ -1218,7 +1218,7 @@
         }
       },
       "konf_ausg_h13": {
-        "name": "{prefix}Conf. Output  H1.3",
+        "name": "{prefix}Conf. Output H1.3",
         "state": {
           "io_konf_0": "0",
           "io_konf_1": "1",
@@ -1232,7 +1232,7 @@
         }
       },
       "konf_ausg_h14": {
-        "name": "{prefix}Conf. Output  H1.4",
+        "name": "{prefix}Conf. Output H1.4",
         "state": {
           "io_konf_0": "0",
           "io_konf_1": "1",
@@ -1246,7 +1246,7 @@
         }
       },
       "konf_ausg_h15": {
-        "name": "{prefix}Conf. Output  H1.5",
+        "name": "{prefix}Conf. Output H1.5",
         "state": {
           "io_konf_0": "0",
           "io_konf_1": "1",
@@ -1677,7 +1677,7 @@
         }
       },
       "weichen_temp": {
-        "name": "{prefix}Switch temperature"
+        "name": "{prefix}Hydraulic separator temperature"
       },
       "wp_betrieb": {
         "name": "{prefix}Operation",

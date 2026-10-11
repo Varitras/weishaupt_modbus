@@ -1007,7 +1007,7 @@
                     "sys_fehler_159": "Stromaufnahme zu hoch",
                     "sys_fehler_16": "Inverter gesperrt, da in den letzten 10 Stunden 10 Fehler aufgetreten sind",
                     "sys_fehler_160": "Wärmepumpe wird außerhalb vom zulässigen Spannungsbereich betrieben",
-                    "sys_fehler_161": "Wärmepumpe wird außerhalb vom zulässigen Spannungsbereich betriebe",
+                    "sys_fehler_161": "Wärmepumpe wird außerhalb vom zulässigen Spannungsbereich betrieben",
                     "sys_fehler_162": "Gleichspannung am Inverter zu hoch",
                     "sys_fehler_163": "Gleichspannung am Inverter zu niedrig",
                     "sys_fehler_164": "Hochdruckschalter hat ausgelöst",
@@ -1224,7 +1224,7 @@
                 }
             },
             "konf_ausg_h13": {
-                "name": "{prefix}Konf. Ausgang  H1.3",
+                "name": "{prefix}Konf. Ausgang H1.3",
                 "state": {
                     "io_konf_0": "0",
                     "io_konf_1": "1",
@@ -1238,7 +1238,7 @@
                 }
             },
             "konf_ausg_h14": {
-                "name": "{prefix}Konf. Ausgang  H1.4",
+                "name": "{prefix}Konf. Ausgang H1.4",
                 "state": {
                     "io_konf_0": "0",
                     "io_konf_1": "1",
@@ -1252,7 +1252,7 @@
                 }
             },
             "konf_ausg_h15": {
-                "name": "{prefix}Konf. Ausgang  H1.5",
+                "name": "{prefix}Konf. Ausgang H1.5",
                 "state": {
                     "io_konf_0": "0",
                     "io_konf_1": "1",
@@ -1601,7 +1601,7 @@
                     "sys_fehler_159": "Stromaufnahme zu hoch",
                     "sys_fehler_16": "Inverter gesperrt, da in den letzten 10 Stunden 10 Fehler aufgetreten sind",
                     "sys_fehler_160": "Wärmepumpe wird außerhalb vom zulässigen Spannungsbereich betrieben",
-                    "sys_fehler_161": "Wärmepumpe wird außerhalb vom zulässigen Spannungsbereich betriebe",
+                    "sys_fehler_161": "Wärmepumpe wird außerhalb vom zulässigen Spannungsbereich betrieben",
                     "sys_fehler_162": "Gleichspannung am Inverter zu hoch",
                     "sys_fehler_163": "Gleichspannung am Inverter zu niedrig",
                     "sys_fehler_164": "Hochdruckschalter hat ausgelöst",
