@@ -31,6 +31,10 @@ That run first checks which Home Assistant the interpreter actually holds
 against `hacs.json` - a hand-pinned local venv ages quietly. Without the
 variable the minimum run is skipped **and says so**.
 
+A fresh clone runs none of this on its own: no hook comes with the
+repository, so nothing checks a push before it leaves. CI is what runs the
+same set for every pull request and every push to `main`.
+
 The everyday run is shorter. The end-to-end tests boot a real Home Assistant
 instance each and are deselected by default:
 
