@@ -401,3 +401,24 @@ def test_every_gitattributes_rule_names_files_the_repository_has():
     ]
 
     assert not dead, f"rule(s) for files the repository does not have: {dead}"
+
+
+def test_the_development_section_names_every_program_the_suite_needs():
+    """The setup steps named pip only: without PowerShell 7 and a current
+    gitleaks, twelve tests failed on a fresh checkout."""
+    needed = {
+        name
+        for test_file in sorted(TESTS.glob("test_*.py"))
+        for name in re.findall(
+            r'shutil\.which\("([\w-]+)"\)', test_file.read_text(encoding="utf-8")
+        )
+    }
+    readme = (REPO / "README.md").read_text(encoding="utf-8")
+    section = readme.split("## Development", 1)[1].split("\n## ", 1)[0]
+    check = (REPO / ".github" / "scripts" / "check.sh").read_text(encoding="utf-8")
+    floor = re.search(r"GITLEAKS_MIN=([\d.]+)", check).group(1)
+
+    assert needed, "the scan found no program at all - it looks nowhere"
+    missing = sorted(name for name in needed if f"`{name}`" not in section)
+    assert not missing, f"program(s) the Development section does not name: {missing}"
+    assert floor in section, f"the Development section does not give gitleaks {floor}"

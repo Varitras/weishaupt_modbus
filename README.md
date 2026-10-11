@@ -664,6 +664,11 @@ pytest tests/ -q            # the fast everyday run
 pytest tests/ -q -m ""      # everything, including the end-to-end tests
 ```
 
+Besides Python, the suite needs two programs on the `PATH`: PowerShell 7
+(`pwsh`) for the tests of the Windows tools, and `gitleaks` 8.30 or newer for
+the secret-scan tests and `check.sh` - distribution packages are older, so
+put a current release first in the `PATH`.
+
 Before pushing, run every gate the CI runs:
 
 ```sh

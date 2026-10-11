@@ -62,12 +62,41 @@ def _scan(tmp_path: pathlib.Path, source: str) -> int:
     return result.returncode
 
 
+def _too_old(version_output: str, floor: str) -> bool:
+    """Whether `gitleaks version` names no version, or one below the floor."""
+    found = re.search(r"(\d+)\.(\d+)", version_output)
+    if found is None:
+        return True
+    return tuple(map(int, found.groups())) < tuple(map(int, floor.split(".")))
+
+
 @pytest.fixture(autouse=True)
 def _gitleaks_installed():
     if shutil.which("gitleaks") is None:
         pytest.skip(
             "gitleaks is not installed here; check.sh and the pre-push hook require it"
         )
+    check = (REPO / ".github" / "scripts" / "check.sh").read_text(encoding="utf-8")
+    floor = re.search(r"GITLEAKS_MIN=([\d.]+)", check).group(1)
+    version = subprocess.run(
+        ["gitleaks", "version"], capture_output=True, text=True, check=False
+    ).stdout
+    # An older scanner failed these tests with a bare "assert 2 == 0".
+    if _too_old(version, floor):
+        pytest.fail(f"gitleaks {version.strip()!r} is older than {floor}: see README")
+
+
+@pytest.mark.parametrize(
+    ("output", "old"),
+    [
+        ("8.30.1", False),
+        ("v8.31.0", False),
+        ("8.16.1", True),
+        ("version is set by build process", True),
+    ],
+)
+def test_a_gitleaks_older_than_the_floor_is_told_apart(output, old):
+    assert _too_old(output, "8.30") is old
 
 
 def test_a_translation_key_alone_is_not_a_finding(tmp_path):
