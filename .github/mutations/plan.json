@@ -1633,15 +1633,8 @@
   {
     "label": "setup: a link lost during the circuit check is logged as a fault",
     "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "    except (ModbusError, TimeoutError) as err:\n",
-    "new": "    except TimeoutError as err:\n",
-    "tests": "link_lost_during_the_circuit_check"
-  },
-  {
-    "label": "setup: the circuit read's time limit is logged as a fault",
-    "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "    except (ModbusError, TimeoutError) as err:\n",
-    "new": "    except ModbusError as err:\n",
+    "old": "    except ModbusError as err:\n        # Only a hint",
+    "new": "    except TimeoutError as err:\n        # Only a hint",
     "tests": "link_lost_during_the_circuit_check"
   },
   {
@@ -4251,8 +4244,8 @@
   {
     "label": "device: a circuit configuration read is not cut off",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "        async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):\n            words = await self._unit.read_holding_registers(address, 1)\n",
-    "new": "        async with self._host_lock:\n            words = await self._unit.read_holding_registers(address, 1)\n",
+    "old": "            async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):\n                words = await self._unit.read_holding_registers(address, 1)\n",
+    "new": "            async with self._host_lock:\n                words = await self._unit.read_holding_registers(address, 1)\n",
     "tests": "circuit_configuration_read_that_never_answers"
   },
   {
@@ -4576,5 +4569,12 @@
     "old": "                if not self._no_dialog_visit.is_set():\n                    return True\n",
     "new": "                if not self._no_dialog_visit.is_set():\n                    for later in self._due():\n                        self._readings[later.key].asked_at = self._clock()\n                    return True\n",
     "tests": "dialog_begun_meanwhile"
+  },
+  {
+    "label": "device: a fresh read that hangs fails the write untranslated",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "            raise ModbusTimeoutError(f\"register {address}: no answer\") from err\n",
+    "new": "            raise\n",
+    "tests": "fails_as_a_modbus_timeout or circuit_configuration_read_that_never_answers"
   }
 ]

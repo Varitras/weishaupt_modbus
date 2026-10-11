@@ -18,6 +18,7 @@ from modbus_connection import (
     ClientClosedError,
     ModbusError,
     ModbusExceptionError,
+    ModbusTimeoutError,
     ModbusUnit,
 )
 from modbus_connection.model import Component
@@ -308,8 +309,14 @@ class WeishauptHeatPump:
 
     async def _read_word(self, address: int) -> int:
         """One holding register, under the controller's lock like a band read."""
-        async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):
-            words = await self._unit.read_holding_registers(address, 1)
+        try:
+            async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):
+                words = await self._unit.read_holding_registers(address, 1)
+        except ModbusError:
+            raise
+        except TimeoutError as err:
+            # The writes that read first translate Modbus errors for the user.
+            raise ModbusTimeoutError(f"register {address}: no answer") from err
         return words[0]
 
     def serves(self, item: ModbusItem) -> bool:

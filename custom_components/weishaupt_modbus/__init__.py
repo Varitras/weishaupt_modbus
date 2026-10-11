@@ -168,7 +168,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     entry.runtime_data = MyData(coordinator=modbus_coordinator, powermap=None)
     try:
         configurations = await pump.circuit_configurations()
-    except (ModbusError, TimeoutError) as err:
+    except ModbusError as err:
         # Only a hint: a link that drops now is the next poll's to report.
         _LOGGER.debug("Heating circuit configuration not read: %s", err)
         configurations = {}

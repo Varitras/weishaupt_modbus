@@ -576,6 +576,26 @@ async def test_a_band_read_that_never_answers_is_cut_off(unit, monkeypatch):
     assert isinstance(reading.exception(), TimeoutError)
 
 
+async def test_a_fresh_read_before_a_dropped_write_fails_as_a_modbus_timeout(
+    pump, unit, monkeypatch
+):
+    """The entities translate Modbus errors for the user; the read's own time
+    limit raised a bare TimeoutError, and the service ended in an unknown
+    error with a traceback."""
+    monkeypatch.setattr(device, "BAND_TIMEOUT_SECONDS", SHORT_LIMIT_SECONDS)
+    row = _row(pump, PV_SETPOINT)
+    await pump.write(row, 5)
+    never = asyncio.Event()
+
+    async def silent(*_args, **_kwargs):
+        await never.wait()
+
+    monkeypatch.setattr(unit, "read_holding_registers", silent)
+
+    with pytest.raises(ModbusTimeoutError):
+        await pump.write(row, 5)
+
+
 async def test_a_circuit_configuration_read_that_never_answers_is_cut_off(
     unit, monkeypatch
 ):
@@ -598,7 +618,7 @@ async def test_a_circuit_configuration_read_that_never_answers_is_cut_off(
         task.cancel()
 
     assert not pending, "the circuit read was never cut off"
-    assert isinstance(reading.exception(), TimeoutError)
+    assert isinstance(reading.exception(), ModbusTimeoutError)
 
 
 async def test_the_entries_of_one_pump_share_its_lock(hass):

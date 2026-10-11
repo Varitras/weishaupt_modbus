@@ -908,9 +908,8 @@ async def test_a_notice_the_entry_now_contradicts_goes_though_the_circuit_is_unt
     [
         ModbusConnectionError("link down"),
         ModbusTimeoutError("no answer"),
-        TimeoutError(),
     ],
-    ids=["link-down", "timed-out", "time-limit"],
+    ids=["link-down", "timed-out"],
 )
 async def test_a_link_lost_during_the_circuit_check_still_loads_the_entry(
     hass, pump, monkeypatch, caplog, error
