@@ -4240,5 +4240,33 @@
     "old": "        _LOGGER.debug(\"Power map folder not read: %s\", type(error).__name__)\n",
     "new": "",
     "tests": "unreadable_map_folder"
+  },
+  {
+    "label": "device: a write shields every later poll too",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        self._written_while_polling.clear()\n",
+    "new": "",
+    "tests": "shields_only_the_poll_it_landed_in"
+  },
+  {
+    "label": "device: a value written during a poll is published over",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "            item.last_setting = value\n            self._written_while_polling.add(item.address)\n",
+    "new": "            item.last_setting = value\n",
+    "tests": "written_during_a_poll_outlives_that_poll"
+  },
+  {
+    "label": "device: a refused band wipes a write it did not read",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        for row in self._rows[band]:\n            if self._superseded(row):\n                continue\n            row.state = None\n",
+    "new": "        for row in self._rows[band]:\n            row.state = None\n",
+    "tests": "survives_its_band_being_refused"
+  },
+  {
+    "label": "device: a circuit configuration read is not cut off",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):\n            words = await self._unit.read_holding_registers(address, 1)\n",
+    "new": "        async with self._host_lock:\n            words = await self._unit.read_holding_registers(address, 1)\n",
+    "tests": "circuit_configuration_read_that_never_answers"
   }
 ]

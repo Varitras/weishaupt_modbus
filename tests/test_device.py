@@ -526,6 +526,31 @@ async def test_a_band_read_that_never_answers_is_cut_off(unit, monkeypatch):
     assert isinstance(reading.exception(), TimeoutError)
 
 
+async def test_a_circuit_configuration_read_that_never_answers_is_cut_off(
+    unit, monkeypatch
+):
+    """Like a band read, it holds the controller's lock; nothing tested that
+    its own limit ends it."""
+    monkeypatch.setattr(device, "BAND_TIMEOUT_SECONDS", SHORT_LIMIT_SECONDS)
+    never = asyncio.Event()
+
+    async def silent(*_args, **_kwargs):
+        await never.wait()
+
+    monkeypatch.setattr(unit, "read_holding_registers", silent)
+    pump = WeishauptHeatPump(
+        unit, _all_items(), WriteBudget(warn_at=0, limit=0), asyncio.Lock()
+    )
+
+    reading = asyncio.create_task(pump.circuit_configurations())
+    _, pending = await asyncio.wait({reading}, timeout=10 * SHORT_LIMIT_SECONDS)
+    for task in pending:
+        task.cancel()
+
+    assert not pending, "the circuit read was never cut off"
+    assert isinstance(reading.exception(), TimeoutError)
+
+
 async def test_the_entries_of_one_pump_share_its_lock(hass):
     """The web interface entry is a second entry for the same controller."""
     assert host_lock(hass, "pump") is host_lock(hass, "pump")
@@ -695,13 +720,8 @@ async def test_a_temperature_input_reads_in_tenths(pump, unit):
     assert _row(pump, H1_2_INPUT).state == 215
 
 
-async def test_a_confirmed_write_outlives_a_poll_that_read_before_it(pump, unit):
-    """A poll reads its bands one by one and publishes them together. A write
-    landing in between was published over: the switch came back on, and the
-    next turn-on was skipped as a no-op because the revived state matched."""
-    row = _row(pump, CONSTANT_LOWERING)
-    unit.load_raw({"holding": {CONSTANT_LOWERING: 185}})
-    await pump.async_update()
+async def _hold_a_poll_after_the_setpoint(pump):
+    """Start a poll and hold it in the band after the setpoint's, read already."""
     entered, release = asyncio.Event(), asyncio.Event()
     bands = list(pump._components)
     later_band = bands[bands.index(band_of(CONSTANT_LOWERING)) + 1]
@@ -715,6 +735,17 @@ async def test_a_confirmed_write_outlives_a_poll_that_read_before_it(pump, unit)
     pump._components[later_band].async_update = held_read
     polling = asyncio.create_task(pump.async_update())
     await asyncio.wait_for(entered.wait(), timeout=5)
+    return polling, release
+
+
+async def test_a_confirmed_write_outlives_a_poll_that_read_before_it(pump, unit):
+    """A poll reads its bands one by one and publishes them together. A write
+    landing in between was published over: the switch came back on, and the
+    next turn-on was skipped as a no-op because the revived state matched."""
+    row = _row(pump, CONSTANT_LOWERING)
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 185}})
+    await pump.async_update()
+    polling, release = await _hold_a_poll_after_the_setpoint(pump)
 
     # The block in flight holds the controller: the write queues behind it
     # and goes before the poll's next block.
@@ -727,6 +758,56 @@ async def test_a_confirmed_write_outlives_a_poll_that_read_before_it(pump, unit)
     assert await switching_off is True
     assert (row.state, row.is_off) == (None, True), "the poll revived a stale value"
     assert await unit.read_holding_registers(CONSTANT_LOWERING, 1) == [0x8000]
+
+
+async def test_a_value_written_during_a_poll_outlives_that_poll(pump, unit):
+    """The value's sibling of the switch-off above: the poll read 200 before
+    the write of 215, and nothing tested that it does not publish 200."""
+    row = _row(pump, CONSTANT_LOWERING)
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 200}})
+    await pump.async_update()
+    polling, release = await _hold_a_poll_after_the_setpoint(pump)
+
+    writing = asyncio.create_task(pump.write(row, 215))
+    await asyncio.sleep(0)
+    release.set()
+    await polling
+
+    assert await writing is True
+    assert row.state == 215, "the poll published its older reading over the write"
+
+
+async def test_a_write_during_a_poll_survives_its_band_being_refused(pump, unit):
+    row = _row(pump, CONSTANT_LOWERING)
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 200}})
+    await pump.async_update()
+    unit.fail_read(
+        band_of(CONSTANT_LOWERING)[0],
+        IllegalDataAddressError(),
+        register_type="holding",
+    )
+    polling, release = await _hold_a_poll_after_the_setpoint(pump)
+
+    writing = asyncio.create_task(pump.write(row, 215))
+    await asyncio.sleep(0)
+    release.set()
+    await polling
+
+    assert await writing is True
+    assert row.state == 215, "the refused band's poll wiped the write it did not read"
+
+
+async def test_a_write_shields_only_the_poll_it_landed_in(pump, unit):
+    """The next poll after a write takes the controller's value again."""
+    row = _row(pump, CONSTANT_LOWERING)
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 200}})
+    await pump.async_update()
+    await pump.write(row, 215)
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 220}})
+
+    await pump.async_update()
+
+    assert row.state == 220, "a write long done still hid the controller's value"
 
 
 async def test_a_queued_turn_on_does_not_restore_a_superseded_setpoint(pump, unit):
