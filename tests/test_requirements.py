@@ -18,6 +18,7 @@ in the txt, opens a green pull request, and leaves the version people actually
 install exactly where it was.
 """
 
+import importlib.util
 import json
 import pathlib
 
@@ -88,3 +89,16 @@ def test_the_reader_keeps_the_bound_a_security_bump_would_raise():
 
     assert listed == {"pymodbus>=3.10.0"}
     assert _requirements_of("pymodbus>=3.10.3\n") != listed
+
+
+def test_every_logger_the_manifest_names_exists():
+    """It named weishaupt_modbus, a logger nothing logs to: Home Assistant
+    covers the package's own modules anyway, and the transport's lines with
+    their tracebacks stayed out of a debug log."""
+    missing = [
+        name
+        for name in _manifest()["loggers"]
+        if importlib.util.find_spec(name) is None
+    ]
+
+    assert not missing, f"logger(s) of no installed package: {missing}"

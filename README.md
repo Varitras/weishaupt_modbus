@@ -556,6 +556,8 @@ user name in paths and any names of people or rooms before you attach it
 to a public issue. For the web interface the log lists every request with
 its answer and how long it took, page addresses included; the user name,
 the password and the session id never appear in it.
+Debug logging also switches on the Modbus transport's log, which writes
+every frame in hex: reproduce the problem and switch it off again.
 
 **A heat pump model nobody has tested.** Entities stay unavailable or show
 odd values. [`tools/weishaupt_scan.bat`](tools/weishaupt_scan.bat) reads
