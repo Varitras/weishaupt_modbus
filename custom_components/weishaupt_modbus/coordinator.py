@@ -12,14 +12,15 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.const import (
     DEFAULT_WRITE_LIMIT_PER_DAY,
     DEFAULT_WRITE_WARNING_PER_DAY,
 )
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers import issue_registry as ir
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr, issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
 from .configentry import MyConfigEntry
 from .const import CONF, CONST, DeviceConstants
 from .items import ModbusItem
+from .migrate_helpers import device_postfix
 from .weishaupt_modbus_api.device import WeishauptHeatPump
 from .weishaupt_modbus_api.hpconst import HZ_KONFIGURATION
 from .weishaupt_modbus_api.write_budget import WriteBudget
@@ -28,6 +29,12 @@ _LOGGER = logging.getLogger(__name__)
 
 # Heating circuit -> the entry's switch for it; circuit 1 is always polled.
 CIRCUIT_SWITCHES = {2: CONF.HK2, 3: CONF.HK3, 4: CONF.HK4, 5: CONF.HK5}
+CIRCUIT_DEVICE_SWITCHES = {
+    DeviceConstants.HZ2: CONF.HK2,
+    DeviceConstants.HZ3: CONF.HK3,
+    DeviceConstants.HZ4: CONF.HK4,
+    DeviceConstants.HZ5: CONF.HK5,
+}
 NOT_ENABLED_ISSUE = "circuit_not_enabled"
 OFF_AT_CONTROLLER_ISSUE = "circuit_off_at_controller"
 DOCUMENTED_SETUPS = frozenset(status.number for status in HZ_KONFIGURATION)
@@ -41,14 +48,27 @@ FAILED_POLLS_TOLERATED = 3
 
 def check_configured(modbus_item: ModbusItem, config_entry: MyConfigEntry) -> bool:
     """Whether the entry enables the circuit this item belongs to."""
-    switches = {
-        DeviceConstants.HZ2: CONF.HK2,
-        DeviceConstants.HZ3: CONF.HK3,
-        DeviceConstants.HZ4: CONF.HK4,
-        DeviceConstants.HZ5: CONF.HK5,
-    }
-    switch = switches.get(modbus_item.device)
+    switch = CIRCUIT_DEVICE_SWITCHES.get(modbus_item.device)
     return True if switch is None else bool(config_entry.data[switch])
+
+
+@callback
+def remove_circuits_left_off(hass: HomeAssistant, entry: MyConfigEntry) -> None:
+    """Take the device of each circuit the entry does not read away.
+
+    It stayed with every entity unavailable and could not be deleted. Home
+    Assistant keeps the history, and gives the device, its name and its
+    entities' ids back when the circuit is enabled again.
+    """
+    registry = dr.async_get(hass)
+    postfix = device_postfix(entry.data)
+    for device, switch in CIRCUIT_DEVICE_SWITCHES.items():
+        if entry.data[switch]:
+            continue
+        identifier = (CONST.DOMAIN, device + postfix)
+        found = registry.async_get_device_by_identifier(identifier, entry.entry_id)
+        if found is not None:
+            registry.async_remove_device(found.id)
 
 
 def report_circuits(

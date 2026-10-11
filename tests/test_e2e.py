@@ -25,6 +25,7 @@ from modbus_connection import (
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
+    async_capture_events,
     mock_restore_cache_with_extra_data,
 )
 from pytest_homeassistant_custom_component.components.diagnostics import (
@@ -32,7 +33,7 @@ from pytest_homeassistant_custom_component.components.diagnostics import (
 )
 
 from custom_components.weishaupt_modbus.configentry import host_lock
-from custom_components.weishaupt_modbus.const import CONF, CONST
+from custom_components.weishaupt_modbus.const import CONF, CONST, DeviceConstants
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.const import DEFAULT_PORT
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.device import (
     WeishauptHeatPump,
@@ -46,7 +47,11 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import State
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from homeassistant.helpers import entity_registry as er, issue_registry as ir
+from homeassistant.helpers import (
+    device_registry as dr,
+    entity_registry as er,
+    issue_registry as ir,
+)
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
 
@@ -1510,6 +1515,48 @@ async def test_a_disabled_heating_circuit_is_neither_polled_nor_an_entity(hass, 
         <= read.address + read.count - 1
         for read in pump.unit.read_events
     ), "heating circuit 2 was polled although it is disabled"
+
+
+@pytest.mark.parametrize(("postfix", "suffix"), [("", ""), ("2", "_2")])
+async def test_a_circuit_switched_off_leaves_no_device_behind(
+    hass, pump, postfix, suffix
+):
+    """Following the notice, the user switched circuit 2 off: its device
+    stayed with every entity unavailable, and even emptied it could not be
+    deleted. Switched on again, the device and the ids the user chose return."""
+    changes = async_capture_events(hass, dr.EVENT_DEVICE_REGISTRY_UPDATED)
+    data = {**BASE_DATA, CONF.HK2: True, CONF.DEVICE_POSTFIX: postfix}
+    entry = await _setup(hass, _entry(hass, data=data))
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    devices, entities = dr.async_get(hass), er.async_get(hass)
+    identifier = (CONST.DOMAIN, DeviceConstants.HZ2 + suffix)
+    circuit = devices.async_get_device_by_identifier(identifier, entry.entry_id)
+    sensor = next(
+        row
+        for row in er.async_entries_for_device(entities, circuit.id)
+        if row.domain == "sensor"
+    )
+    entities.async_update_entity(sensor.entity_id, new_entity_id="sensor.my_circuit")
+
+    hass.config_entries.async_update_entry(entry, data={**entry.data, CONF.HK2: False})
+    await hass.async_block_till_done()
+
+    assert devices.async_get(circuit.id) is None
+    assert not er.async_entries_for_device(
+        entities, circuit.id, include_disabled_entities=True
+    )
+
+    hass.config_entries.async_update_entry(entry, data={**entry.data, CONF.HK2: True})
+    await hass.async_block_till_done()
+
+    restored = devices.async_get_device_by_identifier(identifier, entry.entry_id)
+    assert restored.id == circuit.id
+    removed = [event.data for event in changes if event.data["action"] == "remove"]
+    assert [change["device_id"] for change in removed] == [circuit.id], (
+        "a circuit still enabled lost its device too"
+    )
+    assert entities.async_get("sensor.my_circuit"), "the id the user chose was lost"
 
 
 async def test_an_enabled_heating_circuit_is_polled(hass, pump):

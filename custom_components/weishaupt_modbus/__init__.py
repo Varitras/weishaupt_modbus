@@ -40,6 +40,7 @@ from .coordinator import (
     WeishauptModbusCoordinator,
     check_configured,
     clear_circuit_notices,
+    remove_circuits_left_off,
     report_circuits,
     write_budget,
 )
@@ -166,6 +167,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
         _LOGGER.exception("Heating circuit configuration not read")
         configurations = {}
     report_circuits(hass, entry, configurations)
+    remove_circuits_left_off(hass, entry)
 
     powermap = PowerMap(entry, hass)
     await powermap.initialize()

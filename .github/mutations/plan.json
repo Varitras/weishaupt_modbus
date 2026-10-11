@@ -4142,5 +4142,26 @@
     "old": "    folder = await hass.async_add_executor_job(get_filepath, hass)\n",
     "new": "    folder = get_filepath(hass)\n",
     "tests": "off_the_event_loop"
+  },
+  {
+    "label": "setup: a circuit switched off keeps its device",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "            registry.async_remove_device(found.id)\n",
+    "new": "            pass\n",
+    "tests": "switched_off_leaves_no_device"
+  },
+  {
+    "label": "setup: a circuit switched on loses its device too",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        if entry.data[switch]:\n            continue\n",
+    "new": "",
+    "tests": "switched_off_leaves_no_device"
+  },
+  {
+    "label": "setup: a second pump's circuit is looked for without its postfix",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        identifier = (CONST.DOMAIN, device + postfix)\n",
+    "new": "        identifier = (CONST.DOMAIN, device)\n",
+    "tests": "switched_off_leaves_no_device"
   }
 ]

@@ -91,7 +91,11 @@ entry and add it again.
 
 *Reconfigure* in the entry's menu changes host, port, power map, heating
 circuits and the two name options without losing history. The heat pump has
-to answer at the new address before the change is saved.
+to answer at the new address before the change is saved. A heating circuit
+switched off here loses its device and entities at the next load; switched on
+again, they come back with their names, entity ids and history. While it is
+off, *Developer tools › Statistics* offers to delete its statistics - leave
+them if you may switch it on again.
 
 Each time the entry loads - at start, after a reconfigure or an options
 change - the integration compares heating circuits 2-5 enabled here with
