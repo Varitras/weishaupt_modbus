@@ -6,6 +6,7 @@ under its old id added its count a second time.
 """
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -20,19 +21,26 @@ from .weishaupt_modbus_api.write_budget import DAY, TODAY, TOTAL, WriteBudget
 from .write_counter_sensor import DAY_ATTRIBUTE
 
 STORE_VERSION = 1
-# One store per entry for the whole run: a reload reads what a save still
-# pending holds, which a new store would read from the file before it lands.
+# One store and the latest counts per entry for the whole run: a reload
+# takes the counts from here, as Home Assistant's load reads the file
+# without waiting for a save that is writing it.
 STORES = f"{CONST.DOMAIN}_write_count_stores"
 # A burst of writes is saved once; Home Assistant saves what is pending when
 # it stops.
 SAVE_DELAY_SECONDS = 1
 
 
-def _store(hass: HomeAssistant, entry_id: str) -> Store[dict[str, Any]]:
-    stores: dict[str, Store[dict[str, Any]]] = hass.data.setdefault(STORES, {})
+@dataclass
+class _Kept:
+    store: Store[dict[str, Any]]
+    counts: dict[str, Any] | None = None
+
+
+def _kept(hass: HomeAssistant, entry_id: str) -> _Kept:
+    stores: dict[str, _Kept] = hass.data.setdefault(STORES, {})
     if entry_id not in stores:
-        stores[entry_id] = Store(
-            hass, STORE_VERSION, f"{CONST.DOMAIN}.{entry_id}.write_counts"
+        stores[entry_id] = _Kept(
+            Store(hass, STORE_VERSION, f"{CONST.DOMAIN}.{entry_id}.write_counts")
         )
     return stores[entry_id]
 
@@ -77,20 +85,25 @@ async def async_keep_write_counts(
     `keys` name the total and the daily counter sensor, whose last states
     seed the store on the first start with it.
     """
-    store = _store(hass, entry.entry_id)
-    counts = await store.async_load()
+    kept = _kept(hass, entry.entry_id)
+    counts = kept.counts
     if counts is None:
-        counts = _recorded_by_the_sensors(hass, id_data, keys)
-        store.async_delay_save(lambda: counts, 0)
+        counts = await kept.store.async_load()
+    if counts is None:
+        taken_over = _recorded_by_the_sensors(hass, id_data, keys)
+        kept.store.async_delay_save(lambda: taken_over, 0)
+        counts = taken_over
+    kept.counts = counts
     budget.load(counts)
-    entry.async_on_unload(
-        budget.add_listener(
-            lambda: store.async_delay_save(budget.counts, SAVE_DELAY_SECONDS)
-        )
-    )
+
+    def keep() -> None:
+        latest = kept.counts = budget.counts()
+        kept.store.async_delay_save(lambda: latest, SAVE_DELAY_SECONDS)
+
+    entry.async_on_unload(budget.add_listener(keep))
 
 
 async def async_remove_write_counts(hass: HomeAssistant, entry_id: str) -> None:
     """Remove the counts with their entry; an entry set up anew starts at 0."""
-    await _store(hass, entry_id).async_remove()
+    await _kept(hass, entry_id).store.async_remove()
     hass.data[STORES].pop(entry_id, None)

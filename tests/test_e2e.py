@@ -55,6 +55,7 @@ from homeassistant.helpers import (
     issue_registry as ir,
 )
 from homeassistant.helpers.restore_state import async_get as async_get_restored
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
@@ -1551,6 +1552,58 @@ async def test_the_write_counts_survive_a_reload_with_their_sensors_disabled(has
     assert _counts(entry) == (1, 1)
 
 
+async def _saved_counts(hass, hass_storage, entry):
+    """Total, today and day as the file holds them once the save is due."""
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=1))
+    await hass.async_block_till_done()
+    data = hass_storage[f"{CONST.DOMAIN}.{entry.entry_id}.write_counts"]["data"]
+    return data["total"], data["today"], data["day"]
+
+
+async def test_a_start_reads_the_counts_from_the_file_and_a_write_saves_them(
+    hass, hass_storage
+):
+    """A reload takes the counts kept in memory; only the file carries them
+    over a restart, and a count that never reached it was lost there."""
+    entry = _entry(hass)
+    key = f"{CONST.DOMAIN}.{entry.entry_id}.write_counts"
+    today = dt_util.now().date().isoformat()
+    hass_storage[key] = {
+        "version": 1,
+        "minor_version": 1,
+        "key": key,
+        "data": {"total": 7, "today": 2, "day": today},
+    }
+    await _setup(hass, entry)
+    assert _counts(entry) == (7, 2)
+
+    await _write_once(hass, entry)
+
+    assert await _saved_counts(hass, hass_storage, entry) == (8, 3, today)
+
+
+async def test_a_reload_while_the_counts_are_being_saved_keeps_them(hass, monkeypatch):
+    """Home Assistant's load does not wait for a save already writing: a
+    reload in that moment read the file as it was before the last write, and
+    the daily limit had one write more to give."""
+    entry = await _setup(hass, _entry(hass))
+    before = entry.runtime_data.coordinator.device.write_budget.counts()
+    await _write_once(hass, entry)
+    real_load = Store.async_load
+
+    async def file_behind_the_counts(store):
+        if store.key.endswith(".write_counts"):
+            return before
+        return await real_load(store)
+
+    monkeypatch.setattr(Store, "async_load", file_behind_the_counts)
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert _counts(entry) == (1, 1)
+
+
 async def test_a_counter_renamed_and_renamed_back_counts_its_writes_once(hass):
     """Added again under its old id, the sensor added its recorded count to
     the budget a second time, and the daily limit stopped writes too early."""
@@ -1571,7 +1624,7 @@ async def test_a_counter_renamed_and_renamed_back_counts_its_writes_once(hass):
     assert _counts(entry) == (1, 1)
 
 
-async def test_the_counts_the_sensors_recorded_are_taken_over_once(hass):
+async def test_the_counts_the_sensors_recorded_are_taken_over_once(hass, hass_storage):
     """Before the counts had a store of their own, the sensors held them: the
     first start takes them over, every later one reads the store."""
     entry = _entry(hass)
@@ -1593,6 +1646,9 @@ async def test_the_counts_the_sensors_recorded_are_taken_over_once(hass):
     )
     await _setup(hass, entry)
     assert _counts(entry) == (7, 2)
+    assert (await _saved_counts(hass, hass_storage, entry))[:2] == (7, 2), (
+        "the counts taken over were not saved"
+    )
 
     # The sensors record no state any more: the next start has only the store.
     async_get_restored(hass).last_states.clear()

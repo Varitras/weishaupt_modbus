@@ -4393,26 +4393,26 @@
     "path": "custom_components/weishaupt_modbus/write_counts.py",
     "old": "    budget.load(counts)\n",
     "new": "",
-    "tests": "sensors_disabled or taken_over_once or write_counters_survive_a_restart"
+    "tests": "sensors_disabled or taken_over_once or write_counters_survive_a_restart or reads_the_counts_from_the_file"
   },
   {
     "label": "write counts: a counted write is never saved",
     "path": "custom_components/weishaupt_modbus/write_counts.py",
-    "old": "            lambda: store.async_delay_save(budget.counts, SAVE_DELAY_SECONDS)\n",
-    "new": "            lambda: None\n",
-    "tests": "sensors_disabled or taken_over_once"
+    "old": "        kept.store.async_delay_save(lambda: latest, SAVE_DELAY_SECONDS)\n",
+    "new": "",
+    "tests": "reads_the_counts_from_the_file"
   },
   {
     "label": "write counts: the sensors' counts are not taken over",
     "path": "custom_components/weishaupt_modbus/write_counts.py",
-    "old": "        counts = _recorded_by_the_sensors(hass, id_data, keys)\n",
-    "new": "        counts = {}\n",
+    "old": "        taken_over = _recorded_by_the_sensors(hass, id_data, keys)\n",
+    "new": "        taken_over = {}\n",
     "tests": "taken_over_once"
   },
   {
     "label": "write counts: the counts taken over are not saved",
     "path": "custom_components/weishaupt_modbus/write_counts.py",
-    "old": "        store.async_delay_save(lambda: counts, 0)\n",
+    "old": "        kept.store.async_delay_save(lambda: taken_over, 0)\n",
     "new": "",
     "tests": "taken_over_once"
   },
@@ -4426,7 +4426,7 @@
   {
     "label": "write counts: removing the entry leaves its counts",
     "path": "custom_components/weishaupt_modbus/write_counts.py",
-    "old": "    await _store(hass, entry_id).async_remove()\n",
+    "old": "    await _kept(hass, entry_id).store.async_remove()\n",
     "new": "",
     "tests": "removes_its_write_counts"
   },
@@ -4534,5 +4534,19 @@
     "old": "            if not outcome.done() and not handed_on:\n",
     "new": "            if not outcome.done():\n",
     "tests": "as_a_write_ends_still_waits_its_quiet_time"
+  },
+  {
+    "label": "write counts: a reload reads the file behind the counts",
+    "path": "custom_components/weishaupt_modbus/write_counts.py",
+    "old": "    counts = kept.counts\n",
+    "new": "    counts = None\n",
+    "tests": "being_saved"
+  },
+  {
+    "label": "write counts: a counted write is saved with the counts before it",
+    "path": "custom_components/weishaupt_modbus/write_counts.py",
+    "old": "        latest = kept.counts = budget.counts()\n",
+    "new": "        latest = kept.counts\n",
+    "tests": "reads_the_counts_from_the_file or being_saved"
   }
 ]
