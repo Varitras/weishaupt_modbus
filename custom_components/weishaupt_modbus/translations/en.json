@@ -2003,6 +2003,9 @@
     "value_out_of_range": {
       "message": "{value} is outside the current range {low} to {high} of register {address}"
     },
+    "write_limit_reached": {
+      "message": "Today's limit of {limit} writes is reached; nothing was written. It is set in the options of the heat pump entry."
+    },
     "write_failed": {
       "message": "Writing register {address} failed: {error}"
     },

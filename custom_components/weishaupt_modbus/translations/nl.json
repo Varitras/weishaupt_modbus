@@ -2003,6 +2003,9 @@
     "value_out_of_range" : {
       "message" : "{value} ligt buiten het huidige bereik {low} tot {high} van register {address}"
     },
+    "write_limit_reached" : {
+      "message" : "De limiet van vandaag van {limit} schrijfacties is bereikt; er is niets geschreven. Deze wordt ingesteld in de opties van de warmtepomp-vermelding."
+    },
     "write_failed" : {
       "message" : "Schrijven naar register {address} mislukt: {error}"
     },

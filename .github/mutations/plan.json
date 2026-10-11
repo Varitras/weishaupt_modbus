@@ -184,8 +184,8 @@
   {
     "label": "entity: a failed write must be raised, not swallowed",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "        except (WriteError, ModbusError) as err:\n            raise HomeAssistantError(\n                translation_domain=CONST.DOMAIN,\n                translation_key=\"write_failed\",\n                translation_placeholders={\n                    \"address\": str(self._api_item.address),\n                    \"error\": str(err),\n                },\n            ) from err\n",
-    "new": "        except (WriteError, ModbusError) as err:\n            return None\n",
+    "old": "        except ModbusError as err:\n            raise HomeAssistantError(\n                translation_domain=CONST.DOMAIN,\n                translation_key=\"write_failed\",\n                translation_placeholders={\n                    \"address\": str(self._api_item.address),\n                    \"error\": str(err),\n                },\n            ) from err\n",
+    "new": "        except ModbusError as err:\n            return None\n",
     "tests": "refused_write_reaches_the_user"
   },
   {
@@ -4310,5 +4310,26 @@
     "old": "            if not math.isfinite(wanted):\n",
     "new": "            if False:\n",
     "tests": "nan_is_refused_as_out_of_range"
+  },
+  {
+    "label": "entity: the daily limit reaches the user as a failed write",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "            await self.coordinator.device.write(self._api_item, val, check=check)\n        except WriteError as err:\n            _refuse_over_the_limit(err)\n",
+    "new": "            await self.coordinator.device.write(self._api_item, val, check=check)\n        except WriteError as err:\n            raise ModbusError(str(err)) from err\n",
+    "tests": "daily_write_limit_reaches_the_user"
+  },
+  {
+    "label": "switch: the daily limit on switching off reaches the user as a failure",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "            await self.coordinator.device.write_off(self._api_item)\n        except WriteError as err:\n            _refuse_over_the_limit(err)\n",
+    "new": "            await self.coordinator.device.write_off(self._api_item)\n        except WriteError as err:\n            raise ModbusError(str(err)) from err\n",
+    "tests": "daily_write_limit_reaches_the_user"
+  },
+  {
+    "label": "switch: the daily limit on switching on reaches the user as a failure",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "            await self.coordinator.device.write(self._api_item, self._value_to_restore)\n        except WriteError as err:\n            _refuse_over_the_limit(err)\n",
+    "new": "            await self.coordinator.device.write(self._api_item, self._value_to_restore)\n        except WriteError as err:\n            raise ModbusError(str(err)) from err\n",
+    "tests": "daily_write_limit_reaches_the_user"
   }
 ]

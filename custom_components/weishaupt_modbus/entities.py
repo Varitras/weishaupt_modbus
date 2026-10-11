@@ -4,7 +4,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from functools import partial
 import math
-from typing import Any
+from typing import Any, NoReturn
 
 from modbus_connection import ModbusError
 
@@ -66,6 +66,15 @@ def device_info(entry_data: Mapping[str, Any], device: str) -> DeviceInfo:
         translation_placeholders={"postfix": postfix},
         manufacturer="Weishaupt",
     )
+
+
+def _refuse_over_the_limit(err: WriteError) -> NoReturn:
+    """The daily limit in the user's language; the library's text is English."""
+    raise HomeAssistantError(
+        translation_domain=CONST.DOMAIN,
+        translation_key="write_limit_reached",
+        translation_placeholders={"limit": str(err.limit)},
+    ) from err
 
 
 def to_register_value(value: float, divider: int) -> int:
@@ -237,7 +246,9 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
         # who moved the slider and the automation that called the service.
         try:
             await self.coordinator.device.write(self._api_item, val, check=check)
-        except (WriteError, ModbusError) as err:
+        except WriteError as err:
+            _refuse_over_the_limit(err)
+        except ModbusError as err:
             raise HomeAssistantError(
                 translation_domain=CONST.DOMAIN,
                 translation_key="write_failed",
@@ -432,7 +443,9 @@ class MySetpointSwitchEntity(MyEntity, SwitchEntity, RestoreEntity):
         """Write the off word."""
         try:
             await self.coordinator.device.write_off(self._api_item)
-        except (WriteError, ModbusError) as err:
+        except WriteError as err:
+            _refuse_over_the_limit(err)
+        except ModbusError as err:
             raise HomeAssistantError(
                 translation_domain=CONST.DOMAIN,
                 translation_key="switch_off_failed",
@@ -465,7 +478,9 @@ class MySetpointSwitchEntity(MyEntity, SwitchEntity, RestoreEntity):
         """Restore the last value, or the range's minimum."""
         try:
             await self.coordinator.device.write(self._api_item, self._value_to_restore)
-        except (WriteError, ModbusError) as err:
+        except WriteError as err:
+            _refuse_over_the_limit(err)
+        except ModbusError as err:
             raise HomeAssistantError(
                 translation_domain=CONST.DOMAIN,
                 translation_key="switch_on_failed",

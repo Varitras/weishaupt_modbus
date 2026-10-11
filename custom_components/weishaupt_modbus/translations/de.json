@@ -2003,6 +2003,9 @@
         "value_out_of_range": {
             "message": "{value} liegt außerhalb des aktuellen Bereichs {low} bis {high} von Register {address}"
         },
+        "write_limit_reached": {
+            "message": "Die heutige Grenze von {limit} Schreibzugriffen ist erreicht; nichts wurde geschrieben. Sie wird in den Optionen des Wärmepumpen-Eintrags eingestellt."
+        },
         "write_failed": {
             "message": "Schreiben von Register {address} fehlgeschlagen: {error}"
         },

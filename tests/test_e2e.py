@@ -1506,11 +1506,11 @@ async def test_a_refused_write_reaches_the_user_as_an_error(hass, monkeypatch):
     )
 
     async def refuse(self, item, value, check=None):
-        raise WriteError("Daily write limit of 1 reached")
+        raise ServerDeviceFailureError
 
     monkeypatch.setattr(WeishauptHeatPump, "write", refuse)
 
-    with pytest.raises(HomeAssistantError, match="limit") as raised:
+    with pytest.raises(HomeAssistantError) as raised:
         await hass.services.async_call(
             "number",
             "set_value",
@@ -1519,6 +1519,38 @@ async def test_a_refused_write_reaches_the_user_as_an_error(hass, monkeypatch):
         )
     assert raised.value.translation_key == "write_failed"
     assert entry.state is ConfigEntryState.LOADED
+
+
+@pytest.mark.parametrize(
+    ("domain", "service", "data"),
+    [
+        ("number", "set_value", {"value": 5}),
+        ("switch", "turn_off", {}),
+        ("switch", "turn_on", {}),
+    ],
+)
+async def test_the_daily_write_limit_reaches_the_user_in_their_language(
+    hass, pump, monkeypatch, domain, service, data
+):
+    """The limit's own English sentence went into the translated "write
+    failed" message, on the number and on both switch paths."""
+    pump.load_raw({"holding": {SG_READY_BOOST: 50}})
+    await _setup(hass, _entry(hass))
+    unique_id = SG_READY_BOOST_UNIQUE_ID + ("_active" if domain == "switch" else "")
+    entity_id = er.async_get(hass).async_get_entity_id(domain, CONST.DOMAIN, unique_id)
+
+    async def over_the_limit(self, item, *_args, **_kwargs):
+        raise WriteError(1, item.address)
+
+    monkeypatch.setattr(WeishauptHeatPump, "write", over_the_limit)
+    monkeypatch.setattr(WeishauptHeatPump, "write_off", over_the_limit)
+
+    with pytest.raises(HomeAssistantError) as raised:
+        await hass.services.async_call(
+            domain, service, {"entity_id": entity_id, **data}, blocking=True
+        )
+    assert raised.value.translation_key == "write_limit_reached"
+    assert raised.value.translation_placeholders == {"limit": "1"}
 
 
 async def test_a_pump_that_refuses_the_first_connection_retries_later(hass, pump):

@@ -256,10 +256,7 @@ class WeishauptHeatPump:
 
     async def _write_word(self, item: ModbusItem, word: int) -> None:
         if not self.write_budget.allows_write():
-            raise WriteError(
-                f"Daily write limit of {self.write_budget.limit} reached; "
-                f"register {item.address} not written"
-            )
+            raise WriteError(self.write_budget.limit, item.address)
         component = self._components[band_of(item.address)]
         try:
             async with self._host_lock:

@@ -13,4 +13,11 @@ class SystemBandRefused(ModbusError):
 
 
 class WriteError(Exception):
-    """A register write was refused before it reached the wire."""
+    """A register write was refused before it reached the wire: the day's limit."""
+
+    def __init__(self, limit: int, address: int) -> None:
+        """Keep the limit for the message the user gets in their language."""
+        super().__init__(
+            f"Daily write limit of {limit} reached; register {address} not written"
+        )
+        self.limit = limit
