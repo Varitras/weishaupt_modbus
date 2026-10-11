@@ -79,8 +79,8 @@
   {
     "label": "items: the key lookup must return the translation key",
     "path": "custom_components/weishaupt_modbus/items.py",
-    "old": "        return status.translation_key if status else f\"unbekannt <{val}>\"\n",
-    "new": "        return str(status.number) if status else f\"unbekannt <{val}>\"\n",
+    "old": "        return status.translation_key if status else str(val)\n",
+    "new": "        return str(status.number) if status else str(val)\n",
     "tests": "translation_key_from_number"
   },
   {
@@ -4331,5 +4331,12 @@
     "old": "            await self.coordinator.device.write(self._api_item, self._value_to_restore)\n        except WriteError as err:\n            _refuse_over_the_limit(err)\n",
     "new": "            await self.coordinator.device.write(self._api_item, self._value_to_restore)\n        except WriteError as err:\n            raise ModbusError(str(err)) from err\n",
     "tests": "daily_write_limit_reaches_the_user"
+  },
+  {
+    "label": "items: an unknown status number shows as German text",
+    "path": "custom_components/weishaupt_modbus/items.py",
+    "old": "        return status.translation_key if status else str(val)\n",
+    "new": "        return status.translation_key if status else f\"unbekannt <{val}>\"\n",
+    "tests": "unknown_number_names_itself or unknown_status_number_is_reported"
   }
 ]

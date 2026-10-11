@@ -341,7 +341,7 @@ def test_an_unknown_status_number_is_reported_not_hidden():
     )
     select = entities.MySelectEntity(_entry(), item, FakeCoordinator())
 
-    assert select.translate_val(9999) == "unbekannt <9999>"
+    assert select.translate_val(9999) == "9999"
 
 
 def test_select_options_are_the_status_translation_keys():

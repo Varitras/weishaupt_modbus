@@ -190,7 +190,7 @@ def test_every_status_value_has_a_state_translation(path):
 
 def test_every_status_item_has_a_result_list():
     """A STATUS item maps numbers to texts; without the list every value
-    reads as `unbekannt <n>`."""
+    reads as unknown."""
     without = [
         item.translation_key
         for item in _items(hpconst)
