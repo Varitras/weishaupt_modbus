@@ -187,8 +187,11 @@ instead.
 
 **Counters.** The second heat source's operating hours and switching cycles
 are totals: the long-term statistics count hours and cycles per period.
-Before 2.1 they were averaged; that older statistic stays in the database,
-but graphs no longer show it, and Home Assistant raises no notice. A counter
+Up to 2.1.0b2 they were averaged; that older statistic stays in the
+database, but graphs no longer show it. In the first minutes after the
+update Home Assistant may list a *mean type changed* notice for them; it
+goes by itself with the next statistics run - do not delete the statistics
+for it. A counter
 that reads 0x8000 or 0xFFFF, and a percentage above 100, reads as unknown:
 in a total such a word would stay in the sum for good.
 
