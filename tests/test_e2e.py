@@ -115,6 +115,13 @@ async def _setup(hass, entry):
     return entry
 
 
+async def _reconfigure(hass, entry, changes):
+    """What reconfigure does: new data, then a reload."""
+    hass.config_entries.async_update_entry(entry, data={**entry.data, **changes})
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+
 async def test_the_pump_polls_and_writes_under_the_lock_its_web_interface_shares(
     hass,
 ):
@@ -756,9 +763,7 @@ async def test_matching_circuits_clear_an_earlier_notice(hass, pump):
     entry = await _setup(hass, _entry(hass))
     assert _notices(hass, entry, NOT_ENABLED) == [2]
 
-    # The data change reloads the entry through its update listener.
-    hass.config_entries.async_update_entry(entry, data={**entry.data, CONF.HK2: True})
-    await hass.async_block_till_done()
+    await _reconfigure(hass, entry, {CONF.HK2: True})
 
     assert entry.state is ConfigEntryState.LOADED
     assert _notices(hass, entry, NOT_ENABLED) == []
@@ -868,11 +873,7 @@ async def test_a_notice_the_entry_now_contradicts_goes_though_the_circuit_is_unt
         _fail_circuit_read(monkeypatch, address, untold)
     else:
         pump.load_raw({"holding": {address: untold}})
-    # The data change reloads the entry through its update listener.
-    hass.config_entries.async_update_entry(
-        entry, data={**entry.data, CONF.HK3: not enabled}
-    )
-    await hass.async_block_till_done()
+    await _reconfigure(hass, entry, {CONF.HK3: not enabled})
 
     assert entry.state is ConfigEntryState.LOADED
     assert _circuit_notice(hass, entry, NOT_ENABLED, 3) is None
@@ -1303,13 +1304,10 @@ async def test_a_renamed_entity_keeps_its_id_across_a_restart(hass):
     ), "the restart renamed the entity back"
 
 
-async def test_reconfigure_reloads_once_through_the_update_listener(
-    hass, mock_modbus, caplog
-):
+async def test_reconfigure_reloads_the_entry_once(hass, mock_modbus, caplog):
     """Issue #180: Home Assistant warns - and from 2026.12 refuses - when a
     flow schedules a reload itself while the entry also has an update
-    listener, because that reloads twice. The listener is the one path here:
-    the flow only updates the entry and aborts."""
+    listener, because that reloads twice. The flow is the one path here."""
     entry = await _setup(hass, _entry(hass))
 
     result = await hass.config_entries.flow.async_init(
@@ -1328,22 +1326,41 @@ async def test_reconfigure_reloads_once_through_the_update_listener(
     assert result["type"] is FlowResultType.ABORT
     assert entry.state is ConfigEntryState.LOADED
     assert entry.data[CONF.HOST] == "192.0.2.20"
-    # The flow probes the new host once; then the update listener reloads
-    # the entry once. Any third connection to it is a second reload.
+    # The flow probes the new host once, then reloads the entry once. Any
+    # third connection to it is a second reload.
     on_new_host = [p for p in mock_modbus.params_seen if p.host == "192.0.2.20"]
     assert len(on_new_host) == 2, (
         f"the new host was connected {len(on_new_host)} times (probe + reloads); "
-        "the update listener should reload the entry exactly once"
+        "the entry should reload exactly once"
     )
     assert "has an update listener and should use it" not in caplog.text, (
         "Home Assistant reported the double-reload deprecation"
     )
 
 
+@pytest.mark.parametrize(
+    "change",
+    [{"title": "Garage"}, {"pref_disable_new_entities": True}],
+    ids=["renamed", "new entities off"],
+)
+async def test_a_change_the_setup_did_not_read_does_not_reload(
+    hass, mock_modbus, change
+):
+    """Renaming the entry reloaded it: every entity went unavailable for a
+    moment, and an automation watching for that fired."""
+    entry = await _setup(hass, _entry(hass))
+    loaded = entry.runtime_data
+
+    hass.config_entries.async_update_entry(entry, **change)
+    await hass.async_block_till_done()
+
+    assert entry.runtime_data is loaded
+
+
 async def test_the_options_flow_sets_the_poll_interval(hass, mock_modbus):
     """Issue #183: the poll interval is a runtime setting - changed in the
     options dialog, stored in entry.options, picked up by the coordinator
-    after the reload the update listener triggers."""
+    after the reload the options trigger."""
     entry = await _setup(hass, _entry(hass))
     assert entry.runtime_data.coordinator.update_interval == CONST.SCAN_INTERVAL
 
@@ -1539,16 +1556,14 @@ async def test_a_circuit_switched_off_leaves_no_device_behind(
     )
     entities.async_update_entity(sensor.entity_id, new_entity_id="sensor.my_circuit")
 
-    hass.config_entries.async_update_entry(entry, data={**entry.data, CONF.HK2: False})
-    await hass.async_block_till_done()
+    await _reconfigure(hass, entry, {CONF.HK2: False})
 
     assert devices.async_get(circuit.id) is None
     assert not er.async_entries_for_device(
         entities, circuit.id, include_disabled_entities=True
     )
 
-    hass.config_entries.async_update_entry(entry, data={**entry.data, CONF.HK2: True})
-    await hass.async_block_till_done()
+    await _reconfigure(hass, entry, {CONF.HK2: True})
 
     restored = devices.async_get_device_by_identifier(identifier, entry.entry_id)
     assert restored.id == circuit.id

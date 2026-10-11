@@ -173,9 +173,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     await powermap.initialize()
     entry.runtime_data.powermap = powermap
 
-    # see https://community.home-assistant.io/t/config-flow-how-to-update-an-existing-entity/522442/8
-    entry.async_on_unload(entry.add_update_listener(update_listener))
-
     # This creates each HA object for each platform your device requires.
     # It's done by calling the `async_setup_entry` function in each platform module.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -294,13 +291,6 @@ def _retitle_after_pump(
         title=web_interface_title(pump_title),
         data={**entry.data, CONF.PUMP_TITLE: pump_title},
     )
-
-
-async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Update listener."""
-    await hass.config_entries.async_reload(
-        entry.entry_id
-    )  # list of entry_ids created for file
 
 
 def _is_legacy_web_interface(unique_id: str, entry_data: Mapping[str, Any]) -> bool:

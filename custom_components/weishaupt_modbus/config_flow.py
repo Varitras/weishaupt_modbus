@@ -631,15 +631,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 and holder.entry_id != self._reconfigure_entry.entry_id
             ):
                 return self.async_abort(reason="already_configured")
-            # Not async_update_reload_and_abort: that schedules a reload of
-            # its own while the update listener in __init__ reloads too.
-            self.hass.config_entries.async_update_entry(
+            return self.async_update_reload_and_abort(
                 self._reconfigure_entry,
                 data=self._stored_data,
                 unique_id=new_unique_id,
                 title=self._stored_data[CONF.HOST],
             )
-            return self.async_abort(reason="reconfigure_successful")
 
         # The user step's schema without prefix and postfix: every unique id
         # is built from them, so a change would orphan every entity's history
@@ -695,11 +692,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         )
 
 
-class OptionsFlow(config_entries.OptionsFlow):
+class OptionsFlow(config_entries.OptionsFlowWithReload):
     """Runtime settings that do not need a new entry.
 
-    Stored in entry.options; the update listener in __init__ reloads the
-    entry when they change.
+    Stored in entry.options; Home Assistant reloads the entry when they change.
     """
 
     async def async_step_init(
