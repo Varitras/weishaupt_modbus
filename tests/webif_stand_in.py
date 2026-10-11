@@ -107,6 +107,16 @@ def limit_segment(limit):
     return f"6400180700000000{limit:02X}40000A0B030011010401"
 
 
+def limit_form_id(limit):
+    """The id of the power limit's form, as recorded: not its segment.
+
+    The recordings show the segment with digits changed, on most pages the
+    same two and on some more; it differs here so that nothing passes by
+    taking the id from the stack.
+    """
+    return f"6400180701000000{limit:02X}40000A0B040011010401"
+
+
 def heating_page(limit, switching="4.5 K", titles=GERMAN_HEATING):
     """Wärmepumpe › Heizen with the power limit and the switching difference."""
     switching_title, limit_title = titles
@@ -129,7 +139,7 @@ def limit_leaf(limit, offered=LIMIT_OPTIONS):
     )
     return MAIN_MENUS + (
         '<form action="pro_save.html" method="POST">'
-        f'<input type="hidden" name="id" value="{limit_segment(limit)}">\n'
+        f'<input type="hidden" name="id" value="{limit_form_id(limit)}">\n'
         '<input type="hidden" name="stack" '
         f'value="{PUMP_MENU},{HEATING},{limit_segment(limit)}">\n'
         '<input type="hidden" name="type" value="para_list">'

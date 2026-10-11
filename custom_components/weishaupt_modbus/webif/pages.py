@@ -29,7 +29,7 @@ STACK_LINK = re.compile(
 # main menu, 02 below it, ...). The broken answers nest entries one level too
 # deep while they keep their old depth.
 SEGMENT_DEPTH = slice(26, 28)
-NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
+NUMBER = re.compile(r"-?\d+(?:\.\d+)?", re.ASCII)
 # The controller writes "Aus" for an idle power, power request or speed. Set
 # to English it wrote "off" for the powers and the power request (2026-10-10);
 # no idle speed was seen in English, and "off" is taken there too.
@@ -240,7 +240,7 @@ def setting_form(page: str) -> SettingForm | None:
         and all(fields.values())
         and parser.selects == 1
         and len(selected) == 1
-        and all(option.isdigit() for option, _ in parser.options)
+        and all(option.isascii() and option.isdecimal() for option, _ in parser.options)
     )
     if not whole:
         return None

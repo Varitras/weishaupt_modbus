@@ -4044,5 +4044,54 @@
     "old": "    if tag == \"style\" and (len(element) or not _css_is_static(element.text or \"\")):\n",
     "new": "    if tag == \"style\" and not _css_is_static(element.text or \"\"):\n",
     "tests": "picture_that_runs_or_loads_is_not_static"
+  },
+  {
+    "label": "webif pages: an option in digits other than ASCII is read",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "        and all(option.isascii() and option.isdecimal() for option, _ in parser.options)\n",
+    "new": "        and all(option.isdecimal() for option, _ in parser.options)\n",
+    "tests": "form_missing_a_part_is_not_read"
+  },
+  {
+    "label": "webif pages: a value in digits other than ASCII reads as a number",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "NUMBER = re.compile(r\"-?\\d+(?:\\.\\d+)?\", re.ASCII)\n",
+    "new": "NUMBER = re.compile(r\"-?\\d+(?:\\.\\d+)?\")\n",
+    "tests": "shown_value_becomes_a_number"
+  },
+  {
+    "label": "webif pages: a hidden field given twice is read",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "    hidden_once = sorted(name for name, _ in parser.hidden) == sorted(FORM_FIELDS)\n",
+    "new": "    hidden_once = {name for name, _ in parser.hidden} == set(FORM_FIELDS)\n",
+    "tests": "form_missing_a_part_is_not_read"
+  },
+  {
+    "label": "webif pages: an empty hidden field is read",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "        and all(fields.values())\n",
+    "new": "",
+    "tests": "form_missing_a_part_is_not_read"
+  },
+  {
+    "label": "webif pages: a form's parts spread over two forms are read",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "        parser.forms == 1\n",
+    "new": "        parser.forms >= 1\n",
+    "tests": "form_missing_a_part_is_not_read"
+  },
+  {
+    "label": "webif pages: two value lists are read as one",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "        and parser.selects == 1\n",
+    "new": "        and parser.selects >= 1\n",
+    "tests": "form_missing_a_part_is_not_read"
+  },
+  {
+    "label": "webif client: a save posts its stack's leaf as the id",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "                    (form.id, form.stack, form.type, str(value)),\n",
+    "new": "                    (form.stack.rsplit(\",\", 1)[-1], form.stack, form.type, str(value)),\n",
+    "tests": "four_fields_in_form_order"
   }
 ]

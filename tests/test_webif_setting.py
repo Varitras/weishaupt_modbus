@@ -129,8 +129,8 @@ STACK_FIELD = f'value="{PUMP_MENU},{HEATING},{limit_segment(60)}"'
     ],
 )
 async def test_a_form_that_does_not_match_sends_nothing(leaf, target):
-    """The form must be the one of the value the heating page shows: an id
-    or a stack of another value is a save nobody has tried."""
+    """The form must be the one of the value the heating page shows: a stack
+    of another value is a save nobody has tried."""
     client, events = scripted(leaf=leaf)
 
     with pytest.raises(setting.FormMismatch):

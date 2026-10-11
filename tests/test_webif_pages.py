@@ -248,6 +248,7 @@ def test_a_grandchild_is_no_child():
         ("Aus", None),
         ("--", None),
         ("Warmwasser", None),
+        ("６０ %", None),
     ],
 )
 def test_a_shown_value_becomes_a_number(shown, expected):
@@ -260,7 +261,7 @@ def test_the_setting_form_is_read_as_the_controller_serves_it():
     form = pages.setting_form(stand_in.limit_leaf(60))
 
     assert form is not None
-    assert form.id == stand_in.limit_segment(60)
+    assert form.id == stand_in.limit_form_id(60)
     assert form.stack == f"{PUMP_MENU},{HEATING},{stand_in.limit_segment(60)}"
     assert form.type == "para_list"
     assert form.offered == tuple(range(10, 101))
@@ -271,6 +272,8 @@ def test_the_setting_form_is_read_as_the_controller_serves_it():
 
 LEAF = stand_in.limit_leaf(60)
 SIXTY_ONE = '<option value="61">'
+TYPE_FIELD = '<input type="hidden" name="type"'
+VALUE_LIST = '<div class="form-group"><select'
 
 
 @pytest.mark.parametrize(
@@ -283,7 +286,19 @@ SIXTY_ONE = '<option value="61">'
         LEAF.replace(" selected", ""),
         LEAF.replace(SIXTY_ONE, '<option value="61" selected>'),
         LEAF.replace(SIXTY_ONE, '<option value="x">'),
+        LEAF.replace(SIXTY_ONE, '<option value="²">'),
+        LEAF.replace(SIXTY_ONE, '<option value="６１">'),
         LEAF.replace('action="pro_save.html"', 'action="other.html"'),
+        LEAF.replace(
+            TYPE_FIELD, '<input type="hidden" name="id" value="X">' + TYPE_FIELD
+        ),
+        LEAF.replace(
+            f'name="id" value="{stand_in.limit_form_id(60)}"', 'name="id" value=""'
+        ),
+        LEAF.replace(VALUE_LIST, '</form><form action="pro_save.html">' + VALUE_LIST),
+        LEAF.replace(
+            "</select>", '</select><select name="value"><option value="62"></select>'
+        ),
     ],
     ids=[
         "no id",
@@ -293,7 +308,13 @@ SIXTY_ONE = '<option value="61">'
         "nothing selected",
         "two selected",
         "an option no number",
+        "an option a superscript digit",
+        "an option in full-width digits",
         "another action",
+        "the id twice",
+        "an empty id",
+        "the value list in a second form",
+        "two value lists",
     ],
 )
 def test_a_form_missing_a_part_is_not_read(page):

@@ -107,6 +107,9 @@ async def write_power_limit(
     except (Broken, Unreachable) as error:
         raise FormNotRead(str(error)) from error
     link_stack = link.split(pages.STACK_QUERY, 1)[-1]
+    # Accepted: the form's id goes unchecked. Recorded on one controller only,
+    # it is the leaf segment with digits changed, not the same ones on every
+    # page; a rule drawn from that could refuse every save on other firmware.
     mismatched = (
         form.stack != link_stack
         or form.selected != shown
