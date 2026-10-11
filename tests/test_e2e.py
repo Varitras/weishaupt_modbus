@@ -10,6 +10,7 @@ everyday run deselects them, CI runs them with `-m ""`.
 """
 
 import asyncio
+from datetime import timedelta
 import json
 import logging
 import pathlib
@@ -26,6 +27,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_capture_events,
+    async_fire_time_changed,
     mock_restore_cache_with_extra_data,
 )
 from pytest_homeassistant_custom_component.components.diagnostics import (
@@ -52,7 +54,9 @@ from homeassistant.helpers import (
     entity_registry as er,
     issue_registry as ir,
 )
+from homeassistant.helpers.restore_state import async_get as async_get_restored
 from homeassistant.helpers.update_coordinator import UpdateFailed
+from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
 
 pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
@@ -1491,6 +1495,134 @@ async def test_todays_write_count_survives_a_reload_while_polling_fails(hass):
     await hass.async_block_till_done()
 
     assert entry.runtime_data.coordinator.device.write_budget.writes_today == 1
+
+
+async def _write_once(hass, entry):
+    device = entry.runtime_data.coordinator.device
+    setpoint = next(row for row in device.items if row.address == PV_SETPOINT)
+    await device.write(setpoint, setpoint.state + 1 if setpoint.state else 5)
+    await hass.async_block_till_done()
+
+
+def _counts(entry):
+    budget = entry.runtime_data.coordinator.device.write_budget
+    return budget.total, budget.writes_today
+
+
+async def test_the_write_counts_survive_a_reload_with_their_sensors_disabled(hass):
+    """The counts lived in the sensors' last states: disabled, the sensors
+    restored nothing, and every reload freed the daily limit again."""
+    entry = _entry(hass)
+    registry = er.async_get(hass)
+    for unique_id in (WRITES_TOTAL_UNIQUE_ID, WRITES_TODAY_UNIQUE_ID):
+        registry.async_get_or_create(
+            "sensor",
+            CONST.DOMAIN,
+            unique_id,
+            config_entry=entry,
+            disabled_by=er.RegistryEntryDisabler.USER,
+        )
+    await _setup(hass, entry)
+    await _write_once(hass, entry)
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert _counts(entry) == (1, 1)
+
+
+async def test_a_counter_renamed_and_renamed_back_counts_its_writes_once(hass):
+    """Added again under its old id, the sensor added its recorded count to
+    the budget a second time, and the daily limit stopped writes too early."""
+    entry = await _setup(hass, _entry(hass))
+    await _write_once(hass, entry)
+    registry = er.async_get(hass)
+    total_id = registry.async_get_entity_id(
+        "sensor", CONST.DOMAIN, WRITES_TOTAL_UNIQUE_ID
+    )
+
+    for new_id in ("sensor.writes_elsewhere", total_id):
+        current = registry.async_get_entity_id(
+            "sensor", CONST.DOMAIN, WRITES_TOTAL_UNIQUE_ID
+        )
+        registry.async_update_entity(current, new_entity_id=new_id)
+        await hass.async_block_till_done()
+
+    assert _counts(entry) == (1, 1)
+
+
+async def test_the_counts_the_sensors_recorded_are_taken_over_once(hass):
+    """Before the counts had a store of their own, the sensors held them: the
+    first start takes them over, every later one reads the store."""
+    entry = _entry(hass)
+    registry = er.async_get(hass)
+    ids = [
+        registry.async_get_or_create(
+            "sensor", CONST.DOMAIN, unique_id, config_entry=entry
+        ).entity_id
+        for unique_id in (WRITES_TOTAL_UNIQUE_ID, WRITES_TODAY_UNIQUE_ID)
+    ]
+    today = {"day": dt_util.now().date().isoformat()}
+    recorded = {"native_value": 7, "native_unit_of_measurement": None}
+    mock_restore_cache_with_extra_data(
+        hass,
+        [
+            (State(ids[0], "7"), recorded),
+            (State(ids[1], "2", today), {**recorded, "native_value": 2}),
+        ],
+    )
+    await _setup(hass, entry)
+    assert _counts(entry) == (7, 2)
+
+    # The sensors record no state any more: the next start has only the store.
+    async_get_restored(hass).last_states.clear()
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert _counts(entry) == (7, 2), "the counts taken over were not saved"
+
+    await _write_once(hass, entry)
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert _counts(entry) == (8, 3)
+
+
+async def test_a_count_recorded_as_unavailable_is_taken_over_as_zero(hass):
+    """Before the store, a counter went unavailable with the polling, and its
+    last state then held no count."""
+    entry = _entry(hass)
+    registry = er.async_get(hass)
+    ids = [
+        registry.async_get_or_create(
+            "sensor", CONST.DOMAIN, unique_id, config_entry=entry
+        ).entity_id
+        for unique_id in (WRITES_TOTAL_UNIQUE_ID, WRITES_TODAY_UNIQUE_ID)
+    ]
+    mock_restore_cache_with_extra_data(
+        hass,
+        [
+            (State(ids[0], "5"), {"native_value": 5}),
+            (State(ids[1], "unavailable"), {"native_value": None}),
+        ],
+    )
+
+    await _setup(hass, entry)
+
+    assert _counts(entry) == (5, 0)
+
+
+async def test_removing_the_entry_removes_its_write_counts(hass, hass_storage):
+    entry = await _setup(hass, _entry(hass))
+    await _write_once(hass, entry)
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=1))
+    await hass.async_block_till_done()
+    stored = [key for key in hass_storage if entry.entry_id in key]
+    assert stored, "the counts were never saved"
+
+    assert await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert not [key for key in hass_storage if entry.entry_id in key]
 
 
 PV_SETPOINT_UNIQUE_ID = "weishaupt_wbbSollwertPV"

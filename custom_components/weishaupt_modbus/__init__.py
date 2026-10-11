@@ -54,6 +54,12 @@ from .weishaupt_modbus_api.const import DEFAULT_PORT, MODBUS_UNIT_ID
 from .weishaupt_modbus_api.device import WeishauptHeatPump
 from .weishaupt_modbus_api.hpconst import DEVICELISTS
 from .weishaupt_modbus_api.write_budget import WriteBudget
+from .write_counter_sensor import (
+    TOTAL_WRITES,
+    WEBIF_WRITE_COUNTER_DESCRIPTIONS,
+    WRITES_TODAY,
+)
+from .write_counts import async_keep_write_counts, async_remove_write_counts
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -146,8 +152,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
         host=entry.data[CONF.HOST], port=int(entry.data.get(CONF.PORT, DEFAULT_PORT))
     )
     unit = async_get_unit(hass, entry, params, MODBUS_UNIT_ID)
+    budget = write_budget(entry)
+    await async_keep_write_counts(
+        hass, entry, budget, entry.data, (TOTAL_WRITES.key, WRITES_TODAY.key)
+    )
     pump = WeishauptHeatPump(
-        unit, itemlist, write_budget(entry), host_lock(hass, entry.data[CONF.HOST])
+        unit, itemlist, budget, host_lock(hass, entry.data[CONF.HOST])
     )
 
     modbus_coordinator = WeishauptModbusCoordinator(
@@ -259,6 +269,10 @@ async def _async_setup_web_interface(
             CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY, CONST.WEBIF_WRITE_LIMIT_PER_DAY
         ),
         today=lambda: dt_util.now().date(),
+    )
+    total, today = WEBIF_WRITE_COUNTER_DESCRIPTIONS
+    await async_keep_write_counts(
+        hass, entry, budget, started_with, (total.key, today.key)
     )
     coordinator = WebifCoordinator(hass, entry, client, polled, budget=budget)
     entry.runtime_data = WebifData(
@@ -429,8 +443,9 @@ def _entity_id_with_new_label(entity_id: str, labels: tuple) -> str | None:
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Take the entry's circuit notices along."""
+    """Take the entry's circuit notices and write counts along."""
     clear_circuit_notices(hass, entry)
+    await async_remove_write_counts(hass, entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

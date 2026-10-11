@@ -81,27 +81,32 @@ def test_a_listener_hears_every_counted_write_until_it_unsubscribes():
     assert heard == [1, 2]
 
 
-def test_a_restored_count_from_yesterday_is_stale():
+def test_a_count_kept_from_yesterday_is_stale():
     budget = WriteBudget(warn_at=0, limit=0, today=Clock(TUESDAY))
 
-    budget.restore_today(7, MONDAY)
-    assert budget.writes_today == 0
+    budget.load({"total": 9, "today": 7, "day": MONDAY.isoformat()})
+    assert (budget.total, budget.writes_today) == (9, 0)
 
-    budget.restore_today(7, TUESDAY)
+    budget.load({"total": 9, "today": 7, "day": TUESDAY.isoformat()})
     assert budget.writes_today == 7
 
 
-def test_a_write_counted_before_the_restore_is_not_erased_by_it():
-    """The counter sensors restore their last value after the platforms have
-    started adding entities, and a number is writable before that. A restore
-    that replaced the count discarded that write: at a daily limit of one the
-    register had been written and a second write was still allowed."""
-    budget = WriteBudget(warn_at=0, limit=1, today=Clock(MONDAY))
-    budget.record_write()
+def test_the_counts_kept_come_back_as_they_were_saved():
+    """At a daily limit of one, a write saved and loaded again still uses it up."""
+    saved = WriteBudget(warn_at=0, limit=1, today=Clock(MONDAY))
+    saved.record_write()
 
-    budget.restore_today(0, MONDAY)
-    budget.restore_total(41)
+    loaded = WriteBudget(warn_at=0, limit=1, today=Clock(MONDAY))
+    loaded.load(saved.counts())
 
-    assert budget.writes_today == 1
-    assert budget.total == 42, "41 before this start, one since"
-    assert not budget.allows_write()
+    assert (loaded.total, loaded.writes_today) == (1, 1)
+    assert not loaded.allows_write()
+
+
+def test_no_counts_kept_start_at_zero():
+    """What a first start without any recorded sensor state takes over."""
+    budget = WriteBudget(warn_at=0, limit=0, today=Clock(MONDAY))
+
+    budget.load({"total": 0, "today": 0, "day": None})
+
+    assert (budget.total, budget.writes_today) == (0, 0)

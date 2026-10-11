@@ -212,7 +212,9 @@ rates for 100 000 writes over its lifetime. Two diagnostic sensors on the
 System device count the writes that went out, in total and today - one
 whose answer was lost too, since the controller may have stored it - and
 stay shown while the polling fails; the [Options](#options) set a
-warning threshold and a daily limit.
+warning threshold and a daily limit. The counts are kept with the entry,
+not in the sensors: they carry over restarts and reloads with the sensors
+disabled too, and go when the entry is removed.
 
 ### The power map
 

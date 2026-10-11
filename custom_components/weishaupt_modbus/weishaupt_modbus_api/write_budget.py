@@ -1,7 +1,13 @@
 """Counting the writes that reach the pump's EEPROM."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import date
+from typing import Any
+
+# The keys the counts are kept under between starts.
+TOTAL = "total"
+TODAY = "today"
+DAY = "day"
 
 
 class WriteBudget:
@@ -62,17 +68,22 @@ class WriteBudget:
             listener()
         return self.warn_at > 0 and self._today_count == self.warn_at
 
-    def restore_total(self, total: int) -> None:
-        """The lifetime count as the sensor last recorded it, on top of this start's.
+    def counts(self) -> dict[str, Any]:
+        """The counts as they are kept between starts."""
+        self._roll_day()
+        return {
+            TOTAL: self.total,
+            TODAY: self._today_count,
+            DAY: self.day.isoformat(),
+        }
 
-        Added, not assigned: the sensor restores after the platforms have
-        begun adding entities, and a write made before that was counted here
-        already. Replacing the count threw that write away.
+    def load(self, counts: Mapping[str, Any]) -> None:
+        """Take the counts kept from before; today's only if they are today's.
+
+        Assigned, not added: they are loaded before anything can write.
         """
-        self.total += total
-
-    def restore_today(self, count: int, day: date) -> None:
-        """A count from a past day is stale and stays at zero."""
-        if day == self._today():
-            self.day = day
-            self._today_count += count
+        self.total = int(counts.get(TOTAL) or 0)
+        day = counts.get(DAY)
+        if day and date.fromisoformat(day) == self._today():
+            self.day = self._today()
+            self._today_count = int(counts.get(TODAY) or 0)

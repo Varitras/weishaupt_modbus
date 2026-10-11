@@ -2,11 +2,10 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import date
 from typing import Any
 
 from homeassistant.components.sensor import (
-    RestoreSensor,
+    SensorEntity,
     SensorEntityDescription,
     SensorStateClass,
 )
@@ -58,13 +57,10 @@ WEBIF_WRITE_COUNTER_DESCRIPTIONS = (
 )
 
 
-class WriteCounterSensor(CoordinatorEntity[DataUpdateCoordinator[Any]], RestoreSensor):
-    """A counter that lives in its write budget and survives a restart here.
+class WriteCounterSensor(CoordinatorEntity[DataUpdateCoordinator[Any]], SensorEntity):
+    """A counter that shows its write budget; the entry's store keeps the counts.
 
-    The budget is rebuilt on every (re)load with its counters at zero; the
-    last recorded state seeds it again in async_added_to_hass. Every counted
-    write is written to the state at once: a reload before the next poll
-    would otherwise restore a count that is already behind.
+    Every counted write is shown at once, not with the next poll.
     """
 
     _attr_has_entity_name = True
@@ -87,11 +83,7 @@ class WriteCounterSensor(CoordinatorEntity[DataUpdateCoordinator[Any]], RestoreS
 
     @property
     def available(self) -> bool:
-        """Also while the polling fails: the count is this side's own.
-
-        Unavailable, its day was not recorded, and the reload that ends a
-        stop restored today's count as 0, freeing the daily limit again.
-        """
+        """Also while the polling fails: the count is this side's own."""
         return True
 
     @property
@@ -103,27 +95,15 @@ class WriteCounterSensor(CoordinatorEntity[DataUpdateCoordinator[Any]], RestoreS
 
     @property
     def extra_state_attributes(self) -> dict[str, str] | None:
-        """The day the daily count belongs to, so a restore can tell stale from current."""
+        """The day the daily count belongs to."""
         if not self.entity_description.daily:
             return None
         return {DAY_ATTRIBUTE: self._budget.day.isoformat()}
 
     async def async_added_to_hass(self) -> None:
-        """Seed the fresh budget with the last recorded count."""
+        """Show each counted write as it is counted."""
         await super().async_added_to_hass()
         self.async_on_remove(self._budget.add_listener(self.async_write_ha_state))
-        last_data = await self.async_get_last_sensor_data()
-        if last_data is None or last_data.native_value is None:
-            return
-        # RestoreSensor types the value as any sensor value; ours is a count.
-        count = int(str(last_data.native_value))
-        if not self.entity_description.daily:
-            self._budget.restore_total(count)
-            return
-        last_state = await self.async_get_last_state()
-        day_text = last_state.attributes.get(DAY_ATTRIBUTE) if last_state else None
-        if day_text:
-            self._budget.restore_today(count, date.fromisoformat(day_text))
 
 
 def pump_write_counters(

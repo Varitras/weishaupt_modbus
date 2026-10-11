@@ -858,7 +858,7 @@ async def test_the_diagnostic_sensors_stay_shown_when_polling_fails(hass, pump):
     await hass.async_block_till_done()
 
     assert hass.states.get(_sensor(hass, "hochdruck")).state == "unavailable"
-    for key in (*TRAFFIC_COUNTS, "answer_time"):
+    for key in (*TRAFFIC_COUNTS, "answer_time", *WEB_WRITE_COUNTERS):
         assert hass.states.get(_sensor(hass, key)).state != "unavailable"
 
 
@@ -913,6 +913,61 @@ async def test_todays_web_write_count_survives_the_reload_after_a_stop(hass, pum
 
     assert hass.states.get(_sensor(hass, "settings_written_today")).state == "1"
     assert entry.runtime_data.coordinator.budget.writes_today == 1
+
+
+async def test_the_web_write_counts_survive_a_reload_with_their_sensors_disabled(
+    hass, pump
+):
+    """Disabled, the counters restored nothing, and a reload freed the web
+    interface's daily limit again."""
+    web = _entries(hass, pump)
+    registry = er.async_get(hass)
+    for key in WEB_WRITE_COUNTERS:
+        registry.async_get_or_create(
+            "sensor",
+            CONST.DOMAIN,
+            f"{CONST.DEF_PREFIX}webif_{key}",
+            config_entry=web,
+            disabled_by=er.RegistryEntryDisabler.USER,
+        )
+    entry = await _start(hass, web)
+    entry.runtime_data.coordinator.budget.record_write()
+    await hass.async_block_till_done()
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    budget = entry.runtime_data.coordinator.budget
+    assert (budget.total, budget.writes_today) == (1, 1)
+
+
+async def test_a_traffic_count_renamed_and_renamed_back_is_not_added_twice(hass, pump):
+    """Added again under its old id, the sensor added its recorded count to
+    the client's a second time."""
+    web = _entries(hass, pump)
+    registry = er.async_get(hass)
+    registry.async_get_or_create(
+        "sensor",
+        CONST.DOMAIN,
+        f"{CONST.DEF_PREFIX}webif_requests",
+        config_entry=web,
+        suggested_object_id="web_requests",
+    )
+    recorded = {"native_value": 100, "native_unit_of_measurement": None}
+    mock_restore_cache_with_extra_data(
+        hass, [(State("sensor.web_requests", "100"), recorded)]
+    )
+    entry = await _start(hass, web)
+    before = entry.runtime_data.client.traffic.requests
+
+    for new_id in ("sensor.requests_elsewhere", "sensor.web_requests"):
+        current = registry.async_get_entity_id(
+            "sensor", CONST.DOMAIN, f"{CONST.DEF_PREFIX}webif_requests"
+        )
+        registry.async_update_entity(current, new_entity_id=new_id)
+        await hass.async_block_till_done()
+
+    assert entry.runtime_data.client.traffic.requests == before
 
 
 @pytest.mark.parametrize(("chosen", "limit"), [(None, 10), (1, 1), (0, 0)])

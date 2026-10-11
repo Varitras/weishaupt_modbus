@@ -168,13 +168,6 @@
     "tests": "relabelled_registers_take_their_history"
   },
   {
-    "label": "write counter: the restored total must reach the client",
-    "path": "custom_components/weishaupt_modbus/write_counter_sensor.py",
-    "old": "            self._budget.restore_total(count)\n",
-    "new": "            pass\n",
-    "tests": "write_counters_survive_a_restart"
-  },
-  {
     "label": "write budget: the warning must fire at the threshold, not never",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/write_budget.py",
     "old": "        return self.warn_at > 0 and self._today_count == self.warn_at\n",
@@ -677,13 +670,6 @@
     "old": "            destination.write_text(picture, encoding=\"utf-8\")\n",
     "new": "            destination.write_text(json_filepath.with_suffix(\".svg\").read_text(encoding=\"utf-8\"), encoding=\"utf-8\")\n",
     "tests": "bytes_copied_are_the_bytes_that_passed"
-  },
-  {
-    "label": "write budget: a restore must not erase a write already counted",
-    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/write_budget.py",
-    "old": "            self._today_count += count\n",
-    "new": "            self._today_count = count\n",
-    "tests": "not_erased_by_it"
   },
   {
     "label": "power map: a grid that fails to load takes the old preview down",
@@ -2487,8 +2473,8 @@
   {
     "label": "setup: the pump polls and writes under a lock of its own",
     "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "        unit, itemlist, write_budget(entry), host_lock(hass, entry.data[CONF.HOST])\n",
-    "new": "        unit, itemlist, write_budget(entry), type(host_lock(hass, entry.data[CONF.HOST]))()\n",
+    "old": "        unit, itemlist, budget, host_lock(hass, entry.data[CONF.HOST])\n",
+    "new": "        unit, itemlist, budget, type(host_lock(hass, entry.data[CONF.HOST]))()\n",
     "tests": "polls_and_writes_under_the_lock_its_web_interface_shares"
   },
   {
@@ -3801,11 +3787,11 @@
     "tests": "comes_back_with_the_value_it_held"
   },
   {
-    "label": "write counter: unavailable with its coordinator, it loses today's count on the reload",
+    "label": "write counter: unavailable with its coordinator",
     "path": "custom_components/weishaupt_modbus/write_counter_sensor.py",
-    "old": "        stop restored today's count as 0, freeing the daily limit again.\n        \"\"\"\n        return True\n",
-    "new": "        stop restored today's count as 0, freeing the daily limit again.\n        \"\"\"\n        return super().available\n",
-    "tests": "survives_a_reload_while_polling_fails or survives_the_reload_after_a_stop"
+    "old": "        \"\"\"Also while the polling fails: the count is this side's own.\"\"\"\n        return True\n",
+    "new": "        \"\"\"Also while the polling fails: the count is this side's own.\"\"\"\n        return super().available\n",
+    "tests": "stay_shown_when_polling_fails"
   },
   {
     "label": "config flow: a dialog left open after an error keeps its postfix",
@@ -4401,5 +4387,61 @@
     "old": "    \"deviceclass\": SensorDeviceClass.VOLUME_FLOW_RATE,\n",
     "new": "",
     "tests": "classes_the_statistics_need"
+  },
+  {
+    "label": "write counts: the kept counts never reach the budget",
+    "path": "custom_components/weishaupt_modbus/write_counts.py",
+    "old": "    budget.load(counts)\n",
+    "new": "",
+    "tests": "sensors_disabled or taken_over_once or write_counters_survive_a_restart"
+  },
+  {
+    "label": "write counts: a counted write is never saved",
+    "path": "custom_components/weishaupt_modbus/write_counts.py",
+    "old": "            lambda: store.async_delay_save(budget.counts, SAVE_DELAY_SECONDS)\n",
+    "new": "            lambda: None\n",
+    "tests": "sensors_disabled or taken_over_once"
+  },
+  {
+    "label": "write counts: the sensors' counts are not taken over",
+    "path": "custom_components/weishaupt_modbus/write_counts.py",
+    "old": "        counts = _recorded_by_the_sensors(hass, id_data, keys)\n",
+    "new": "        counts = {}\n",
+    "tests": "taken_over_once"
+  },
+  {
+    "label": "write counts: the counts taken over are not saved",
+    "path": "custom_components/weishaupt_modbus/write_counts.py",
+    "old": "        store.async_delay_save(lambda: counts, 0)\n",
+    "new": "",
+    "tests": "taken_over_once"
+  },
+  {
+    "label": "write counts: a reload opens a store of its own",
+    "path": "custom_components/weishaupt_modbus/write_counts.py",
+    "old": "    if entry_id not in stores:\n",
+    "new": "    if True:\n",
+    "tests": "sensors_disabled or taken_over_once or write_counters_survive_a_restart"
+  },
+  {
+    "label": "write counts: removing the entry leaves its counts",
+    "path": "custom_components/weishaupt_modbus/write_counts.py",
+    "old": "    await _store(hass, entry_id).async_remove()\n",
+    "new": "",
+    "tests": "removes_its_write_counts"
+  },
+  {
+    "label": "write budget: yesterday's count is loaded as today's",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/write_budget.py",
+    "old": "        if day and date.fromisoformat(day) == self._today():\n",
+    "new": "        if day:\n",
+    "tests": "kept_from_yesterday"
+  },
+  {
+    "label": "webif sensor: a traffic count added again is added twice",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        if self._restored:\n            return\n",
+    "new": "",
+    "tests": "renamed_back"
   }
 ]
