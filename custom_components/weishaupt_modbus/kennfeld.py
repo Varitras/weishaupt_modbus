@@ -56,7 +56,7 @@ def _numbers(values: Any, at_least: int) -> bool:
 
 
 def _raw_bounds(known_x: list[float]) -> list[int] | None:
-    """The outside-temperature bounds as the compiled grid's integer keys.
+    """The air intake temperature bounds as the compiled grid's integer keys.
 
     None when they do not survive the conversion, so that accepting a grid
     and being able to look up in it are one decision, not two.
@@ -252,7 +252,7 @@ class PowerMap:
         self._config_entry = config_entry
         self._compiled_grid: dict[str, list[float]] = {}
         self._known_t: list[int] = [35, 55]
-        self._out_range_raw: list[int] = [-300, 400]
+        self._air_range_raw: list[int] = [-300, 400]
 
     async def initialize(self) -> None:
         """Load the compiled grid, then put its preview under www/local.
@@ -302,7 +302,7 @@ class PowerMap:
         # check above already refused a known_x this cannot convert.
         raw_bounds = _raw_bounds(known_x)
         assert raw_bounds is not None
-        self._out_range_raw = raw_bounds
+        self._air_range_raw = raw_bounds
         self._compiled_grid = data["compiled_grid"]
         return True
 
@@ -342,16 +342,15 @@ class PowerMap:
             return None
 
         air_raw = max(
-            self._out_range_raw[0],
-            min(round(air_intake_raw), self._out_range_raw[1]),
+            self._air_range_raw[0],
+            min(round(air_intake_raw), self._air_range_raw[1]),
         )
         flow_temp = max(
             float(self._known_t[0]), min(flow_temp_raw / 10, float(self._known_t[-1]))
         )
 
-        vals = self._compiled_grid.get(str(air_raw))
-        if not vals:
-            return None
+        # A grid is loaded only with a row for every tenth between its bounds.
+        vals = self._compiled_grid[str(air_raw)]
 
         # Clamped to the curves, the flow temperature always lies between two.
         y0_idx = 0

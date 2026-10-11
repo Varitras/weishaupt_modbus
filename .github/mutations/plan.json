@@ -4583,5 +4583,12 @@
     "old": "            \"prefix\": name_prefix(pump_data, POWER_LIMIT.topic)\n",
     "new": "            \"prefix\": \"\"\n",
     "tests": "naming_options_name_the_power_limit"
+  },
+  {
+    "label": "compile kennfeld: the bounds are cut off, not rounded like the integration's",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "    low, high = round(known_x[0] * 10), round(known_x[-1] * 10)\n",
+    "new": "    low, high = int(known_x[0] * 10), int(known_x[-1] * 10)\n",
+    "tests": "rounds_its_bounds_like_the_integration"
   }
 ]

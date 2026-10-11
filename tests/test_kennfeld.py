@@ -34,8 +34,8 @@ KENNFELD = (
 def _power_map():
     power_map = PowerMap(SimpleNamespace(data={}), None)
     power_map._known_t = [35, 55]
-    power_map._out_range_raw = [-100, 0]
-    # Outside temperature (raw, 0.1 °C) -> heating power at 35 °C and 55 °C flow.
+    power_map._air_range_raw = [-100, 0]
+    # Air intake temperature (raw, 0.1 °C) -> heating power at 35 °C and 55 °C flow.
     power_map._compiled_grid = {"-100": [5000.0, 4000.0], "0": [6000.0, 5000.0]}
     return power_map
 
@@ -523,6 +523,22 @@ def test_the_compile_script_takes_bounds_written_as_floats(monkeypatch):
 
     assert kennfeld._looks_like_a_grid(data)
     assert data["compiled_grid"]["-125"] == [1.0, 4.0]
+
+
+def test_the_compile_script_rounds_its_bounds_like_the_integration(monkeypatch):
+    """0.35 is 3.5000000000000004 tenths: cut off instead of rounded, the
+    script's keys would stop a tenth short of the integration's bounds, and
+    the integration would refuse the grid."""
+    monkeypatch.setitem(sys.modules, "scipy.interpolate", None)
+    data = {
+        "known_x": [-12.26, 0, 0.35],
+        "known_t": [35, 55],
+        "known_y": [[1, 2, 3], [4, 5, 6]],
+    }
+
+    data["compiled_grid"] = _compile_script().compile_grid(data)
+
+    assert kennfeld._looks_like_a_grid(data)
 
 
 def test_the_compile_script_refuses_air_temperatures_out_of_order(monkeypatch):
