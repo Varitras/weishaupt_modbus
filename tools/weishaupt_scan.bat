@@ -53,6 +53,8 @@ $ExceptionFlag = 0x80
 $IllegalDataAddress = 2
 # A pump that drops this many requests in a row is gone, not slow.
 $MaxTimeoutsInRow = 5
+# A short answer is as unusable as none: the same handling and the same note.
+$MalformedAnswer = 'The pump sent a malformed answer.'
 
 $script:client = $null
 $script:stream = $null
@@ -82,6 +84,10 @@ function Read-Exactly([int]$count) {
     return , $buffer
 }
 
+function Assert-Length([byte[]]$body, [int]$needed) {
+    if ($body.Length -lt $needed) { throw [System.IO.IOException]::new($MalformedAnswer) }
+}
+
 function Invoke-Pdu([byte[]]$pdu) {
     $script:transactionId = ($script:transactionId + 1) -band 0xFFFF
     $length = $pdu.Length + 1
@@ -92,7 +98,9 @@ function Invoke-Pdu([byte[]]$pdu) {
             $UnitId) + $pdu)
     $script:stream.Write($frame, 0, $frame.Length)
     $header = Read-Exactly 7
-    $body = Read-Exactly ($header[4] * 256 + $header[5] - 1)
+    $count = $header[4] * 256 + $header[5] - 1
+    if ($count -lt 1) { throw [System.IO.IOException]::new($MalformedAnswer) }
+    $body = Read-Exactly $count
     # A late answer to a timed-out request would shift every value after it.
     if (($header[0] * 256 + $header[1]) -ne $script:transactionId) {
         throw [System.IO.IOException]::new('The pump answered an earlier request.')
@@ -102,7 +110,9 @@ function Invoke-Pdu([byte[]]$pdu) {
 
 function Read-Register([int]$function, [int]$address) {
     $body = Invoke-Pdu ([byte[]]@($function, ($address -shr 8), ($address -band 0xFF), 0, 1))
+    Assert-Length $body 2
     if ($body[0] -band $ExceptionFlag) { return @{ Exception = [int]$body[1] } }
+    Assert-Length $body 4
     return @{ Value = $body[2] * 256 + $body[3] }
 }
 
@@ -110,13 +120,17 @@ function Read-DeviceIdentification {
     $objectId = 0
     for ($page = 0; $page -lt $MaxDeviceIdPages; $page++) {
         $body = Invoke-Pdu ([byte[]]@($FunctionEncapsulated, $MeiReadDeviceId, $DeviceIdBasic, $objectId))
+        Assert-Length $body 2
         if ($body[0] -band $ExceptionFlag) {
             return [pscustomobject]@{ table = 'device_id'; address = ''; value = ''; note = "exception $($body[1])" }
         }
         # fc, MEI type, id code, conformity, more follows, next id, object count, objects
+        Assert-Length $body 7
         $offset = 7
         for ($index = 0; $index -lt $body[6]; $index++) {
+            Assert-Length $body ($offset + 2)
             $length = $body[$offset + 1]
+            Assert-Length $body ($offset + 2 + $length)
             [pscustomobject]@{
                 table   = 'device_id'
                 address = $body[$offset]
