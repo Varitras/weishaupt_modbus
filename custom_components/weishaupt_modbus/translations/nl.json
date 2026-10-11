@@ -157,9 +157,6 @@
     "dev_statistik" : {
       "name" : "Statistieken{postfix}"
     },
-    "dev_unknown" : {
-      "name" : "Onbekend{postfix}"
-    },
     "dev_ein_aus" : {
       "name" : "Ingangen/Uitgangen{postfix}"
     },

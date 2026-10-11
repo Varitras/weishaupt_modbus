@@ -373,8 +373,8 @@
   {
     "label": "entity: a row without params must show whole numbers",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "                    \"precision\", 0\n",
-    "new": "                    \"precision\", 2\n",
+    "old": "                \"precision\", 0\n",
+    "new": "                \"precision\", 2\n",
     "tests": "row_without_params_is_a_whole_number"
   },
   {

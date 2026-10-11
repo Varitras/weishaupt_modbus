@@ -157,9 +157,6 @@
         "dev_statistik": {
             "name": "WH Statistik{postfix}"
         },
-        "dev_unknown": {
-            "name": "WH Unbekannt{postfix}"
-        },
         "dev_ein_aus": {
             "name": "WH Eingänge/Ausgänge{postfix}"
         },

@@ -19,7 +19,7 @@ import re
 
 import pytest
 
-from custom_components.weishaupt_modbus.const import FORMATS, TYPES
+from custom_components.weishaupt_modbus.const import DEVICES, FORMATS, TYPES
 from custom_components.weishaupt_modbus.items import ModbusItem
 from custom_components.weishaupt_modbus.webif_sensor import (
     ANSWER_TIME,
@@ -186,6 +186,21 @@ def test_every_status_value_has_a_state_translation(path):
         f"{path.name}: status keys and state translations disagree: {mismatched}. "
         "The table and every translation file have to name the same keys."
     )
+
+
+def test_every_device_constant_names_a_device_that_gets_entities():
+    """DEVICES.UK named a device no row was on, with a translation of its own."""
+    used = {item.device for item in _items(hpconst)} | {DEVICES.WEBIF}
+
+    assert set(hpconst.reverse_device_list) == used
+
+
+def test_every_select_reads_a_status_list():
+    """The select translates by its status list and has no other way."""
+    selects = [item for item in _items(hpconst) if item.type == TYPES.SELECT]
+
+    assert selects
+    assert all(item.format == FORMATS.STATUS for item in selects)
 
 
 def test_every_status_item_has_a_result_list():

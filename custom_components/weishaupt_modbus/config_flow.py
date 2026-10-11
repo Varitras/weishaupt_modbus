@@ -705,9 +705,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
             step_id="reconfigure",
             data_schema=schema_reconfigure,
             errors=errors,
-            description_placeholders={
-                CONF.HOST: "myhostname",
-            },
         )
 
 

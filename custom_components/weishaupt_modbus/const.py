@@ -108,7 +108,6 @@ class DeviceConstants:
     HZ5: str = "dev_heizkreis5"
     W2: str = "dev_waermeerzeuger2"
     ST: str = "dev_statistik"
-    UK: str = "dev_unknown"
     IO: str = "dev_ein_aus"
     WEBIF: str = "dev_webif"
 

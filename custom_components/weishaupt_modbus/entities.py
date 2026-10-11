@@ -123,26 +123,23 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
         if self._api_item.format == FORMATS.STATUS:
             self._divider = 1
         else:
-            if self._api_item.params is not None:
-                self._attr_native_unit_of_measurement = self._api_item.params.get(
-                    "unit"
-                )
-                self._attr_native_step = self._api_item.params.get("step", 1)
-                self._divider = self._api_item.params.get("divider", 1)
-                self._attr_device_class = self._api_item.params.get("deviceclass", None)
-                # A row without params is a whole number (a counter, a code):
-                # two decimals showed hours as 12.00 h.
-                self._attr_suggested_display_precision = self._api_item.params.get(
-                    "precision", 0
-                )
-                self._fixed_min = self._api_item.params.get("min", -999999)
-                self._fixed_max = self._api_item.params.get("max", 999999)
-                self._attr_native_min_value = self._fixed_min
-                self._attr_native_max_value = self._fixed_max
-                if self._api_item.params.get("dynamic_min", None) is not None:
-                    self._has_dynamic_min = True
-                if self._api_item.params.get("dynamic_max", None) is not None:
-                    self._has_dynamic_max = True
+            self._attr_native_unit_of_measurement = self._api_item.params.get("unit")
+            self._attr_native_step = self._api_item.params.get("step", 1)
+            self._divider = self._api_item.params.get("divider", 1)
+            self._attr_device_class = self._api_item.params.get("deviceclass", None)
+            # A row without params is a whole number (a counter, a code):
+            # two decimals showed hours as 12.00 h.
+            self._attr_suggested_display_precision = self._api_item.params.get(
+                "precision", 0
+            )
+            self._fixed_min = self._api_item.params.get("min", -999999)
+            self._fixed_max = self._api_item.params.get("max", 999999)
+            self._attr_native_min_value = self._fixed_min
+            self._attr_native_max_value = self._fixed_max
+            if self._api_item.params.get("dynamic_min", None) is not None:
+                self._has_dynamic_min = True
+            if self._api_item.params.get("dynamic_max", None) is not None:
+                self._has_dynamic_max = True
             self.set_min_max()
 
     @property
@@ -222,7 +219,7 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
         is not rounded further: Home Assistant's default of 1 would round
         21.5 at divider 10 to 22.
         """
-        params = self._api_item.params or {}
+        params = self._api_item.params
         step = to_register_value(params.get("step", 1 / self._divider), self._divider)
         return round(word / step) * step
 
@@ -280,11 +277,9 @@ class MySensorEntity(MyEntity, SensorEntity):
             FORMATS.UNKNOWN,
         ]:
             # default state class to record all entities by default
-            self._attr_state_class = SensorStateClass.MEASUREMENT
-            if modbus_item.params is not None:
-                self._attr_state_class = modbus_item.params.get(
-                    "stateclass", SensorStateClass.MEASUREMENT
-                )
+            self._attr_state_class = modbus_item.params.get(
+                "stateclass", SensorStateClass.MEASUREMENT
+            )
         # The first refresh ran before the platforms; the listener only fires
         # on the next one, so without this every sensor reads unknown for a
         # whole scan interval after setup.
@@ -511,10 +506,8 @@ class MySelectEntity(MyEntity, SelectEntity):
 
     def translate_val_select(self, val: Any) -> str | None:
         """Translate modbus value for select entity."""
-        if self._api_item.format == FORMATS.STATUS:
-            result = self._api_item.get_translation_key_from_number(val)
-            return str(result) if result is not None else None
-        return None
+        result = self._api_item.get_translation_key_from_number(val)
+        return str(result) if result is not None else None
 
     async def async_select_option(self, option: str) -> None:
         """Write the selected option; every entity on the register learns of it."""

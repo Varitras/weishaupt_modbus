@@ -151,9 +151,6 @@
     "dev_system": {
       "name": "WH System{postfix}"
     },
-    "dev_unknown": {
-      "name": "WH Unknown{postfix}"
-    },
     "dev_waermeerzeuger2": {
       "name": "WH 2nd heat source{postfix}"
     },
