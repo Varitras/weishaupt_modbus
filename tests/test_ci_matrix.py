@@ -264,7 +264,10 @@ def test_the_workflow_and_the_local_gates_pin_the_same_versions():
     assert not _pins_of(workflow), "a second pin in the workflow"
 
 
-PIP_INSTALL = re.compile(r"\bpip3?\s+install\b")
+PIP_INSTALL = re.compile(r"\bpip(?:x|3(?:\.\d+)?)?(?:\s+-\S+)*\s+install\b")
+# The runtime requirements carry lower bounds on purpose; any other file is
+# a pin nobody here checks.
+REQUIREMENT_FILES = {"requirements.txt", "requirements_gates.txt"}
 
 
 def _commands(lines: list[str]) -> list[str]:
@@ -300,8 +303,14 @@ def _unpinned(lines: list[str]) -> list[str]:
             if re.match(r"[a-z]", word) and not word.endswith(".txt")
         }
         pinned = gate_pins if constrained else PINNED_BY_THE_PLUGIN
+        unchecked_files = {
+            word for word in words if word.endswith(".txt")
+        } - REQUIREMENT_FILES
         if (
             "--upgrade" in words
+            or "-e" in words
+            or "--editable" in words
+            or unchecked_files
             or any("://" in word for word in words)
             or names - pinned
         ):
@@ -331,6 +340,12 @@ def test_every_pip_install_in_the_workflow_takes_its_version_from_a_pin():
         "pip  install packaging",
         "python -m pip install packaging",
         "pip install git+https://example.invalid/tool.git",
+        "pip install -c requirements_gates.txt ruff@https://example.invalid/ruff.whl",
+        "pip -q install packaging",
+        "pip3.14 install packaging",
+        "pipx install packaging",
+        "pip install -r requirements_other.txt",
+        "pip install -e .",
     ],
 )
 def test_the_pin_check_sees_an_unpinned_install_however_it_is_written(line):
@@ -338,6 +353,10 @@ def test_the_pin_check_sees_an_unpinned_install_however_it_is_written(line):
     constrained by a file that has no pin for it, a name went through: the
     check read the spelling, not the pin."""
     assert _unpinned([f"        run: {line}"])
+
+
+def test_the_pin_check_skips_a_commented_out_install():
+    assert not _unpinned(["# pip install packaging"])
 
 
 def test_the_pin_check_reads_an_install_continued_on_the_next_line():

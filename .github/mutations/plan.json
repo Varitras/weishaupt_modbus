@@ -4611,5 +4611,33 @@
     "old": "        if isinstance(error.__cause__, Unreachable):\n            self._rest()\n",
     "new": "        if isinstance(error, FormNotRead) and isinstance(error.__cause__, Unreachable):\n            self._rest()\n",
     "tests": "timeout_under_a_write_gives_the_controller_a_rest"
+  },
+  {
+    "label": "ci guards: the pin check lets an install from a URL through",
+    "path": "tests/test_ci_matrix.py",
+    "old": "            or any(\"://\" in word for word in words)\n",
+    "new": "",
+    "tests": "unpinned_install_however_it_is_written"
+  },
+  {
+    "label": "ci guards: the pin check reads a commented-out install",
+    "path": "tests/test_ci_matrix.py",
+    "old": "        if line.lstrip().startswith(\"#\"):\n            continue\n",
+    "new": "",
+    "tests": "skips_a_commented_out_install"
+  },
+  {
+    "label": "ci guards: the pin check lets an editable install through",
+    "path": "tests/test_ci_matrix.py",
+    "old": "            or \"-e\" in words\n",
+    "new": "",
+    "tests": "unpinned_install_however_it_is_written"
+  },
+  {
+    "label": "ci guards: the pin check lets another requirements file through",
+    "path": "tests/test_ci_matrix.py",
+    "old": "            or unchecked_files\n",
+    "new": "",
+    "tests": "unpinned_install_however_it_is_written"
   }
 ]
