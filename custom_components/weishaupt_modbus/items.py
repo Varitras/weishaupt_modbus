@@ -24,11 +24,13 @@ class ModbusItem:
     translation_key: str
     resultlist: list[StatusItem] | None = None
     params: dict[str, Any] = field(default_factory=dict)
-    # Runtime state, written by the client and the coordinator.
+    # Runtime state, written by the client on every poll and write; the
+    # setpoint switch restores last_setting after a restart.
     state: Any = field(default=None, init=False)
     is_invalid: bool = field(default=False, init=False)
-    # A setpoint the controller reports as switched off (see fields.OFF), and
-    # the value it held before, so a switch can turn it back on.
+    # The register answered fields.OFF - a setpoint switched off, or a
+    # reported setpoint without demand - and the value it held before, so a
+    # switch can turn it back on.
     is_off: bool = field(default=False, init=False)
     last_setting: int | None = field(default=None, init=False)
 
@@ -38,11 +40,11 @@ class ModbusItem:
         return next((s for s in self.resultlist if s.number == number), None)
 
     def get_translation_key_from_number(self, val: int | None) -> str | None:
-        """The state translation key for a number; unknown numbers name themselves."""
+        """The state translation key for a number; an unknown number shows as itself."""
         if val is None or self.resultlist is None:
             return None
         status = self._status(val)
-        return status.translation_key if status else f"unbekannt <{val}>"
+        return status.translation_key if status else str(val)
 
     def get_number_from_translation_key(self, val: str | None) -> int | None:
         """The number behind a state key, None for a key that is not one."""

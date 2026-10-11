@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from modbus_connection import ModbusError, ModbusTcpParams
+from modbus_connection import ModbusError, ModbusExceptionError, ModbusTcpParams
 import probatio as vol
 
 from homeassistant import config_entries, exceptions
@@ -50,14 +50,23 @@ def _kennfeld_files(folder: Path) -> list[str]:
             for p in folder.iterdir()
             if p.name.endswith("kennfeld.json") and p.is_file()
         )
-    except OSError:
+    except OSError as error:
+        _LOGGER.debug("Power map folder not read: %s", type(error).__name__)
         found = []
     return found or [CONST.DEF_KENNFELDFILE]
 
 
+def _title_after_reconfigure(entry: config_entries.ConfigEntry, host: str) -> str:
+    """The title made from the host follows it; one the user gave stays."""
+    if entry.title != entry.data[CONF.HOST]:
+        return entry.title
+    return host
+
+
 async def build_kennfeld_list(hass: HomeAssistant) -> list[str]:
     """The power-map files a user can pick from."""
-    return await hass.async_add_executor_job(_kennfeld_files, get_filepath(hass))
+    folder = await hass.async_add_executor_job(get_filepath, hass)
+    return await hass.async_add_executor_job(_kennfeld_files, folder)
 
 
 # The outside temperature: every model serves it, so one read of it says
@@ -67,7 +76,10 @@ RESERVED_POSTFIXES = f"{CONST.DOMAIN}_reserved_postfixes"
 
 
 async def pump_answers(hass: HomeAssistant, data: dict[str, Any]) -> bool:
-    """Whether a controller answers at the host and port the user entered."""
+    """Whether a controller answers at the host and port the user entered.
+
+    A Modbus exception it answers with is raised: the link works.
+    """
     params = ModbusTcpParams(
         host=data[CONF.HOST], port=int(data.get(CONF.PORT, DEFAULT_PORT))
     )
@@ -78,7 +90,11 @@ async def pump_answers(hass: HomeAssistant, data: dict[str, Any]) -> bool:
             async_get_temporary_unit(hass, params, MODBUS_UNIT_ID) as unit,
         ):
             await unit.read_input_registers(PROBE_REGISTER, 1)
-    except ModbusError, OSError, TimeoutError:
+    except ModbusExceptionError:
+        # Something answered: the link is fine, the device is not the pump.
+        raise
+    except (ModbusError, OSError, TimeoutError) as error:
+        _LOGGER.debug("The heat pump probe failed: %s", type(error).__name__)
         return False
     return True
 
@@ -87,6 +103,9 @@ async def _probe_error(hass: HomeAssistant, data: dict[str, Any]) -> str | None:
     """The form's error for the probe of the heat pump; None when it answers."""
     try:
         answers = await pump_answers(hass, data)
+    except ModbusExceptionError as error:
+        _LOGGER.debug("The heat pump probe was refused: %r", error)
+        return "probe_refused"
     except Exception:
         # A fault of this code: Home Assistant would end the dialog in a bare
         # "Unknown error", with no form to try again in and a log line that
@@ -211,7 +230,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
 
     VERSION = 11
     MINOR_VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
 
     @staticmethod
     @callback
@@ -240,9 +258,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         }
 
     def _reservations(self) -> dict[str, str]:
-        """Postfix each open flow is probing with, by flow id, kept on hass.
+        """Postfix each open flow reserved, by flow id, kept on hass.
 
-        Two dialogs submitted together both passed the namespace check before
+        Held while the flow probes and, once it passed, until it ends: two
+        dialogs submitted together both passed the namespace check before
         either entry existed. The flow's typed context has no room for it.
         """
         reservations: dict[str, str] = self.hass.data.setdefault(RESERVED_POSTFIXES, {})
@@ -265,6 +284,15 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         self._reservations()[self.flow_id] = str(
             user_input.get(CONF.DEVICE_POSTFIX, "")
         ).strip()
+        errors = await self._reserved_objection(user_input)
+        if errors:
+            # A dialog left open after an error, its tab closed, held its
+            # postfix against every later one until the restart.
+            self._reservations().pop(self.flow_id, None)
+        return errors
+
+    async def _reserved_objection(self, user_input: dict[str, Any]) -> dict[str, str]:
+        """The objections checked while this flow's postfix is reserved."""
         reason = namespace_error(
             self.hass, user_input, pending=self._postfixes_of_other_flows()
         )
@@ -326,8 +354,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 title=self._stored_data[CONF.HOST], data=self._stored_data
             )
 
-        # Define Schema for Page 1
-        schema_page1 = vol.Schema(
+        schema = vol.Schema(
             schema={
                 vol.Required(
                     schema=CONF.HOST,
@@ -378,9 +405,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
             }
         )
 
-        return self.async_show_form(
-            step_id="user", data_schema=schema_page1, errors=errors
-        )
+        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
     async def async_step_webif(
         self, user_input: dict[str, Any] | None = None
@@ -595,7 +620,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         if is_web_interface(self._reconfigure_entry):
             return await self.async_step_reconfigure_webif()
 
-        # Pre-seed internal state dictionary with the current saved entry data
         if not self._stored_data:
             self._stored_data.update(self._reconfigure_entry.data)
 
@@ -620,15 +644,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 and holder.entry_id != self._reconfigure_entry.entry_id
             ):
                 return self.async_abort(reason="already_configured")
-            # Not async_update_reload_and_abort: that schedules a reload of
-            # its own while the update listener in __init__ reloads too.
-            self.hass.config_entries.async_update_entry(
-                self._reconfigure_entry,
+            entry = self._reconfigure_entry
+            return self.async_update_reload_and_abort(
+                entry,
                 data=self._stored_data,
                 unique_id=new_unique_id,
-                title=self._stored_data[CONF.HOST],
+                title=_title_after_reconfigure(entry, self._stored_data[CONF.HOST]),
             )
-            return self.async_abort(reason="reconfigure_successful")
 
         # The user step's schema without prefix and postfix: every unique id
         # is built from them, so a change would orphan every entity's history
@@ -678,17 +700,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
             step_id="reconfigure",
             data_schema=schema_reconfigure,
             errors=errors,
-            description_placeholders={
-                CONF.HOST: "myhostname",
-            },
         )
 
 
-class OptionsFlow(config_entries.OptionsFlow):
+class OptionsFlow(config_entries.OptionsFlowWithReload):
     """Runtime settings that do not need a new entry.
 
-    Stored in entry.options; the update listener in __init__ reloads the
-    entry when they change.
+    Stored in entry.options; Home Assistant reloads the entry when they change.
     """
 
     async def async_step_init(

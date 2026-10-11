@@ -26,8 +26,12 @@ REPO = Path(__file__).resolve().parents[1]
 SCRIPT = REPO / ".github" / "scripts" / "resolve_phcc.py"
 WORKFLOW = REPO / ".github" / "workflows" / "test.yaml"
 TEST_REQUIREMENTS = REPO / "requirements_test.txt"
-# The gates that must judge a change the same way on a laptop and in CI.
-GATE_TOOLS = ("ruff", "mypy", "pip-audit")
+GATE_PINS = REPO / "requirements_gates.txt"
+# The gates that must judge a change the same way on a laptop and in CI,
+# and the version parser the CI resolver needs.
+GATE_TOOLS = ("ruff", "mypy", "pip-audit", "packaging")
+# Installed by name: the test plugin pins it, a pin here would fight that one.
+PINNED_BY_THE_PLUGIN = {"pytest-timeout"}
 
 
 def _load():
@@ -213,7 +217,15 @@ def test_the_workflow_still_runs_ruff_pinned():
 
     assert "run: ruff check ." in workflow
     assert "run: ruff format --check ." in workflow
-    assert re.search(r'pip install "ruff==[\d.]+"', workflow)
+    assert "pip install -c requirements_gates.txt ruff" in workflow
+
+
+def test_the_test_job_installs_the_ruff_a_test_runs():
+    """The capture tool's formatter test runs ruff, and these jobs skip
+    requirements_test.txt, the one file that would have brought it."""
+    steps = _steps_of("pytest")
+
+    assert any("pip install -c requirements_gates.txt ruff" in line for line in steps)
 
 
 def test_the_secret_scan_in_ci_uses_the_repositorys_own_rules():
@@ -239,18 +251,130 @@ def _pins_of(text: str) -> dict[str, str]:
 
 
 def test_the_workflow_and_the_local_gates_pin_the_same_versions():
-    """check.sh and the pre-push hook run what requirements_test.txt
-    installs, CI runs what the workflow installs. Two pins for one tool
-    means a formatter that reflows differently from the one that decides
-    the build - a red CI nobody changed."""
-    in_ci = _pins_of(WORKFLOW.read_text(encoding="utf-8"))
-    locally = _pins_of(TEST_REQUIREMENTS.read_text(encoding="utf-8"))
+    """check.sh runs what requirements_test.txt installs, CI what the
+    workflow installs. The pins stood in both, and Dependabot moved only
+    the first: its pull request went red on a disagreement it made. One
+    file holds them now, and both read it."""
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    test_requirements = TEST_REQUIREMENTS.read_text(encoding="utf-8")
 
-    assert set(in_ci) == set(GATE_TOOLS), f"a gate lost its pin in CI: {in_ci}"
-    assert in_ci == locally, (
-        f"CI and requirements_test.txt disagree: {in_ci} vs {locally}. "
-        "Raise both in the same commit."
-    )
+    assert set(_pins_of(GATE_PINS.read_text(encoding="utf-8"))) == set(GATE_TOOLS)
+    assert "-r requirements_gates.txt" in test_requirements.splitlines()
+    assert not _pins_of(test_requirements), "a second pin in requirements_test.txt"
+    assert not _pins_of(workflow), "a second pin in the workflow"
+
+
+PIP_INSTALL = re.compile(r"\bpip(?:x|3(?:\.\d+)?)?(?:\s+-\S+)*\s+install\b")
+# The runtime requirements carry lower bounds on purpose; any other file is
+# a pin nobody here checks.
+REQUIREMENT_FILES = {"requirements.txt", "requirements_gates.txt"}
+
+
+def _commands(lines: list[str]) -> list[str]:
+    """The lines with a continued one joined on, comments dropped."""
+    commands, pending = [], ""
+    for line in lines:
+        if line.lstrip().startswith("#"):
+            continue
+        pending += line.split(" #", 1)[0].rstrip()
+        if pending.endswith("\\"):
+            pending = pending[:-1] + " "
+            continue
+        commands.append(pending)
+        pending = ""
+    return commands
+
+
+def _unpinned(lines: list[str]) -> list[str]:
+    """The pip installs among `lines` that leave a version to the day."""
+    gate_pins = set(_pins_of(GATE_PINS.read_text(encoding="utf-8")))
+    unpinned = []
+    for command in _commands(lines):
+        found = PIP_INSTALL.search(command)
+        if not found:
+            continue
+        words = [word.strip("'\"").lower() for word in command[found.end() :].split()]
+        constrained = "requirements_gates.txt" in words and (
+            "-c" in words or "--constraint" in words
+        )
+        names = {
+            re.match(r"[a-z][\w.-]*", word).group().replace("_", "-")
+            for word in words
+            if re.match(r"[a-z]", word) and not word.endswith(".txt")
+        }
+        pinned = gate_pins if constrained else PINNED_BY_THE_PLUGIN
+        unchecked_files = {
+            word for word in words if word.endswith(".txt")
+        } - REQUIREMENT_FILES
+        if (
+            "--upgrade" in words
+            or "-e" in words
+            or "--editable" in words
+            or unchecked_files
+            or any("://" in word for word in words)
+            or names - pinned
+        ):
+            unpinned.append(command.strip())
+    return unpinned
+
+
+def test_every_pip_install_in_the_workflow_takes_its_version_from_a_pin():
+    """CI installed packaging and the newest pip by name alone, whatever
+    they were that day."""
+    unpinned = _unpinned(WORKFLOW.read_text(encoding="utf-8").splitlines())
+
+    assert not unpinned, f"pip install without a pinned version: {unpinned}"
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "pip install packaging",
+        "pip install --upgrade pip",
+        'pip install "packaging"',
+        "pip install PyYAML",
+        "pip install -c requirements_gates.txt pygal",
+        'pip install "packaging>=24"',
+        'pip install -c requirements_gates.txt "pygal>=3"',
+        "pip3 install packaging",
+        "pip  install packaging",
+        "python -m pip install packaging",
+        "pip install git+https://example.invalid/tool.git",
+        "pip install -c requirements_gates.txt ruff@https://example.invalid/ruff.whl",
+        "pip -q install packaging",
+        "pip3.14 install packaging",
+        "pipx install packaging",
+        "pip install -r requirements_other.txt",
+        "pip install -e .",
+    ],
+)
+def test_the_pin_check_sees_an_unpinned_install_however_it_is_written(line):
+    """Quoted, capitalised, with a range, through pip3 or `python -m pip`, or
+    constrained by a file that has no pin for it, a name went through: the
+    check read the spelling, not the pin."""
+    assert _unpinned([f"        run: {line}"])
+
+
+def test_the_pin_check_skips_a_commented_out_install():
+    assert not _unpinned(["# pip install packaging"])
+
+
+def test_the_pin_check_reads_an_install_continued_on_the_next_line():
+    assert _unpinned(["          pip install \\", "            packaging"])
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        'pip install "$PHCC_SPEC" pytest-timeout -r requirements.txt',
+        "pip install pytest_timeout",
+        "pip install --constraint requirements_gates.txt ruff",
+        "pip install -c requirements_gates.txt ruff  # the gates' pin",
+        "pip install $(python .github/scripts/core_modbus_requirements.py)",
+    ],
+)
+def test_the_pin_check_lets_a_pinned_install_through(line):
+    assert not _unpinned([f"        run: {line}"])
 
 
 def test_the_step_reader_skips_comments_and_stops_at_the_next_job():
@@ -282,6 +406,28 @@ def test_ci_scans_with_a_gitleaks_the_local_floor_would_accept():
         "without the binary the secret-scan controls skip, and a skipped "
         "control cannot fail"
     )
+
+
+def test_ci_runs_only_the_gitleaks_archive_the_release_lists():
+    """The archive was unpacked and run as it came, whatever the download
+    gave; only the version was pinned."""
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    steps = _steps_of("pytest")
+
+    assert re.findall(r'GITLEAKS_SHA256:\s*"[0-9a-f]{64}"', workflow)
+    checked = next(i for i, line in enumerate(steps) if "sha256sum -c" in line)
+    unpacked = next(i for i, line in enumerate(steps) if "tar -x" in line)
+    assert checked < unpacked, "the archive is unpacked before it is checked"
+
+
+def test_ci_and_check_sh_hold_coverage_to_the_same_floor():
+    """The floor stood twice, and nothing noticed one of them moving alone."""
+    check = (REPO / ".github" / "scripts" / "check.sh").read_text(encoding="utf-8")
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    floors = re.findall(r"--cov-fail-under=([\d.]+)", check + workflow)
+
+    assert len(floors) == 2, f"one floor in check.sh, one in CI: {floors}"
+    assert floors[0] == floors[1], f"check.sh and CI disagree: {floors}"
 
 
 def test_no_step_hides_a_failure_behind_a_pipe():

@@ -41,3 +41,11 @@ home-assistant_v2.db-wal
 Dockerfile.dev
 .ha_run.lock
 www/local/weishaupt_modbus_powermap.svg
+
+# What the tools write: a capture or a scan holds a real controller's
+# values, and the capture's starter puts its portable Python beside it.
+webif_titles_*.json
+weishaupt_scan_*.csv
+tools/python/
+tools/python-download.zip
+tools/python-unpacking/

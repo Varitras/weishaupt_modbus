@@ -12,14 +12,15 @@
     },
     "error": {
       "cannot_connect": "Failed to connect",
+      "probe_refused": "A device answers at this address but refuses the value every Weishaupt heat pump serves. Check the address and the port.",
       "invalid_host": "Enter the address of the heat pump (name or IP, no spaces)",
       "postfix_in_use": "Another heat pump already uses this device postfix",
       "postfix_required": "A second heat pump needs a device postfix",
       "invalid_auth": "The web interface refused the user and password",
       "cannot_read": "The web interface sent its pages only in part, several times in a row; try again in a few minutes",
-      "missing_titles": "The web interface's page {page} does not show {titles}. This controller is not supported yet.",
+      "missing_titles": "The web interface's page {page} does not show {titles}. This controller is not supported yet. To have it supported, open an issue and attach the file tools/webif_capture.py writes (see the README).",
       "unclear_values": "The web interface's page {page} shows {titles} without a value or more than once. Try again; if it stays so, this controller is not supported yet.",
-      "unknown_units": "The web interface's page {page} shows {titles} in a unit the integration does not know. This controller is not supported yet.",
+      "unknown_units": "The web interface's page {page} shows {titles} in a unit the integration does not know. This controller is not supported yet. To have it supported, open an issue and attach the file tools/webif_capture.py writes (see the README).",
       "missing_menu_entries": "The web interface's menus do not show {titles}. The integration finds its pages by these names, in German or English: is the controller's language set to one of the two? If the controller has to stay on another language, open an issue so that it can be added, and attach the file tools/webif_capture.py writes (see the README).",
       "doubled_menu_entries": "The web interface's menus show {titles} more than once. Try again; if it stays so, this controller is not supported yet.",
       "unknown": "An unexpected error occurred; the log holds the details."
@@ -50,8 +51,8 @@
           "Heizkreis 5": "Adds the entities of this heating circuit.",
           "host": "Name or IP address of the heat pump.",
           "Kennfeld-File": "Power map of your model, used to estimate the heat output.",
-          "Name-Device-Prefix": "Puts the prefix in front of the name of every register entity.",
-          "Name-Topic-Prefix": "Puts the device's short name (WP, WW, ...) in front of the name of every register entity.",
+          "Name-Device-Prefix": "Puts the prefix in front of the name of every register entity and of the web interface's values.",
+          "Name-Topic-Prefix": "Puts the device's short name (WP, WW, ...) in front of the name of every register entity and of the web interface's values.",
           "port": "Modbus TCP port set on the heat pump, usually 502.",
           "prefix": "Part of every entity's unique id. Keep the default unless you carry over the history of another integration. Cannot be changed later."
         },
@@ -80,8 +81,8 @@
           "Heizkreis 5": "Adds the entities of this heating circuit.",
           "host": "Name or IP address of the heat pump.",
           "Kennfeld-File": "Power map of your model, used to estimate the heat output.",
-          "Name-Device-Prefix": "Puts the prefix in front of the name of every register entity.",
-          "Name-Topic-Prefix": "Puts the device's short name (WP, WW, ...) in front of the name of every register entity.",
+          "Name-Device-Prefix": "Puts the prefix in front of the name of every register entity and of the web interface's values.",
+          "Name-Topic-Prefix": "Puts the device's short name (WP, WW, ...) in front of the name of every register entity and of the web interface's values.",
           "port": "Modbus TCP port set on the heat pump, usually 502."
         }
       },
@@ -149,9 +150,6 @@
     },
     "dev_system": {
       "name": "WH System{postfix}"
-    },
-    "dev_unknown": {
-      "name": "WH Unknown{postfix}"
     },
     "dev_waermeerzeuger2": {
       "name": "WH 2nd heat source{postfix}"
@@ -952,14 +950,14 @@
         "name": "{prefix}Electr. energy month"
       },
       "fehler": {
-        "name": "{prefix}Fehler",
+        "name": "{prefix}Error",
         "state": {
           "sys_fehler_1": "Refrigerant sensor expansion valve inlet (T1)",
           "sys_fehler_10": "High pressure sensor (P2)",
           "sys_fehler_101": "Heat pump is being operated outside the operating limits",
           "sys_fehler_102": "Maximum defrost time exceeded",
           "sys_fehler_103": "Communication refrigeration circuit faulty",
-          "sys_fehler_104": "discharge gas temperature too high",
+          "sys_fehler_104": "Discharge gas temperature too high",
           "sys_fehler_105": "Current consumption from inverter too high",
           "sys_fehler_106": "Current consumption too high",
           "sys_fehler_107": "DC voltage on inverter too high",
@@ -979,7 +977,7 @@
           "sys_fehler_121": "Voltage on inverter too low",
           "sys_fehler_122": "Modbus configuration error",
           "sys_fehler_123": "No Modbus connection",
-          "sys_fehler_124": "discharge gas temperature too high",
+          "sys_fehler_124": "Discharge gas temperature too high",
           "sys_fehler_127": "Inverter temperature too high",
           "sys_fehler_128": "Inverter is overheated",
           "sys_fehler_129": "Modbus communication faulty",
@@ -990,7 +988,7 @@
           "sys_fehler_136": "Compressor does not match configuration",
           "sys_fehler_137": "High pressure switch does not match the configuration",
           "sys_fehler_14": "No communication with the outdoor unit",
-          "sys_fehler_140": "discharge gas temperature too low",
+          "sys_fehler_140": "Discharge gas temperature too low",
           "sys_fehler_143": "Inverter temperature too low",
           "sys_fehler_144": "Choke coil temperature too low",
           "sys_fehler_15": "High pressure switch has triggered",
@@ -1037,7 +1035,7 @@
           "sys_fehler_20": "Compressor does not match the configuration",
           "sys_fehler_21": "Low pressure fault",
           "sys_fehler_22": "Insufficient superheat",
-          "sys_fehler_23": "excessive superheat",
+          "sys_fehler_23": "Excessive superheat",
           "sys_fehler_24": "EVI too high overheating",
           "sys_fehler_25": "Refrigerant quantity too low",
           "sys_fehler_26": "High pressure fault",
@@ -1070,7 +1068,7 @@
           "sys_fehler_61": "Return flow sensor (B9) short-circuited",
           "sys_fehler_64": "Buffer sensor (B11) interrupted",
           "sys_fehler_65": "Buffer sensor (B11) short-circuited",
-          "sys_fehler_65535": "no error",
+          "sys_fehler_65535": "No error",
           "sys_fehler_66": "Regenerative mixer sensor (B2.1) interrupted",
           "sys_fehler_67": "Regenerative mixer sensor (B2.1) short-circuited",
           "sys_fehler_7": "Oil sump sensor (T7)",
@@ -1220,7 +1218,7 @@
         }
       },
       "konf_ausg_h13": {
-        "name": "{prefix}Conf. Output  H1.3",
+        "name": "{prefix}Conf. Output H1.3",
         "state": {
           "io_konf_0": "0",
           "io_konf_1": "1",
@@ -1234,7 +1232,7 @@
         }
       },
       "konf_ausg_h14": {
-        "name": "{prefix}Conf. Output  H1.4",
+        "name": "{prefix}Conf. Output H1.4",
         "state": {
           "io_konf_0": "0",
           "io_konf_1": "1",
@@ -1248,7 +1246,7 @@
         }
       },
       "konf_ausg_h15": {
-        "name": "{prefix}Conf. Output  H1.5",
+        "name": "{prefix}Conf. Output H1.5",
         "state": {
           "io_konf_0": "0",
           "io_konf_1": "1",
@@ -1547,7 +1545,7 @@
           "sys_fehler_101": "Heat pump is being operated outside the operating limits",
           "sys_fehler_102": "Maximum defrost time exceeded",
           "sys_fehler_103": "Communication refrigeration circuit faulty",
-          "sys_fehler_104": "discharge gas temperature too high",
+          "sys_fehler_104": "Discharge gas temperature too high",
           "sys_fehler_105": "Current consumption from inverter too high",
           "sys_fehler_106": "Current consumption too high",
           "sys_fehler_107": "DC voltage on inverter too high",
@@ -1567,7 +1565,7 @@
           "sys_fehler_121": "Voltage on inverter too low",
           "sys_fehler_122": "Modbus configuration error",
           "sys_fehler_123": "No Modbus connection",
-          "sys_fehler_124": "discharge gas temperature too high",
+          "sys_fehler_124": "Discharge gas temperature too high",
           "sys_fehler_127": "Inverter temperature too high",
           "sys_fehler_128": "Inverter is overheated",
           "sys_fehler_129": "Modbus communication faulty",
@@ -1578,7 +1576,7 @@
           "sys_fehler_136": "Compressor does not match configuration",
           "sys_fehler_137": "High pressure switch does not match the configuration",
           "sys_fehler_14": "No communication with the outdoor unit",
-          "sys_fehler_140": "discharge gas temperature too low",
+          "sys_fehler_140": "Discharge gas temperature too low",
           "sys_fehler_143": "Inverter temperature too low",
           "sys_fehler_144": "Choke coil temperature too low",
           "sys_fehler_15": "High pressure switch has triggered",
@@ -1625,7 +1623,7 @@
           "sys_fehler_20": "Compressor does not match the configuration",
           "sys_fehler_21": "Low pressure fault",
           "sys_fehler_22": "Insufficient superheat",
-          "sys_fehler_23": "excessive superheat",
+          "sys_fehler_23": "Excessive superheat",
           "sys_fehler_24": "EVI too high overheating",
           "sys_fehler_25": "Refrigerant quantity too low",
           "sys_fehler_26": "High pressure fault",
@@ -1658,7 +1656,7 @@
           "sys_fehler_61": "Return flow sensor (B9) short-circuited",
           "sys_fehler_64": "Buffer sensor (B11) interrupted",
           "sys_fehler_65": "Buffer sensor (B11) short-circuited",
-          "sys_fehler_65535": "no error",
+          "sys_fehler_65535": "No error",
           "sys_fehler_66": "Regenerative mixer sensor (B2.1) interrupted",
           "sys_fehler_67": "Regenerative mixer sensor (B2.1) short-circuited",
           "sys_fehler_7": "Oil sump sensor (T7)",
@@ -1679,7 +1677,7 @@
         }
       },
       "weichen_temp": {
-        "name": "{prefix}Switch temperature"
+        "name": "{prefix}Hydraulic separator temperature"
       },
       "wp_betrieb": {
         "name": "{prefix}Operation",
@@ -1964,7 +1962,6 @@
       }
     }
   },
-  "title": "Weishaupt Heat Pump",
   "options": {
     "error": {
       "warning_above_limit": "The warning threshold is above the daily limit, so writes would be refused before it could fire"
@@ -2001,6 +1998,9 @@
   "exceptions": {
     "value_out_of_range": {
       "message": "{value} is outside the current range {low} to {high} of register {address}"
+    },
+    "write_limit_reached": {
+      "message": "Today's limit of {limit} writes is reached; nothing was written. It is set in the options of the heat pump entry."
     },
     "write_failed": {
       "message": "Writing register {address} failed: {error}"

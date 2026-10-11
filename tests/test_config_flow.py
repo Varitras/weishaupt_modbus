@@ -12,7 +12,7 @@ import pathlib
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
-from modbus_connection import ModbusConnectionError
+from modbus_connection import ModbusConnectionError, ModbusExceptionError
 from modbus_connection.mock import MockModbusUnit
 from probatio import UNDEFINED, to_field_list
 import pytest
@@ -227,8 +227,27 @@ async def test_a_flow_still_probing_holds_its_postfix_against_a_second_one(
     assert refused["errors"] == {"base": "postfix_required"}
 
 
+async def test_a_dialog_left_open_after_an_error_holds_no_postfix(hass, monkeypatch):
+    """A dialog whose probe failed, its tab then closed, stayed open until the
+    restart and held its postfix: the next dialog asked for a postfix of its
+    own although no pump existed, and that postfix cannot be changed later."""
+
+    async def answers(_hass, _data):
+        return answering
+
+    monkeypatch.setattr(config_flow, "pump_answers", answers)
+    answering = False
+    failed = await _create(hass, dict(PAGE_ONE))
+    assert failed["errors"] == {"base": "cannot_connect"}
+
+    answering = True
+    created = await _create(hass, {**PAGE_ONE, CONF.HOST: "192.0.2.11"})
+
+    assert created["type"] is FlowResultType.CREATE_ENTRY
+
+
 async def test_reconfigure_updates_the_entry_in_place(hass):
-    entry = MockConfigEntry(domain=CONST.DOMAIN, data=PAGE_ONE, version=9)
+    entry = MockConfigEntry(domain=CONST.DOMAIN, title=HOST, data=PAGE_ONE, version=9)
     entry.add_to_hass(hass)
 
     result = await _reconfigure(
@@ -245,6 +264,22 @@ async def test_reconfigure_updates_the_entry_in_place(hass):
     # The title is the host, and a moved pump that keeps the old one in the
     # integration list is the wrong address in the only place a user looks.
     assert entry.title == "192.0.2.20"
+
+
+@pytest.mark.parametrize("host", [HOST, "192.0.2.20"], ids=["same", "moved"])
+async def test_reconfigure_keeps_a_title_the_user_gave(hass, host):
+    """Switching on a circuit, as a notice asks, named the entry after its
+    host again: the user's "Cellar" was gone."""
+    entry = MockConfigEntry(
+        domain=CONST.DOMAIN, title="Cellar", data=PAGE_ONE, version=11
+    )
+    entry.add_to_hass(hass)
+
+    await _reconfigure(hass, entry, {**RECONFIGURE_PAGE, CONF.HOST: host})
+    await hass.async_block_till_done()
+
+    assert entry.data[CONF.HOST] == host
+    assert entry.title == "Cellar"
 
 
 async def test_reconfigure_refuses_an_address_that_cannot_be_dialled(hass):
@@ -292,6 +327,14 @@ def test_the_power_map_choice_falls_back_to_the_default_map(tmp_path):
         "weishaupt_wbb_kennfeld.json",
         "weishaupt_wsb6_kennfeld.json",
     ]
+
+
+def test_an_unreadable_map_folder_leaves_a_line_in_the_debug_log(tmp_path, caplog):
+    """The fallback hid why a custom map was not offered."""
+    with caplog.at_level(logging.DEBUG, logger=config_flow.__name__):
+        config_flow._kennfeld_files(tmp_path / "missing")
+
+    assert "FileNotFoundError" in caplog.text
 
 
 def test_the_power_map_choice_offers_only_map_files(tmp_path):
@@ -357,6 +400,23 @@ async def test_a_host_without_a_pump_is_reported(hass, mock_modbus):
 
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "cannot_connect"}
+
+
+async def test_a_device_that_refuses_the_probe_is_not_called_unreachable(
+    hass, mock_modbus, caplog
+):
+    """A device that answered with a Modbus exception was reported as
+    unreachable, and the README then sent the user to check the network."""
+    mock_modbus.fail_requests(ModbusExceptionError(0x02))
+    started = await _start(hass)
+
+    with caplog.at_level(logging.DEBUG, logger=config_flow.__name__):
+        result = await hass.config_entries.flow.async_configure(
+            started["flow_id"], {**PAGE_ONE, CONF.HOST: "192.0.2.99"}
+        )
+
+    assert result["errors"] == {"base": "probe_refused"}
+    assert "ModbusExceptionError" in caplog.text
 
 
 async def test_the_probe_waits_while_the_controller_is_busy(hass, monkeypatch):

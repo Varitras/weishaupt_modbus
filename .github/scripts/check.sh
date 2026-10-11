@@ -62,11 +62,12 @@ done
 echo "== pytest =="
 # -m "" cancels the `-m "not e2e"` default from pyproject.toml, so the slow
 # end-to-end tests against a real Home Assistant run here too.
-# --cov-fail-under: coverage was 95 % when the gate was adopted (2026-09-03);
-# raise it when coverage rises, never lower it to get past a red run.
+# --cov-fail-under: coverage was 95 % when the gate was adopted (2026-09-03),
+# 99.65 % when it was raised to 99 (2026-10-11); raise it when coverage rises,
+# never lower it to get past a red run. CI holds the same floor.
 # -n auto spreads the suite over the cores (pytest-xdist): 49 s on one core,
 # 14 s on 32 (2026-10-03). CI keeps the serial run, a second order for free.
-"$PYTHON" -m pytest tests/ -q -m "" -n auto --cov=custom_components/weishaupt_modbus --cov-report=term:skip-covered --cov-fail-under=94
+"$PYTHON" -m pytest tests/ -q -m "" -n auto --cov=custom_components/weishaupt_modbus --cov-report=term:skip-covered --cov-fail-under=99
 
 # The second Home Assistant version is optional because its interpreter
 # lives wherever you put it:

@@ -11,8 +11,8 @@ from typing import Protocol
 class PowerMap(Protocol):
     """What a formula needs from the power map: the rated power at a point."""
 
-    def map(self, outside_temp_raw: float, flow_temp_raw: float) -> float | None:
-        """Rated heating power in W at an outside and a flow temperature (raw tenths); None without a map."""
+    def map(self, air_intake_raw: float, flow_temp_raw: float) -> float | None:
+        """Rated heating power in W at an air intake and a flow temperature (raw tenths); None without a map."""
 
 
 def heat_output(
@@ -33,12 +33,18 @@ def spread(flow_temperature: float, return_temperature_raw: float) -> float:
     return flow_temperature - return_temperature_raw / 10
 
 
+# User decision, 2026-10-10: the energy registers count whole kWh, so below
+# this the factor can be off by more than a fifth - 7 kWh of heat for 1 kWh
+# of electricity read 7.00 for anything between about 3.5 and 8.
+MIN_ELECTRIC_ENERGY_KWH = 5
+
+
 def performance_factor(heat_energy: float, electric_energy: float) -> float | None:
-    """Heat energy per electric energy, both in kWh; undefined without electric energy.
+    """Heat energy per electric energy, both in kWh; undefined below 5 kWh.
 
     At the start of a day, month or year the electric counter is 0 and the
     factor is undefined - a 0.0 in its place was a plausible, false number.
     """
-    if electric_energy == 0:
+    if electric_energy < MIN_ELECTRIC_ENERGY_KWH:
         return None
     return heat_energy / electric_energy

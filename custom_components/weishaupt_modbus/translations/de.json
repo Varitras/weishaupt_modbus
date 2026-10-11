@@ -12,14 +12,15 @@
         },
         "error": {
             "cannot_connect": "Verbindung fehlgeschlagen",
+            "probe_refused": "Unter dieser Adresse antwortet ein Gerät, verweigert aber den Wert, den jede Weishaupt-Wärmepumpe liefert. Prüfen Sie Adresse und Port.",
             "invalid_host": "Adresse der Wärmepumpe eingeben (Name oder IP, ohne Leerzeichen)",
             "postfix_in_use": "Dieses Geräte-Postfix wird schon von einer anderen Wärmepumpe verwendet",
             "postfix_required": "Eine zweite Wärmepumpe braucht ein Geräte-Postfix",
             "invalid_auth": "Die Weboberfläche hat Benutzer und Passwort abgelehnt",
             "cannot_read": "Die Weboberfläche hat ihre Seiten mehrmals hintereinander nur teilweise geschickt; bitte in ein paar Minuten erneut versuchen",
-            "missing_titles": "Die Seite {page} der Weboberfläche zeigt {titles} nicht. Dieser Regler wird noch nicht unterstützt.",
+            "missing_titles": "Die Seite {page} der Weboberfläche zeigt {titles} nicht. Dieser Regler wird noch nicht unterstützt. Damit er unterstützt werden kann, eröffnen Sie ein Issue und hängen Sie die Datei an, die tools/webif_capture.py schreibt (siehe README).",
             "unclear_values": "Die Seite {page} der Weboberfläche zeigt {titles} ohne Wert oder mehrfach. Bitte erneut versuchen; bleibt es so, wird dieser Regler noch nicht unterstützt.",
-            "unknown_units": "Die Seite {page} der Weboberfläche zeigt {titles} in einer Einheit, die die Integration nicht kennt. Dieser Regler wird noch nicht unterstützt.",
+            "unknown_units": "Die Seite {page} der Weboberfläche zeigt {titles} in einer Einheit, die die Integration nicht kennt. Dieser Regler wird noch nicht unterstützt. Damit er unterstützt werden kann, eröffnen Sie ein Issue und hängen Sie die Datei an, die tools/webif_capture.py schreibt (siehe README).",
             "missing_menu_entries": "Die Menüs der Weboberfläche zeigen {titles} nicht. Die Integration findet ihre Seiten über diese Namen, auf Deutsch oder Englisch: Ist am Regler eine dieser beiden Sprachen eingestellt? Muss der Regler auf einer anderen Sprache bleiben, eröffnen Sie ein Issue, damit sie ergänzt werden kann, und hängen Sie die Datei an, die tools/webif_capture.py schreibt (siehe README).",
             "doubled_menu_entries": "Die Menüs der Weboberfläche zeigen {titles} mehrfach. Bitte erneut versuchen; bleibt es so, wird dieser Regler noch nicht unterstützt.",
             "unknown": "Ein unerwarteter Fehler ist aufgetreten; Details stehen im Log."
@@ -50,8 +51,8 @@
                     "Heizkreis 5": "Legt die Entitäten dieses Heizkreises an.",
                     "host": "Name oder IP-Adresse der Wärmepumpe.",
                     "Kennfeld-File": "Kennfeld Ihres Modells, daraus wird die Wärmeleistung geschätzt.",
-                    "Name-Device-Prefix": "Stellt dem Namen jeder Register-Entität das Prefix voran.",
-                    "Name-Topic-Prefix": "Stellt dem Namen jeder Register-Entität das Gerätekürzel (WP, WW, ...) voran.",
+                    "Name-Device-Prefix": "Stellt dem Namen jeder Register-Entität und jedes Werts der Weboberfläche das Prefix voran.",
+                    "Name-Topic-Prefix": "Stellt dem Namen jeder Register-Entität und jedes Werts der Weboberfläche das Gerätekürzel (WP, WW, ...) voran.",
                     "port": "Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502.",
                     "prefix": "Teil der Unique-ID jeder Entität. Nur ändern, um die Historie einer anderen Integration zu übernehmen. Später nicht mehr änderbar."
                 },
@@ -80,8 +81,8 @@
                     "Heizkreis 5": "Legt die Entitäten dieses Heizkreises an.",
                     "host": "Name oder IP-Adresse der Wärmepumpe.",
                     "Kennfeld-File": "Kennfeld Ihres Modells, daraus wird die Wärmeleistung geschätzt.",
-                    "Name-Device-Prefix": "Stellt dem Namen jeder Register-Entität das Prefix voran.",
-                    "Name-Topic-Prefix": "Stellt dem Namen jeder Register-Entität das Gerätekürzel (WP, WW, ...) voran.",
+                    "Name-Device-Prefix": "Stellt dem Namen jeder Register-Entität und jedes Werts der Weboberfläche das Prefix voran.",
+                    "Name-Topic-Prefix": "Stellt dem Namen jeder Register-Entität und jedes Werts der Weboberfläche das Gerätekürzel (WP, WW, ...) voran.",
                     "port": "Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502."
                 }
             },
@@ -155,9 +156,6 @@
         },
         "dev_statistik": {
             "name": "WH Statistik{postfix}"
-        },
-        "dev_unknown": {
-            "name": "WH Unbekannt{postfix}"
         },
         "dev_ein_aus": {
             "name": "WH Eingänge/Ausgänge{postfix}"
@@ -1009,7 +1007,7 @@
                     "sys_fehler_159": "Stromaufnahme zu hoch",
                     "sys_fehler_16": "Inverter gesperrt, da in den letzten 10 Stunden 10 Fehler aufgetreten sind",
                     "sys_fehler_160": "Wärmepumpe wird außerhalb vom zulässigen Spannungsbereich betrieben",
-                    "sys_fehler_161": "Wärmepumpe wird außerhalb vom zulässigen Spannungsbereich betriebe",
+                    "sys_fehler_161": "Wärmepumpe wird außerhalb vom zulässigen Spannungsbereich betrieben",
                     "sys_fehler_162": "Gleichspannung am Inverter zu hoch",
                     "sys_fehler_163": "Gleichspannung am Inverter zu niedrig",
                     "sys_fehler_164": "Hochdruckschalter hat ausgelöst",
@@ -1226,7 +1224,7 @@
                 }
             },
             "konf_ausg_h13": {
-                "name": "{prefix}Konf. Ausgang  H1.3",
+                "name": "{prefix}Konf. Ausgang H1.3",
                 "state": {
                     "io_konf_0": "0",
                     "io_konf_1": "1",
@@ -1240,7 +1238,7 @@
                 }
             },
             "konf_ausg_h14": {
-                "name": "{prefix}Konf. Ausgang  H1.4",
+                "name": "{prefix}Konf. Ausgang H1.4",
                 "state": {
                     "io_konf_0": "0",
                     "io_konf_1": "1",
@@ -1254,7 +1252,7 @@
                 }
             },
             "konf_ausg_h15": {
-                "name": "{prefix}Konf. Ausgang  H1.5",
+                "name": "{prefix}Konf. Ausgang H1.5",
                 "state": {
                     "io_konf_0": "0",
                     "io_konf_1": "1",
@@ -1603,7 +1601,7 @@
                     "sys_fehler_159": "Stromaufnahme zu hoch",
                     "sys_fehler_16": "Inverter gesperrt, da in den letzten 10 Stunden 10 Fehler aufgetreten sind",
                     "sys_fehler_160": "Wärmepumpe wird außerhalb vom zulässigen Spannungsbereich betrieben",
-                    "sys_fehler_161": "Wärmepumpe wird außerhalb vom zulässigen Spannungsbereich betriebe",
+                    "sys_fehler_161": "Wärmepumpe wird außerhalb vom zulässigen Spannungsbereich betrieben",
                     "sys_fehler_162": "Gleichspannung am Inverter zu hoch",
                     "sys_fehler_163": "Gleichspannung am Inverter zu niedrig",
                     "sys_fehler_164": "Hochdruckschalter hat ausgelöst",
@@ -1964,7 +1962,6 @@
             }
         }
     },
-    "title": "Weishaupt Wärmepumpe",
     "options": {
         "error": {
           "warning_above_limit": "Die Warnschwelle liegt über dem Tageslimit, Schreibzugriffe würden abgelehnt, bevor sie greifen könnte"
@@ -2001,6 +1998,9 @@
     "exceptions": {
         "value_out_of_range": {
             "message": "{value} liegt außerhalb des aktuellen Bereichs {low} bis {high} von Register {address}"
+        },
+        "write_limit_reached": {
+            "message": "Die heutige Grenze von {limit} Schreibzugriffen ist erreicht; nichts wurde geschrieben. Sie wird in den Optionen des Wärmepumpen-Eintrags eingestellt."
         },
         "write_failed": {
             "message": "Schreiben von Register {address} fehlgeschlagen: {error}"

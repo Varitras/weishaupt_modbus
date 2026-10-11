@@ -314,8 +314,8 @@ def _parse(path: str, text: str) -> None:
 def _undefined_names(text: str, path: str) -> set:
     """The global names a module reads that nothing in it defines.
 
-    The standard library's symbol tables rather than Ruff's F821: the test
-    jobs that run the mutations do not install Ruff.
+    The standard library's symbol tables rather than Ruff's F821: the
+    harness runs wherever the tests run, and needs nothing beyond them.
     """
     top = symtable.symtable(text, path, "exec")
     defined = set(MODULE_NAMES)

@@ -27,6 +27,11 @@ SETPOINT_OFF_SIGNED = -32768
 SETPOINT_NO_DEMAND_WORDS = (TEMPERATURE_NO_SENSOR, 1)
 SETPOINT_RAW_MIN = 50
 PERCENTAGE_NO_VALUE = 0xFFFF
+# A share; anything above it is a status or factory word, not a reading.
+PERCENTAGE_RAW_MAX = 100
+# A count or total read as its no-value words would stay in a sum for good.
+# Not a range: operating hours may legitimately run past 0x7FFF.
+COUNTER_NO_VALUE_WORDS = (0x8000, 0xFFFF)
 # A heating circuit's configuration (41x01) when the controller runs no
 # circuit there - its bands still answer, with factory values.
 CIRCUIT_OFF = 0

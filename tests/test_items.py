@@ -26,7 +26,9 @@ def test_translation_key_from_number():
 
 
 def test_an_unknown_number_names_itself():
-    assert _item().get_translation_key_from_number(43) == "unbekannt <43>"
+    """It read "unbekannt <43>" in German to every user, whatever their
+    language: the number alone reads the same in each."""
+    assert _item().get_translation_key_from_number(43) == "43"
 
 
 def test_number_from_key():

@@ -10,6 +10,7 @@ everyday run deselects them, CI runs them with `-m ""`.
 """
 
 import asyncio
+from datetime import timedelta
 import json
 import logging
 import pathlib
@@ -23,13 +24,18 @@ from modbus_connection import (
     ServerDeviceFailureError,
 )
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_capture_events,
+    async_fire_time_changed,
+    mock_restore_cache_with_extra_data,
+)
 from pytest_homeassistant_custom_component.components.diagnostics import (
     get_diagnostics_for_config_entry,
 )
 
 from custom_components.weishaupt_modbus.configentry import host_lock
-from custom_components.weishaupt_modbus.const import CONF, CONST
+from custom_components.weishaupt_modbus.const import CONF, CONST, DeviceConstants
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.const import DEFAULT_PORT
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.device import (
     WeishauptHeatPump,
@@ -40,9 +46,19 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.exceptions import (
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.hpconst import DEVICELISTS
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import EntityCategory
+from homeassistant.core import State
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from homeassistant.helpers import entity_registry as er, issue_registry as ir
+from homeassistant.helpers import (
+    device_registry as dr,
+    entity_registry as er,
+    issue_registry as ir,
+)
+from homeassistant.helpers.restore_state import async_get as async_get_restored
+from homeassistant.helpers.storage import Store
+from homeassistant.helpers.update_coordinator import UpdateFailed
+from homeassistant.util import dt as dt_util
+from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
 
 pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
 
@@ -104,6 +120,13 @@ async def _setup(hass, entry):
     return entry
 
 
+async def _reconfigure(hass, entry, changes):
+    """What reconfigure does: new data, then a reload."""
+    hass.config_entries.async_update_entry(entry, data={**entry.data, **changes})
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+
 async def test_the_pump_polls_and_writes_under_the_lock_its_web_interface_shares(
     hass,
 ):
@@ -140,6 +163,44 @@ async def test_a_calculated_sensor_starts_from_the_first_refresh(hass, pump):
 
     assert entity_id, "the spread got no entity"
     assert float(hass.states.get(entity_id).state) == 5.0
+
+
+async def test_temperature_differences_are_not_converted_as_temperatures(hass, pump):
+    """Declared as temperatures, a 5 K spread read 41 degF in US units and
+    278.15 K to whoever chose kelvin, and the SG-Ready boost offered 32 to
+    86 degF and refused a raise of 5. A difference keeps its unit unless the
+    user picks another, which then converts it as a difference."""
+    hass.config.units = US_CUSTOMARY_SYSTEM
+    pump.load_raw(
+        {
+            "input": {FLOW_TEMPERATURE: 350, RETURN_TEMPERATURE: 300},
+            "holding": {SG_READY_BOOST: 0},
+        }
+    )
+    await _setup(hass, _entry(hass))
+    registry = er.async_get(hass)
+    spread = registry.async_get_entity_id("sensor", CONST.DOMAIN, SPREAD_UNIQUE_ID)
+    boost = registry.async_get_entity_id(
+        "number", CONST.DOMAIN, SG_READY_BOOST_UNIQUE_ID
+    )
+    writes = []
+    pump.unit.on_write(writes.append)
+
+    await hass.services.async_call(
+        "number", "set_value", {"entity_id": boost, "value": 5}, blocking=True
+    )
+
+    shown = hass.states.get(spread)
+    assert (shown.state, shown.attributes["unit_of_measurement"]) == ("5.0", "°C")
+    assert hass.states.get(boost).attributes["max"] == 30.0
+    assert [(event.address, event.values) for event in writes] == [
+        (SG_READY_BOOST, [50])
+    ]
+    registry.async_update_entity_options(
+        spread, "sensor", {"unit_of_measurement": "°F"}
+    )
+    await hass.async_block_till_done()
+    assert float(hass.states.get(spread).state) == 9.0
 
 
 async def test_the_configured_port_reaches_the_client(hass, mock_modbus):
@@ -372,6 +433,91 @@ async def test_the_number_and_its_switch_agree_right_after_a_write(hass, pump):
     assert hass.states.get(number).state == "unknown"
 
 
+def _boost_switch(hass):
+    return er.async_get(hass).async_get_entity_id(
+        "switch", CONST.DOMAIN, SG_READY_BOOST_UNIQUE_ID + "_active"
+    )
+
+
+async def _switch(hass, service, entity_id):
+    await hass.services.async_call(
+        "switch", service, {"entity_id": entity_id}, blocking=True
+    )
+    await hass.async_block_till_done()
+
+
+async def test_a_setpoint_switched_off_before_a_reload_comes_back_with_its_value(
+    hass, pump
+):
+    """The value it held lived in memory only: after a reload, turning the
+    setpoint on wrote the range's minimum - for the summer/winter switchover
+    3 degC, which keeps the heating off all winter."""
+    pump.load_raw({"holding": {SG_READY_BOOST: 50}})
+    entry = await _setup(hass, _entry(hass))
+    await _switch(hass, "turn_off", _boost_switch(hass))
+    # The stand-in hands each load a fresh connection from what it was given.
+    pump.load_raw({"holding": {SG_READY_BOOST: 0x8000}})
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    writes = []
+    pump.unit.on_write(writes.append)
+
+    await _switch(hass, "turn_on", _boost_switch(hass))
+
+    assert [(event.address, event.values) for event in writes] == [
+        (SG_READY_BOOST, [50])
+    ]
+
+
+@pytest.mark.parametrize(
+    ("stored", "written"),
+    [({"last_setting": 50}, 50), ({"last_setting": "50"}, 0), ({}, 0)],
+    ids=["kept", "not a register value", "none kept"],
+)
+async def test_a_setpoint_off_at_a_restart_comes_back_with_the_value_it_held(
+    hass, pump, stored, written
+):
+    """The same across a restart; a stored value that is not a register
+    value is no value, and the range's minimum stays the fallback."""
+    pump.load_raw({"holding": {SG_READY_BOOST: 0x8000}})
+    entry = await _setup(hass, _entry(hass))
+    switch = _boost_switch(hass)
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    mock_restore_cache_with_extra_data(hass, [(State(switch, "off"), stored)])
+    await _setup(hass, entry)
+    writes = []
+    pump.unit.on_write(writes.append)
+
+    await _switch(hass, "turn_on", switch)
+
+    assert [(event.address, event.values) for event in writes] == [
+        (SG_READY_BOOST, [written])
+    ]
+
+
+async def test_a_setpoint_read_at_the_start_wins_over_the_one_kept(hass, pump):
+    """What the controller shows now is newer than what was kept."""
+    pump.load_raw({"holding": {SG_READY_BOOST: 70}})
+    entry = await _setup(hass, _entry(hass))
+    switch = _boost_switch(hass)
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    mock_restore_cache_with_extra_data(
+        hass, [(State(switch, "on"), {"last_setting": 50})]
+    )
+    await _setup(hass, entry)
+    await _switch(hass, "turn_off", switch)
+    writes = []
+    pump.unit.on_write(writes.append)
+
+    await _switch(hass, "turn_on", switch)
+
+    assert [(event.address, event.values) for event in writes] == [
+        (SG_READY_BOOST, [70])
+    ]
+
+
 DHW_NORMAL = 42103
 DHW_LOWERING = 42104
 
@@ -405,6 +551,24 @@ async def test_dhw_setpoints_keep_their_own_floor_and_the_latest_neighbour(hass,
         )
 
     assert [(event.address, event.values) for event in writes] == [(DHW_NORMAL, [400])]
+
+
+@pytest.mark.parametrize("version", [2, 9, 10])
+async def test_a_routine_migration_and_setup_warn_of_nothing(
+    hass, pump, caplog, version
+):
+    """Up to seven warnings told of a migration that asks nothing of the
+    user, and every setup ended in "Init done" at info."""
+    with caplog.at_level(logging.INFO, logger="custom_components.weishaupt_modbus"):
+        await _setup(hass, _entry(hass, version=version))
+
+    ours = [
+        record
+        for record in caplog.records
+        if record.name.startswith("custom_components.weishaupt_modbus")
+    ]
+    assert not [record for record in ours if record.levelno >= logging.WARNING]
+    assert "Init done" not in [record.getMessage() for record in ours]
 
 
 async def test_a_taken_entity_id_does_not_stop_the_relabel_migration(hass, pump):
@@ -509,10 +673,11 @@ async def test_settings_the_pump_only_reports_are_diagnostic(hass):
     assert registry.async_get(setpoint).entity_category is None
 
 
-async def test_only_the_copies_of_the_operating_mode_start_disabled(hass):
+async def test_only_the_rows_without_a_meaning_of_their_own_start_disabled(hass):
     """31106 repeats the circuit's operating mode (41103) on every controller
     seen; enabled, it put the select's raw number on the device page as a
-    sensor named by its address. Held by the outside temperature alone, every
+    sensor named by its address. 36801 is in no data-point list and read 0 on
+    every controller seen. Held by the outside temperature alone, every
     diagnostic row could start disabled unnoticed."""
     rows = [
         row
@@ -520,7 +685,9 @@ async def test_only_the_copies_of_the_operating_mode_start_disabled(hass):
         for row in device
         if row.params.get("enabled_by_default") is False
     ]
-    assert {row.address for row in rows} == {31106 + 100 * n for n in range(5)}
+    assert {row.address for row in rows} == {31106 + 100 * n for n in range(5)} | {
+        36801
+    }
     await _setup(hass, _entry(hass, data=ALL_CIRCUITS))
 
     disabled = {
@@ -619,9 +786,7 @@ async def test_matching_circuits_clear_an_earlier_notice(hass, pump):
     entry = await _setup(hass, _entry(hass))
     assert _notices(hass, entry, NOT_ENABLED) == [2]
 
-    # The data change reloads the entry through its update listener.
-    hass.config_entries.async_update_entry(entry, data={**entry.data, CONF.HK2: True})
-    await hass.async_block_till_done()
+    await _reconfigure(hass, entry, {CONF.HK2: True})
 
     assert entry.state is ConfigEntryState.LOADED
     assert _notices(hass, entry, NOT_ENABLED) == []
@@ -731,11 +896,7 @@ async def test_a_notice_the_entry_now_contradicts_goes_though_the_circuit_is_unt
         _fail_circuit_read(monkeypatch, address, untold)
     else:
         pump.load_raw({"holding": {address: untold}})
-    # The data change reloads the entry through its update listener.
-    hass.config_entries.async_update_entry(
-        entry, data={**entry.data, CONF.HK3: not enabled}
-    )
-    await hass.async_block_till_done()
+    await _reconfigure(hass, entry, {CONF.HK3: not enabled})
 
     assert entry.state is ConfigEntryState.LOADED
     assert _circuit_notice(hass, entry, NOT_ENABLED, 3) is None
@@ -747,9 +908,8 @@ async def test_a_notice_the_entry_now_contradicts_goes_though_the_circuit_is_unt
     [
         ModbusConnectionError("link down"),
         ModbusTimeoutError("no answer"),
-        TimeoutError(),
     ],
-    ids=["link-down", "timed-out", "time-limit"],
+    ids=["link-down", "timed-out"],
 )
 async def test_a_link_lost_during_the_circuit_check_still_loads_the_entry(
     hass, pump, monkeypatch, caplog, error
@@ -1007,6 +1167,49 @@ async def test_a_web_interface_entry_is_stripped_of_its_settings_and_entities(ha
     ), "the web-interface entity was left in the registry"
 
 
+@pytest.mark.parametrize(
+    ("postfix", "web_interface_id", "pump_id"),
+    [
+        ("", "weishaupt_wbb_Außentemperatur_webif", OUTSIDE_TEMPERATURE_UNIQUE_ID),
+        (
+            "webif",
+            "weishaupt_wbb_Außentemperatur_webif_webif",
+            OUTSIDE_TEMPERATURE_UNIQUE_ID + "_webif",
+        ),
+    ],
+    ids=["no postfix", "postfix webif"],
+)
+async def test_the_web_interface_entities_of_1_0_19_go_too(
+    hass, postfix, web_interface_id, pump_id
+):
+    """1.0.18 and 1.0.19 named them prefix, "_", name, postfix and "_webif";
+    version 9 looked for the "webif_" of a later pre-release only, and they
+    stayed unavailable for good. A pump whose postfix is "webif" keeps its
+    own entities, whose ids end the same way."""
+    entry = _entry(hass, data={**BASE_DATA, CONF.DEVICE_POSTFIX: postfix}, version=8)
+    registry = er.async_get(hass)
+    web_interface = registry.async_get_or_create(
+        "sensor", CONST.DOMAIN, web_interface_id, config_entry=entry
+    ).entity_id
+    pump_entity = registry.async_get_or_create(
+        "sensor", CONST.DOMAIN, pump_id, config_entry=entry
+    ).entity_id
+    # Removed and added again by the setup, an entity is back in the registry
+    # at once; the removal is what shows.
+    removed = []
+
+    def note_removal(event):
+        if event.data["action"] == "remove":
+            removed.append(event.data["entity_id"])
+
+    hass.bus.async_listen(er.EVENT_ENTITY_REGISTRY_UPDATED, note_removal)
+
+    await _setup(hass, entry)
+
+    assert removed == [web_interface]
+    assert registry.async_get_entity_id("sensor", CONST.DOMAIN, pump_id) == pump_entity
+
+
 # The three 2nd-heat-source entities as version 9 registered them on an
 # English Home Assistant: unique id from the old item name, entity id from the
 # device and the old label.
@@ -1078,6 +1281,26 @@ async def test_a_hand_made_id_that_merely_contains_the_old_words_is_kept(hass):
     )
 
 
+async def test_a_hand_made_id_that_ends_in_the_old_label_follows_it(hass):
+    """The registry does not say who chose an id: one of the user's that ends
+    like the generated one is renamed with it, as the README now says."""
+    entry = _entry(hass, version=9)
+    registry = _register_v9_second_heat_source(hass, entry)
+    registry.async_update_entity(
+        "sensor.wh_2nd_heat_source_switching_cycles_e_heating_2",
+        new_entity_id="sensor.boiler_switching_cycles_e_heating_2",
+    )
+
+    await _setup(hass, entry)
+
+    assert (
+        registry.async_get_entity_id(
+            "sensor", CONST.DOMAIN, "weishaupt_wbbBetriebsstunden E1"
+        )
+        == "sensor.boiler_operation_hours_e1"
+    )
+
+
 async def test_a_hand_renamed_entity_keeps_its_id_through_the_relabelling(hass, caplog):
     entry = _entry(hass, version=9)
     registry = _register_v9_second_heat_source(hass, entry)
@@ -1123,13 +1346,10 @@ async def test_a_renamed_entity_keeps_its_id_across_a_restart(hass):
     ), "the restart renamed the entity back"
 
 
-async def test_reconfigure_reloads_once_through_the_update_listener(
-    hass, mock_modbus, caplog
-):
-    """Issue #180: Home Assistant warns - and from 2026.12 refuses - when a
-    flow schedules a reload itself while the entry also has an update
-    listener, because that reloads twice. The listener is the one path here:
-    the flow only updates the entry and aborts."""
+async def test_reconfigure_reloads_the_entry_once(hass, mock_modbus, caplog):
+    """Issue #180: a flow that reloads the entry itself beside an update
+    listener reloaded it twice, which Home Assistant warns of and from
+    2026.12 refuses. The flow reloads once, and no second path does."""
     entry = await _setup(hass, _entry(hass))
 
     result = await hass.config_entries.flow.async_init(
@@ -1148,22 +1368,41 @@ async def test_reconfigure_reloads_once_through_the_update_listener(
     assert result["type"] is FlowResultType.ABORT
     assert entry.state is ConfigEntryState.LOADED
     assert entry.data[CONF.HOST] == "192.0.2.20"
-    # The flow probes the new host once; then the update listener reloads
-    # the entry once. Any third connection to it is a second reload.
+    # The flow probes the new host once, then reloads the entry once. Any
+    # third connection to it is a second reload.
     on_new_host = [p for p in mock_modbus.params_seen if p.host == "192.0.2.20"]
     assert len(on_new_host) == 2, (
         f"the new host was connected {len(on_new_host)} times (probe + reloads); "
-        "the update listener should reload the entry exactly once"
+        "the entry should reload exactly once"
     )
     assert "has an update listener and should use it" not in caplog.text, (
         "Home Assistant reported the double-reload deprecation"
     )
 
 
+@pytest.mark.parametrize(
+    "change",
+    [{"title": "Garage"}, {"pref_disable_new_entities": True}],
+    ids=["renamed", "new entities off"],
+)
+async def test_a_change_the_setup_did_not_read_does_not_reload(
+    hass, mock_modbus, change
+):
+    """Renaming the entry reloaded it: every entity went unavailable for a
+    moment, and an automation watching for that fired."""
+    entry = await _setup(hass, _entry(hass))
+    loaded = entry.runtime_data
+
+    hass.config_entries.async_update_entry(entry, **change)
+    await hass.async_block_till_done()
+
+    assert entry.runtime_data is loaded
+
+
 async def test_the_options_flow_sets_the_poll_interval(hass, mock_modbus):
     """Issue #183: the poll interval is a runtime setting - changed in the
     options dialog, stored in entry.options, picked up by the coordinator
-    after the reload the update listener triggers."""
+    after the reload the options trigger."""
     entry = await _setup(hass, _entry(hass))
     assert entry.runtime_data.coordinator.update_interval == CONST.SCAN_INTERVAL
 
@@ -1229,9 +1468,10 @@ WRITES_TOTAL_UNIQUE_ID = "weishaupt_wbbeeprom_writes_total"
 WRITES_TODAY_UNIQUE_ID = "weishaupt_wbbeeprom_writes_today"
 
 
-async def test_the_write_counters_survive_a_restart(hass):
+async def test_the_write_counters_survive_a_reload(hass):
     """Issue #187: a counter that starts at zero on every restart tells the
-    user nothing about the 100 000 writes the EEPROM is rated for."""
+    user nothing about the 100 000 writes the EEPROM is rated for. A reload
+    here; the restart reads the file, held by the test of the file below."""
     entry = await _setup(hass, _entry(hass))
     registry = er.async_get(hass)
     total_id = registry.async_get_entity_id(
@@ -1261,6 +1501,207 @@ async def test_the_write_counters_survive_a_restart(hass):
     )
 
 
+async def test_todays_write_count_survives_a_reload_while_polling_fails(hass):
+    """The daily count is the entry's, not its sensor's: while the counter
+    sensor followed the failing polling, a reload restored today's count as
+    0, and the daily limit was free again."""
+    entry = await _setup(hass, _entry(hass))
+    device = entry.runtime_data.coordinator.device
+    setpoint = next(row for row in device.items if row.address == PV_SETPOINT)
+    await device.write(setpoint, 5)
+    await hass.async_block_till_done()
+    entry.runtime_data.coordinator.async_set_update_error(UpdateFailed("link down"))
+    await hass.async_block_till_done()
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.runtime_data.coordinator.device.write_budget.writes_today == 1
+
+
+async def _write_once(hass, entry):
+    device = entry.runtime_data.coordinator.device
+    setpoint = next(row for row in device.items if row.address == PV_SETPOINT)
+    await device.write(setpoint, setpoint.state + 1 if setpoint.state else 5)
+    await hass.async_block_till_done()
+
+
+def _counts(entry):
+    budget = entry.runtime_data.coordinator.device.write_budget
+    return budget.total, budget.writes_today
+
+
+async def test_the_write_counts_survive_a_reload_with_their_sensors_disabled(hass):
+    """The counts lived in the sensors' last states: disabled, the sensors
+    restored nothing, and every reload freed the daily limit again."""
+    entry = _entry(hass)
+    registry = er.async_get(hass)
+    for unique_id in (WRITES_TOTAL_UNIQUE_ID, WRITES_TODAY_UNIQUE_ID):
+        registry.async_get_or_create(
+            "sensor",
+            CONST.DOMAIN,
+            unique_id,
+            config_entry=entry,
+            disabled_by=er.RegistryEntryDisabler.USER,
+        )
+    await _setup(hass, entry)
+    await _write_once(hass, entry)
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert _counts(entry) == (1, 1)
+
+
+async def _saved_counts(hass, hass_storage, entry):
+    """Total, today and day as the file holds them once the save is due."""
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=1))
+    await hass.async_block_till_done()
+    data = hass_storage[f"{CONST.DOMAIN}.{entry.entry_id}.write_counts"]["data"]
+    return data["total"], data["today"], data["day"]
+
+
+async def test_a_start_reads_the_counts_from_the_file_and_a_write_saves_them(
+    hass, hass_storage
+):
+    """A reload takes the counts kept in memory; only the file carries them
+    over a restart, and a count that never reached it was lost there."""
+    entry = _entry(hass)
+    key = f"{CONST.DOMAIN}.{entry.entry_id}.write_counts"
+    today = dt_util.now().date().isoformat()
+    hass_storage[key] = {
+        "version": 1,
+        "minor_version": 1,
+        "key": key,
+        "data": {"total": 7, "today": 2, "day": today},
+    }
+    await _setup(hass, entry)
+    assert _counts(entry) == (7, 2)
+
+    await _write_once(hass, entry)
+
+    assert await _saved_counts(hass, hass_storage, entry) == (8, 3, today)
+
+
+async def test_a_reload_while_the_counts_are_being_saved_keeps_them(hass, monkeypatch):
+    """Home Assistant's load does not wait for a save already writing: a
+    reload in that moment read the file as it was before the last write, and
+    the daily limit had one write more to give."""
+    entry = await _setup(hass, _entry(hass))
+    before = entry.runtime_data.coordinator.device.write_budget.counts()
+    await _write_once(hass, entry)
+    real_load = Store.async_load
+
+    async def file_behind_the_counts(store):
+        if store.key.endswith(".write_counts"):
+            return before
+        return await real_load(store)
+
+    monkeypatch.setattr(Store, "async_load", file_behind_the_counts)
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert _counts(entry) == (1, 1)
+
+
+async def test_a_counter_renamed_and_renamed_back_counts_its_writes_once(hass):
+    """Added again under its old id, the sensor added its recorded count to
+    the budget a second time, and the daily limit stopped writes too early."""
+    entry = await _setup(hass, _entry(hass))
+    await _write_once(hass, entry)
+    registry = er.async_get(hass)
+    total_id = registry.async_get_entity_id(
+        "sensor", CONST.DOMAIN, WRITES_TOTAL_UNIQUE_ID
+    )
+
+    for new_id in ("sensor.writes_elsewhere", total_id):
+        current = registry.async_get_entity_id(
+            "sensor", CONST.DOMAIN, WRITES_TOTAL_UNIQUE_ID
+        )
+        registry.async_update_entity(current, new_entity_id=new_id)
+        await hass.async_block_till_done()
+
+    assert _counts(entry) == (1, 1)
+
+
+async def test_the_counts_the_sensors_recorded_are_taken_over_once(hass, hass_storage):
+    """Before the counts had a store of their own, the sensors held them: the
+    first start takes them over, every later one reads the store."""
+    entry = _entry(hass)
+    registry = er.async_get(hass)
+    ids = [
+        registry.async_get_or_create(
+            "sensor", CONST.DOMAIN, unique_id, config_entry=entry
+        ).entity_id
+        for unique_id in (WRITES_TOTAL_UNIQUE_ID, WRITES_TODAY_UNIQUE_ID)
+    ]
+    today = {"day": dt_util.now().date().isoformat()}
+    recorded = {"native_value": 7, "native_unit_of_measurement": None}
+    mock_restore_cache_with_extra_data(
+        hass,
+        [
+            (State(ids[0], "7"), recorded),
+            (State(ids[1], "2", today), {**recorded, "native_value": 2}),
+        ],
+    )
+    await _setup(hass, entry)
+    assert _counts(entry) == (7, 2)
+    assert (await _saved_counts(hass, hass_storage, entry))[:2] == (7, 2), (
+        "the counts taken over were not saved"
+    )
+
+    # The sensors record no state any more: the next start has only the store.
+    async_get_restored(hass).last_states.clear()
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert _counts(entry) == (7, 2), "the counts taken over were not saved"
+
+    await _write_once(hass, entry)
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert _counts(entry) == (8, 3)
+
+
+async def test_a_count_recorded_as_unavailable_is_taken_over_as_zero(hass):
+    """Before the store, a counter went unavailable with the polling, and its
+    last state then held no count."""
+    entry = _entry(hass)
+    registry = er.async_get(hass)
+    ids = [
+        registry.async_get_or_create(
+            "sensor", CONST.DOMAIN, unique_id, config_entry=entry
+        ).entity_id
+        for unique_id in (WRITES_TOTAL_UNIQUE_ID, WRITES_TODAY_UNIQUE_ID)
+    ]
+    mock_restore_cache_with_extra_data(
+        hass,
+        [
+            (State(ids[0], "5"), {"native_value": 5}),
+            (State(ids[1], "unavailable"), {"native_value": None}),
+        ],
+    )
+
+    await _setup(hass, entry)
+
+    assert _counts(entry) == (5, 0)
+
+
+async def test_removing_the_entry_removes_its_write_counts(hass, hass_storage):
+    entry = await _setup(hass, _entry(hass))
+    await _write_once(hass, entry)
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=1))
+    await hass.async_block_till_done()
+    stored = [key for key in hass_storage if entry.entry_id in key]
+    assert stored, "the counts were never saved"
+
+    assert await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert not [key for key in hass_storage if entry.entry_id in key]
+
+
 PV_SETPOINT_UNIQUE_ID = "weishaupt_wbbSollwertPV"
 
 
@@ -1274,11 +1715,11 @@ async def test_a_refused_write_reaches_the_user_as_an_error(hass, monkeypatch):
     )
 
     async def refuse(self, item, value, check=None):
-        raise WriteError("Daily write limit of 1 reached")
+        raise ServerDeviceFailureError
 
     monkeypatch.setattr(WeishauptHeatPump, "write", refuse)
 
-    with pytest.raises(HomeAssistantError, match="limit") as raised:
+    with pytest.raises(HomeAssistantError) as raised:
         await hass.services.async_call(
             "number",
             "set_value",
@@ -1287,6 +1728,38 @@ async def test_a_refused_write_reaches_the_user_as_an_error(hass, monkeypatch):
         )
     assert raised.value.translation_key == "write_failed"
     assert entry.state is ConfigEntryState.LOADED
+
+
+@pytest.mark.parametrize(
+    ("domain", "service", "data"),
+    [
+        ("number", "set_value", {"value": 5}),
+        ("switch", "turn_off", {}),
+        ("switch", "turn_on", {}),
+    ],
+)
+async def test_the_daily_write_limit_reaches_the_user_in_their_language(
+    hass, pump, monkeypatch, domain, service, data
+):
+    """The limit's own English sentence went into the translated "write
+    failed" message, on the number and on both switch paths."""
+    pump.load_raw({"holding": {SG_READY_BOOST: 50}})
+    await _setup(hass, _entry(hass))
+    unique_id = SG_READY_BOOST_UNIQUE_ID + ("_active" if domain == "switch" else "")
+    entity_id = er.async_get(hass).async_get_entity_id(domain, CONST.DOMAIN, unique_id)
+
+    async def over_the_limit(self, item, *_args, **_kwargs):
+        raise WriteError(1, item.address)
+
+    monkeypatch.setattr(WeishauptHeatPump, "write", over_the_limit)
+    monkeypatch.setattr(WeishauptHeatPump, "write_off", over_the_limit)
+
+    with pytest.raises(HomeAssistantError) as raised:
+        await hass.services.async_call(
+            domain, service, {"entity_id": entity_id, **data}, blocking=True
+        )
+    assert raised.value.translation_key == "write_limit_reached"
+    assert raised.value.translation_placeholders == {"limit": "1"}
 
 
 async def test_a_pump_that_refuses_the_first_connection_retries_later(hass, pump):
@@ -1318,6 +1791,46 @@ async def test_a_disabled_heating_circuit_is_neither_polled_nor_an_entity(hass, 
         <= read.address + read.count - 1
         for read in pump.unit.read_events
     ), "heating circuit 2 was polled although it is disabled"
+
+
+@pytest.mark.parametrize(("postfix", "suffix"), [("", ""), ("2", "_2")])
+async def test_a_circuit_switched_off_leaves_no_device_behind(
+    hass, pump, postfix, suffix
+):
+    """Following the notice, the user switched circuit 2 off: its device
+    stayed with every entity unavailable, and even emptied it could not be
+    deleted. Switched on again, the device and the ids the user chose return."""
+    changes = async_capture_events(hass, dr.EVENT_DEVICE_REGISTRY_UPDATED)
+    data = {**BASE_DATA, CONF.HK2: True, CONF.DEVICE_POSTFIX: postfix}
+    entry = await _setup(hass, _entry(hass, data=data))
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    devices, entities = dr.async_get(hass), er.async_get(hass)
+    identifier = (CONST.DOMAIN, DeviceConstants.HZ2 + suffix)
+    circuit = devices.async_get_device_by_identifier(identifier, entry.entry_id)
+    sensor = next(
+        row
+        for row in er.async_entries_for_device(entities, circuit.id)
+        if row.domain == "sensor"
+    )
+    entities.async_update_entity(sensor.entity_id, new_entity_id="sensor.my_circuit")
+
+    await _reconfigure(hass, entry, {CONF.HK2: False})
+
+    assert devices.async_get(circuit.id) is None
+    assert not er.async_entries_for_device(
+        entities, circuit.id, include_disabled_entities=True
+    )
+
+    await _reconfigure(hass, entry, {CONF.HK2: True})
+
+    restored = devices.async_get_device_by_identifier(identifier, entry.entry_id)
+    assert restored.id == circuit.id
+    removed = [event.data for event in changes if event.data["action"] == "remove"]
+    assert [change["device_id"] for change in removed] == [circuit.id], (
+        "a circuit still enabled lost its device too"
+    )
+    assert entities.async_get("sensor.my_circuit"), "the id the user chose was lost"
 
 
 async def test_an_enabled_heating_circuit_is_polled(hass, pump):

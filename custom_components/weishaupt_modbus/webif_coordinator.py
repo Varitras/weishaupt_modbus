@@ -314,9 +314,12 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         # A write's own: its message sends the user to the log, also after a
         # round's traceback was logged.
         self._write_traceback_logged = False
-        # Whether the last round reached every due page; one cut short by a
-        # timeout leaves the controller a rest a write must not take away.
-        self._round_finished = True
+        # A round cut short by a timeout gives the controller a rest: no round
+        # asks a page before it ends, not one a write planned, not one asked
+        # for by hand. A write the user asks for still goes out.
+        self._rest_until = -math.inf
+        # Counted: two dialogs of one entry may visit at once.
+        self._dialog_visits = 0
         self._no_dialog_visit = asyncio.Event()
         self._no_dialog_visit.set()
         # Held for a round's page and for a whole write: a round request
@@ -325,7 +328,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         self._burst: _Burst | None = None
         self._quiet: asyncio.TimerHandle | None = None
         self._issue = f"{STOPPED_ISSUE}_{config_entry.entry_id}"
-        # The slowest answer of the last round that asked anything.
+        # The slowest answer since the last round that asked anything: a write
+        # in between asks through the same client, and its answers count too.
         self.answer_seconds: float | None = None
         # Reloading the entry is how polling resumes after a stop.
         ir.async_delete_issue(hass, CONST.DOMAIN, self._issue)
@@ -338,11 +342,14 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         18 requests of a reconfigure, and the dialog waited 134 s instead of
         about 90. After a visit that works out the entry reloads anyway.
         """
+        self._dialog_visits += 1
         self._no_dialog_visit.clear()
         try:
             yield
         finally:
-            self._no_dialog_visit.set()
+            self._dialog_visits -= 1
+            if not self._dialog_visits:
+                self._no_dialog_visit.set()
 
     @property
     def _heating(self) -> Page:
@@ -414,6 +421,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         """One write, its outcome handed to every caller that asked for it."""
         outcome = burst.outcome
         counted = False
+        handed_on = False
 
         def count_write() -> None:
             nonlocal counted
@@ -425,6 +433,11 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 # Live a write takes 20 to 60 s: the requests made while
                 # another ran joined this one, and from here on they wait
                 # for a write of their own.
+                if self._burst is burst and self._quiet is not None:
+                    # A change since this write was started restarted the
+                    # quiet time; the write that quiet time starts takes it.
+                    handed_on = True
+                    return
                 if self._burst is burst:
                     self._burst = None
                 if outcome.done():
@@ -458,10 +471,15 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             outcome.set_result(None)
         finally:
             # Cancelled as the entry unloads: no caller may wait for good.
-            if not outcome.done():
+            if not outcome.done() and not handed_on:
                 outcome.set_exception(_cut_off(counted=counted))
 
     def _after_failed_write(self, error: Exception) -> None:
+        if isinstance(error.__cause__, Unreachable):
+            self._rest()
+        if isinstance(error.__cause__, LoginRefused):
+            # Raised as not read back, so that the user does not save again.
+            self._refused = error.__cause__
         if isinstance(error, OtherValueShown):
             self._publish(self._heating, error.text)
         elif isinstance(error, (MaybeSaved, NotReadBack)):
@@ -476,7 +494,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         self._readings[page.key].asked_at = self._readings[page.key].read_at
         # Home Assistant restarts its refresh timer here, with the wait the
         # last round planned: the next page due would come that much late.
-        self._plan_next_round(self._round_finished)
+        self._plan_next_round()
         self.async_set_updated_data(self._published())
 
     @property
@@ -509,8 +527,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 translation_domain=CONST.DOMAIN, translation_key="webif_login_refused"
             ) from self._refused
         if self._stopped_by is None:
-            self._round_finished = await self._round()
-            self._plan_next_round(self._round_finished)
+            if not await self._round():
+                self._rest()
+            self._plan_next_round()
         if (slowest := self._client.take_slowest_answer()) is not None:
             self.answer_seconds = slowest
         if self._stopped_by is not None:
@@ -535,12 +554,23 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         for page in self._due():
             await self._no_dialog_visit.wait()
             async with self._asking:
+                # A dialog may have begun while the round waited for a write;
+                # the pages left stay due for the round after its visit.
+                if not self._no_dialog_visit.is_set():
+                    return True
+                # The write the round waited for may have read the page, or
+                # run into a timeout.
+                if page not in self._due():
+                    continue
                 fetched = await self._fetch(page)
             if not fetched:
                 return False
         return True
 
-    def _plan_next_round(self, finished: bool) -> None:
+    def _rest(self) -> None:
+        self._rest_until = self._clock() + self._shortest_interval.total_seconds()
+
+    def _plan_next_round(self) -> None:
         # Home Assistant plans the next round from the end of every refresh,
         # one requested by hand included: on a fixed interval, an update just
         # before a page was due put that page off by a whole round.
@@ -549,16 +579,15 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         now = self._clock()
         wait = max(
             min(self._due_in(page, now) for page in self._pages),
+            self._rest_until - now,
             SHORTEST_WAIT_SECONDS,
         )
-        if not finished:
-            # The pages the round did not reach are due at once; the
-            # struggling controller gets the shortest interval to recover.
-            wait = max(wait, self._shortest_interval.total_seconds())
         self.update_interval = timedelta(seconds=wait)
 
     def _due(self) -> list[Page]:
         now = self._clock()
+        if self._rest_until - now > DUE_SLACK_SECONDS:
+            return []
         due = [
             page for page in self._pages if self._due_in(page, now) <= DUE_SLACK_SECONDS
         ]
@@ -589,7 +618,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             # and nothing to ask any more.
             return False
         except WebifError as error:
-            if not self._failed(page, str(error)):
+            _LOGGER.debug("%s: %s", page.key, error)
+            if not self._failed(page, error.summary):
                 return False
             # A struggling server gets no further request in this round.
             return not isinstance(error, Unreachable)
@@ -613,6 +643,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             title: shown for title, shown in page.read(text) if title in page.required
         }
         reading.read_at = self._clock()
+        if reading.failures > FAILURES_KEPT:
+            _LOGGER.info("%s read again", page.key)
         reading.failures = 0
 
     def _failed(self, page: Page, reason: str) -> bool:
@@ -620,6 +652,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         reading = self._readings[page.key]
         reading.failures += 1
         _LOGGER.debug("%s failed, %d in a row: %s", page.key, reading.failures, reason)
+        if reading.failures == FAILURES_KEPT + 1:
+            _LOGGER.info("%s unavailable: %s", page.key, reason)
         if reading.failures < FAILURES_TO_STOP:
             return True
         self._stop(page, reason)

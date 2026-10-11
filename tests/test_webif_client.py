@@ -284,6 +284,21 @@ async def test_wrong_credentials_end_the_round_at_the_login(pump, session):
     assert pump.asked == LOGIN
 
 
+async def test_a_refused_login_is_never_sent_again(pump, session):
+    """A round that waited for a write, and the read-back after a save, asked
+    again and sent the refused password once more. Only a reauth may try
+    another, and it builds a new client."""
+    client = connect(session, pump.host, password="wrong")
+    with pytest.raises(webif.LoginRefused):
+        await client.page(PAGE, whole)
+    asked = len(pump.asked)
+
+    with pytest.raises(webif.LoginRefused):
+        await client.page(PAGE, whole)
+
+    assert pump.asked[asked:] == []
+
+
 async def test_a_session_id_with_a_slash_keeps_its_session(pump, session):
     """Live, 2026-10-02 and 03: the controller's session ids carry + and /,
     aiohttp's cookie jar sent one with a slash back in quotes, and the
@@ -825,7 +840,22 @@ async def read_form(client):
     return pages.setting_form(await client.page(LEAF, has_form))
 
 
-async def test_a_save_posts_the_four_fields_in_form_order(pump, session):
+class Count:
+    """The count_write a save is given, and how often it ran."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def __call__(self):
+        self.calls += 1
+
+
+@pytest.fixture
+def count():
+    return Count()
+
+
+async def test_a_save_posts_the_four_fields_in_form_order(pump, session, count):
     """Live, 2026-10-02: id, stack, type and value in form order, with the
     Referer and Origin a browser sends; only that request is proven."""
     pump.show_power_limit(60)
@@ -833,7 +863,7 @@ async def test_a_save_posts_the_four_fields_in_form_order(pump, session):
     form = await read_form(client)
     requests = client.traffic.requests
 
-    await client.save(form, 61)
+    await client.save(form, 61, count)
 
     base = f"http://{pump.host}"
     assert pump.asked[-1] == ("POST", SAVE_PATH)
@@ -845,10 +875,11 @@ async def test_a_save_posts_the_four_fields_in_form_order(pump, session):
     ]
     assert pump.save_headers[-1] == {"Referer": base + form.path, "Origin": base}
     assert client.traffic.requests == requests + 1
+    assert count.calls == 1
 
 
 async def test_a_save_answered_with_the_login_page_is_not_saved_and_not_sent_again(
-    pump, session
+    pump, session, count
 ):
     """The session was gone, so nothing was saved; a login and a second POST
     would be a resend the owner ruled out."""
@@ -859,9 +890,10 @@ async def test_a_save_answered_with_the_login_page_is_not_saved_and_not_sent_aga
     pump.sessions.clear()
 
     with pytest.raises(webif.NotSaved):
-        await client.save(form, 61)
+        await client.save(form, 61, count)
 
     assert pump.asked[asked:] == [("POST", SAVE_PATH)]
+    assert count.calls == 1
 
 
 def _status(pump):
@@ -881,7 +913,9 @@ def _late(pump):
     [_status, _elsewhere, _late],
     ids=["an error status", "another page", "no answer in time"],
 )
-async def test_a_save_without_a_clear_answer_raises_maybe_saved(pump, session, answer):
+async def test_a_save_without_a_clear_answer_raises_maybe_saved(
+    pump, session, answer, count
+):
     """It may have reached the EEPROM: nothing follows it in this write."""
     pump.show_power_limit(60)
     client = connect(session, pump.host)
@@ -890,21 +924,68 @@ async def test_a_save_without_a_clear_answer_raises_maybe_saved(pump, session, a
     answer(pump)
 
     with short_timeout(client), pytest.raises(webif.MaybeSaved):
-        await client.save(form, 61)
+        await client.save(form, 61, count)
 
     assert pump.asked[asked:] == [("POST", SAVE_PATH)]
+    assert count.calls == 1
 
 
-async def test_a_save_without_a_session_sends_nothing(pump, session):
+async def test_an_error_status_on_the_save_gives_the_controller_its_rest(
+    pump, session, count
+):
+    """The coordinator rests the controller only for an unreachable cause; an
+    error status on a page counts as one, so it must on the save too."""
+    pump.show_power_limit(60)
+    client = connect(session, pump.host)
+    form = await read_form(client)
+    _status(pump)
+
+    with pytest.raises(webif.MaybeSaved) as raised:
+        await client.save(form, 61, count)
+
+    assert isinstance(raised.value.__cause__, webif.Unreachable)
+
+
+@pytest.mark.parametrize("operation", ["page", "save"])
+async def test_a_request_waiting_for_modbus_is_not_sent_once_the_client_closes(
+    pump, session, count, operation
+):
+    """Home Assistant's stop closed the client while a request waited for the
+    lock Modbus shares; once that was free, the request went out after all."""
+    pump.show_power_limit(60)
+    host_lock = WatchedLock()
+    client = connect(session, pump.host, host_lock=host_lock)
+    form = await read_form(client)
+    asked = len(pump.asked)
+
+    async with host_lock:
+        if operation == "page":
+            request = client.page(PAGE, whole)
+        else:
+            request = client.save(form, 61, count)
+        waiting = asyncio.create_task(request)
+        await until(lambda: host_lock.waited)
+        closing = asyncio.create_task(client.close())
+        await asyncio.sleep(0)
+    with pytest.raises(webif.Closed):
+        await waiting
+    await closing
+
+    assert pump.asked[asked:] == [("GET", webif.LOGOUT)]
+    assert count.calls == 0
+
+
+async def test_a_save_without_a_session_sends_nothing(pump, session, count):
     client = connect(session, pump.host)
 
     with pytest.raises(webif.NotSaved):
-        await client.save(pages.setting_form(limit_leaf(60)), 61)
+        await client.save(pages.setting_form(limit_leaf(60)), 61, count)
 
     assert pump.asked == []
+    assert count.calls == 0
 
 
-async def test_a_closed_client_saves_nothing(pump, session):
+async def test_a_closed_client_saves_nothing(pump, session, count):
     pump.show_power_limit(60)
     client = connect(session, pump.host)
     form = await read_form(client)
@@ -912,6 +993,59 @@ async def test_a_closed_client_saves_nothing(pump, session):
     asked = len(pump.asked)
 
     with pytest.raises(webif.Closed):
-        await client.save(form, 61)
+        await client.save(form, 61, count)
 
     assert pump.asked[asked:] == []
+    assert count.calls == 0
+
+
+async def test_a_session_lost_at_close_is_not_renewed(pump, session):
+    """The renewal ran inside the page: after the close it logged in, asked
+    the page again and only then logged out, up to a minute late."""
+    client = connect(session, pump.host)
+    await client.page(PAGE, whole)
+    pump.sessions.clear()
+    pump.delays[PAGE] = SLOW
+    pump.asked.clear()
+    reading = asyncio.create_task(client.page(PAGE, whole))
+    await until(lambda: pump.asked)
+
+    await client.close()
+
+    with pytest.raises(webif.Closed):
+        await reading
+    assert pump.asked == [("GET", PAGE)]
+
+
+async def test_a_page_wrong_once_at_close_is_not_asked_again(pump, session):
+    client = connect(session, pump.host)
+    await client.page(PAGE, whole)
+    pump.pages = [BROKEN, WHOLE]
+    pump.delays[PAGE] = SLOW
+    pump.asked.clear()
+    reading = asyncio.create_task(client.page(PAGE, whole))
+    await until(lambda: pump.asked)
+
+    await client.close()
+
+    with pytest.raises(webif.Closed):
+        await reading
+    assert pump.asked == [("GET", PAGE), ("GET", webif.LOGOUT)]
+
+
+async def test_a_save_called_off_in_its_gap_is_not_counted(pump, session, count):
+    """Home Assistant stopping cancels a write while its save waits out the
+    gap: nothing went out, and a count there outlived the restart."""
+    pump.show_power_limit(60)
+    client = connect(session, pump.host, gap=GAP)
+    form = await read_form(client)
+    asked = len(pump.asked)
+    saving = asyncio.create_task(client.save(form, 61, count))
+    await asyncio.sleep(GAP / 2)
+
+    saving.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await saving
+    assert pump.asked[asked:] == []
+    assert count.calls == 0

@@ -52,7 +52,8 @@ class ScriptedClient:
             raise Broken(path)
         return answer
 
-    async def save(self, form, value):
+    async def save(self, form, value, count_write):
+        count_write()
         self.events.append(("save", value))
         if self.save_error is not None:
             raise self.save_error
@@ -128,8 +129,8 @@ STACK_FIELD = f'value="{PUMP_MENU},{HEATING},{limit_segment(60)}"'
     ],
 )
 async def test_a_form_that_does_not_match_sends_nothing(leaf, target):
-    """The form must be the one of the value the heating page shows: an id
-    or a stack of another value is a save nobody has tried."""
+    """The form must be the one of the value the heating page shows: a stack
+    of another value is a save nobody has tried."""
     client, events = scripted(leaf=leaf)
 
     with pytest.raises(setting.FormMismatch):
@@ -200,11 +201,17 @@ async def test_a_read_back_showing_another_value_says_which():
 
 
 @pytest.mark.parametrize(
-    "failure", [Broken(HEATING_PATH), Closed("the client is closed")]
+    "failure",
+    [
+        Broken(HEATING_PATH),
+        Closed("the client is closed"),
+        LoginRefused("HTTP 303 to /index.html#wrongpassword"),
+    ],
 )
 async def test_a_read_back_that_fails_is_reported_as_saved_but_not_read(failure):
     """The client closed by an unload after the save: "called off" would
-    invite a second save of a value the controller already holds."""
+    invite a second save of a value the controller already holds. A login
+    refused on the read-back alone hid that the save had gone out."""
     client, events = scripted(heating=[heating_page(60), failure])
 
     with pytest.raises(setting.NotReadBack):

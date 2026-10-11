@@ -1,7 +1,8 @@
-"""The power map: rated heating power over outside and flow temperature.
+"""The power map: rated heating power over air intake and flow temperature.
 
-Every grid ships compiled (see .github/scripts/compile_kennfeld.py for how
-a new one is made); at runtime it is only read, interpolated and drawn.
+Every grid ships compiled, with its picture (see
+.github/scripts/compile_kennfeld.py for how a new one is made); at runtime
+it is only read and interpolated, and the picture copied.
 """
 
 from collections.abc import Mapping
@@ -55,7 +56,7 @@ def _numbers(values: Any, at_least: int) -> bool:
 
 
 def _raw_bounds(known_x: list[float]) -> list[int] | None:
-    """The outside-temperature bounds as the compiled grid's integer keys.
+    """The air intake temperature bounds as the compiled grid's integer keys.
 
     None when they do not survive the conversion, so that accepting a grid
     and being able to look up in it are one decision, not two.
@@ -72,7 +73,10 @@ def _looks_like_a_grid(data: Any) -> bool:
     The numbers too: an empty known_x, a flow temperature that is not a number
     and a row of strings all passed a shape check and then raised out of
     setup. Flow temperatures must be ascending, because the rows are: sorting
-    only the temperatures swapped the curves of a hand-edited file.
+    only the temperatures swapped the curves of a hand-edited file. And a key
+    for every tenth between the bounds, as the compiler writes them: map()
+    looks the tenth up as is, and keys like "-100.0" or a gap gave no value
+    and no error.
     """
     if not isinstance(data, dict):
         return False
@@ -80,11 +84,19 @@ def _looks_like_a_grid(data: Any) -> bool:
     grid = data.get("compiled_grid")
     if not _numbers(known_t, at_least=2) or known_t != sorted(set(known_t)):
         return False
-    if not _numbers(known_x, at_least=1) or _raw_bounds(known_x) is None:
+    if not _numbers(known_x, at_least=1):
         return False
-    if grid is None:
+    raw_bounds = _raw_bounds(known_x)
+    if raw_bounds is None:
+        return False
+    if not grid:
         return True  # reported separately: not compiled
-    return isinstance(grid, dict) and all(
+    if not isinstance(grid, dict):
+        return False
+    low, high = raw_bounds
+    if any(str(raw) not in grid for raw in range(low, high + 1)):
+        return False
+    return all(
         _numbers(row, at_least=len(known_t)) and len(row) == len(known_t)
         for row in grid.values()
     )
@@ -160,7 +172,9 @@ def _element_is_static(element: ET.Element) -> bool:
     tag = str(element.tag).rsplit("}", 1)[-1].lower()
     if tag not in STATIC_ELEMENTS:
         return False
-    if tag == "style" and not _css_is_static(element.text or ""):
+    # A browser takes a stylesheet from all of its text, also the text after a
+    # child element, which ElementTree files as that child's tail.
+    if tag == "style" and (len(element) or not _css_is_static(element.text or "")):
         return False
     return all(
         _attribute_is_static(name.rsplit("}", 1)[-1].lower(), value)
@@ -238,7 +252,7 @@ class PowerMap:
         self._config_entry = config_entry
         self._compiled_grid: dict[str, list[float]] = {}
         self._known_t: list[int] = [35, 55]
-        self._out_range_raw: list[int] = [-300, 400]
+        self._air_range_raw: list[int] = [-300, 400]
 
     async def initialize(self) -> None:
         """Load the compiled grid, then put its preview under www/local.
@@ -248,9 +262,8 @@ class PowerMap:
         successful load left the previous map's curve on the dashboard while
         the heat power had already gone unknown.
         """
-        filepath = Path(
-            get_filepath(self.hass) / self._config_entry.data[CONF.KENNFELD_FILE]
-        )
+        folder = await self.hass.async_add_executor_job(get_filepath, self.hass)
+        filepath = folder / self._config_entry.data[CONF.KENNFELD_FILE]
         loaded = await self._load_grid(filepath)
         www_dir = Path(f"{self.hass.config.config_dir}/www/local")
         await self.hass.async_add_executor_job(
@@ -269,7 +282,7 @@ class PowerMap:
         if not _looks_like_a_grid(data):
             _LOGGER.error(
                 "Power map %s is not a compiled grid (known_t with at least two "
-                "flow temperatures, one value per curve and outside temperature). "
+                "flow temperatures, one value per curve and air intake temperature). "
                 "The heat power stays unknown",
                 filepath.name,
             )
@@ -289,7 +302,7 @@ class PowerMap:
         # check above already refused a known_x this cannot convert.
         raw_bounds = _raw_bounds(known_x)
         assert raw_bounds is not None
-        self._out_range_raw = raw_bounds
+        self._air_range_raw = raw_bounds
         self._compiled_grid = data["compiled_grid"]
         return True
 
@@ -319,8 +332,8 @@ class PowerMap:
                 "Failed to publish the power map image under www/local: %s", err
             )
 
-    def map(self, outside_temp_raw: float, flow_temp_raw: float) -> float | None:
-        """Rated power at an outside and flow temperature (raw tenths), interpolated.
+    def map(self, air_intake_raw: float, flow_temp_raw: float) -> float | None:
+        """Rated power at an air intake and flow temperature (raw tenths), interpolated.
 
         None without a map: 0 W here became a recorded heat output of zero for
         a configuration problem.
@@ -328,51 +341,33 @@ class PowerMap:
         if not self._compiled_grid:
             return None
 
-        # Convert flow temp to actual °C for fractional interpolation
-        flow_temp = flow_temp_raw / 10
-
-        # Clamp raw outside temperature and actual flow temperature
-        outside_raw = max(
-            self._out_range_raw[0],
-            min(round(outside_temp_raw), self._out_range_raw[1]),
+        air_raw = max(
+            self._air_range_raw[0],
+            min(round(air_intake_raw), self._air_range_raw[1]),
         )
         flow_temp = max(
-            float(self._known_t[0]), min(flow_temp, float(self._known_t[-1]))
+            float(self._known_t[0]), min(flow_temp_raw / 10, float(self._known_t[-1]))
         )
 
-        # 1. Direct O(1) outside temperature key lookup
-        vals = self._compiled_grid.get(str(outside_raw))
-        if not vals:
-            return None
+        # A grid is loaded only with a row for every tenth between its bounds.
+        vals = self._compiled_grid[str(air_raw)]
 
-        # 2. Find surrounding Flow Temp curve intervals in known_t
+        # Clamped to the curves, the flow temperature always lies between two.
         y0_idx = 0
         for i in range(len(self._known_t) - 1):
             if self._known_t[i] <= flow_temp <= self._known_t[i + 1]:
                 y0_idx = i
                 break
-        else:
-            if flow_temp < self._known_t[0]:
-                y0_idx = 0
-            else:
-                y0_idx = len(self._known_t) - 2
         y1_idx = y0_idx + 1
-
-        # 3. Grab the 2 flow temp boundary values at this outside temperature
-        p0 = vals[y0_idx]  # flow y0
-        p1 = vals[y1_idx]  # flow y1
-
-        # Calculate fractional flow temp delta
+        p0, p1 = vals[y0_idx], vals[y1_idx]
         dy = (flow_temp - self._known_t[y0_idx]) / (
             self._known_t[y1_idx] - self._known_t[y0_idx]
         )
-
-        # 1D Linear Interpolation between the curves
         return p0 + dy * (p1 - p0)
 
 
 def get_filepath(hass: HomeAssistant) -> Path:
-    """Get the filepath to the custom component directory."""
+    """The power maps' folder: the config directory's copy if there is one, else the package's."""
     filepath = Path(
         f"{hass.config.config_dir}/custom_components/{CONST.DOMAIN}/kennfeld"
     )

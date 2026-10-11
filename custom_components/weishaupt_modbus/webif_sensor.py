@@ -494,11 +494,11 @@ class _PollingSensor(_WebifEntity):
 
 
 class AnswerTimeSensor(_PollingSensor):
-    """How long the controller took for the slowest answer of the last round."""
+    """How long the controller took for its slowest answer since the last round."""
 
     @property
     def native_value(self) -> float | None:
-        """The slowest answer of the last round that asked anything."""
+        """The slowest answer since the last round that asked anything, a write's too."""
         return self.coordinator.answer_seconds
 
 
@@ -506,8 +506,11 @@ class TrafficSensor(_PollingSensor, RestoreSensor):
     """A count of what was asked, running on across restarts.
 
     The client starts its counts at zero on every (re)load; the last recorded
-    state is added on top in async_added_to_hass, as for the write counters.
+    state is added on top in async_added_to_hass, once: a sensor given a new
+    id and its old one back is added again, and added its count twice.
     """
+
+    _restored = False
 
     @property
     def native_value(self) -> int:
@@ -517,6 +520,9 @@ class TrafficSensor(_PollingSensor, RestoreSensor):
     async def async_added_to_hass(self) -> None:
         """Add the last recorded count to the fresh client's."""
         await super().async_added_to_hass()
+        if self._restored:
+            return
+        self._restored = True
         last_data = await self.async_get_last_sensor_data()
         if last_data is None or last_data.native_value is None:
             return

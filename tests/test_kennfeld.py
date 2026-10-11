@@ -1,6 +1,7 @@
 """The power map: interpolation on the compiled grid, and the shipped grids."""
 
 import ast
+import asyncio
 import importlib
 import importlib.util
 import json
@@ -12,7 +13,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from custom_components.weishaupt_modbus import kennfeld
+from custom_components.weishaupt_modbus import config_flow, kennfeld
 from custom_components.weishaupt_modbus.const import CONF, CONST
 from custom_components.weishaupt_modbus.kennfeld import PowerMap, get_filepath
 
@@ -33,8 +34,8 @@ KENNFELD = (
 def _power_map():
     power_map = PowerMap(SimpleNamespace(data={}), None)
     power_map._known_t = [35, 55]
-    power_map._out_range_raw = [-100, 0]
-    # Outside temperature (raw, 0.1 °C) -> heating power at 35 °C and 55 °C flow.
+    power_map._air_range_raw = [-100, 0]
+    # Air intake temperature (raw, 0.1 °C) -> heating power at 35 °C and 55 °C flow.
     power_map._compiled_grid = {"-100": [5000.0, 4000.0], "0": [6000.0, 5000.0]}
     return power_map
 
@@ -53,7 +54,7 @@ def test_flow_temperature_is_clamped_to_the_known_curves():
     assert _power_map().map(0, 100) == 6000.0
 
 
-def test_outside_temperature_is_clamped_to_the_grid():
+def test_air_intake_temperature_is_clamped_to_the_grid():
     assert _power_map().map(500, 350) == 6000.0
     assert _power_map().map(-999, 350) == 5000.0
 
@@ -76,6 +77,52 @@ def test_the_fallback_path_is_the_shipped_grid_folder():
     assert get_filepath(hass) == KENNFELD
 
 
+def _off_the_event_loop(folder, called):
+    """A get_filepath that fails when it runs in the event loop."""
+
+    def lookup(_hass):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            called.append(True)
+            return folder
+        raise AssertionError("the grid folder was looked up in the event loop")
+
+    return lookup
+
+
+async def test_setup_looks_for_the_grid_folder_off_the_event_loop(
+    hass, tmp_path, monkeypatch
+):
+    """The lookup asks the disk whether a folder exists, a blocking call
+    Home Assistant keeps out of its event loop."""
+    called = []
+    monkeypatch.setattr(kennfeld, "get_filepath", _off_the_event_loop(tmp_path, called))
+    entry = SimpleNamespace(
+        data={
+            CONF.KENNFELD_FILE: _grid_file(tmp_path, "own_kennfeld"),
+            CONF.DEVICE_POSTFIX: "",
+        }
+    )
+    hass.config.config_dir = str(tmp_path)
+
+    await PowerMap(entry, hass).initialize()
+
+    assert called
+
+
+async def test_the_dialog_looks_for_the_grid_folder_off_the_event_loop(
+    hass, tmp_path, monkeypatch
+):
+    called = []
+    monkeypatch.setattr(
+        config_flow, "get_filepath", _off_the_event_loop(tmp_path, called)
+    )
+
+    assert await config_flow.build_kennfeld_list(hass) == [CONST.DEF_KENNFELDFILE]
+    assert called
+
+
 def test_the_default_grid_ships_compiled_with_its_plot():
     """The config flow offers this file by default; a missing grid would be
     compiled at first start, on the user's machine, into the package."""
@@ -90,7 +137,8 @@ def test_every_shipped_grid_is_compiled_and_plotted():
     incomplete = []
     for grid in sorted(KENNFELD.glob("*.json")):
         data = json.loads(grid.read_text(encoding="utf-8"))
-        if not data.get("compiled_grid") or not grid.with_suffix(".svg").exists():
+        loads = kennfeld._looks_like_a_grid(data) and data.get("compiled_grid")
+        if not loads or not grid.with_suffix(".svg").exists():
             incomplete.append(grid.name)
 
     assert not incomplete, (
@@ -212,7 +260,7 @@ async def test_a_preview_that_carries_script_is_not_copied_under_www(
     pictures were already checked; the copy path was not."""
     grid = {
         "known_t": [35, 55],
-        "known_x": [-10, 10],
+        "known_x": [0],
         "compiled_grid": {"0": [1.0, 2.0]},
     }
     (tmp_path / "own_kennfeld.json").write_text(json.dumps(grid), encoding="utf-8")
@@ -236,7 +284,7 @@ async def test_a_preview_that_carries_script_is_not_copied_under_www(
 async def test_a_static_preview_is_copied_under_www(hass, tmp_path, monkeypatch):
     grid = {
         "known_t": [35, 55],
-        "known_x": [-10, 10],
+        "known_x": [0],
         "compiled_grid": {"0": [1.0, 2.0]},
     }
     (tmp_path / "own_kennfeld.json").write_text(json.dumps(grid), encoding="utf-8")
@@ -261,7 +309,7 @@ async def test_the_readme_picture_url_serves_the_published_preview(
     example asked for a file one directory above the one written."""
     grid = {
         "known_t": [35, 55],
-        "known_x": [-10, 10],
+        "known_x": [0],
         "compiled_grid": {"0": [1.0, 2.0]},
     }
     (tmp_path / "own_kennfeld.json").write_text(json.dumps(grid), encoding="utf-8")
@@ -314,6 +362,14 @@ async def test_the_readme_picture_url_serves_the_published_preview(
             '<svg xmlns="http://www.w3.org/2000/svg"><style>@import url(https://e.invalid/x.css)</style></svg>',
             "stylesheet import",
         ),
+        (
+            '<svg xmlns="http://www.w3.org/2000/svg"><style><g/>svg{background:url(https://e.invalid/p.png)}</style></svg>',
+            "stylesheet after a child element, which ElementTree files as its tail",
+        ),
+        (
+            '<svg xmlns="http://www.w3.org/2000/svg"><style>.a{}<desc>x</desc>svg{background:url(//e.invalid/p.png)}</style></svg>',
+            "stylesheet after a child element's own text",
+        ),
         ("<!DOCTYPE svg [<!ENTITY x 'y'>]><svg>&x;</svg>", "entity declaration"),
         ("<svg><path d='M0 0'", "not even XML"),
     ],
@@ -345,25 +401,29 @@ def test_shipped_plots_are_static_pictures():
         ("{not json", "corrupt JSON"),
         ('{"known_t": [35], "compiled_grid": {"0": [1.0]}}', "one flow curve only"),
         (
-            '{"known_t": [35, 55], "compiled_grid": {"0": [1.0]}}',
+            '{"known_t": [35, 55], "known_x": [0], "compiled_grid": {"0": [1.0]}}',
             "row shorter than known_t",
         ),
         ("[1, 2, 3]", "not an object"),
         (
             '{"known_t": [35, 55], "known_x": [], "compiled_grid": {"0": [1.0, 2.0]}}',
-            "no outside temperatures",
+            "no air intake temperatures",
         ),
         (
-            '{"known_t": [35, {}], "known_x": [-10, 10], "compiled_grid": {"0": [1.0, 2.0]}}',
+            '{"known_t": [35, {}], "known_x": [0], "compiled_grid": {"0": [1.0, 2.0]}}',
             "a flow temperature that is no number",
         ),
         (
-            '{"known_t": [55, 35], "known_x": [-10, 10], "compiled_grid": {"0": [1.0, 2.0]}}',
+            '{"known_t": [55, 35], "known_x": [0], "compiled_grid": {"0": [1.0, 2.0]}}',
             "flow temperatures out of order: the rows would be swapped",
         ),
         (
-            '{"known_t": [35, 55], "known_x": [-10, 10], "compiled_grid": {"0": ["1", "2"]}}',
+            '{"known_t": [35, 55], "known_x": [0], "compiled_grid": {"0": ["1", "2"]}}',
             "a row of strings",
+        ),
+        (
+            '{"known_t": [35, 55], "known_x": [0], "compiled_grid": ["0"]}',
+            "a list of the keys, not a grid",
         ),
     ],
 )
@@ -400,6 +460,44 @@ def _compile_script():
     return module
 
 
+def test_without_scipy_a_grid_stays_between_its_points(monkeypatch):
+    """A fit of order 8 through four points swung far between them, below 0 W
+    with another input, and the integration took the values as the heat
+    output; only a RankWarning on stderr told of it."""
+    monkeypatch.setitem(sys.modules, "scipy.interpolate", None)
+    data = {
+        "known_x": [-20, -10, 0, 10],
+        "known_t": [35],
+        "known_y": [[5000, 6000, 7000, 8000]],
+    }
+
+    grid = _compile_script().compile_grid(data)
+
+    assert [grid[str(x * 10)][0] for x in data["known_x"]] == [
+        5000.0,
+        6000.0,
+        7000.0,
+        8000.0,
+    ]
+    assert grid["-150"] == [5500.0]
+    assert all(5000 <= values[0] <= 8000 for values in grid.values())
+
+
+def test_every_shipped_grid_meets_its_points():
+    """The compiled values are what the integration reads; a compile that
+    misses the documented points ships a power the manual never gave."""
+    missed = {}
+    for path in sorted(KENNFELD.glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        grid = data["compiled_grid"]
+        for index, curve in enumerate(data["known_y"]):
+            for x, y in zip(data["known_x"], curve, strict=True):
+                if abs(grid[str(round(x * 10))][index] - y) > 0.1:
+                    missed.setdefault(path.name, []).append((x, data["known_t"][index]))
+
+    assert missed == {}
+
+
 def test_the_compile_script_keeps_each_curve_with_its_flow_temperature():
     """It sorted known_t and left known_y in file order: an unsorted raw grid
     got its curves swapped."""
@@ -409,6 +507,48 @@ def test_the_compile_script_keeps_each_curve_with_its_flow_temperature():
 
     assert known_t == [35, 55]
     assert known_y == [[5000, 6000], [4000, 5000]]
+
+
+def test_the_compile_script_takes_bounds_written_as_floats(monkeypatch):
+    """-10.0 or -12.5 as a bound raised TypeError in range(), while the
+    integration takes such a file and rounds its bounds to whole tenths."""
+    monkeypatch.setitem(sys.modules, "scipy.interpolate", None)
+    data = {
+        "known_x": [-12.5, 0, 10.0],
+        "known_t": [35, 55],
+        "known_y": [[1, 2, 3], [4, 5, 6]],
+    }
+
+    data["compiled_grid"] = _compile_script().compile_grid(data)
+
+    assert kennfeld._looks_like_a_grid(data)
+    assert data["compiled_grid"]["-125"] == [1.0, 4.0]
+
+
+def test_the_compile_script_rounds_its_bounds_like_the_integration(monkeypatch):
+    """0.35 is 3.5000000000000004 tenths: cut off instead of rounded, the
+    script's keys would stop a tenth short of the integration's bounds, and
+    the integration would refuse the grid."""
+    monkeypatch.setitem(sys.modules, "scipy.interpolate", None)
+    data = {
+        "known_x": [-12.26, 0, 0.35],
+        "known_t": [35, 55],
+        "known_y": [[1, 2, 3], [4, 5, 6]],
+    }
+
+    data["compiled_grid"] = _compile_script().compile_grid(data)
+
+    assert kennfeld._looks_like_a_grid(data)
+
+
+def test_the_compile_script_refuses_air_temperatures_out_of_order(monkeypatch):
+    """Without scipy, numpy took an unsorted known_x without a word and
+    compiled curves that miss their own points."""
+    monkeypatch.setitem(sys.modules, "scipy.interpolate", None)
+    data = {"known_x": [10, -10, 0], "known_t": [35], "known_y": [[3, 1, 2]]}
+
+    with pytest.raises(ValueError, match="known_x"):
+        _compile_script().compile_grid(data)
 
 
 class _RecordingChart:
@@ -524,7 +664,7 @@ async def test_a_preview_that_is_not_text_leaves_the_entry_alone(
     async_setup returned false: one unreadable picture, no sensors at all."""
     grid = {
         "known_t": [35, 55],
-        "known_x": [-10, 10],
+        "known_x": [0],
         "compiled_grid": {"0": [1.0, 2.0]},
     }
     (tmp_path / "own_kennfeld.json").write_text(json.dumps(grid), encoding="utf-8")
@@ -550,7 +690,7 @@ def test_a_row_that_is_not_a_finite_number_is_not_a_grid():
         kennfeld._looks_like_a_grid(
             {
                 "known_t": [35, 55],
-                "known_x": [-10, 10],
+                "known_x": [0],
                 "compiled_grid": {"0": [5000, 1e309]},
             }
         )
@@ -562,11 +702,14 @@ async def test_bounds_written_as_integral_floats_still_reach_the_curve(
     hass, tmp_path, monkeypatch
 ):
     """known_x of -10.0 clamped to the key "-100.0", which no compiled grid
-    has: every outside temperature below the boundary read as unknown."""
+    has: every air intake temperature below the boundary read as unknown."""
     grid = {
         "known_t": [35, 55],
         "known_x": [-10.0, 10.0],
-        "compiled_grid": {"-100": [5000.0, 4000.0], "0": [1.0, 2.0]},
+        "compiled_grid": {
+            str(raw): [5000.0, 4000.0] if raw == -100 else [1.0, 2.0]
+            for raw in range(-100, 101)
+        },
     }
     (tmp_path / "own_kennfeld.json").write_text(json.dumps(grid), encoding="utf-8")
     entry = SimpleNamespace(
@@ -578,6 +721,36 @@ async def test_bounds_written_as_integral_floats_still_reach_the_curve(
     await power_map.initialize()
 
     assert power_map.map(-200, 350) == 5000.0
+
+
+TENTHS = range(11)
+
+
+@pytest.mark.parametrize(
+    ("known_x", "keys"),
+    [
+        ([0, 1], [f"{raw}.0" for raw in TENTHS]),
+        ([0, 1], [str(raw) for raw in TENTHS if raw != 5]),
+        ([0, 2], [str(raw) for raw in TENTHS]),
+        ([-1e9, 1e9], [str(raw) for raw in TENTHS]),
+    ],
+    ids=[
+        "keys written as floats",
+        "a tenth missing",
+        "known_x stretched past the grid",
+        "bounds no grid could fill",
+    ],
+)
+def test_a_grid_keyed_otherwise_than_map_looks_up_is_refused(known_x, keys):
+    """A hand-edited grid was taken in and then gave no value, without a word:
+    map() looks each tenth up by its integer key and does not check it."""
+    grid = {
+        "known_t": [35, 55],
+        "known_x": known_x,
+        "compiled_grid": {key: [5000.0, 4000.0] for key in keys},
+    }
+
+    assert kennfeld._looks_like_a_grid(grid) is False
 
 
 @pytest.mark.parametrize(
@@ -617,7 +790,7 @@ def test_a_style_attribute_written_with_escapes_is_refused():
         (
             {
                 "known_t": [35, 55],
-                "known_x": [-10, 10],
+                "known_x": [0],
                 "compiled_grid": {"0": [5000, 10**400]},
             },
             "an integer too large for a float is not a finite number either",
@@ -668,7 +841,7 @@ def test_a_grid_whose_neighbours_cannot_be_subtracted_is_refused():
         kennfeld._looks_like_a_grid(
             {
                 "known_t": [-(10**308), 10**308],
-                "known_x": [-10, 10],
+                "known_x": [0],
                 "compiled_grid": {"0": [5000, 4000]},
             }
         )
@@ -682,7 +855,7 @@ def test_a_grid_whose_curve_values_cannot_be_subtracted_is_refused():
         kennfeld._looks_like_a_grid(
             {
                 "known_t": [35, 55],
-                "known_x": [-10, 10],
+                "known_x": [0],
                 "compiled_grid": {"0": [-(10**308), 10**308]},
             }
         )
@@ -765,7 +938,7 @@ def test_the_css_a_drawing_uses_still_passes():
 def _grid_file(folder, name):
     grid = {
         "known_t": [35, 55],
-        "known_x": [-10, 10],
+        "known_x": [0],
         "compiled_grid": {"0": [1.0, 2.0]},
     }
     (folder / f"{name}.json").write_text(json.dumps(grid), encoding="utf-8")

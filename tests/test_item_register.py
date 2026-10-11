@@ -13,13 +13,19 @@ by name so the NEXT one fails.
 
 import ast
 from collections import Counter
+import dataclasses
 import json
 import pathlib
 import re
 
 import pytest
 
-from custom_components.weishaupt_modbus.const import FORMATS, TYPES
+from custom_components.weishaupt_modbus.const import CONF, DEVICES, FORMATS, TYPES
+from custom_components.weishaupt_modbus.coordinator import (
+    CIRCUIT_DEVICE_SWITCHES,
+    CIRCUIT_SWITCHES,
+)
+from custom_components.weishaupt_modbus.entities import SWITCH_SUFFIX
 from custom_components.weishaupt_modbus.items import ModbusItem
 from custom_components.weishaupt_modbus.webif_sensor import (
     ANSWER_TIME,
@@ -28,6 +34,9 @@ from custom_components.weishaupt_modbus.webif_sensor import (
     WEBIF_SENSORS,
 )
 from custom_components.weishaupt_modbus.weishaupt_modbus_api import hpconst
+from custom_components.weishaupt_modbus.weishaupt_modbus_api.device import (
+    CIRCUIT_STRIDE,
+)
 from custom_components.weishaupt_modbus.write_counter_sensor import (
     WEBIF_WRITE_COUNTER_DESCRIPTIONS,
     WRITE_COUNTER_DESCRIPTIONS,
@@ -69,9 +78,9 @@ LIST_NAMES = [
 ]
 
 # Status lists where two numbers share one translation key, so the entity
-# cannot tell them apart: EVU lock (10) and SG tariff (11) both read as
-# `system_operationmode_sgtariff`. Kept as-is on adoption - a fix changes a
-# state string automations may match on.
+# cannot tell them apart. None is left: EVU lock (10) and SG tariff (11),
+# both `system_operationmode_sgtariff` in 1.x, were split in 2.0, a changed
+# state string the README lists under upgrading.
 KNOWN_SHARED_STATUS_KEYS: set[tuple[str, str]] = set()
 
 
@@ -121,6 +130,124 @@ def test_every_item_has_a_translated_name(path):
     )
 
 
+def _switch_keys() -> set[tuple[str, str]]:
+    """The switch of every setpoint whose off word is a setting."""
+    return {
+        ("switch", f"{item.translation_key}{SWITCH_SUFFIX}")
+        for item in _items(hpconst)
+        if item.type == TYPES.NUMBER and item.params.get("off_is_a_setting")
+    }
+
+
+@pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
+def test_a_setpoint_switch_without_a_name_is_caught(path):
+    """PLATFORM_OF knows no switch: a switch key renamed in every file left
+    the suite green, and the switch showed only its device's name."""
+    translations = _entity_translations(path).get("switch", {})
+    unnamed = sorted(key for _, key in _switch_keys() if key not in translations)
+
+    assert not unnamed, f"{path.name}: switch(es) without a name: {unnamed}"
+
+
+def test_the_integration_has_one_name_everywhere():
+    """It was "Weishaupt WBB" in the list to add from and in HACS, then
+    "Weishaupt Heat Pump" or "Weishaupt Wärmepumpe" once added - a translated
+    title replaces the manifest's name - and "Weishaupt Modbus" in the README."""
+    repo = PACKAGE.parents[1]
+    name = json.loads((PACKAGE / "manifest.json").read_text(encoding="utf-8"))["name"]
+    hacs = json.loads((repo / "hacs.json").read_text(encoding="utf-8"))["name"]
+    readme = (repo / "README.md").read_text(encoding="utf-8").splitlines()[0]
+    titles = {
+        path.name: json.loads(path.read_text(encoding="utf-8")).get("title")
+        for path in TRANSLATION_FILES
+    }
+
+    assert (name, hacs, readme) == ("Weishaupt Modbus", name, f"# {name}")
+    assert not any(titles.values()), f"a title in place of the name: {titles}"
+
+
+# Every device name starts with it: the entity ids made from the device names
+# stay apart from other integrations' that way.
+DEVICE_NAME_PREFIX = "WH "
+
+
+@pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
+def test_a_device_name_without_the_wh_prefix_is_caught(path):
+    """Dutch named twelve devices without it; the README promises it for all."""
+    devices = json.loads(path.read_text(encoding="utf-8"))["device"]
+    bare = sorted(
+        key
+        for key, texts in devices.items()
+        if not texts["name"].startswith(DEVICE_NAME_PREFIX)
+    )
+
+    assert not bare, f"{path.name}: device name(s) without the prefix: {bare}"
+
+
+@pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
+def test_a_device_without_a_name_is_caught(path):
+    """A device key renamed in every file left the suite green, and the device
+    showed its raw key as its name."""
+    named = set(json.loads(path.read_text(encoding="utf-8"))["device"])
+    devices = set(hpconst.reverse_device_list)
+
+    assert named == devices, (
+        f"{path.name}: without a name {sorted(devices - named)}, "
+        f"named but no device {sorted(named - devices)}"
+    )
+
+
+@pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
+def test_an_entity_name_with_a_double_space_is_caught(path):
+    """The outputs H1.3 to H1.5 read "Output  H1.3". The item name keeps its
+    double space: it is part of the unique id."""
+    doubled = sorted(
+        f"{platform}.{key}"
+        for platform, keys in _entity_translations(path).items()
+        for key, texts in keys.items()
+        if "  " in texts["name"]
+    )
+
+    assert not doubled, f"{path.name}: name(s) with a double space: {doubled}"
+
+
+# Names that read the same in every language: addresses and product terms.
+SAME_IN_EVERY_LANGUAGE = {
+    "adr31106",
+    "adr311062",
+    "adr311063",
+    "adr311064",
+    "adr311065",
+    "adr36801",
+    "party_pause",
+    "party_pause2",
+    "party_pause3",
+    "party_pause4",
+    "party_pause5",
+    "sgr1",
+    "sgr2",
+}
+
+
+@pytest.mark.parametrize(
+    ("language", "source"),
+    [("en.json", "de.json"), ("nl.json", "en.json"), ("nl.json", "de.json")],
+)
+def test_a_name_left_in_another_language_is_caught(language, source):
+    """English read "Fehler"; Dutch kept ten English names."""
+    translated = _entity_translations(PACKAGE / "translations" / language)
+    original = _entity_translations(PACKAGE / "translations" / source)
+    left = sorted(
+        f"{platform}.{key}"
+        for platform, keys in translated.items()
+        for key, texts in keys.items()
+        if key not in SAME_IN_EVERY_LANGUAGE
+        and texts["name"] == original[platform][key]["name"]
+    )
+
+    assert not left, f"{language}: name(s) still as in {source}: {left}"
+
+
 @pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
 def test_no_translation_outlives_its_item(path):
     """The other direction: an entry nothing refers to is a name nobody sees
@@ -142,10 +269,13 @@ def test_no_translation_outlives_its_item(path):
     }
     # The one setting the web interface writes is a number.
     known.add(("number", POWER_LIMIT.translation_key))
+    known |= _switch_keys()
+    # Every platform the file names, not the ones PLATFORM_OF knows: the
+    # switches went unchecked that way.
     orphaned = sorted(
         f"{platform}.{key}"
-        for platform in sorted(set(PLATFORM_OF.values()))
-        for key in translations.get(platform, {})
+        for platform, keys in sorted(translations.items())
+        for key in keys
         if (platform, key) not in known
     )
 
@@ -188,9 +318,24 @@ def test_every_status_value_has_a_state_translation(path):
     )
 
 
+def test_every_device_constant_names_a_device_that_gets_entities():
+    """DEVICES.UK named a device no row was on, with a translation of its own."""
+    used = {item.device for item in _items(hpconst)} | {DEVICES.WEBIF}
+
+    assert set(hpconst.reverse_device_list) == used
+
+
+def test_every_select_reads_a_status_list():
+    """The select translates by its status list and has no other way."""
+    selects = [item for item in _items(hpconst) if item.type == TYPES.SELECT]
+
+    assert selects
+    assert all(item.format == FORMATS.STATUS for item in selects)
+
+
 def test_every_status_item_has_a_result_list():
     """A STATUS item maps numbers to texts; without the list every value
-    reads as `unbekannt <n>`."""
+    reads as unknown."""
     without = [
         item.translation_key
         for item in _items(hpconst)
@@ -281,6 +426,27 @@ def test_the_params_doc_block_lists_exactly_the_keys_the_code_reads():
     assert _params_keys_read() == _documented_params_keys()
 
 
+def _documented_row_fields() -> set[str]:
+    """The fields the row doc block lists, one ``# `field`:`` line each.
+
+    In backticks: a comment line opening with "type:" is a type comment to
+    mypy, and the whole module stops type-checking on it.
+    """
+    source = pathlib.Path(hpconst.__file__).read_text(encoding="utf-8")
+    start = source.index("ModbusItem objects")
+    block = source[start : source.index("# fmt: off", start)]
+    return set(re.findall(r"^# `(\w+)`:", block, re.MULTILINE))
+
+
+def test_the_row_doc_block_names_the_fields_a_row_takes():
+    """It named mformat and mtype, which ModbusItem never took, left out
+    resultlist, and called name removable although the unique id is
+    built from it."""
+    taken = {field.name for field in dataclasses.fields(ModbusItem) if field.init}
+
+    assert _documented_row_fields() == taken
+
+
 def test_the_signature_sees_a_changed_field():
     """Proof-of-red for the comparison: one changed format is one difference."""
     item = ModbusItem(1, "x", FORMATS.NUMBER, TYPES.SENSOR, "dev", "k")
@@ -301,7 +467,7 @@ def test_the_second_heat_source_counters_carry_the_register_lists_labels():
     assert by_address[34107].name == "Betriebsstunden E2"
     for hours in (34102, 34106, 34107):
         assert by_address[hours].params == hpconst.PARAMS_TIME_H, hours
-    assert not by_address[34103].params, "a cycle count has no unit"
+    assert "unit" not in by_address[34103].params, "a cycle count has no unit"
 
 
 def test_a_pump_without_a_second_heat_source_has_a_state_for_it():
@@ -338,6 +504,25 @@ def test_every_language_has_exactly_the_keys_of_strings_json(path):
         f"{path.name} differs from strings.json: "
         f"missing {sorted(reference - translated)}, extra {sorted(translated - reference)}"
     )
+
+
+def test_strings_json_says_what_the_english_translation_says():
+    """Home Assistant shows translations/en.json; strings.json is its source.
+    A fix to the English texts reached only en.json, and regenerating it
+    from strings.json would have taken the fix back."""
+    english = PACKAGE / "translations" / "en.json"
+
+    assert json.loads(STRINGS.read_text(encoding="utf-8")) == json.loads(
+        english.read_text(encoding="utf-8")
+    )
+
+
+@pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
+def test_an_error_code_reads_the_same_as_error_and_as_warning(path):
+    """Both sensors show the same code list; Dutch named one code two ways."""
+    sensors = json.loads(path.read_text(encoding="utf-8"))["entity"]["sensor"]
+
+    assert sensors["fehler"]["state"] == sensors["warnung"]["state"]
 
 
 LEGACY_UNIQUE_IDS = pathlib.Path(__file__).parent / "legacy_unique_ids.json"
@@ -421,3 +606,28 @@ def test_the_digital_inputs_all_read_as_on_or_off():
     assert all(item.resultlist is hpconst.W2_STATUS for item in digital), (
         "one on/off list for every digital input, not a copy each"
     )
+
+
+@pytest.mark.parametrize("circuit", [2, 3, 4, 5])
+def test_every_circuit_copy_sits_on_its_own_device_switch_and_bounds(circuit):
+    """Each copy repeats its offset, device, switch and bound keys as
+    literals; one copied wrong - circuit 3 on circuit 4's device, or bounded
+    by circuit 4's setpoints - left every other test green."""
+    first = hpconst.MODBUS_HZ_ITEMS
+    rows = getattr(hpconst, f"MODBUS_HZ{circuit}_ITEMS")
+    device = getattr(DEVICES, f"HZ{circuit}")
+    offset = CIRCUIT_STRIDE * (circuit - 1)
+    keys = {row.translation_key for row in rows}
+
+    assert [row.address for row in rows] == [row.address + offset for row in first]
+    assert {row.device for row in rows} == {device}
+    switch = getattr(CONF, f"HK{circuit}")
+    assert CIRCUIT_SWITCHES[circuit] == CIRCUIT_DEVICE_SWITCHES[device] == switch
+    bounds = [
+        row.params[bound]
+        for row in rows
+        for bound in ("dynamic_min", "dynamic_max")
+        if bound in row.params
+    ]
+    assert bounds
+    assert set(bounds) <= keys, f"bounded by another circuit: {set(bounds) - keys}"

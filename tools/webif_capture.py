@@ -1,9 +1,9 @@
-"""Record the titles a heat pump's web interface shows, for another language.
+"""Record the titles a heat pump's web interface shows, for another language or model.
 
-The integration finds its pages and values by their German or English titles.
-With the controller set to another language, run this once and attach the
-file it writes to an issue: the titles in it are what the integration has to
-learn.
+The integration finds its pages and values by their German or English titles,
+as a WBB shows them. With the controller set to another language, or on a
+model whose pages show other values, run this once and attach the file it
+writes to an issue: the titles in it are what the integration has to learn.
 
     python tools/webif_capture.py <address of the heat pump>
 
@@ -12,7 +12,8 @@ more: the overview, the information menu, the heat pump's main menu, and the
 three pages the integration reads. It finds those entries by their codes on
 the controller it was built for, else by their German titles, else you pick
 them by number and confirm each pick by its title. Reset, Service and the time
-programs are never offered. It only reads.
+programs are never offered on that controller; on another one it knows them
+by their codes only, so check each title before confirming. It only reads.
 
 The file holds the titles of each page, and the values of the three pages the
 integration reads. The tool adds no address, user name, password, session or
@@ -27,7 +28,8 @@ controller keeps failing takes up to about three quarters of an hour before
 the tool gives up.
 
 Needs Python 3.10 or newer and a copy of the whole repository: the titles are
-read with the integration's own page parser.
+read with the integration's own page parser. On Windows, webif_capture.bat
+beside it brings a portable Python of its own.
 """
 
 import argparse

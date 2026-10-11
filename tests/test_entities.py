@@ -30,6 +30,7 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.hpconst import (
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.write_budget import (
     WriteBudget,
 )
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.exceptions import ServiceValidationError
 
 
@@ -86,6 +87,30 @@ def _temperature(params=None, address=30001):
         "aussentemp",
         params=params or {"unit": "°C", "divider": 10, "precision": 1},
     )
+
+
+@pytest.mark.parametrize(
+    ("address", "device_class", "state_class"),
+    [
+        (34102, SensorDeviceClass.DURATION, SensorStateClass.TOTAL_INCREASING),
+        (34106, SensorDeviceClass.DURATION, SensorStateClass.TOTAL_INCREASING),
+        (34107, SensorDeviceClass.DURATION, SensorStateClass.TOTAL_INCREASING),
+        (34103, None, SensorStateClass.TOTAL_INCREASING),
+        (31103, SensorDeviceClass.HUMIDITY, SensorStateClass.MEASUREMENT),
+        (43108, SensorDeviceClass.VOLUME_FLOW_RATE, SensorStateClass.MEASUREMENT),
+    ],
+)
+def test_counters_and_measures_carry_the_classes_the_statistics_need(
+    address, device_class, state_class
+):
+    """Hours and cycles were averaged, so the statistics had no change per
+    day; humidity and flow rate had no class, so no icon and no unit choice."""
+    item = next(
+        item for group in DEVICELISTS for item in group if item.address == address
+    )
+    sensor = entities.MySensorEntity(_entry(), copy.deepcopy(item), FakeCoordinator())
+
+    assert (sensor.device_class, sensor.state_class) == (device_class, state_class)
 
 
 def test_a_row_without_params_is_a_whole_number_without_a_unit():
@@ -329,19 +354,26 @@ def test_status_state_is_the_translation_key_not_the_text():
     )
 
 
-def test_an_unknown_status_number_is_reported_not_hidden():
+def test_an_unknown_status_number_is_reported_by_its_sensor():
+    """A code newer firmware added showed as unknown, as if nothing were read.
+
+    Accepted: a select still shows it as unknown, as Home Assistant takes
+    only an option from its list.
+    """
     item = ModbusItem(
-        40001,
+        33101,
         "x",
         FORMATS.STATUS,
-        TYPES.SELECT,
+        TYPES.SENSOR,
         DEVICES.SYS,
         "k",
         resultlist=SYS_BETRIEBSART,
     )
-    select = entities.MySelectEntity(_entry(), item, FakeCoordinator())
+    item.state = 9999
 
-    assert select.translate_val(9999) == "unbekannt <9999>"
+    sensor = entities.MySensorEntity(_entry(), item, FakeCoordinator())
+
+    assert sensor.native_value == "9999"
 
 
 def test_select_options_are_the_status_translation_keys():
@@ -401,6 +433,106 @@ async def test_a_number_write_is_scaled_by_the_divider():
 
     assert coordinator.writes == [(41001, 215)]
     assert number._attr_native_value == 21.5
+
+
+def _stepped_number():
+    item = ModbusItem(
+        41001,
+        "x",
+        FORMATS.TEMPERATURE,
+        TYPES.NUMBER,
+        DEVICES.HZ,
+        "k",
+        params={"unit": "°C", "divider": 10, "step": 0.5},
+    )
+    coordinator = FakeCoordinator()
+    number = entities.MyNumberEntity(_entry(), item, coordinator)
+    number.async_write_ha_state = lambda: None
+    return number, coordinator
+
+
+@pytest.mark.parametrize(("wanted", "word"), [(21.3, 215), (21.6, 215), (21.8, 220)])
+async def test_a_number_write_lands_on_the_row_step(wanted, word):
+    """Home Assistant checks only the range: 21.3 at a step of 0.5 went out
+    as 213, beside the grid the controller's menu offers, and a value set in
+    Fahrenheit landed anywhere."""
+    number, coordinator = _stepped_number()
+
+    await number.async_set_native_value(wanted)
+
+    assert coordinator.writes == [(41001, word)]
+
+
+@pytest.mark.parametrize(
+    ("address", "key", "bound", "neighbour", "entered", "word", "outside"),
+    [
+        (
+            41107,
+            "raum_soll_temp_absenk",
+            "dynamic_max",
+            "raum_soll_temp_normal",
+            21.3,
+            213,
+            21.4,
+        ),
+        (
+            41105,
+            "raum_soll_temp_normal",
+            "dynamic_min",
+            "raum_soll_temp_absenk",
+            21.2,
+            211,
+            21.0,
+        ),
+    ],
+    ids=["upper", "lower"],
+)
+async def test_a_value_at_a_bound_beside_the_step_is_written_not_refused(
+    address, key, bound, neighbour, entered, word, outside
+):
+    """A neighbour setpoint at 21.3 or 21.1, as Home Assistant wrote it before
+    the rounding: 21.3 rounded to 21.5 first and was refused as "21.5 outside
+    16-21.3", a value nobody had entered. Below, rounding to the step alone
+    would go under the bound."""
+    item = ModbusItem(
+        address,
+        "Raumsolltemperatur",
+        FORMATS.TEMPERATURE,
+        TYPES.NUMBER,
+        DEVICES.HZ,
+        key,
+        params={
+            "unit": "°C",
+            "divider": 10,
+            "step": 0.5,
+            "min": 16,
+            "max": 30,
+            bound: neighbour,
+        },
+    )
+    coordinator = FakeCoordinator(
+        values={neighbour: 213 if bound == "dynamic_max" else 211}
+    )
+    number = entities.MyNumberEntity(_entry(), item, coordinator)
+    number.async_write_ha_state = lambda: None
+
+    await number.async_set_native_value(entered)
+    with pytest.raises(ServiceValidationError) as refused:
+        await number.async_set_native_value(outside)
+
+    assert coordinator.writes == [(address, word)]
+    assert refused.value.translation_placeholders["value"] == str(outside)
+
+
+async def test_a_number_write_of_nan_is_refused_as_out_of_range():
+    """Home Assistant's range check lets NaN through; the conversion to a
+    register word then raised a bare ValueError."""
+    number, coordinator = _stepped_number()
+
+    with pytest.raises(ServiceValidationError):
+        await number.async_set_native_value(float("nan"))
+
+    assert coordinator.writes == []
 
 
 async def test_a_select_write_sends_the_number_behind_the_key():
@@ -615,7 +747,19 @@ def test_a_user_value_becomes_the_nearest_register_word(value, divider, word):
 
 def test_the_performance_factor_is_undefined_without_electric_energy():
     assert performance_factor(12.0, 0) is None
-    assert performance_factor(12.0, 4) == 3.0
+    assert performance_factor(20.0, 5) == 4.0
+
+
+@pytest.mark.parametrize(
+    ("heat", "electric", "factor"),
+    [(7, 1, None), (12, 4, None), (22, 5, 4.4), (83, 20, 4.15)],
+)
+def test_a_performance_factor_from_a_few_whole_kwh_is_not_shown(heat, electric, factor):
+    """The registers count whole kWh: 7 kWh of heat for 1 kWh of electricity
+    read 7.00 for anything between about 3.5 and 8, and a summer day's
+    factor went into the statistics so. Below 5 kWh the factor can be off by
+    more than a fifth."""
+    assert performance_factor(heat, electric) == factor
 
 
 class RealDeviceCoordinator:

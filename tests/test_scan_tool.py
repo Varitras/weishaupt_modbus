@@ -66,11 +66,17 @@ def test_the_scan_tool_keeps_windows_line_ends():
     assert raw.count(b"\n") == raw.count(b"\r\n") > 0
 
 
+class Raw(bytes):
+    """A reply sent as is after the transaction and protocol id."""
+
+
 class _StandInPump:
     """Answers like a heat pump: known registers, illegal address otherwise."""
 
-    def __init__(self, registers=None, drop=(), identification=None):
+    def __init__(self, registers=None, drop=(), identification=None, malformed=None):
         self.registers = registers or {}
+        # (function, address or None) -> the reply to send in its place.
+        self.malformed = malformed or {}
         # Addresses whose request closes the connection instead of an answer.
         self.drop = set(drop)
         # First object id of a page -> (objects, next object id or None).
@@ -80,6 +86,9 @@ class _StandInPump:
     def answer(self, pdu: bytes) -> bytes | None:
         function = pdu[0]
         self.functions.append(function)
+        address = int.from_bytes(pdu[1:3], "big") if function != ENCAPSULATED else None
+        if (function, address) in self.malformed:
+            return self.malformed[(function, address)]
         if function in (READ_HOLDING, READ_INPUT):
             address = int.from_bytes(pdu[1:3], "big")
             if address in self.drop:
@@ -119,6 +128,9 @@ class _Handler(socketserver.BaseRequestHandler):
             reply = self.server.pump.answer(pdu) if pdu else None
             if reply is None:
                 return
+            if isinstance(reply, Raw):
+                self.request.sendall(header[:4] + reply)
+                continue
             length = (len(reply) + 1).to_bytes(2, "big")
             self.request.sendall(header[:4] + length + header[6:7] + reply)
 
@@ -287,3 +299,51 @@ def test_the_launcher_hands_over_path_and_host_as_data(tmp_path, serve):
         HoldingRegisters=[],
     )
     assert not marker.exists(), "the typed host ran as code"
+
+
+# Answers a broken stand-in or a confused gateway might send: each ended the
+# whole scan with an index error, and no CSV of registers came about.
+MALFORMED_IDENTIFICATION = {
+    "three bytes": bytes([ENCAPSULATED, 0x0E, 0x01]),
+    "more objects than sent": bytes([ENCAPSULATED, 0x0E, 1, 1, 0, 0, 3, 0, 3]) + b"Wei",
+    "an object longer than sent": bytes([ENCAPSULATED, 0x0E, 1, 1, 0, 0, 1, 0, 20])
+    + b"Weish",
+    "an exception without its code": bytes([ENCAPSULATED | EXCEPTION_FLAG]),
+    "a length of zero": Raw(bytes([0, 0, 1])),
+}
+MALFORMED_REGISTER = {
+    "a value of one byte": bytes([READ_INPUT, 2, 0]),
+    "an exception without its code": bytes([READ_INPUT | EXCEPTION_FLAG]),
+    "a length of zero": Raw(bytes([0, 0, 1])),
+    "a length of one": Raw(bytes([0, 1, 1])),
+}
+
+
+@pytest.mark.parametrize("shape", sorted(MALFORMED_IDENTIFICATION))
+def test_a_malformed_identification_answer_does_not_end_the_scan(
+    tmp_path, serve, shape
+):
+    pump = _StandInPump(
+        registers={(READ_INPUT, 30002): 195},
+        malformed={(ENCAPSULATED, None): MALFORMED_IDENTIFICATION[shape]},
+    )
+    port = serve(pump)
+
+    process, rows = _scan(tmp_path, port, InputRegisters=[30002], HoldingRegisters=[])
+
+    assert _values(rows, "input") == {30002: 195}, process.stderr
+
+
+@pytest.mark.parametrize("shape", sorted(MALFORMED_REGISTER))
+def test_a_malformed_register_answer_does_not_end_the_scan(tmp_path, serve, shape):
+    pump = _StandInPump(
+        registers={(READ_INPUT, 30002): 195},
+        malformed={(READ_INPUT, 30001): MALFORMED_REGISTER[shape]},
+    )
+    port = serve(pump)
+
+    process, rows = _scan(
+        tmp_path, port, InputRegisters=[30001, 30002], HoldingRegisters=[]
+    )
+
+    assert _values(rows, "input") == {30002: 195}, process.stderr

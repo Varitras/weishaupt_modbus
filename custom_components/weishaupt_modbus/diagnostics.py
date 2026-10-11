@@ -13,8 +13,8 @@ from .const import CONF
 # Free text the user typed or chose: a prefix or postfix is often a family
 # name or a room, and the download is meant for a public issue.
 TO_REDACT = {CONF.HOST, CONF.PREFIX, CONF.DEVICE_POSTFIX, CONF.KENNFELD_FILE}
-# The page addresses are menu codes of the controller firmware, the same on
-# another owner's controller; not secret, left out as of no use in an issue.
+# The page addresses are menu codes of the controller firmware, with a field
+# the title capture treats as the device's: of no use in an issue either way.
 # The pump title is free text again.
 WEB_TO_REDACT = {CONF.USERNAME, CONF.PASSWORD, CONF.PAGES, CONF.PUMP_TITLE}
 

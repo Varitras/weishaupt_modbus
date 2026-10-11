@@ -1,7 +1,8 @@
-"""The title capture for another language: six pages, read only, nothing personal.
+"""The title capture for another language or model: six pages, read only, nothing personal.
 
 tools/webif_capture.py is handed to people whose controller has to stay on
-a language the integration cannot read yet. It runs against a pump nobody
+a language the integration cannot read yet, or is a model it does not know
+yet. It runs against a pump nobody
 here has seen, and the file it writes goes to a public issue - so what it
 asks the pump for and what it writes down are held by these tests, against
 the stand-in on the loopback address.
@@ -719,6 +720,44 @@ def test_the_tool_alone_says_it_needs_the_repository(tmp_path):
     assert result.returncode == 1
     assert "whole repository" in result.stderr
     assert "Traceback" not in result.stderr
+
+
+def _run_on_the_users_python() -> list[pathlib.Path]:
+    """The tool and every file it loads by path: all run on the user's Python."""
+    loaded = [
+        value
+        for name, value in vars(capture_tool).items()
+        if name.endswith("_PATH") and isinstance(value, pathlib.Path)
+    ]
+    return [REPO / "tools" / "webif_capture.py", *loaded]
+
+
+@pytest.mark.parametrize("path", _run_on_the_users_python(), ids=lambda path: path.name)
+def test_the_formatter_keeps_what_the_tool_runs_readable_for_python_3_10(path):
+    """The tool promises Python 3.10, the Windows starter brings 3.13; ruff
+    otherwise writes for the Home Assistant's Python and drops these brackets,
+    a form no Python before 3.14 can read."""
+    source = "try:\n    pass\nexcept (ValueError, TypeError):\n    pass\n"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ruff",
+            "format",
+            "--stdin-filename",
+            str(path),
+            "-",
+        ],
+        input=source,
+        capture_output=True,
+        text=True,
+        cwd=REPO,
+        timeout=60,
+        check=True,
+    )
+
+    assert result.stdout == source
 
 
 def test_the_file_lands_where_the_tool_runs(tmp_path, monkeypatch):

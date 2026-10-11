@@ -1,6 +1,5 @@
-# Shell scripts and hooks are read by sh; a CRLF checkout on Windows would
-# make every line end in a stray .
-.githooks/* text eol=lf
+# Shell scripts are read by sh; a CRLF checkout on Windows would make every
+# line end in a stray carriage return.
 *.sh text eol=lf
 
 # cmd misreads a batch file with bare LF line ends. Stored byte for byte,

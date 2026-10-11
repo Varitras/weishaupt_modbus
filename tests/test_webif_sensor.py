@@ -159,3 +159,15 @@ def test_the_topic_option_names_a_sensor_like_its_modbus_siblings(key, topic):
     sensor = WebifSensor(coordinator, pump_data, _description(key))
 
     assert sensor.translation_placeholders == {"prefix": topic}
+
+
+def test_the_device_prefix_option_names_a_sensor_too():
+    """The option is the pump entry's; the web interface's values follow it
+    like their Modbus siblings, while the README and the dialog spoke of
+    register entities only."""
+    coordinator = SimpleNamespace(data={}, last_update_success=True)
+    pump_data = {**PUMP_DATA, CONF.NAME_DEVICE_PREFIX: True}
+
+    sensor = WebifSensor(coordinator, pump_data, _description("hochdruck"))
+
+    assert sensor.translation_placeholders == {"prefix": f"{CONST.DEF_PREFIX}_"}

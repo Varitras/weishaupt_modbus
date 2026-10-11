@@ -99,6 +99,28 @@ def test_every_platform_says_how_many_updates_may_run_at_once():
     assert not missing, f"{missing} do(es) not set PARALLEL_UPDATES"
 
 
+def _adds_through_the_entry_callback(source: str) -> bool:
+    return any(
+        isinstance(node, ast.arg)
+        and node.arg == "async_add_entities"
+        and isinstance(node.annotation, ast.Name)
+        and node.annotation.id == "AddConfigEntryEntitiesCallback"
+        for node in ast.walk(ast.parse(source))
+    )
+
+
+def test_every_platform_takes_the_config_entry_callback():
+    """AddEntitiesCallback is the platform-wide type; an entry's setup gets
+    the one that can tie the entities to a subentry."""
+    missing = [
+        name
+        for name, source in _platform_sources().items()
+        if not _adds_through_the_entry_callback(source)
+    ]
+
+    assert not missing, f"{missing} type async_add_entities as AddEntitiesCallback"
+
+
 def test_every_platform_in_the_list_is_a_module():
     """The scan above reads PLATFORMS; a platform named there without a module
     would fail at Home Assistant's forward-setup, not here, and this says so

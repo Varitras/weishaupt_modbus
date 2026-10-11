@@ -3,7 +3,8 @@
 Every field hands out the RAW register word the way the client always did
 (tenths of a degree, a status number, a count); the entities scale and
 translate. What the field adds is the sentinel handling: an absent sensor
-becomes NO_SENSOR, a fault or status word becomes None.
+becomes NO_SENSOR, a setpoint's off or no-demand word becomes OFF, a fault
+or status word becomes None.
 """
 
 from typing import Any
@@ -11,7 +12,9 @@ from typing import Any
 from modbus_connection.model.fields import NumberField
 
 from .const import (
+    COUNTER_NO_VALUE_WORDS,
     PERCENTAGE_NO_VALUE,
+    PERCENTAGE_RAW_MAX,
     SETPOINT_NO_DEMAND_WORDS,
     SETPOINT_RAW_MIN,
     TEMPERATURE_NO_SENSOR,
@@ -35,7 +38,7 @@ NO_SENSOR = NoSensor()
 
 
 class Off:
-    """The setpoint is switched off - a setting, not a missing sensor."""
+    """A setpoint switched off, or a reported one without demand - not a missing sensor."""
 
     def __repr__(self) -> str:
         """Read well in a test failure."""
@@ -51,10 +54,13 @@ class RegisterWord(NumberField[int]):
     ``absent`` is the word that means "no sensor" (the entity goes
     unavailable); ``no_reading`` is the closed range of words that mean "a
     sensor, but no usable value" (the entity stays, with no state);
-    ``plausible`` is the closed range a decoded value may lie in - outside
-    it the word is a status or garbage, not a reading; ``off`` is the word a
-    setpoint reports when it is switched off (the entity stays, the switch
-    beside it reads off).
+    ``no_value`` names single words with the same meaning, for a register
+    whose range they cannot cut off; ``plausible`` is the closed range a
+    decoded value may lie in - outside it the word is a status or garbage,
+    not a reading; ``off`` are the words a setpoint reports when it is
+    switched off (the switch beside it reads off) or, for a setpoint the
+    controller only reports, when nothing is demanded (the entity reads 0);
+    the entity stays either way.
     """
 
     def __init__(
@@ -65,23 +71,27 @@ class RegisterWord(NumberField[int]):
         writable: bool,
         absent: int | None = None,
         no_reading: tuple[int, int] | None = None,
+        no_value: tuple[int, ...] = (),
         plausible: tuple[int, int] | None = None,
         off: int | tuple[int, ...] | None = None,
     ) -> None:
-        """A word at ``address``; ``absent`` and ``no_reading`` are its sentinels."""
+        """A word at ``address`` with the sentinels the class describes."""
         super().__init__(address, signed=signed, writable=writable)
         self.absent = absent
         self.no_reading = no_reading
+        self.no_value = no_value
         self.plausible = plausible
         self.off = off if isinstance(off, tuple) or off is None else (off,)
 
     def decode(self, words: list[int], scale_exponent: int | None = None) -> Any:
-        """NO_SENSOR, None or the signed/unsigned word."""
+        """OFF, NO_SENSOR, None or the signed/unsigned word."""
         raw = words[0]
         if self.off is not None and raw in self.off:
             return OFF
         if raw == self.absent:
             return NO_SENSOR
+        if raw in self.no_value:
+            return None
         if (
             self.no_reading is not None
             and self.no_reading[0] <= raw <= self.no_reading[1]
@@ -123,6 +133,17 @@ def field_for(item: ModbusItem) -> RegisterWord:
         )
     if item.format == FORMATS.PERCENTAGE:
         return RegisterWord(
-            item.address, signed=False, writable=writable, absent=PERCENTAGE_NO_VALUE
+            item.address,
+            signed=False,
+            writable=writable,
+            absent=PERCENTAGE_NO_VALUE,
+            plausible=(0, PERCENTAGE_RAW_MAX),
+        )
+    if item.params.get("counter"):
+        return RegisterWord(
+            item.address,
+            signed=False,
+            writable=writable,
+            no_value=COUNTER_NO_VALUE_WORDS,
         )
     return RegisterWord(item.address, signed=False, writable=writable)

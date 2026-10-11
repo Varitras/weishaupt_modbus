@@ -6,7 +6,9 @@ integration.
 
 import asyncio
 from itertools import pairwise
+import time
 
+import aiohttp
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -41,7 +43,11 @@ from homeassistant.config_entries import ConfigEntryDisabler, ConfigEntryState
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP, EntityCategory
 from homeassistant.core import State
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import (
+    device_registry as dr,
+    entity_registry as er,
+    issue_registry as ir,
+)
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from .locking import WatchedLock, until
@@ -63,6 +69,7 @@ from .webif_stand_in import (
     limit_segment,
     link,
     menu_site,
+    see_other,
     serving,
     value,
 )
@@ -401,6 +408,9 @@ async def test_a_web_interface_follows_its_pump_to_a_new_address(
     hass.config_entries.async_update_entry(
         pump_entry, data={**pump_entry.data, CONF.HOST: other_pump.host}
     )
+    if running:
+        # As reconfigure does: the pump's own reload follows the new data.
+        hass.config_entries.async_schedule_reload(pump_entry.entry_id)
     await hass.async_block_till_done(wait_background_tasks=True)
 
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
@@ -620,6 +630,83 @@ async def test_the_diagnostics_leave_out_the_login_and_the_page_addresses(hass, 
     assert coordinator["stopped_by"] is None
 
 
+class Clock:
+    def __init__(self):
+        self.now = time.monotonic()
+
+    def __call__(self):
+        return self.now
+
+
+async def _until_stopped(entry):
+    """Rounds three hours apart until the brake stops the polling."""
+    coordinator = entry.runtime_data.coordinator
+    clock = Clock()
+    coordinator._clock = clock
+    for _ in range(webif_coordinator.FAILURES_TO_STOP):
+        clock.now += 3 * 3600
+        await coordinator.async_refresh()
+    assert coordinator._stopped_by is not None, "the brake did not stop"
+
+
+def _stop_notice(hass, entry):
+    return ir.async_get(hass).async_get_issue(
+        CONST.DOMAIN, f"{webif_coordinator.STOPPED_ISSUE}_{entry.entry_id}"
+    )
+
+
+def _error_status(pump, entry):
+    pump.failing[PAGES[HEAT_PUMP_PAGE]] = 500
+
+
+def _served_half(pump, entry):
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = "<p>half</p>"
+
+
+def _no_answer_in_time(pump, entry):
+    pump.delays[PAGES[HEAT_PUMP_PAGE]] = 0.5
+    entry.runtime_data.client._timeout = aiohttp.ClientTimeout(total=0.1)
+
+
+@pytest.mark.parametrize(
+    ("failing", "reason"),
+    [
+        (_error_status, "Unreachable (HTTP 500)"),
+        (_served_half, "Broken"),
+        (_no_answer_in_time, "Unreachable (TimeoutError)"),
+    ],
+    ids=["an error status", "a page served half", "no answer in time"],
+)
+async def test_a_stop_keeps_the_page_address_out_of_the_download(
+    hass, pump, failing, reason
+):
+    """The reason was the client's own text, the page's full address in it:
+    the download for an issue carried it, and the ERROR line in the log."""
+    entry = await _start(hass, _entries(hass, pump))
+    failing(pump, entry)
+
+    await _until_stopped(entry)
+
+    diagnostics = str(await async_get_config_entry_diagnostics(hass, entry))
+    assert "stack=" not in diagnostics
+    assert "0A0B" not in diagnostics
+    assert _stop_notice(hass, entry).translation_placeholders["error"] == reason
+
+
+async def test_a_redirect_writes_nothing_of_its_own_into_the_stop_notice(hass, pump):
+    """The notice is Markdown: a redirect's location in it was a link, or a
+    picture loaded from anywhere, on any device that opened the notice."""
+    pump.login_answer = lambda: see_other(
+        "/x [click](http://e.invalid/) ![p](http://e.invalid/p.png)"
+    )
+    entry = await _start(hass, _entries(hass, pump))
+
+    await _until_stopped(entry)
+
+    notice = _stop_notice(hass, entry)
+    assert notice.translation_placeholders["error"] == "Unreachable (HTTP 303)"
+
+
 # User wish, 2026-10-10: set to English, the controller shows the same values
 # under other titles, and the entry read none of them.
 SITES = [
@@ -771,7 +858,7 @@ async def test_the_diagnostic_sensors_stay_shown_when_polling_fails(hass, pump):
     await hass.async_block_till_done()
 
     assert hass.states.get(_sensor(hass, "hochdruck")).state == "unavailable"
-    for key in (*TRAFFIC_COUNTS, "answer_time"):
+    for key in (*TRAFFIC_COUNTS, "answer_time", *WEB_WRITE_COUNTERS):
         assert hass.states.get(_sensor(hass, key)).state != "unavailable"
 
 
@@ -809,6 +896,78 @@ async def test_the_web_write_counters_carry_over_a_reload(hass, pump):
     for key in WEB_WRITE_COUNTERS:
         assert hass.states.get(_sensor(hass, key)).state == "1", key
     assert entry.runtime_data.coordinator.budget.total == 1
+
+
+async def test_todays_web_write_count_survives_the_reload_after_a_stop(hass, pump):
+    """The counter went unavailable with the polling, and its day with it:
+    the reload the stop notice asks for restored today's count as 0, and the
+    daily limit was free again."""
+    entry = await _start(hass, _entries(hass, pump))
+    entry.runtime_data.coordinator.budget.record_write()
+    await hass.async_block_till_done()
+    entry.runtime_data.coordinator.async_set_update_error(UpdateFailed("stopped"))
+    await hass.async_block_till_done()
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert hass.states.get(_sensor(hass, "settings_written_today")).state == "1"
+    assert entry.runtime_data.coordinator.budget.writes_today == 1
+
+
+async def test_the_web_write_counts_survive_a_reload_with_their_sensors_disabled(
+    hass, pump
+):
+    """Disabled, the counters restored nothing, and a reload freed the web
+    interface's daily limit again."""
+    web = _entries(hass, pump)
+    registry = er.async_get(hass)
+    for key in WEB_WRITE_COUNTERS:
+        registry.async_get_or_create(
+            "sensor",
+            CONST.DOMAIN,
+            f"{CONST.DEF_PREFIX}webif_{key}",
+            config_entry=web,
+            disabled_by=er.RegistryEntryDisabler.USER,
+        )
+    entry = await _start(hass, web)
+    entry.runtime_data.coordinator.budget.record_write()
+    await hass.async_block_till_done()
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    budget = entry.runtime_data.coordinator.budget
+    assert (budget.total, budget.writes_today) == (1, 1)
+
+
+async def test_a_traffic_count_renamed_and_renamed_back_is_not_added_twice(hass, pump):
+    """Added again under its old id, the sensor added its recorded count to
+    the client's a second time."""
+    web = _entries(hass, pump)
+    registry = er.async_get(hass)
+    registry.async_get_or_create(
+        "sensor",
+        CONST.DOMAIN,
+        f"{CONST.DEF_PREFIX}webif_requests",
+        config_entry=web,
+        suggested_object_id="web_requests",
+    )
+    recorded = {"native_value": 100, "native_unit_of_measurement": None}
+    mock_restore_cache_with_extra_data(
+        hass, [(State("sensor.web_requests", "100"), recorded)]
+    )
+    entry = await _start(hass, web)
+    before = entry.runtime_data.client.traffic.requests
+
+    for new_id in ("sensor.requests_elsewhere", "sensor.web_requests"):
+        current = registry.async_get_entity_id(
+            "sensor", CONST.DOMAIN, f"{CONST.DEF_PREFIX}webif_requests"
+        )
+        registry.async_update_entity(current, new_entity_id=new_id)
+        await hass.async_block_till_done()
+
+    assert entry.runtime_data.client.traffic.requests == before
 
 
 @pytest.mark.parametrize(("chosen", "limit"), [(None, 10), (1, 1), (0, 0)])
@@ -932,6 +1091,91 @@ async def test_an_unload_during_a_save_tells_its_caller_and_asks_nothing_more(
         await setting
     assert called_off.value.translation_key == "webif_write_maybe_saved"
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
+
+
+async def test_an_unload_while_the_form_is_read_calls_the_write_off_uncounted(
+    hass, pump, quick
+):
+    """The client closed under the write before its save: counted ahead of
+    the save, it said "maybe saved" although nothing went out."""
+    pump.show_power_limit(60)
+    entry = await _start(hass, _entries(hass, pump))
+    budget = entry.runtime_data.coordinator.budget
+    leaf = f"{HEATING_PATH},{limit_segment(60)}"
+    pump.delays[leaf] = 0.5
+    setting = asyncio.create_task(_set_power_limit(hass, 61))
+    await until(lambda: ("GET", leaf) in pump.asked)
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+    with pytest.raises(HomeAssistantError) as called_off:
+        await setting
+    assert called_off.value.translation_key == "webif_write_aborted"
+    assert pump.saved == []
+    assert budget.writes_today == 0
+
+
+async def test_a_login_refused_on_the_read_back_says_saved_and_is_not_repeated(
+    hass, pump, quick
+):
+    """The save went out in the session it had; the read-back's new login was
+    refused. "Login refused" alone hid that the controller may hold the
+    value, and the next round sent the refused login once more."""
+    pump.show_power_limit(60)
+    entry = await _start(hass, _entries(hass, pump))
+
+    def saved_then_refused():
+        pump.show_power_limit(61)
+        pump.sessions.clear()
+        pump.login_answer = lambda: see_other("/index.html#wrongpassword")
+        return see_other(HEATING_PATH)
+
+    pump.save_answer = saved_then_refused
+
+    with pytest.raises(HomeAssistantError) as raised:
+        await _set_power_limit(hass, 61)
+    assert raised.value.translation_key == "webif_write_not_read_back"
+    logins = len(pump.forms)
+
+    await entry.runtime_data.coordinator.async_refresh()
+
+    assert len(pump.forms) == logins
+    assert entry.async_get_active_flows(hass, {"reauth"})
+
+
+# Long enough to cancel the write inside the gap before its save.
+SAVE_GAP = 1.0
+
+
+async def test_a_write_cancelled_in_the_gap_before_its_save_counts_nothing(
+    hass, pump, quick, monkeypatch
+):
+    """Home Assistant stopping cancels the write while its save waits out the
+    gap: counted ahead of it, the stop kept a write that never went out."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", SAVE_GAP)
+    pump.show_power_limit(60)
+    entry = await _start(hass, _entries(hass, pump))
+    started = []
+    create = entry.async_create_background_task
+
+    def noted(hass, target, name, eager_start=True):
+        task = create(hass, target, name, eager_start)
+        started.append(task)
+        return task
+
+    monkeypatch.setattr(entry, "async_create_background_task", noted)
+    leaf = f"{HEATING_PATH},{limit_segment(60)}"
+    setting = asyncio.create_task(_set_power_limit(hass, 61))
+    await until(lambda: ("GET", leaf) in pump.asked, seconds=3 * SAVE_GAP)
+    await asyncio.sleep(SAVE_GAP / 2)
+
+    started[0].cancel()
+
+    with pytest.raises(HomeAssistantError) as called_off:
+        await setting
+    assert called_off.value.translation_key == "webif_write_aborted"
+    assert pump.saved == []
+    assert hass.states.get(_sensor(hass, "settings_written_today")).state == "0"
 
 
 async def test_the_power_limit_is_set_without_a_reading_of_the_heating_page(

@@ -458,10 +458,6 @@ IO_KONFIG_IN: list[StatusItem] = [
     StatusItem(number=65535, translation_key="io_konf_in_65535"),
 ]
 
-#####################################################
-# Description of physical units via the status list #
-#####################################################
-
 ##############################################################################################################################
 # A row's parameters. Every key is optional; test_item_register refuses one not listed here.
 # "min": the lowest value the user can set on a read/write entity
@@ -475,6 +471,7 @@ IO_KONFIG_IN: list[StatusItem] = [
 # "precision": number of digits after the decimal point
 # "unit": the unit of the sensor. When ever possible, use one of the pre-defined units of HomeAssistant
 # "stateclass": one of the SensorStateClass types to control storage of the entity in the recorder database
+# "counter": a count or total (energy, hours, cycles); 0x8000 and 0xFFFF read as no value, not as a count
 # "setpoint": a setpoint the controller only reports: no demand (1, 0x8000) reads 0, "demand" says so; < 5.0 degC no reading
 # "off_is_a_setting": the menu offers "Aus" beside the value, reported as 0x8000; a switch sets it
 # "only_if_served": no entity when the first poll finds the register refused (firmware without it)
@@ -492,6 +489,10 @@ PARAMS_PERCENTAGE: dict[str, Any] = {
     "max": 100,
     "precision": 0,
     "unit": PERCENTAGE,
+}
+PARAMS_HUMIDITY: dict[str, Any] = {
+    **PARAMS_PERCENTAGE,
+    "deviceclass": SensorDeviceClass.HUMIDITY,
 }
 
 PARAMS_ROOMTEMP: dict[str, Any] = {
@@ -662,7 +663,7 @@ PARAMS_SGREADYTEMP: dict = {
     "off_is_a_setting": True,
     "step": 0.5,
     "divider": 10,
-    "deviceclass": SensorDeviceClass.TEMPERATURE,
+    "deviceclass": SensorDeviceClass.TEMPERATURE_DELTA,
     "precision": 1,
     "unit": UnitOfTemperature.CELSIUS,
     "stateclass": SensorStateClass.MEASUREMENT,
@@ -707,6 +708,7 @@ PARAMS_FLOWRATE: dict = {
     "divider": 100,
     "precision": 2,
     "unit": UnitOfVolumeFlowRate.CUBIC_METERS_PER_HOUR,
+    "deviceclass": SensorDeviceClass.VOLUME_FLOW_RATE,
     "stateclass": SensorStateClass.MEASUREMENT,
 }
 
@@ -717,6 +719,7 @@ PARAMS_ENERGY: dict[str, Any] = {
     "precision": 0,
     "unit": UnitOfEnergy.KILO_WATT_HOUR,
     "stateclass": SensorStateClass.TOTAL_INCREASING,
+    "counter": True,
 }
 # Yesterday's total is a snapshot that changes once a day and may fall. As a
 # TOTAL_INCREASING sensor every fall counted as a meter reset, and the energy
@@ -754,7 +757,7 @@ PARAMS_CALCSPREIZUNG: dict = {
     "max": 50,
     "divider": 10,
     "operands": ("rl_temp",),
-    "deviceclass": SensorDeviceClass.TEMPERATURE,
+    "deviceclass": SensorDeviceClass.TEMPERATURE_DELTA,
     "precision": 1,
     "unit": UnitOfTemperature.CELSIUS,
     "stateclass": SensorStateClass.MEASUREMENT,
@@ -806,7 +809,14 @@ PARAMS_PV: dict = {
     "stateclass": SensorStateClass.MEASUREMENT,
 }
 
-PARAMS_TIME_H: dict = {"unit": UnitOfTime.HOURS}
+# Lifetime totals: averaged, the statistics showed no hours or cycles per day.
+PARAMS_TIME_H: dict = {
+    "unit": UnitOfTime.HOURS,
+    "deviceclass": SensorDeviceClass.DURATION,
+    "stateclass": SensorStateClass.TOTAL_INCREASING,
+    "counter": True,
+}
+PARAMS_COUNT: dict = {"stateclass": SensorStateClass.TOTAL_INCREASING, "counter": True}
 
 
 # pylint: disable=line-too-long
@@ -817,26 +827,22 @@ PARAMS_TIME_H: dict = {"unit": UnitOfTime.HOURS}
 ##############################################################################################################################
 
 ##############################################################################################################################
-# Here are some lists that represent the entities of each device that will be created.
-# Every list contains of some ModbusItem objects that have a constructor with the following parameters:
+# One list per device of the ModbusItem objects that become its entities. A row takes:
 #
-# address: The Modbus addres as it is mentioned in the heatpump's documentation
-# name:    The entity name. Please note: This entry today only is used to automatically generate translation files.
-#          It will be removed in future versions
-# mformat: One of the formats defined in FORMATS as they are TEMPERATURE, PERCENTAGE, NUMBER, STATUS or UNKNOWN
-#          The format is used to control the conversion of the modbus register entry to the entity variable and back
-# mtype:   The type of entity. Currently supported are:
+# `address`: The Modbus address as the heat pump's documentation gives it
+# `name`:    The register's name. The unique id is built from it (migrate_helpers.py), so a renamed name orphans the
+#            entity's history unless an entry migration moves it (see version 10 in __init__.py)
+# `format`:  One of FORMATS - TEMPERATURE, PERCENTAGE, NUMBER, STATUS or UNKNOWN: how the register word is read and written
+# `type`:    The kind of entity:
 #              SENSOR: A standard sensor entity
-#              SENSOR_CALC: A "calculated" sensor. That means, the content of this entity is derived from other entities
-#                           of this integration. The definition of the calculation is done in params
+#              SENSOR_CALC: A sensor computed from other entities of this integration; params name the calculation
 #              SELECT: A select entity
-#              NUMBER: A number entity. The value of this entity can be changed by the user interface
-#              NUMBER_RO: In principle, this is also a number entity that ir writable. But to avoid damages at the heatpump
-#                         we decided to make this entity read only.
-# device: The devise this entity is assigned to. DEVICES are used here to group the entities in a meaningful way
-# params: Parameters to control the behavior of the entity, see description of the params lists
-# translation_key: The identifier that points to the right translation key. Therefore, the files strings.json and the
-#                  language specific files in the subfolder "translations" have to be up-to-date
+#              NUMBER: A number entity the user can set
+#              NUMBER_RO: A register the controller would accept writes to, shown read only to spare the heat pump
+# `device`:  The device this entity is assigned to (DEVICES)
+# `translation_key`: The key of the entity's texts in strings.json and in the files under translations/
+# `resultlist`: For a STATUS row, the values the register can hold (StatusItem)
+# `params`:  Parameters to control the behavior of the entity, see the description of the params above
 ##############################################################################################################################
 
 # fmt: off
@@ -887,7 +893,7 @@ MODBUS_WP_ITEMS: list[ModbusItem] = [
 MODBUS_HZ_ITEMS = [
     ModbusItem(address=31101, name="Raumsolltemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.HZ, params={**PARAMS_ROOMTEMP, "setpoint": True}, translation_key="raum_soll_temp"),
     ModbusItem(address=31102, name="Raumtemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.HZ, params=PARAMS_ROOMTEMP, translation_key="raum_temp"),
-    ModbusItem(address=31103, name="Raumfeuchte", format=FORMATS.PERCENTAGE, type=TYPES.SENSOR, device=DEVICES.HZ, params=PARAMS_PERCENTAGE, translation_key="raum_feuchte"),
+    ModbusItem(address=31103, name="Raumfeuchte", format=FORMATS.PERCENTAGE, type=TYPES.SENSOR, device=DEVICES.HZ, params=PARAMS_HUMIDITY, translation_key="raum_feuchte"),
     ModbusItem(address=31104, name="Vorlaufsolltemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.HZ, params={**PARAMS_STDTEMP, "setpoint": True}, translation_key="hz_vl_solltemp"),
     ModbusItem(address=31105, name="HZ_Vorlauftemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.HZ, params=PARAMS_STDTEMP, translation_key="hz_vl_temp"),
     ModbusItem(address=31106, name="Adr. 31106", format=FORMATS.UNKNOWN, type=TYPES.SENSOR, device=DEVICES.HZ, params={"enabled_by_default": False}, translation_key="adr31106"),
@@ -985,7 +991,7 @@ MODBUS_WW_ITEMS: list[ModbusItem] = [
 MODBUS_W2_ITEMS: list[ModbusItem] = [
     ModbusItem(address=34101, name="Status 2. WEZ", format=FORMATS.STATUS, type=TYPES.SENSOR, device=DEVICES.W2, resultlist=W2_STATUS, translation_key="status_2_wez"),
     ModbusItem(address=34102, name="Betriebsstunden 2. WEZ", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.W2, params=PARAMS_TIME_H, translation_key="betriebss_2wez"),
-    ModbusItem(address=34103, name="Schaltspiele 2. WEZ", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.W2, translation_key="schaltsp_2wez"),
+    ModbusItem(address=34103, name="Schaltspiele 2. WEZ", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.W2, params=PARAMS_COUNT, translation_key="schaltsp_2wez"),
     ModbusItem(address=34104, name="Status E-Heizung 1", format=FORMATS.STATUS, type=TYPES.SENSOR, device=DEVICES.W2, resultlist=W2_STATUS, translation_key="status_e1"),
     ModbusItem(address=34105, name="Status E-Heizung 2", format=FORMATS.STATUS, type=TYPES.SENSOR, device=DEVICES.W2, resultlist=W2_STATUS, translation_key="status_e2"),
     ModbusItem(address=34106, name="Betriebsstunden E1", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.W2, params=PARAMS_TIME_H, translation_key="betriebss_e1"),
@@ -1045,7 +1051,7 @@ MODBUS_ST_ITEMS: list[ModbusItem] = [
     ModbusItem(address=36702, name="Elektr. Energie gestern", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY_YESTERDAY, translation_key="el_energie_gestern"),
     ModbusItem(address=36703, name="Elektr. Energie Monat", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="el_energie_monat"),
     ModbusItem(address=36704, name="Elektr. Energie Jahr", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="el_energie_jahr"),
-    ModbusItem(address=36801, name="Adr. 36801", format=FORMATS.UNKNOWN, type=TYPES.SENSOR, device=DEVICES.ST, translation_key="adr36801"),
+    ModbusItem(address=36801, name="Adr. 36801", format=FORMATS.UNKNOWN, type=TYPES.SENSOR, device=DEVICES.ST, params={"enabled_by_default": False}, translation_key="adr36801"),
 ]
 
 # --- INPUT / OUTPUT ITEMS (IO) ---

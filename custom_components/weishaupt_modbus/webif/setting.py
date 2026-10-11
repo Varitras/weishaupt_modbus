@@ -9,7 +9,7 @@ moves it.
 from collections.abc import Callable
 
 from . import pages
-from .client import SETTING_LIST, Broken, Client, Closed, Unreachable, WebifError
+from .client import SETTING_LIST, Broken, Client, Unreachable, WebifError
 
 POWER_LIMIT_TITLE = "Leistungsbegrenzung"
 # Its title on a controller set to English, as shown there 2026-10-10.
@@ -88,11 +88,12 @@ async def write_power_limit(
     """Set the power limit to `target`; the heating page as read afterwards.
 
     `whole` is the heating page's own completeness rule. `count_write` runs
-    right before the save goes out: answered or not, it may reach the EEPROM.
-    A target the controller already shows ends the write after the first read.
+    as the save goes out, see Client.save. A target the controller already
+    shows ends the write after the first read.
 
-    Raises FormNotRead or FormMismatch with nothing sent, NotSaved or
-    MaybeSaved from the save, OtherValueShown or NotReadBack after it.
+    Raises FormNotRead or FormMismatch with nothing sent, LoginRefused or
+    Closed from the reads before the save, NotSaved, MaybeSaved or Closed
+    from the save, OtherValueShown or NotReadBack after it.
     """
 
     def limit_shown(text: str) -> tuple[int, str] | None:
@@ -106,6 +107,9 @@ async def write_power_limit(
     except (Broken, Unreachable) as error:
         raise FormNotRead(str(error)) from error
     link_stack = link.split(pages.STACK_QUERY, 1)[-1]
+    # Accepted: the form's id goes unchecked. Recorded on one controller only,
+    # it is the leaf segment with digits changed, not the same ones on every
+    # page; a rule drawn from that could refuse every save on other firmware.
     mismatched = (
         form.stack != link_stack
         or form.selected != shown
@@ -116,13 +120,12 @@ async def write_power_limit(
         raise FormMismatch(
             f"{POWER_LIMIT_TITLE}: the form is not the one of {shown} or lacks {target}"
         )
-    count_write()
-    await client.save(form, target)
+    await client.save(form, target, count_write)
     try:
         read_back, (now_shown, _) = await _read(client, heating_path, limit_shown)
-    except (Broken, Unreachable, Closed) as error:
-        # Closed too: the save went out, and "called off" would invite the
-        # user to save again a value the controller may already hold.
+    except WebifError as error:
+        # The save went out: "called off" or "login refused" alone would
+        # invite the user to save again a value the controller may hold.
         raise NotReadBack(str(error)) from error
     if now_shown != target:
         raise OtherValueShown(read_back, now_shown, target)

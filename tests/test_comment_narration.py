@@ -100,6 +100,55 @@ def test_no_comment_merely_narrates_the_adjacent_code():
     )
 
 
+# The second blunt form: a comment that opens like a line of the code below
+# it, as a numbered step or with the verb the code performs. The word check
+# above let ten of them through, each paraphrasing in words of its own. The
+# verbs are those narration here used; "set as" is a participle, not a step.
+STEP_OPENER = re.compile(
+    r"^(?:\d+\.\s|(?:set|get|convert|calculate|define|clamp|find|grab"
+    r"|initiali[sz]e|create|check|update|build|compute|pre-seed|this creates)"
+    r"\b(?!\s+as\b))",
+    re.IGNORECASE,
+)
+
+
+def _step_openers(source: str):
+    lines = source.splitlines()
+    found = []
+    for token in tokenize.generate_tokens(io.StringIO(source).readline):
+        if token.type != tokenize.COMMENT:
+            continue
+        line = token.start[0]
+        continues_a_block = lines[line - 1].lstrip().startswith("#") and (
+            line >= 2 and lines[line - 2].lstrip().startswith("#")
+        )
+        text = token.string.lstrip("#").strip()
+        if not continues_a_block and STEP_OPENER.match(text):
+            found.append((line, text))
+    return found
+
+
+def test_no_comment_opens_as_a_step_of_the_code():
+    offenders = [
+        f"{source_file.name}:{line}: # {text}"
+        for source_file in sorted(PACKAGE.rglob("*.py")) + sorted(TESTS.glob("*.py"))
+        for line, text in _step_openers(source_file.read_text(encoding="utf-8"))
+        if (source_file.name, text) not in EXEMPTIONS
+    ]
+
+    assert not offenders, (
+        "comment(s) that open as a step of the code:\n  "
+        + "\n  ".join(offenders)
+        + "\nSay WHY or delete the comment."
+    )
+
+
+def test_the_step_check_flags_a_step_and_passes_a_participle():
+    assert _step_openers("# Calculate fractional flow temp delta\ndy = 1\n")
+    assert _step_openers("# 2. Find the curve\ni = 0\n")
+    assert not _step_openers("# Set as the first request ends; the gap is next.\n")
+
+
 def test_the_heuristic_flags_narration_and_passes_decisions():
     """Proof-of-red, both directions."""
     narration = "# read the user name\nuser_name = read_input()\n"

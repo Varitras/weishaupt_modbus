@@ -14,7 +14,13 @@ from collections.abc import Callable
 import logging
 from typing import Any
 
-from modbus_connection import ModbusExceptionError, ModbusUnit
+from modbus_connection import (
+    ClientClosedError,
+    ModbusError,
+    ModbusExceptionError,
+    ModbusTimeoutError,
+    ModbusUnit,
+)
 from modbus_connection.model import Component
 
 from .const import EEPROM_WRITE_RATING, SETPOINT_OFF_SIGNED
@@ -66,6 +72,8 @@ SYSTEM_BAND: Band = (30001, 30006)
 # link cannot serve, so a healthy read never comes near it. Timed inside the
 # controller's lock: waiting for the web interface is not the link failing.
 BAND_TIMEOUT_SECONDS = 60
+# A register holds 16 bits; a negative value goes in as its two's complement.
+WORD_MASK = 0xFFFF
 
 
 def band_of(address: int) -> Band:
@@ -158,7 +166,8 @@ class WeishauptHeatPump:
                 # Any code: the controller answers a refused block with a
                 # malformed exception frame whose code is not meaningful.
                 if self.present[band]:
-                    _LOGGER.debug("Registers %d-%d not served: %s", *band, err)
+                    kind = type(err).__name__
+                    _LOGGER.info("Registers %d-%d not served: %s", *band, kind)
                 served[band] = None
                 continue
             served[band] = component
@@ -175,6 +184,8 @@ class WeishauptHeatPump:
         if answered is None:
             self._mark_absent(band)
             return
+        if not self.present[band]:
+            _LOGGER.info("Registers %d-%d served again", *band)
         self.present[band] = True
         for row in self._rows[band]:
             if self._superseded(row):
@@ -220,7 +231,8 @@ class WeishauptHeatPump:
                 check()
             if callable(value):
                 value = value()
-            if item.state is not None and item.state == value:
+            unchanged = item.state is not None and item.state == value
+            if unchanged and await self._holds(item.address, value):
                 _LOGGER.debug(
                     "Register %d already holds %d, not written", item.address, value
                 )
@@ -235,7 +247,7 @@ class WeishauptHeatPump:
     async def write_off(self, item: ModbusItem) -> bool:
         """Switch a setpoint off (its off word); False when it already was."""
         async with self._write_lock:
-            if item.is_off:
+            if item.is_off and await self._holds(item.address, SETPOINT_OFF_SIGNED):
                 return False
             await self._write_word(item, SETPOINT_OFF_SIGNED)
             item.state = None
@@ -245,13 +257,24 @@ class WeishauptHeatPump:
 
     async def _write_word(self, item: ModbusItem, word: int) -> None:
         if not self.write_budget.allows_write():
-            raise WriteError(
-                f"Daily write limit of {self.write_budget.limit} reached; "
-                f"register {item.address} not written"
-            )
+            raise WriteError(self.write_budget.limit, item.address)
         component = self._components[band_of(item.address)]
+        # A caller cancelled while waiting for the lock sent nothing.
         async with self._host_lock:
-            await component.write(_field_name(item), word)
+            try:
+                await component.write(_field_name(item), word)
+            except ModbusExceptionError, ClientClosedError:
+                raise
+            except ModbusError, asyncio.CancelledError:
+                # The request went out and only its answer is missing, or the
+                # caller stopped waiting for it: it may have reached the
+                # EEPROM. A connect that failed before sending raises the same
+                # types, so that one counts too.
+                self._count_write()
+                raise
+        self._count_write()
+
+    def _count_write(self) -> None:
         if self.write_budget.record_write():
             _LOGGER.warning(
                 "%d register writes today. The EEPROM is rated for %d writes "
@@ -276,10 +299,24 @@ class WeishauptHeatPump:
                 configurations[circuit] = None
         return configurations
 
+    async def _holds(self, address: int, value: int) -> bool:
+        """Whether the controller holds the value now, not as last polled.
+
+        Asked only before a write is dropped as unchanged: a change made at
+        the controller's panel since the last poll is not in the cache.
+        """
+        return await self._read_word(address) == value & WORD_MASK
+
     async def _read_word(self, address: int) -> int:
         """One holding register, under the controller's lock like a band read."""
-        async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):
-            words = await self._unit.read_holding_registers(address, 1)
+        try:
+            async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):
+                words = await self._unit.read_holding_registers(address, 1)
+        except ModbusError:
+            raise
+        except TimeoutError as err:
+            # The writes that read first translate Modbus errors for the user.
+            raise ModbusTimeoutError(f"register {address}: no answer") from err
         return words[0]
 
     def serves(self, item: ModbusItem) -> bool:

@@ -1,8 +1,9 @@
 """Entity classes used in this integration."""
 
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from functools import partial
-from typing import Any
+from typing import Any, NoReturn
 
 from modbus_connection import ModbusError
 
@@ -14,6 +15,7 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.restore_state import ExtraStoredData, RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .configentry import MyConfigEntry
@@ -29,6 +31,9 @@ DEMAND_ATTRIBUTE = "demand"
 # What a reported setpoint shows while nothing is demanded: unknown left a
 # gap in the history for every hour without demand.
 NO_DEMAND_VALUE = 0.0
+# A setpoint's switch: in its unique id and its translation key, so it
+# never changes.
+SWITCH_SUFFIX = "_active"
 
 
 def entity_category(item: ModbusItem) -> EntityCategory | None:
@@ -63,6 +68,15 @@ def device_info(entry_data: Mapping[str, Any], device: str) -> DeviceInfo:
         translation_placeholders={"postfix": postfix},
         manufacturer="Weishaupt",
     )
+
+
+def _refuse_over_the_limit(err: WriteError) -> NoReturn:
+    """The daily limit in the user's language; the library's text is English."""
+    raise HomeAssistantError(
+        translation_domain=CONST.DOMAIN,
+        translation_key="write_limit_reached",
+        translation_placeholders={"limit": str(err.limit)},
+    ) from err
 
 
 def to_register_value(value: float, divider: int) -> int:
@@ -111,26 +125,23 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
         if self._api_item.format == FORMATS.STATUS:
             self._divider = 1
         else:
-            if self._api_item.params is not None:
-                self._attr_native_unit_of_measurement = self._api_item.params.get(
-                    "unit"
-                )
-                self._attr_native_step = self._api_item.params.get("step", 1)
-                self._divider = self._api_item.params.get("divider", 1)
-                self._attr_device_class = self._api_item.params.get("deviceclass", None)
-                # A row without params is a whole number (a counter, a code):
-                # two decimals showed hours as 12.00 h.
-                self._attr_suggested_display_precision = self._api_item.params.get(
-                    "precision", 0
-                )
-                self._fixed_min = self._api_item.params.get("min", -999999)
-                self._fixed_max = self._api_item.params.get("max", 999999)
-                self._attr_native_min_value = self._fixed_min
-                self._attr_native_max_value = self._fixed_max
-                if self._api_item.params.get("dynamic_min", None) is not None:
-                    self._has_dynamic_min = True
-                if self._api_item.params.get("dynamic_max", None) is not None:
-                    self._has_dynamic_max = True
+            self._attr_native_unit_of_measurement = self._api_item.params.get("unit")
+            self._attr_native_step = self._api_item.params.get("step", 1)
+            self._divider = self._api_item.params.get("divider", 1)
+            self._attr_device_class = self._api_item.params.get("deviceclass", None)
+            # A row without params is a whole number (a counter, a code):
+            # two decimals showed hours as 12.00 h.
+            self._attr_suggested_display_precision = self._api_item.params.get(
+                "precision", 0
+            )
+            self._fixed_min = self._api_item.params.get("min", -999999)
+            self._fixed_max = self._api_item.params.get("max", 999999)
+            self._attr_native_min_value = self._fixed_min
+            self._attr_native_max_value = self._fixed_max
+            if self._api_item.params.get("dynamic_min", None) is not None:
+                self._has_dynamic_min = True
+            if self._api_item.params.get("dynamic_max", None) is not None:
+                self._has_dynamic_max = True
             self.set_min_max()
 
     @property
@@ -203,15 +214,34 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
                 },
             )
 
+    def _on_step(self, wanted: float) -> int:
+        """The nearest word on the row's step, the grid the controller's menu offers.
+
+        Home Assistant checks only the range. A row without a step of its own
+        is not rounded further: Home Assistant's default of 1 would round
+        21.5 at divider 10 to 22. A related setpoint may hold a bound beside
+        the step, written before this rounding; a value next to it goes to
+        the bound, which the controller holds already.
+        """
+        params = self._api_item.params
+        step = to_register_value(params.get("step", 1 / self._divider), self._divider)
+        word = round(to_register_value(wanted, self._divider) / step) * step
+        low = to_register_value(self._attr_native_min_value, self._divider)
+        high = to_register_value(self._attr_native_max_value, self._divider)
+        return max(low, min(word, high))
+
     async def set_translate_val(self, value: str | float) -> int | None:
         """Translate and write a value directly to the Modbus client."""
         check: Callable[[], None] | None = None
+        val: int | Callable[[], int] | None
         if self._api_item.format == FORMATS.STATUS:
             val = self._api_item.get_number_from_translation_key(str(value))
         else:
             wanted = float(value)
-            val = to_register_value(wanted, self._divider)
+            # Checked as entered, before the rounding: Home Assistant's range
+            # check lets NaN through, which has no word.
             check = partial(self._refuse_outside_current_bounds, wanted)
+            val = partial(self._on_step, wanted)
 
         if val is None:
             return None
@@ -220,7 +250,9 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
         # who moved the slider and the automation that called the service.
         try:
             await self.coordinator.device.write(self._api_item, val, check=check)
-        except (WriteError, ModbusError) as err:
+        except WriteError as err:
+            _refuse_over_the_limit(err)
+        except ModbusError as err:
             raise HomeAssistantError(
                 translation_domain=CONST.DOMAIN,
                 translation_key="write_failed",
@@ -229,7 +261,7 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
                     "error": str(err),
                 },
             ) from err
-        return val
+        return int(self._api_item.state)
 
 
 class MySensorEntity(MyEntity, SensorEntity):
@@ -244,19 +276,15 @@ class MySensorEntity(MyEntity, SensorEntity):
         """Initialize of MySensorEntity."""
         super().__init__(coordinator, config_entry, modbus_item)
 
-        # Set sensor-specific state class
         if modbus_item.format in [
             FORMATS.TEMPERATURE,
             FORMATS.PERCENTAGE,
             FORMATS.NUMBER,
             FORMATS.UNKNOWN,
         ]:
-            # default state class to record all entities by default
-            self._attr_state_class = SensorStateClass.MEASUREMENT
-            if modbus_item.params is not None:
-                self._attr_state_class = modbus_item.params.get(
-                    "stateclass", SensorStateClass.MEASUREMENT
-                )
+            self._attr_state_class = modbus_item.params.get(
+                "stateclass", SensorStateClass.MEASUREMENT
+            )
         # The first refresh ran before the platforms; the listener only fires
         # on the next one, so without this every sensor reads unknown for a
         # whole scan interval after setup.
@@ -349,13 +377,25 @@ class MyNumberEntity(MyEntity, NumberEntity):
             self.coordinator.async_update_listeners()
 
 
-class MySetpointSwitchEntity(MyEntity, SwitchEntity):
+# Where a setpoint switch keeps the register value across restarts.
+LAST_SETTING = "last_setting"
+
+
+@dataclass
+class _KeptSetting(ExtraStoredData):
+    last_setting: int | None
+
+    def as_dict(self) -> dict[str, Any]:
+        return {LAST_SETTING: self.last_setting}
+
+
+class MySetpointSwitchEntity(MyEntity, SwitchEntity, RestoreEntity):
     """On/off for a setpoint whose off state is a register word.
 
     The controller's menu offers "Aus" beside the temperature for these
     registers; the number entity cannot express that, so this switch does.
-    Turning on restores the value the register held before, or the range's
-    minimum when none was ever seen.
+    Turning on restores the value the register held before, kept across
+    reloads and restarts, or the range's minimum when none was ever seen.
     """
 
     def __init__(
@@ -366,8 +406,8 @@ class MySetpointSwitchEntity(MyEntity, SwitchEntity):
     ) -> None:
         """Share the number's row; own id and translation key."""
         super().__init__(coordinator, config_entry, modbus_item)
-        self._attr_unique_id = f"{self._attr_unique_id}_active"
-        self._attr_translation_key = f"{modbus_item.translation_key}_active"
+        self._attr_unique_id = f"{self._attr_unique_id}{SWITCH_SUFFIX}"
+        self._attr_translation_key = f"{modbus_item.translation_key}{SWITCH_SUFFIX}"
         self._attr_device_class = SwitchDeviceClass.SWITCH
         self._attr_is_on = not modbus_item.is_off
 
@@ -377,11 +417,35 @@ class MySetpointSwitchEntity(MyEntity, SwitchEntity):
         self._attr_is_on = not self._api_item.is_off
         self.async_write_ha_state()
 
+    @property
+    def extra_restore_state_data(self) -> ExtraStoredData:
+        """The value to turn back on to after a restart."""
+        return _KeptSetting(self._api_item.last_setting)
+
+    async def async_added_to_hass(self) -> None:
+        """Take the kept value when the setup's first poll read the off word.
+
+        It lived in memory only: after a reload or a restart, turning on
+        wrote the range's minimum. A value read since is newer and stays.
+        """
+        await super().async_added_to_hass()
+        if self._api_item.last_setting is not None:
+            return
+        kept = await self.async_get_last_extra_data()
+        if kept is None:
+            return
+        value = kept.as_dict().get(LAST_SETTING)
+        # bool is an int to Python, never a register word.
+        if isinstance(value, int) and not isinstance(value, bool):
+            self._api_item.last_setting = value
+
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Write the off word."""
         try:
             await self.coordinator.device.write_off(self._api_item)
-        except (WriteError, ModbusError) as err:
+        except WriteError as err:
+            _refuse_over_the_limit(err)
+        except ModbusError as err:
             raise HomeAssistantError(
                 translation_domain=CONST.DOMAIN,
                 translation_key="switch_off_failed",
@@ -414,7 +478,9 @@ class MySetpointSwitchEntity(MyEntity, SwitchEntity):
         """Restore the last value, or the range's minimum."""
         try:
             await self.coordinator.device.write(self._api_item, self._value_to_restore)
-        except (WriteError, ModbusError) as err:
+        except WriteError as err:
+            _refuse_over_the_limit(err)
+        except ModbusError as err:
             raise HomeAssistantError(
                 translation_domain=CONST.DOMAIN,
                 translation_key="switch_on_failed",
@@ -437,7 +503,6 @@ class MySelectEntity(MyEntity, SelectEntity):
     ) -> None:
         """Initialize MySelectEntity."""
         super().__init__(coordinator, config_entry, modbus_item)
-        # option list build from the status list of the ModbusItem
         self._attr_options: list[str] = []
         for item in self._api_item.resultlist or []:
             self._attr_options.append(item.translation_key)
@@ -445,10 +510,8 @@ class MySelectEntity(MyEntity, SelectEntity):
 
     def translate_val_select(self, val: Any) -> str | None:
         """Translate modbus value for select entity."""
-        if self._api_item.format == FORMATS.STATUS:
-            result = self._api_item.get_translation_key_from_number(val)
-            return str(result) if result is not None else None
-        return None
+        result = self._api_item.get_translation_key_from_number(val)
+        return str(result) if result is not None else None
 
     async def async_select_option(self, option: str) -> None:
         """Write the selected option; every entity on the register learns of it."""

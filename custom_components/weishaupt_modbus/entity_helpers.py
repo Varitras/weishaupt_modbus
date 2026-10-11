@@ -11,7 +11,6 @@ from .entities import (
     MySetpointSwitchEntity,
 )
 
-# Type alias for entity types
 EntityType = (
     MySensorEntity
     | MyCalcSensorEntity

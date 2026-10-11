@@ -53,6 +53,22 @@ MAX_PAGE_BYTES = 512 * 1024
 class WebifError(Exception):
     """The web interface did not give what was asked for."""
 
+    def __init__(self, message: str, cause: str = "") -> None:
+        """Keep the message for the debug log, the cause for what is shared.
+
+        The message names the page asked for and may quote the controller's
+        answer. `cause` names what went wrong without either: it goes into
+        the repair notice and the diagnostics a user posts.
+        """
+        super().__init__(message)
+        self.cause = cause
+
+    @property
+    def summary(self) -> str:
+        """The kind of failure and its cause, nothing of the page or answer."""
+        kind = type(self).__name__
+        return f"{kind} ({self.cause})" if self.cause else kind
+
 
 class Unreachable(WebifError):
     """The server struggles.
@@ -209,7 +225,10 @@ def _page_text(path: str, answer: _Answer) -> str:
     # Not a page served half: the server could not serve it, or dropped the
     # session it had just given, and asking further pages only adds load.
     if answer.status != HTTPStatus.OK:
-        raise Unreachable(f"{path}: HTTP {answer.status} to {answer.location or '-'}")
+        raise Unreachable(
+            f"{path}: HTTP {answer.status} to {answer.location or '-'}",
+            f"HTTP {answer.status}",
+        )
     return answer.text
 
 
@@ -223,11 +242,11 @@ def _raise_unless_saved(form: pages.SettingForm, answer: _Answer) -> None:
 
 
 def _raise_for_error_status(path: str, answer: _Answer) -> None:
-    # The login page and the logout answer otherwise than a page, but an
-    # error status says the same: the server cannot serve, and anything
-    # asked after it only adds load.
+    # The login page, the logout and the save answer otherwise than a page,
+    # but an error status says the same: the server cannot serve, and
+    # anything asked after it only adds load.
     if answer.status >= HTTPStatus.BAD_REQUEST:
-        raise Unreachable(f"{path}: HTTP {answer.status}")
+        raise Unreachable(f"{path}: HTTP {answer.status}", f"HTTP {answer.status}")
 
 
 class Client:
@@ -276,6 +295,7 @@ class Client:
         self._logged_in_at: float | None = None
         self._cookie: str | None = None
         self._closed = False
+        self._refused_by: str | None = None
         self.traffic = Traffic()
         self._slowest: float | None = None
 
@@ -286,19 +306,25 @@ class Client:
         asked for once more. Raises WebifError otherwise.
         """
         async with self._lock:
-            if self._closed:
-                raise Closed(f"{path}: the client is closed")
             try:
                 return await self._read(path, complete)
             except Broken, Unreachable:
                 self.traffic.failed_reads += 1
                 raise
 
-    async def save(self, form: pages.SettingForm, value: int) -> None:
+    async def save(
+        self, form: pages.SettingForm, value: int, count_write: Callable[[], object]
+    ) -> None:
         """Send a setting's form with `value`, once.
 
-        Raises NotSaved when the session was gone, MaybeSaved when the answer
-        leaves it open. Neither is followed by a login or a second POST: the
+        `count_write` runs as the POST goes out, after the gap and the lock
+        Modbus shares: a save called off while it waits is no write, and one
+        sent may reach the EEPROM, answered or not. A connect that fails
+        cannot be told from a lost answer, so that one counts too.
+
+        Raises Closed when the client closed before the POST, NotSaved when
+        the session was gone, MaybeSaved when the answer leaves it open.
+        Neither of the last two is followed by a login or a second POST: the
         save may have reached the EEPROM, and repeating it is the caller's.
         """
         async with self._lock:
@@ -317,7 +343,10 @@ class Client:
             # Origin; only that request is proven.
             headers = {"Referer": self._base + form.path, "Origin": self._base}
             try:
-                answer = await self._request("POST", SAVE, fields, headers)
+                answer = await self._request(
+                    "POST", SAVE, fields, headers, sending=count_write
+                )
+                _raise_for_error_status(SAVE, answer)
             except Unreachable as error:
                 raise MaybeSaved(str(error)) from error
             _raise_unless_saved(form, answer)
@@ -377,10 +406,16 @@ class Client:
         _raise_for_error_status(LOGOUT, await self._request("GET", LOGOUT))
 
     async def _login(self) -> None:
+        if self._refused_by is not None:
+            # A round that waited for a write, and the read-back after a
+            # save, sent the refused password once more. A reauth builds a
+            # new client.
+            raise LoginRefused(self._refused_by)
         _raise_for_error_status(INDEX, await self._request("GET", INDEX))
         answer = await self._request("POST", LOGIN, self._credentials)
         if answer.wrong_password:
-            raise LoginRefused(f"HTTP {answer.status} to {answer.location}")
+            self._refused_by = f"HTTP {answer.status} to {answer.location}"
+            raise LoginRefused(self._refused_by)
         accepted = (
             answer.status == HTTPStatus.SEE_OTHER
             and answer.location == LOGIN_TARGET
@@ -390,7 +425,8 @@ class Client:
             # Its database out of reach (#nocon), an error status, no session:
             # the controller struggles, and the credentials may well be right.
             raise Unreachable(
-                f"POST {LOGIN}: HTTP {answer.status} to {answer.location or '-'}"
+                f"POST {LOGIN}: HTTP {answer.status} to {answer.location or '-'}",
+                f"HTTP {answer.status}",
             )
         self._cookie = answer.cookie
         self._logged_in_at = self._clock()
@@ -402,10 +438,12 @@ class Client:
         path: str,
         form: dict[str, str] | None = None,
         headers: Mapping[str, str] | None = None,
+        *,
+        sending: Callable[[], object] | None = None,
     ) -> _Answer:
         async with self._pacing.lock:
             await self._pace()
-            return await self._exchange(method, path, form, headers)
+            return await self._exchange(method, path, form, headers, sending)
 
     async def _exchange(
         self,
@@ -413,13 +451,24 @@ class Client:
         path: str,
         form: dict[str, str] | None,
         headers: Mapping[str, str] | None,
+        sending: Callable[[], object] | None = None,
     ) -> _Answer:
-        """One request under the lock Modbus shares, logged however it ends."""
+        """One request under the lock Modbus shares, logged however it ends.
+
+        `sending` runs once nothing is left to wait for but the request.
+        """
         # Asked where the request goes out, so no other way out can skip it.
         if not _allowed(method, path, form):
             raise ValueError(f"{method} {path} is not on the positive list")
         cookie = {"Cookie": f"{SESSION_COOKIE}={self._cookie}"} if self._cookie else {}
         async with self._host_lock:
+            # Here and not only where a page starts: a renewed login or a page
+            # asked again ran on after the close, up to a minute late, and so
+            # did a request that waited for Modbus while the client closed.
+            if self._closed and path != LOGOUT:
+                raise Closed(f"{path}: the client is closed")
+            if sending is not None:
+                sending()
             started = self._clock()
             outcome = "no answer"
             try:
@@ -436,7 +485,8 @@ class Client:
                     if body is None:
                         outcome += f", more than {MAX_PAGE_BYTES} bytes"
                         raise Unreachable(
-                            f"{method} {path}: more than {MAX_PAGE_BYTES} bytes"
+                            f"{method} {path}: more than {MAX_PAGE_BYTES} bytes",
+                            f"more than {MAX_PAGE_BYTES} bytes",
                         )
                     answer = _Answer(
                         response.status,
@@ -449,7 +499,7 @@ class Client:
             except (TimeoutError, aiohttp.ClientError) as error:
                 # The kind only: aiohttp's own text names the pump's address.
                 outcome = type(error).__name__
-                raise Unreachable(f"{method} {path}: {outcome}") from error
+                raise Unreachable(f"{method} {path}: {outcome}", outcome) from error
             except asyncio.CancelledError:
                 # A dialog closed mid-visit: cancelled while the page came,
                 # the line read as a whole answer.

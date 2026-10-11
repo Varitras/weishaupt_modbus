@@ -1,9 +1,10 @@
 """Home Assistant integration initialization."""
 
+from collections.abc import Mapping
 import copy
 import logging
 import re
-from typing import cast
+from typing import Any, cast
 
 import aiohttp
 from modbus_connection import ModbusError, ModbusTcpParams
@@ -39,6 +40,7 @@ from .coordinator import (
     WeishauptModbusCoordinator,
     check_configured,
     clear_circuit_notices,
+    remove_circuits_left_off,
     report_circuits,
     write_budget,
 )
@@ -52,6 +54,12 @@ from .weishaupt_modbus_api.const import DEFAULT_PORT, MODBUS_UNIT_ID
 from .weishaupt_modbus_api.device import WeishauptHeatPump
 from .weishaupt_modbus_api.hpconst import DEVICELISTS
 from .weishaupt_modbus_api.write_budget import WriteBudget
+from .write_counter_sensor import (
+    TOTAL_WRITES,
+    WEBIF_WRITE_COUNTER_DESCRIPTIONS,
+    WRITES_TODAY,
+)
+from .write_counts import async_keep_write_counts, async_remove_write_counts
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -74,12 +82,16 @@ LEGACY_WEBIF_KEYS = (
     "Poll Statistik",
 )
 LEGACY_WEBIF_UNIQUE_ID_PREFIX = "webif_"
+# 1.0.18 and 1.0.19 named them prefix, "_", name, postfix and this. A pump's
+# own id has no "_" between prefix and name, so a postfix "webif" stays.
+LEGACY_WEBIF_UNIQUE_ID_SUFFIX = "_webif"
 
 # Version 10 relabelled three 2nd-heat-source registers (see hpconst.py).
 # The unique id carries the item name, so every recorded entity has to move
 # to the new id. Each row: old item name, new item name, and the old and
 # new display name per language - an entity id that still carries the old
-# auto-generated slug is renamed along, a user-chosen one is left alone.
+# auto-generated slug is renamed along. A user-chosen one is left alone
+# unless it ends in the old label too: the registry does not say who chose.
 # The ORDER is load-bearing: 34103 gives up "Betriebsstunden E1" before
 # 34106 claims it.
 RENAMED_ITEMS = (
@@ -141,8 +153,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
         host=entry.data[CONF.HOST], port=int(entry.data.get(CONF.PORT, DEFAULT_PORT))
     )
     unit = async_get_unit(hass, entry, params, MODBUS_UNIT_ID)
+    budget = write_budget(entry)
+    await async_keep_write_counts(
+        hass, entry, budget, entry.data, (TOTAL_WRITES.key, WRITES_TODAY.key)
+    )
     pump = WeishauptHeatPump(
-        unit, itemlist, write_budget(entry), host_lock(hass, entry.data[CONF.HOST])
+        unit, itemlist, budget, host_lock(hass, entry.data[CONF.HOST])
     )
 
     modbus_coordinator = WeishauptModbusCoordinator(
@@ -152,7 +168,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     entry.runtime_data = MyData(coordinator=modbus_coordinator, powermap=None)
     try:
         configurations = await pump.circuit_configurations()
-    except (ModbusError, TimeoutError) as err:
+    except ModbusError as err:
         # Only a hint: a link that drops now is the next poll's to report.
         _LOGGER.debug("Heating circuit configuration not read: %s", err)
         configurations = {}
@@ -162,19 +178,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
         _LOGGER.exception("Heating circuit configuration not read")
         configurations = {}
     report_circuits(hass, entry, configurations)
+    remove_circuits_left_off(hass, entry)
 
     powermap = PowerMap(entry, hass)
     await powermap.initialize()
     entry.runtime_data.powermap = powermap
 
-    # see https://community.home-assistant.io/t/config-flow-how-to-update-an-existing-entity/522442/8
-    entry.async_on_unload(entry.add_update_listener(update_listener))
-
-    # This creates each HA object for each platform your device requires.
-    # It's done by calling the `async_setup_entry` function in each platform module.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    _LOGGER.info("Init done")
+    _LOGGER.debug("Init done")
 
     return True
 
@@ -257,6 +269,10 @@ async def _async_setup_web_interface(
         ),
         today=lambda: dt_util.now().date(),
     )
+    total, today = WEBIF_WRITE_COUNTER_DESCRIPTIONS
+    await async_keep_write_counts(
+        hass, entry, budget, started_with, (total.key, today.key)
+    )
     coordinator = WebifCoordinator(hass, entry, client, polled, budget=budget)
     entry.runtime_data = WebifData(
         coordinator=coordinator, client=client, pump_data=started_with
@@ -290,11 +306,13 @@ def _retitle_after_pump(
     )
 
 
-async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Update listener."""
-    await hass.config_entries.async_reload(
-        entry.entry_id
-    )  # list of entry_ids created for file
+def _is_legacy_web_interface(unique_id: str, entry_data: Mapping[str, Any]) -> bool:
+    """An entity the web interface of 1.x registered, never one of the pump's."""
+    if unique_id.startswith(LEGACY_WEBIF_UNIQUE_ID_PREFIX):
+        return True
+    return unique_id.startswith(f"{entry_data[CONF.PREFIX]}_") and unique_id.endswith(
+        LEGACY_WEBIF_UNIQUE_ID_SUFFIX
+    )
 
 
 async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) -> bool:
@@ -310,29 +328,29 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) 
         return True
 
     new_data = {**config_entry.data}
-    _LOGGER.warning(
+    _LOGGER.debug(
         "Starting config migration process. Current version: %s", config_entry.version
     )
 
     if config_entry.version < 2:
-        _LOGGER.warning("Version <2 detected")
+        _LOGGER.debug("Version <2 detected")
         new_data[CONF.PORT] = DEFAULT_PORT
         new_data[CONF.PREFIX] = CONST.DEF_PREFIX
         new_data[CONF.DEVICE_POSTFIX] = ""
         new_data[CONF.KENNFELD_FILE] = CONST.DEF_KENNFELDFILE
     if config_entry.version < 3:
-        _LOGGER.warning("Version <3 detected")
+        _LOGGER.debug("Version <3 detected")
         new_data[CONF.HK2] = False
         new_data[CONF.HK3] = False
         new_data[CONF.HK4] = False
         new_data[CONF.HK5] = False
     if config_entry.version < 4:
-        _LOGGER.warning("Version <4 detected")
+        _LOGGER.debug("Version <4 detected")
         new_data[CONF.NAME_DEVICE_PREFIX] = False
         new_data[CONF.NAME_TOPIC_PREFIX] = False
 
     if config_entry.version < 9:
-        _LOGGER.warning("Version <9 detected")
+        _LOGGER.debug("Version <9 detected")
         # Versions 5 to 8 added the web-interface settings; the web interface
         # is gone, and so are its keys and the entities it registered.
         for key in LEGACY_WEBIF_KEYS:
@@ -341,11 +359,11 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) 
         for registry_entry in er.async_entries_for_config_entry(
             registry, config_entry.entry_id
         ):
-            if registry_entry.unique_id.startswith(LEGACY_WEBIF_UNIQUE_ID_PREFIX):
+            if _is_legacy_web_interface(registry_entry.unique_id, new_data):
                 registry.async_remove(registry_entry.entity_id)
 
     if config_entry.version < 10:
-        _LOGGER.warning("Version <10 detected")
+        _LOGGER.debug("Version <10 detected")
         _move_relabelled_entities(hass, new_data)
 
     # Version 11: the entry gets its identity (host:port), so a pump cannot
@@ -372,7 +390,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) 
         version=11,
         unique_id=unique_id,
     )
-    _LOGGER.warning("Config entries updated to version 11")
+    _LOGGER.debug("Config entries updated to version 11")
     return True
 
 
@@ -424,8 +442,9 @@ def _entity_id_with_new_label(entity_id: str, labels: tuple) -> str | None:
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Take the entry's circuit notices along."""
+    """Take the entry's circuit notices and write counts along."""
     clear_circuit_notices(hass, entry)
+    await async_remove_write_counts(hass, entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

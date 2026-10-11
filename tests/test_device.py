@@ -8,12 +8,15 @@ import asyncio
 import copy
 import itertools
 import json
+import logging
 import pathlib
 
 from modbus_connection import (
+    ClientClosedError,
     IllegalDataAddressError,
     ModbusConnectionError,
     ModbusExceptionError,
+    ModbusProtocolError,
     ModbusTimeoutError,
 )
 from modbus_connection.mock import MockModbusConnection
@@ -73,7 +76,7 @@ def pump(unit):
 
 
 def _documented_registers() -> set[int]:
-    """Every address the manufacturer documents, from the checked-in list.
+    """Every address the manufacturer documents or the scan found, from the checked-in list.
 
     Read from a file rather than derived from BANDS: a guard whose oracle
     is the thing it guards passes whatever BANDS happens to say. Changing a
@@ -186,6 +189,56 @@ async def test_a_temperature_word_outside_the_documented_domain_is_no_reading(
 
     assert _row(pump, OUTSIDE_TEMPERATURE).state is None
     assert _row(pump, OUTSIDE_TEMPERATURE).is_invalid is False
+
+
+ENERGY_TODAY = 36101
+SECOND_HEAT_SOURCE_HOURS = 34102
+SECOND_HEAT_SOURCE_CYCLES = 34103
+ROOM_HUMIDITY = 31103
+
+
+@pytest.mark.parametrize(
+    "address", [ENERGY_TODAY, SECOND_HEAT_SOURCE_HOURS, SECOND_HEAT_SOURCE_CYCLES]
+)
+@pytest.mark.parametrize("word", [0x8000, 0xFFFF])
+async def test_a_counter_at_a_no_value_word_is_no_reading(pump, unit, address, word):
+    """A total keeps what it summed: one 0xFFFF in an energy counter put
+    65 535 kWh into the energy dashboard for good, the fall back after it
+    read as a meter reset."""
+    unit.load_raw({"input": {address: word}})
+
+    await pump.async_update()
+
+    assert _row(pump, address).state is None
+
+
+async def test_a_counter_past_the_sign_bit_is_still_a_reading(pump, unit):
+    """Hours run past 32767 on an old pump: only the two words mean no value."""
+    unit.load_raw({"input": {SECOND_HEAT_SOURCE_HOURS: 40000}})
+
+    await pump.async_update()
+
+    assert _row(pump, SECOND_HEAT_SOURCE_HOURS).state == 40000
+
+
+@pytest.mark.parametrize("word", [101, 0x8000])
+async def test_a_percentage_above_100_is_no_reading(pump, unit, word):
+    """32768 % showed as the power request, and the heat output computed
+    from it came to 3.3 MW."""
+    unit.load_raw({"input": {POWER_REQUEST: word, ROOM_HUMIDITY: word}})
+
+    await pump.async_update()
+
+    assert _row(pump, POWER_REQUEST).state is None
+    assert _row(pump, ROOM_HUMIDITY).state is None
+
+
+async def test_a_percentage_of_100_is_a_reading(pump, unit):
+    unit.load_raw({"input": {POWER_REQUEST: 100}})
+
+    await pump.async_update()
+
+    assert _row(pump, POWER_REQUEST).state == 100
 
 
 async def test_a_setpoint_at_its_off_word_is_off_not_absent(pump, unit):
@@ -360,6 +413,30 @@ async def test_a_band_that_answers_again_is_present_again(pump, unit):
     assert _row(pump, SECOND_HEAT_SOURCE_STATUS).state == 3
 
 
+async def test_a_band_going_and_coming_back_is_logged_once_each(pump, unit, caplog):
+    """The refusal was at debug only, the way back not even there."""
+    caplog.set_level(logging.INFO, logger=device.__name__)
+    unit.fail_read(
+        SECOND_HEAT_SOURCE_STATUS, IllegalDataAddressError(), register_type="input"
+    )
+    await pump.async_update()
+    await pump.async_update()
+    unit.fail_read(SECOND_HEAT_SOURCE_STATUS, None, register_type="input")
+    await pump.async_update()
+    await pump.async_update()
+
+    first, last = band_of(SECOND_HEAT_SOURCE_STATUS)
+    told = [
+        record.getMessage()
+        for record in caplog.records
+        if record.levelno == logging.INFO and record.name == device.__name__
+    ]
+    assert told == [
+        f"Registers {first}-{last} not served: IllegalDataAddressError",
+        f"Registers {first}-{last} served again",
+    ]
+
+
 async def test_a_dead_link_is_raised_not_swallowed(pump, unit):
     unit.fail_requests(ModbusConnectionError("link down"))
 
@@ -499,6 +576,51 @@ async def test_a_band_read_that_never_answers_is_cut_off(unit, monkeypatch):
     assert isinstance(reading.exception(), TimeoutError)
 
 
+async def test_a_fresh_read_before_a_dropped_write_fails_as_a_modbus_timeout(
+    pump, unit, monkeypatch
+):
+    """The entities translate Modbus errors for the user; the read's own time
+    limit raised a bare TimeoutError, and the service ended in an unknown
+    error with a traceback."""
+    monkeypatch.setattr(device, "BAND_TIMEOUT_SECONDS", SHORT_LIMIT_SECONDS)
+    row = _row(pump, PV_SETPOINT)
+    await pump.write(row, 5)
+    never = asyncio.Event()
+
+    async def silent(*_args, **_kwargs):
+        await never.wait()
+
+    monkeypatch.setattr(unit, "read_holding_registers", silent)
+
+    with pytest.raises(ModbusTimeoutError):
+        await pump.write(row, 5)
+
+
+async def test_a_circuit_configuration_read_that_never_answers_is_cut_off(
+    unit, monkeypatch
+):
+    """Like a band read, it holds the controller's lock; nothing tested that
+    its own limit ends it."""
+    monkeypatch.setattr(device, "BAND_TIMEOUT_SECONDS", SHORT_LIMIT_SECONDS)
+    never = asyncio.Event()
+
+    async def silent(*_args, **_kwargs):
+        await never.wait()
+
+    monkeypatch.setattr(unit, "read_holding_registers", silent)
+    pump = WeishauptHeatPump(
+        unit, _all_items(), WriteBudget(warn_at=0, limit=0), asyncio.Lock()
+    )
+
+    reading = asyncio.create_task(pump.circuit_configurations())
+    _, pending = await asyncio.wait({reading}, timeout=10 * SHORT_LIMIT_SECONDS)
+    for task in pending:
+        task.cancel()
+
+    assert not pending, "the circuit read was never cut off"
+    assert isinstance(reading.exception(), ModbusTimeoutError)
+
+
 async def test_the_entries_of_one_pump_share_its_lock(hass):
     """The web interface entry is a second entry for the same controller."""
     assert host_lock(hass, "pump") is host_lock(hass, "pump")
@@ -523,6 +645,7 @@ async def test_a_changed_value_is_written_and_remembered(pump, unit):
 async def test_an_unchanged_value_is_not_written_again(pump, unit):
     writes = []
     unit.on_write(writes.append)
+    unit.load_raw({"holding": {PV_SETPOINT: 42}})
     row = _row(pump, PV_SETPOINT)
     row.state = 42
 
@@ -530,6 +653,41 @@ async def test_an_unchanged_value_is_not_written_again(pump, unit):
 
     assert writes == []
     assert pump.write_budget.total == 0
+
+
+async def test_a_value_changed_at_the_panel_since_the_last_poll_is_written_back(
+    pump, unit
+):
+    """The write compared with the last poll: 200 set at the panel to 220
+    and set back to 200 from Home Assistant reported success and wrote
+    nothing."""
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 200}})
+    await pump.async_update()
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 220}})
+
+    assert await pump.write(_row(pump, CONSTANT_LOWERING), 200) is True
+
+    assert await unit.read_holding_registers(CONSTANT_LOWERING, 1) == [200]
+
+
+async def test_a_setpoint_switched_off_at_the_panel_is_switched_back_on(pump, unit):
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 200}})
+    await pump.async_update()
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 0x8000}})
+
+    assert await pump.write(_row(pump, CONSTANT_LOWERING), 200) is True
+
+    assert await unit.read_holding_registers(CONSTANT_LOWERING, 1) == [200]
+
+
+async def test_a_setpoint_switched_on_at_the_panel_is_switched_off_again(pump, unit):
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 0x8000}})
+    await pump.async_update()
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 215}})
+
+    assert await pump.write_off(_row(pump, CONSTANT_LOWERING)) is True
+
+    assert await unit.read_holding_registers(CONSTANT_LOWERING, 1) == [0x8000]
 
 
 async def test_a_negative_temperature_is_written_as_twos_complement(pump, unit):
@@ -575,6 +733,82 @@ async def test_the_daily_limit_refuses_the_write(pump, unit):
         await pump.write(row, 2)
 
     assert row.state == 1
+
+
+def _answering(error):
+    def answer(_event):
+        raise error
+
+    return answer
+
+
+@pytest.mark.parametrize(
+    "lost",
+    [
+        ModbusTimeoutError("no answer"),
+        ModbusConnectionError("Connection lost before response was received."),
+        ModbusProtocolError("garbled answer"),
+    ],
+    ids=["timeout", "connection lost", "garbled answer"],
+)
+async def test_a_write_whose_answer_is_lost_is_counted(pump, unit, lost):
+    """The request was sent and may have reached the EEPROM; only the answer
+    is missing. Uncounted, a retry before the next poll wrote it twice."""
+    unit.on_write(_answering(lost))
+
+    with pytest.raises(type(lost)):
+        await pump.write(_row(pump, PV_SETPOINT), 5)
+
+    assert (pump.write_budget.total, pump.write_budget.writes_today) == (1, 1)
+
+
+async def test_a_write_cancelled_on_its_way_is_counted_but_not_one_still_waiting(
+    unit, monkeypatch
+):
+    """A script stopped while its write was on the wire skipped the count; a
+    script stopped while the web interface held the controller sent nothing."""
+    host_lock = WatchedLock()
+    pump = WeishauptHeatPump(
+        unit, _all_items(), WriteBudget(warn_at=0, limit=0), host_lock
+    )
+    sent = asyncio.Event()
+
+    async def no_answer(_address, _value):
+        sent.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(unit, "write_register", no_answer)
+
+    async with host_lock:
+        waiting = asyncio.create_task(pump.write(_row(pump, PV_SETPOINT), 5))
+        await until(lambda: host_lock.waited)
+        waiting.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await waiting
+    assert pump.write_budget.total == 0
+
+    on_its_way = asyncio.create_task(pump.write(_row(pump, PV_SETPOINT), 5))
+    await sent.wait()
+    on_its_way.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await on_its_way
+    assert (pump.write_budget.total, pump.write_budget.writes_today) == (1, 1)
+
+
+@pytest.mark.parametrize(
+    "refusal",
+    [IllegalDataAddressError(), ClientClosedError("connection is closed")],
+    ids=["exception answer", "closed client"],
+)
+async def test_a_write_that_reached_no_eeprom_is_not_counted(pump, unit, refusal):
+    """An exception answer says the controller stored nothing; a closed
+    client sends nothing at all."""
+    unit.on_write(_answering(refusal))
+
+    with pytest.raises(type(refusal)):
+        await pump.write(_row(pump, PV_SETPOINT), 5)
+
+    assert pump.write_budget.total == 0
 
 
 async def test_a_read_only_register_cannot_be_written(pump, unit):
@@ -625,13 +859,8 @@ async def test_a_temperature_input_reads_in_tenths(pump, unit):
     assert _row(pump, H1_2_INPUT).state == 215
 
 
-async def test_a_confirmed_write_outlives_a_poll_that_read_before_it(pump, unit):
-    """A poll reads its bands one by one and publishes them together. A write
-    landing in between was published over: the switch came back on, and the
-    next turn-on was skipped as a no-op because the revived state matched."""
-    row = _row(pump, CONSTANT_LOWERING)
-    unit.load_raw({"holding": {CONSTANT_LOWERING: 185}})
-    await pump.async_update()
+async def _hold_a_poll_after_the_setpoint(pump):
+    """Start a poll and hold it in the band after the setpoint's, read already."""
     entered, release = asyncio.Event(), asyncio.Event()
     bands = list(pump._components)
     later_band = bands[bands.index(band_of(CONSTANT_LOWERING)) + 1]
@@ -645,6 +874,17 @@ async def test_a_confirmed_write_outlives_a_poll_that_read_before_it(pump, unit)
     pump._components[later_band].async_update = held_read
     polling = asyncio.create_task(pump.async_update())
     await asyncio.wait_for(entered.wait(), timeout=5)
+    return polling, release
+
+
+async def test_a_confirmed_write_outlives_a_poll_that_read_before_it(pump, unit):
+    """A poll reads its bands one by one and publishes them together. A write
+    landing in between was published over: the switch came back on, and the
+    next turn-on was skipped as a no-op because the revived state matched."""
+    row = _row(pump, CONSTANT_LOWERING)
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 185}})
+    await pump.async_update()
+    polling, release = await _hold_a_poll_after_the_setpoint(pump)
 
     # The block in flight holds the controller: the write queues behind it
     # and goes before the poll's next block.
@@ -657,6 +897,56 @@ async def test_a_confirmed_write_outlives_a_poll_that_read_before_it(pump, unit)
     assert await switching_off is True
     assert (row.state, row.is_off) == (None, True), "the poll revived a stale value"
     assert await unit.read_holding_registers(CONSTANT_LOWERING, 1) == [0x8000]
+
+
+async def test_a_value_written_during_a_poll_outlives_that_poll(pump, unit):
+    """The value's sibling of the switch-off above: the poll read 200 before
+    the write of 215, and nothing tested that it does not publish 200."""
+    row = _row(pump, CONSTANT_LOWERING)
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 200}})
+    await pump.async_update()
+    polling, release = await _hold_a_poll_after_the_setpoint(pump)
+
+    writing = asyncio.create_task(pump.write(row, 215))
+    await asyncio.sleep(0)
+    release.set()
+    await polling
+
+    assert await writing is True
+    assert row.state == 215, "the poll published its older reading over the write"
+
+
+async def test_a_write_during_a_poll_survives_its_band_being_refused(pump, unit):
+    row = _row(pump, CONSTANT_LOWERING)
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 200}})
+    await pump.async_update()
+    unit.fail_read(
+        band_of(CONSTANT_LOWERING)[0],
+        IllegalDataAddressError(),
+        register_type="holding",
+    )
+    polling, release = await _hold_a_poll_after_the_setpoint(pump)
+
+    writing = asyncio.create_task(pump.write(row, 215))
+    await asyncio.sleep(0)
+    release.set()
+    await polling
+
+    assert await writing is True
+    assert row.state == 215, "the refused band's poll wiped the write it did not read"
+
+
+async def test_a_write_shields_only_the_poll_it_landed_in(pump, unit):
+    """The next poll after a write takes the controller's value again."""
+    row = _row(pump, CONSTANT_LOWERING)
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 200}})
+    await pump.async_update()
+    await pump.write(row, 215)
+    unit.load_raw({"holding": {CONSTANT_LOWERING: 220}})
+
+    await pump.async_update()
+
+    assert row.state == 220, "a write long done still hid the controller's value"
 
 
 async def test_a_queued_turn_on_does_not_restore_a_superseded_setpoint(pump, unit):
