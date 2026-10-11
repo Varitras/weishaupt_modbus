@@ -12,7 +12,8 @@ more: the overview, the information menu, the heat pump's main menu, and the
 three pages the integration reads. It finds those entries by their codes on
 the controller it was built for, else by their German titles, else you pick
 them by number and confirm each pick by its title. Reset, Service and the time
-programs are never offered. It only reads.
+programs are never offered on that controller; on another one it knows them
+by their codes only, so check each title before confirming. It only reads.
 
 The file holds the titles of each page, and the values of the three pages the
 integration reads. The tool adds no address, user name, password, session or

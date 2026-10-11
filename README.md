@@ -135,10 +135,9 @@ the first time after each load. A device that answers but refuses the system
 registers 30001-30006 is not treated as a heat pump with missing modules:
 that poll fails.
 
-A write goes out immediately and only if the value differs from what the
-controller holds. When the last poll shows the same value, the register is
-read once more first, so a change made at the controller's panel since then
-is not missed. A number goes out rounded to its step, the grid the
+A write goes out immediately, unless the value is already set: when the
+last poll shows the same value, the register is read once more first, so a
+change made at the controller's panel since then is not missed. A number goes out rounded to its step, the grid the
 controller's menu offers, so a value set in Fahrenheit lands on that grid
 too.
 
@@ -192,8 +191,9 @@ database, but graphs no longer show it. In the first minutes after the
 update Home Assistant may list a *mean type changed* notice for them; it
 goes by itself with the next statistics run - do not delete the statistics
 for it. A counter
-that reads 0x8000 or 0xFFFF, and a percentage above 100, reads as unknown:
-in a total such a word would stay in the sum for good.
+that reads 0x8000 or 0xFFFF, and a percentage from 101 up, reads as
+unknown: in a total such a word would stay in the sum for good. A
+percentage of 0xFFFF means no sensor and reads as unavailable.
 
 **Electrical power.** Register 33126 is in no Weishaupt data-point list.
 Checked against an external meter on one WBB 12 it is the heat pump's own
@@ -214,7 +214,8 @@ after the next poll.
 rates for 100 000 writes over its lifetime. Two diagnostic sensors on the
 System device count the writes that went out, in total and today - one
 whose answer was lost or no longer waited for too, since the controller
-may have stored it - and
+may have stored it, and one whose connection failed, which looks the
+same - and
 stay shown while the polling fails; the [Options](#options) set a
 warning threshold and a daily limit. The counts are kept with the entry,
 not in the sensors: they carry over restarts and reloads with the sensors
@@ -251,7 +252,11 @@ Pick the file matching your model. If yours is missing, copy the closest
 one, adjust `known_x`, `known_y` and `known_t` from your documentation and
 compile it once with `.github/scripts/compile_kennfeld.py` (needs `numpy`;
 with `scipy` the curve between your points is smooth, without it a straight
-line; `pygal` draws the preview picture). The
+line; `pygal` draws the preview picture). Keep the copy beside the shipped
+ones, in `custom_components/weishaupt_modbus/kennfeld/` of the
+configuration directory, under a name ending in `kennfeld.json`: only
+those are offered, and the picture is found as the `.svg` of the same
+name. Then pick it under *Reconfigure*. The
 integration only reads compiled grids. Contributions of new grids are welcome.
 A map compiled before 2.0.2 carries its file name in the picture's title;
 compile it again if that name should not be public.
@@ -316,7 +321,9 @@ little and stops on its own when the answers go wrong.
    password and opens six pages: it finds the menu entries the integration
    reads by their codes, else by their German titles, else you pick them by
    number and confirm each pick; Reset, Service and the time programs are
-   never offered. When the controller serves a page half or does not
+   never offered on the controller the tool was built for. On another one
+   it knows them by their codes only, so check each title before you
+   confirm a pick. When the controller serves a page half or does not
    answer, it rests a minute and goes on, ten times at most: a run takes
    about a minute, one the controller keeps failing up to about three
    quarters of an hour before the tool gives up. The file it writes holds
@@ -419,8 +426,9 @@ the controller, 10 to 100 % in steps of one.
   form once and reads the heating page back. A value the controller already
   shows is not written.
 - The number shows a value only once the controller shows it, and unknown
-  while the heating page has no reading or polling has stopped; it can be
-  set all the same. A refused or failed write says why at the call: the
+  while the heating page has no reading or polling has stopped. It stays
+  available, so a value can be set without a reading. A refused or failed
+  write says why at the call: the
   daily limit reached, polling stopped, a form that does not match the
   value shown, or a save the controller did not confirm.
 - The save is never repeated. When its outcome is unclear, the next reading
@@ -526,9 +534,12 @@ already set.
 
 ## Troubleshooting
 
-**Setup says "Failed to connect".** Check that Modbus TCP is on (see
-[Prerequisites](#prerequisites)), that its network and netmask admit the
-Home Assistant host, and that the port matches.
+**Setup says "Failed to connect".** In the heat pump dialog, check that
+Modbus TCP is on (see [Prerequisites](#prerequisites)), that its network
+and netmask admit the Home Assistant host, and that the port matches. In
+the web interface dialog, check that the web server is on (see
+[Switching it on](#switching-it-on)) and that the web interface opens in a
+browser; a slow controller may need another try a little later.
 
 **Setup says a device answers but refuses the value.** The network is fine,
 but the device at that address and port is not the heat pump's Modbus TCP
@@ -618,8 +629,8 @@ the new name; Home Assistant raises no notice for them:
   now `heatpump_operationmode_regenerativ`; 37 and 39 changed from `_sgr` to
   `_sgr3` as above.
 - SG-Ready 1 and 2 (35101, 35102) showed their input as a number, 0 or 1;
-  they now read off and on. Their long-term statistics end there, without a
-  notice.
+  they now read off and on, states `w2_status_aus` and `w2_status_ein`.
+  Their long-term statistics end there, without a notice.
 
 Upgrading: install 2.0 and restart. Existing entries migrate on first start
 (entry version 11); an entry keeps the host and port you configured. If the
@@ -672,11 +683,15 @@ Besides Python, the suite needs two programs on the `PATH`: PowerShell 7
 the secret-scan tests and `check.sh` - distribution packages are older, so
 put a current release first in the `PATH`.
 
-Before pushing, run every gate the CI runs:
+Before pushing, run the gates of the test workflow:
 
 ```sh
-PYTHON=/path/to/venv/bin/python .github/scripts/check.sh
+PYTHON=/path/to/venv/bin/python MIN_HA_PYTHON=/path/to/min-ha-venv/bin/python .github/scripts/check.sh
 ```
+
+Without `MIN_HA_PYTHON` the run against the minimum Home Assistant is
+skipped, and says so. hassfest, the HACS validation and CodeQL run only in
+CI.
 
 `tests/README.md` explains the guards, the budgets and the mutation run, and
 what to do when one of them turns red. Tests never touch a real controller:
