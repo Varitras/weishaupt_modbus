@@ -382,3 +382,22 @@ def test_a_new_package_wide_scan_is_added_to_the_index():
         f"{unlisted} scan(s) the package but are not in GUARD_FILES - add a "
         "line saying what each one holds."
     )
+
+
+def _gitattributes_patterns() -> list[str]:
+    lines = (REPO / ".gitattributes").read_text(encoding="utf-8").splitlines()
+    return [
+        line.split()[0] for line in lines if line.strip() and not line.startswith("#")
+    ]
+
+
+def test_every_gitattributes_rule_names_files_the_repository_has():
+    """A rule for .githooks/ outlived the hooks leaving the repository, and a
+    stray carriage return made a comment line read as the pattern "."."""
+    dead = [
+        pattern
+        for pattern in _gitattributes_patterns()
+        if not any(REPO.glob(pattern) if "/" in pattern else REPO.rglob(pattern))
+    ]
+
+    assert not dead, f"rule(s) for files the repository does not have: {dead}"
