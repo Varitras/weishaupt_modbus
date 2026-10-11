@@ -930,6 +930,22 @@ async def test_a_save_without_a_clear_answer_raises_maybe_saved(
     assert count.calls == 1
 
 
+async def test_an_error_status_on_the_save_gives_the_controller_its_rest(
+    pump, session, count
+):
+    """The coordinator rests the controller only for an unreachable cause; an
+    error status on a page counts as one, so it must on the save too."""
+    pump.show_power_limit(60)
+    client = connect(session, pump.host)
+    form = await read_form(client)
+    _status(pump)
+
+    with pytest.raises(webif.MaybeSaved) as raised:
+        await client.save(form, 61, count)
+
+    assert isinstance(raised.value.__cause__, webif.Unreachable)
+
+
 async def test_a_save_without_a_session_sends_nothing(pump, session, count):
     client = connect(session, pump.host)
 

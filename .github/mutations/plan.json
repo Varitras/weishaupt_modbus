@@ -4492,5 +4492,12 @@
     "old": "          pip install -c requirements_gates.txt ruff\n",
     "new": "",
     "tests": "test_job_installs_the_ruff_a_test_runs"
+  },
+  {
+    "label": "webif client: an error status on the save gives the controller no rest",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "                _raise_for_error_status(SAVE, answer)\n",
+    "new": "",
+    "tests": "error_status_on_the_save_gives_the_controller_its_rest"
   }
 ]

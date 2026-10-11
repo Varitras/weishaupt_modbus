@@ -344,6 +344,7 @@ class Client:
                 answer = await self._request(
                     "POST", SAVE, fields, headers, sending=count_write
                 )
+                _raise_for_error_status(SAVE, answer)
             except Unreachable as error:
                 raise MaybeSaved(str(error)) from error
             _raise_unless_saved(form, answer)
