@@ -264,26 +264,51 @@ def test_the_workflow_and_the_local_gates_pin_the_same_versions():
     assert not _pins_of(workflow), "a second pin in the workflow"
 
 
+def _unpinned(lines: list[str]) -> list[str]:
+    """The pip installs among `lines` that leave a version to the day."""
+    gate_pins = set(_pins_of(GATE_PINS.read_text(encoding="utf-8")))
+    unpinned = []
+    for line in lines:
+        if "pip install" not in line or line.lstrip().startswith("#"):
+            continue
+        words = [
+            word.strip("'\"").lower()
+            for word in line.split("pip install", 1)[1].split()
+        ]
+        constrained = "-c" in words and "requirements_gates.txt" in words
+        names = {
+            word
+            for word in words
+            if re.fullmatch(r"[a-z][\w.-]*", word) and not word.endswith(".txt")
+        }
+        pinned = gate_pins if constrained else PINNED_BY_THE_PLUGIN
+        if "--upgrade" in words or names - pinned:
+            unpinned.append(line.strip())
+    return unpinned
+
+
 def test_every_pip_install_in_the_workflow_takes_its_version_from_a_pin():
     """CI installed packaging and the newest pip by name alone, whatever
     they were that day."""
-    unpinned = []
-    for line in WORKFLOW.read_text(encoding="utf-8").splitlines():
-        if "pip install" not in line or line.lstrip().startswith("#"):
-            continue
-        words = line.split("pip install", 1)[1].split()
-        constrained = "-c" in words and "requirements_gates.txt" in words
-        names = [
-            word
-            for word in words
-            if re.fullmatch(r"[a-z][\w-]*", word) and word != "requirements_gates.txt"
-        ]
-        if "--upgrade" in words or (
-            names and not constrained and set(names) - PINNED_BY_THE_PLUGIN
-        ):
-            unpinned.append(line.strip())
+    unpinned = _unpinned(WORKFLOW.read_text(encoding="utf-8").splitlines())
 
     assert not unpinned, f"pip install without a pinned version: {unpinned}"
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "pip install packaging",
+        "pip install --upgrade pip",
+        'pip install "packaging"',
+        "pip install PyYAML",
+        "pip install -c requirements_gates.txt pygal",
+    ],
+)
+def test_the_pin_check_sees_an_unpinned_install_however_it_is_written(line):
+    """Quoted, capitalised, or constrained by a file that has no pin for it,
+    a name went through: the check read the spelling, not the pin."""
+    assert _unpinned([f"        run: {line}"])
 
 
 def test_the_step_reader_skips_comments_and_stops_at_the_next_job():
@@ -321,7 +346,7 @@ def test_ci_and_check_sh_hold_coverage_to_the_same_floor():
     """The floor stood twice, and nothing noticed one of them moving alone."""
     check = (REPO / ".github" / "scripts" / "check.sh").read_text(encoding="utf-8")
     workflow = WORKFLOW.read_text(encoding="utf-8")
-    floors = re.findall(r"--cov-fail-under=(\d+)", check + workflow)
+    floors = re.findall(r"--cov-fail-under=([\d.]+)", check + workflow)
 
     assert len(floors) == 2, f"one floor in check.sh, one in CI: {floors}"
     assert floors[0] == floors[1], f"check.sh and CI disagree: {floors}"

@@ -230,7 +230,8 @@ SAME_IN_EVERY_LANGUAGE = {
 
 
 @pytest.mark.parametrize(
-    ("language", "source"), [("en.json", "de.json"), ("nl.json", "en.json")]
+    ("language", "source"),
+    [("en.json", "de.json"), ("nl.json", "en.json"), ("nl.json", "de.json")],
 )
 def test_a_name_left_in_another_language_is_caught(language, source):
     """English read "Fehler"; Dutch kept ten English names."""
