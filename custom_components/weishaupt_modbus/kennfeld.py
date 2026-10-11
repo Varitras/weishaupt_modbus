@@ -72,7 +72,10 @@ def _looks_like_a_grid(data: Any) -> bool:
     The numbers too: an empty known_x, a flow temperature that is not a number
     and a row of strings all passed a shape check and then raised out of
     setup. Flow temperatures must be ascending, because the rows are: sorting
-    only the temperatures swapped the curves of a hand-edited file.
+    only the temperatures swapped the curves of a hand-edited file. And a key
+    for every tenth between the bounds, as the compiler writes them: map()
+    looks the tenth up as is, and keys like "-100.0" or a gap gave no value
+    and no error.
     """
     if not isinstance(data, dict):
         return False
@@ -80,11 +83,19 @@ def _looks_like_a_grid(data: Any) -> bool:
     grid = data.get("compiled_grid")
     if not _numbers(known_t, at_least=2) or known_t != sorted(set(known_t)):
         return False
-    if not _numbers(known_x, at_least=1) or _raw_bounds(known_x) is None:
+    if not _numbers(known_x, at_least=1):
         return False
-    if grid is None:
+    raw_bounds = _raw_bounds(known_x)
+    if raw_bounds is None:
+        return False
+    if not grid:
         return True  # reported separately: not compiled
-    return isinstance(grid, dict) and all(
+    if not isinstance(grid, dict):
+        return False
+    low, high = raw_bounds
+    if any(str(raw) not in grid for raw in range(low, high + 1)):
+        return False
+    return all(
         _numbers(row, at_least=len(known_t)) and len(row) == len(known_t)
         for row in grid.values()
     )

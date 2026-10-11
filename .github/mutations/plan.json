@@ -618,7 +618,7 @@
   {
     "label": "power map: bounds that do not convert must not be a grid",
     "path": "custom_components/weishaupt_modbus/kennfeld.py",
-    "old": " or _raw_bounds(known_x) is None",
+    "old": "    if raw_bounds is None:\n        return False\n",
     "new": "",
     "tests": "numbers_overflow_is_refused"
   },
@@ -4093,5 +4093,40 @@
     "old": "                    (form.id, form.stack, form.type, str(value)),\n",
     "new": "                    (form.stack.rsplit(\",\", 1)[-1], form.stack, form.type, str(value)),\n",
     "tests": "four_fields_in_form_order"
+  },
+  {
+    "label": "power map: a grid keyed otherwise than map looks up is a grid",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "    if any(str(raw) not in grid for raw in range(low, high + 1)):\n        return False\n",
+    "new": "",
+    "tests": "keyed_otherwise_than_map_looks_up"
+  },
+  {
+    "label": "power map: an empty compiled grid is called no grid",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "    if not grid:\n        return True  # reported separately: not compiled\n",
+    "new": "    if grid is None:\n        return True  # reported separately: not compiled\n",
+    "tests": "empty_compiled_grid_counts_as_not_compiled"
+  },
+  {
+    "label": "compile script: an unsorted known_x is compiled",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "    if known_x != sorted(set(known_x)):\n",
+    "new": "    if False:\n",
+    "tests": "outside_temperatures_out_of_order"
+  },
+  {
+    "label": "compile script: bounds go into range() unrounded",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "    low, high = round(known_x[0] * 10), round(known_x[-1] * 10)\n",
+    "new": "    low, high = known_x[0] * 10, known_x[-1] * 10\n",
+    "tests": "bounds_written_as_floats"
+  },
+  {
+    "label": "power map: a grid that is no mapping is read as one",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "    if not isinstance(grid, dict):\n        return False\n",
+    "new": "",
+    "tests": "broken_grid_file_disables_the_heat_power_only"
   }
 ]

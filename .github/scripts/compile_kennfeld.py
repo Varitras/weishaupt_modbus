@@ -36,6 +36,10 @@ def sorted_curves(known_t: list, known_y: list) -> tuple[list, list]:
 def compile_grid(data: dict) -> dict[str, list[float]]:
     """A value per 0.1 °C of outside temperature for every flow curve."""
     known_x = data["known_x"]
+    # numpy joins the points in the order given; an unsorted known_x gave
+    # curves that miss their own points, without a word.
+    if known_x != sorted(set(known_x)):
+        raise ValueError("known_x must be ascending, each temperature once")
     known_t, known_y = sorted_curves(data["known_t"], data["known_y"])
     try:
         from scipy.interpolate import CubicSpline  # noqa: PLC0415
@@ -49,9 +53,11 @@ def compile_grid(data: dict) -> dict[str, list[float]]:
         print("scipy not installed - joining the points by lines", file=sys.stderr)
         curves = [partial(np.interp, xp=known_x, fp=ys) for ys in known_y]
     assert len(curves) == len(known_t), "one curve per flow temperature"
+    # The integration's rounding of the bounds, so that its keys are these.
+    low, high = round(known_x[0] * 10), round(known_x[-1] * 10)
     return {
         str(raw): [round(float(curve(raw / 10.0)), 1) for curve in curves]
-        for raw in range(min(known_x) * 10, max(known_x) * 10 + 1)
+        for raw in range(low, high + 1)
     }
 
 
