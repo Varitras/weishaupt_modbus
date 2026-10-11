@@ -55,6 +55,13 @@ def _kennfeld_files(folder: Path) -> list[str]:
     return found or [CONST.DEF_KENNFELDFILE]
 
 
+def _title_after_reconfigure(entry: config_entries.ConfigEntry, host: str) -> str:
+    """The title made from the host follows it; one the user gave stays."""
+    if entry.title != entry.data[CONF.HOST]:
+        return entry.title
+    return host
+
+
 async def build_kennfeld_list(hass: HomeAssistant) -> list[str]:
     """The power-map files a user can pick from."""
     folder = await hass.async_add_executor_job(get_filepath, hass)
@@ -631,11 +638,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 and holder.entry_id != self._reconfigure_entry.entry_id
             ):
                 return self.async_abort(reason="already_configured")
+            entry = self._reconfigure_entry
             return self.async_update_reload_and_abort(
-                self._reconfigure_entry,
+                entry,
                 data=self._stored_data,
                 unique_id=new_unique_id,
-                title=self._stored_data[CONF.HOST],
+                title=_title_after_reconfigure(entry, self._stored_data[CONF.HOST]),
             )
 
         # The user step's schema without prefix and postfix: every unique id

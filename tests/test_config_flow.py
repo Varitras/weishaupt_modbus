@@ -247,7 +247,7 @@ async def test_a_dialog_left_open_after_an_error_holds_no_postfix(hass, monkeypa
 
 
 async def test_reconfigure_updates_the_entry_in_place(hass):
-    entry = MockConfigEntry(domain=CONST.DOMAIN, data=PAGE_ONE, version=9)
+    entry = MockConfigEntry(domain=CONST.DOMAIN, title=HOST, data=PAGE_ONE, version=9)
     entry.add_to_hass(hass)
 
     result = await _reconfigure(
@@ -264,6 +264,22 @@ async def test_reconfigure_updates_the_entry_in_place(hass):
     # The title is the host, and a moved pump that keeps the old one in the
     # integration list is the wrong address in the only place a user looks.
     assert entry.title == "192.0.2.20"
+
+
+@pytest.mark.parametrize("host", [HOST, "192.0.2.20"], ids=["same", "moved"])
+async def test_reconfigure_keeps_a_title_the_user_gave(hass, host):
+    """Switching on a circuit, as a notice asks, named the entry after its
+    host again: the user's "Cellar" was gone."""
+    entry = MockConfigEntry(
+        domain=CONST.DOMAIN, title="Cellar", data=PAGE_ONE, version=11
+    )
+    entry.add_to_hass(hass)
+
+    await _reconfigure(hass, entry, {**RECONFIGURE_PAGE, CONF.HOST: host})
+    await hass.async_block_till_done()
+
+    assert entry.data[CONF.HOST] == host
+    assert entry.title == "Cellar"
 
 
 async def test_reconfigure_refuses_an_address_that_cannot_be_dialled(hass):
