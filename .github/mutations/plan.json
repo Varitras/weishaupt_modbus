@@ -4443,5 +4443,12 @@
     "old": "        if self._restored:\n            return\n",
     "new": "",
     "tests": "renamed_back"
+  },
+  {
+    "label": "webif sensor: the device prefix option leaves its name alone",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "            \"prefix\": name_prefix(pump_data, description.topic)\n",
+    "new": "            \"prefix\": name_prefix({**pump_data, \"Name-Device-Prefix\": False}, description.topic)\n",
+    "tests": "device_prefix_option_names_a_sensor_too"
   }
 ]

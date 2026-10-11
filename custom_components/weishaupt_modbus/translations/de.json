@@ -51,8 +51,8 @@
                     "Heizkreis 5": "Legt die Entitäten dieses Heizkreises an.",
                     "host": "Name oder IP-Adresse der Wärmepumpe.",
                     "Kennfeld-File": "Kennfeld Ihres Modells, daraus wird die Wärmeleistung geschätzt.",
-                    "Name-Device-Prefix": "Stellt dem Namen jeder Register-Entität das Prefix voran.",
-                    "Name-Topic-Prefix": "Stellt dem Namen jeder Register-Entität das Gerätekürzel (WP, WW, ...) voran.",
+                    "Name-Device-Prefix": "Stellt dem Namen jeder Register-Entität und jedes Werts der Weboberfläche das Prefix voran.",
+                    "Name-Topic-Prefix": "Stellt dem Namen jeder Register-Entität und jedes Werts der Weboberfläche das Gerätekürzel (WP, WW, ...) voran.",
                     "port": "Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502.",
                     "prefix": "Teil der Unique-ID jeder Entität. Nur ändern, um die Historie einer anderen Integration zu übernehmen. Später nicht mehr änderbar."
                 },
@@ -81,8 +81,8 @@
                     "Heizkreis 5": "Legt die Entitäten dieses Heizkreises an.",
                     "host": "Name oder IP-Adresse der Wärmepumpe.",
                     "Kennfeld-File": "Kennfeld Ihres Modells, daraus wird die Wärmeleistung geschätzt.",
-                    "Name-Device-Prefix": "Stellt dem Namen jeder Register-Entität das Prefix voran.",
-                    "Name-Topic-Prefix": "Stellt dem Namen jeder Register-Entität das Gerätekürzel (WP, WW, ...) voran.",
+                    "Name-Device-Prefix": "Stellt dem Namen jeder Register-Entität und jedes Werts der Weboberfläche das Prefix voran.",
+                    "Name-Topic-Prefix": "Stellt dem Namen jeder Register-Entität und jedes Werts der Weboberfläche das Gerätekürzel (WP, WW, ...) voran.",
                     "port": "Modbus-TCP-Port, wie an der Wärmepumpe eingestellt, meist 502."
                 }
             },

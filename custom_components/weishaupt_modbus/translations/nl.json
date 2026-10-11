@@ -51,8 +51,8 @@
           "Heizkreis 5" : "Voegt de entiteiten van deze verwarmingskring toe.",
           "host" : "Naam of IP-adres van de warmtepomp.",
           "Kennfeld-File" : "Werkingsschema van uw model, gebruikt om het verwarmingsvermogen te schatten.",
-          "Name-Device-Prefix" : "Zet de prefix voor de naam van elke registerentiteit.",
-          "Name-Topic-Prefix" : "Zet de korte apparaatnaam (WP, WW, ...) voor de naam van elke registerentiteit.",
+          "Name-Device-Prefix" : "Zet de prefix voor de naam van elke registerentiteit en van elke waarde van de webinterface.",
+          "Name-Topic-Prefix" : "Zet de korte apparaatnaam (WP, WW, ...) voor de naam van elke registerentiteit en van elke waarde van de webinterface.",
           "port" : "Modbus-TCP-poort zoals ingesteld op de warmtepomp, meestal 502.",
           "prefix" : "Deel van de unieke ID van elke entiteit. Alleen wijzigen om de geschiedenis van een andere integratie over te nemen. Later niet meer te wijzigen."
         },
@@ -81,8 +81,8 @@
           "Heizkreis 5" : "Voegt de entiteiten van deze verwarmingskring toe.",
           "host" : "Naam of IP-adres van de warmtepomp.",
           "Kennfeld-File" : "Werkingsschema van uw model, gebruikt om het verwarmingsvermogen te schatten.",
-          "Name-Device-Prefix" : "Zet de prefix voor de naam van elke registerentiteit.",
-          "Name-Topic-Prefix" : "Zet de korte apparaatnaam (WP, WW, ...) voor de naam van elke registerentiteit.",
+          "Name-Device-Prefix" : "Zet de prefix voor de naam van elke registerentiteit en van elke waarde van de webinterface.",
+          "Name-Topic-Prefix" : "Zet de korte apparaatnaam (WP, WW, ...) voor de naam van elke registerentiteit en van elke waarde van de webinterface.",
           "port" : "Modbus-TCP-poort zoals ingesteld op de warmtepomp, meestal 502."
         }
       },

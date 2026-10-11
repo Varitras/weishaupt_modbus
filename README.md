@@ -79,8 +79,8 @@ entry. Add one entry per heat pump.
 | Device postfix | empty | Tells several heat pumps apart. Leave it empty for a single pump; every further pump needs a postfix of its own, the dialog refuses an empty or reused one. The postfix is appended to device names and ids. |
 | Operation map file | `weishaupt_wbb_kennfeld.json` | The power map of your model (see [The power map](#the-power-map)). |
 | 2nd - 5th heating circuit | off | Adds the entities of the additional heating circuit. |
-| Name device prefix | off | Puts the prefix in front of the name of every register entity, e.g. `weishaupt_wbb_Outside temperature`. The two write counters keep their names. |
-| Name topic prefix | off | Puts the device's short name in front of the name of every register entity, e.g. `WP_` for the heat pump, `WW_` for hot water. |
+| Name device prefix | off | Puts the prefix in front of the name of every register entity, e.g. `weishaupt_wbb_Outside temperature`, and of the web interface's values and its power limit. The write counters and the sensors about the web interface's polling keep their names. |
+| Name topic prefix | off | Puts the device's short name in front of the name of every register entity, e.g. `WP_` for the heat pump, `WW_` for hot water, and of the web interface's values and its power limit. |
 
 Prefix and device postfix are part of every entity's unique id and cannot
 be changed afterwards: a change would orphan the recorded history of every
@@ -388,8 +388,10 @@ pump's devices.
   pages, which preceded its crashes. They stay shown when polling has
   stopped.
 
-The *Name topic prefix* option of the heat pump entry names these sensors
-like their Modbus siblings, with `WP_` or `ST_` in front.
+The *Name topic prefix* and *Name device prefix* options of the heat pump
+entry name the values and the power limit like their Modbus siblings, with
+`WP_` or `ST_` and the prefix in front; the sensors about the polling and
+the settings written keep their names.
 
 A value counts only in the unit the page shows for it; anything else reads as
 unknown. The page shows an idle power or speed as `Aus` (in English an idle
