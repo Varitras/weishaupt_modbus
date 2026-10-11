@@ -342,6 +342,18 @@ def test_ci_scans_with_a_gitleaks_the_local_floor_would_accept():
     )
 
 
+def test_ci_runs_only_the_gitleaks_archive_the_release_lists():
+    """The archive was unpacked and run as it came, whatever the download
+    gave; only the version was pinned."""
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    steps = _steps_of("pytest")
+
+    assert re.findall(r'GITLEAKS_SHA256:\s*"[0-9a-f]{64}"', workflow)
+    checked = next(i for i, line in enumerate(steps) if "sha256sum -c" in line)
+    unpacked = next(i for i, line in enumerate(steps) if "tar -x" in line)
+    assert checked < unpacked, "the archive is unpacked before it is checked"
+
+
 def test_ci_and_check_sh_hold_coverage_to_the_same_floor():
     """The floor stood twice, and nothing noticed one of them moving alone."""
     check = (REPO / ".github" / "scripts" / "check.sh").read_text(encoding="utf-8")
