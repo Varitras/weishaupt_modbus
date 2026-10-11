@@ -58,8 +58,8 @@
   {
     "label": "entity: a number write must be scaled by the divider",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "            val = to_register_value(wanted, self._divider)\n",
-    "new": "            val = to_register_value(wanted, 1)\n",
+    "old": "            val = self._on_step(to_register_value(wanted, self._divider))\n",
+    "new": "            val = self._on_step(to_register_value(wanted, 1))\n",
     "tests": "number_write_is_scaled"
   },
   {
@@ -548,8 +548,8 @@
   {
     "label": "entity: current bounds must be checked inside the write lock",
     "path": "custom_components/weishaupt_modbus/entities.py",
-    "old": "            check = partial(self._refuse_outside_current_bounds, wanted)",
-    "new": "            self._refuse_outside_current_bounds(wanted)",
+    "old": "            check = partial(self._refuse_outside_current_bounds, val / self._divider)",
+    "new": "            self._refuse_outside_current_bounds(val / self._divider)",
     "tests": "setpoints_written_together"
   },
   {
@@ -4289,5 +4289,26 @@
     "old": "        return await self._read_word(address) == value & WORD_MASK\n",
     "new": "        return await self._read_word(address) == value\n",
     "tests": "setpoint_off_writes_the_off_word"
+  },
+  {
+    "label": "entity: a number write goes out beside its step",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        return round(word / step) * step\n",
+    "new": "        return word\n",
+    "tests": "lands_on_the_row_step"
+  },
+  {
+    "label": "entity: a row without a step is rounded to whole units",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "        step = to_register_value(params.get(\"step\", 1 / self._divider), self._divider)\n",
+    "new": "        step = to_register_value(params.get(\"step\", 1), self._divider)\n",
+    "tests": "number_write_is_scaled_by_the_divider"
+  },
+  {
+    "label": "entity: a NaN number write reaches the word conversion",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "            if not math.isfinite(wanted):\n",
+    "new": "            if False:\n",
+    "tests": "nan_is_refused_as_out_of_range"
   }
 ]

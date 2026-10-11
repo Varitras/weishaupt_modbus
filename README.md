@@ -138,7 +138,9 @@ that poll fails.
 A write goes out immediately and only if the value differs from what the
 controller holds. When the last poll shows the same value, the register is
 read once more first, so a change made at the controller's panel since then
-is not missed.
+is not missed. A number goes out rounded to its step, the grid the
+controller's menu offers, so a value set in Fahrenheit lands on that grid
+too.
 
 ## Entities
 

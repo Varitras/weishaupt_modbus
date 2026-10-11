@@ -403,6 +403,45 @@ async def test_a_number_write_is_scaled_by_the_divider():
     assert number._attr_native_value == 21.5
 
 
+def _stepped_number():
+    item = ModbusItem(
+        41001,
+        "x",
+        FORMATS.TEMPERATURE,
+        TYPES.NUMBER,
+        DEVICES.HZ,
+        "k",
+        params={"unit": "°C", "divider": 10, "step": 0.5},
+    )
+    coordinator = FakeCoordinator()
+    number = entities.MyNumberEntity(_entry(), item, coordinator)
+    number.async_write_ha_state = lambda: None
+    return number, coordinator
+
+
+@pytest.mark.parametrize(("wanted", "word"), [(21.3, 215), (21.6, 215), (21.8, 220)])
+async def test_a_number_write_lands_on_the_row_step(wanted, word):
+    """Home Assistant checks only the range: 21.3 at a step of 0.5 went out
+    as 213, beside the grid the controller's menu offers, and a value set in
+    Fahrenheit landed anywhere."""
+    number, coordinator = _stepped_number()
+
+    await number.async_set_native_value(wanted)
+
+    assert coordinator.writes == [(41001, word)]
+
+
+async def test_a_number_write_of_nan_is_refused_as_out_of_range():
+    """Home Assistant's range check lets NaN through; the conversion to a
+    register word then raised a bare ValueError."""
+    number, coordinator = _stepped_number()
+
+    with pytest.raises(ServiceValidationError):
+        await number.async_set_native_value(float("nan"))
+
+    assert coordinator.writes == []
+
+
 async def test_a_select_write_sends_the_number_behind_the_key():
     item = ModbusItem(
         40001,

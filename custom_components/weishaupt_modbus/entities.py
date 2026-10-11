@@ -3,6 +3,7 @@
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from functools import partial
+import math
 from typing import Any
 
 from modbus_connection import ModbusError
@@ -205,6 +206,17 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
                 },
             )
 
+    def _on_step(self, word: int) -> int:
+        """The nearest word on the row's step, the grid the controller's menu offers.
+
+        Home Assistant checks only the range. A row without a step of its own
+        is not rounded further: Home Assistant's default of 1 would round
+        21.5 at divider 10 to 22.
+        """
+        params = self._api_item.params or {}
+        step = to_register_value(params.get("step", 1 / self._divider), self._divider)
+        return round(word / step) * step
+
     async def set_translate_val(self, value: str | float) -> int | None:
         """Translate and write a value directly to the Modbus client."""
         check: Callable[[], None] | None = None
@@ -212,8 +224,11 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
             val = self._api_item.get_number_from_translation_key(str(value))
         else:
             wanted = float(value)
-            val = to_register_value(wanted, self._divider)
-            check = partial(self._refuse_outside_current_bounds, wanted)
+            if not math.isfinite(wanted):
+                # Home Assistant's range check lets NaN through; it has no word.
+                self._refuse_outside_current_bounds(wanted)
+            val = self._on_step(to_register_value(wanted, self._divider))
+            check = partial(self._refuse_outside_current_bounds, val / self._divider)
 
         if val is None:
             return None
