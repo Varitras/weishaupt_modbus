@@ -15,8 +15,9 @@ class WriteBudget:
 
     A write counts once it may have reached the controller: answered, its
     answer lost or no longer waited for, or a connect that failed, which
-    looks the same as a lost answer. One the controller refused does not. A value that is already active is skipped before it
-    gets here. The day rolls over lazily on the next call.
+    looks the same as a lost answer. One the controller refused does not.
+    A value that is already active is skipped before it gets here. The day
+    rolls over lazily on the next call.
     """
 
     def __init__(

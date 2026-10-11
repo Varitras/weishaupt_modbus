@@ -242,9 +242,9 @@ def _raise_unless_saved(form: pages.SettingForm, answer: _Answer) -> None:
 
 
 def _raise_for_error_status(path: str, answer: _Answer) -> None:
-    # The login page and the logout answer otherwise than a page, but an
-    # error status says the same: the server cannot serve, and anything
-    # asked after it only adds load.
+    # The login page, the logout and the save answer otherwise than a page,
+    # but an error status says the same: the server cannot serve, and
+    # anything asked after it only adds load.
     if answer.status >= HTTPStatus.BAD_REQUEST:
         raise Unreachable(f"{path}: HTTP {answer.status}", f"HTTP {answer.status}")
 
@@ -322,8 +322,9 @@ class Client:
         sent may reach the EEPROM, answered or not. A connect that fails
         cannot be told from a lost answer, so that one counts too.
 
-        Raises NotSaved when the session was gone, MaybeSaved when the answer
-        leaves it open. Neither is followed by a login or a second POST: the
+        Raises Closed when the client closed before the POST, NotSaved when
+        the session was gone, MaybeSaved when the answer leaves it open.
+        Neither of the last two is followed by a login or a second POST: the
         save may have reached the EEPROM, and repeating it is the caller's.
         """
         async with self._lock:
