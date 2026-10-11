@@ -492,8 +492,8 @@ async def test_a_value_at_a_bound_beside_the_step_is_written_not_refused(
 ):
     """A neighbour setpoint at 21.3 or 21.1, as Home Assistant wrote it before
     the rounding: 21.3 rounded to 21.5 first and was refused as "21.5 outside
-    16-21.3", a value nobody had entered; below, the rounding went under the
-    bound unseen."""
+    16-21.3", a value nobody had entered. Below, rounding to the step alone
+    would go under the bound."""
     item = ModbusItem(
         address,
         "Raumsolltemperatur",

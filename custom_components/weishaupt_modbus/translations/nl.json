@@ -1426,7 +1426,7 @@
         "name" : "{prefix}Ruimtetemperatuur 5"
       },
       "rl_temp" : {
-        "name" : "{prefix}Retourstromingstemperatuur"
+        "name" : "{prefix}Retourtemperatuur"
       },
       "ruhemodus" : {
         "name" : "{prefix}Stille mode",
@@ -1509,7 +1509,7 @@
         "name" : "{prefix}Aanvoertemperatuur uitgang (B7)"
       },
       "vl_temp" : {
-        "name" : "{prefix}aanvoertemperatuur"
+        "name" : "{prefix}Aanvoertemperatuur"
       },
       "w2_konf" : {
         "name" : "{prefix}W2_Configuratie",
