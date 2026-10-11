@@ -284,6 +284,16 @@ def test_ci_scans_with_a_gitleaks_the_local_floor_would_accept():
     )
 
 
+def test_ci_and_check_sh_hold_coverage_to_the_same_floor():
+    """The floor stood twice, and nothing noticed one of them moving alone."""
+    check = (REPO / ".github" / "scripts" / "check.sh").read_text(encoding="utf-8")
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    floors = re.findall(r"--cov-fail-under=(\d+)", check + workflow)
+
+    assert len(floors) == 2, f"one floor in check.sh, one in CI: {floors}"
+    assert floors[0] == floors[1], f"check.sh and CI disagree: {floors}"
+
+
 def test_no_step_hides_a_failure_behind_a_pipe():
     """A pipeline reports the last command's status. A resolver that died
     still left tee returning 0, so the job ran on without the version it had
