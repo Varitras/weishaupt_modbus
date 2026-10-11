@@ -26,8 +26,12 @@ REPO = Path(__file__).resolve().parents[1]
 SCRIPT = REPO / ".github" / "scripts" / "resolve_phcc.py"
 WORKFLOW = REPO / ".github" / "workflows" / "test.yaml"
 TEST_REQUIREMENTS = REPO / "requirements_test.txt"
-# The gates that must judge a change the same way on a laptop and in CI.
-GATE_TOOLS = ("ruff", "mypy", "pip-audit")
+GATE_PINS = REPO / "requirements_gates.txt"
+# The gates that must judge a change the same way on a laptop and in CI,
+# and the version parser the CI resolver needs.
+GATE_TOOLS = ("ruff", "mypy", "pip-audit", "packaging")
+# Installed by name: the test plugin pins it, a pin here would fight that one.
+PINNED_BY_THE_PLUGIN = {"pytest-timeout"}
 
 
 def _load():
@@ -213,7 +217,7 @@ def test_the_workflow_still_runs_ruff_pinned():
 
     assert "run: ruff check ." in workflow
     assert "run: ruff format --check ." in workflow
-    assert re.search(r'pip install "ruff==[\d.]+"', workflow)
+    assert "pip install -c requirements_gates.txt ruff" in workflow
 
 
 def test_the_secret_scan_in_ci_uses_the_repositorys_own_rules():
@@ -239,18 +243,39 @@ def _pins_of(text: str) -> dict[str, str]:
 
 
 def test_the_workflow_and_the_local_gates_pin_the_same_versions():
-    """check.sh and the pre-push hook run what requirements_test.txt
-    installs, CI runs what the workflow installs. Two pins for one tool
-    means a formatter that reflows differently from the one that decides
-    the build - a red CI nobody changed."""
-    in_ci = _pins_of(WORKFLOW.read_text(encoding="utf-8"))
-    locally = _pins_of(TEST_REQUIREMENTS.read_text(encoding="utf-8"))
+    """check.sh runs what requirements_test.txt installs, CI what the
+    workflow installs. The pins stood in both, and Dependabot moved only
+    the first: its pull request went red on a disagreement it made. One
+    file holds them now, and both read it."""
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    test_requirements = TEST_REQUIREMENTS.read_text(encoding="utf-8")
 
-    assert set(in_ci) == set(GATE_TOOLS), f"a gate lost its pin in CI: {in_ci}"
-    assert in_ci == locally, (
-        f"CI and requirements_test.txt disagree: {in_ci} vs {locally}. "
-        "Raise both in the same commit."
-    )
+    assert set(_pins_of(GATE_PINS.read_text(encoding="utf-8"))) == set(GATE_TOOLS)
+    assert "-r requirements_gates.txt" in test_requirements.splitlines()
+    assert not _pins_of(test_requirements), "a second pin in requirements_test.txt"
+    assert not _pins_of(workflow), "a second pin in the workflow"
+
+
+def test_every_pip_install_in_the_workflow_takes_its_version_from_a_pin():
+    """CI installed packaging and the newest pip by name alone, whatever
+    they were that day."""
+    unpinned = []
+    for line in WORKFLOW.read_text(encoding="utf-8").splitlines():
+        if "pip install" not in line or line.lstrip().startswith("#"):
+            continue
+        words = line.split("pip install", 1)[1].split()
+        constrained = "-c" in words and "requirements_gates.txt" in words
+        names = [
+            word
+            for word in words
+            if re.fullmatch(r"[a-z][\w-]*", word) and word != "requirements_gates.txt"
+        ]
+        if "--upgrade" in words or (
+            names and not constrained and set(names) - PINNED_BY_THE_PLUGIN
+        ):
+            unpinned.append(line.strip())
+
+    assert not unpinned, f"pip install without a pinned version: {unpinned}"
 
 
 def test_the_step_reader_skips_comments_and_stops_at_the_next_job():
