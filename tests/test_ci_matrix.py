@@ -264,26 +264,48 @@ def test_the_workflow_and_the_local_gates_pin_the_same_versions():
     assert not _pins_of(workflow), "a second pin in the workflow"
 
 
+PIP_INSTALL = re.compile(r"\bpip3?\s+install\b")
+
+
+def _commands(lines: list[str]) -> list[str]:
+    """The lines with a continued one joined on, comments dropped."""
+    commands, pending = [], ""
+    for line in lines:
+        if line.lstrip().startswith("#"):
+            continue
+        pending += line.split(" #", 1)[0].rstrip()
+        if pending.endswith("\\"):
+            pending = pending[:-1] + " "
+            continue
+        commands.append(pending)
+        pending = ""
+    return commands
+
+
 def _unpinned(lines: list[str]) -> list[str]:
     """The pip installs among `lines` that leave a version to the day."""
     gate_pins = set(_pins_of(GATE_PINS.read_text(encoding="utf-8")))
     unpinned = []
-    for line in lines:
-        if "pip install" not in line or line.lstrip().startswith("#"):
+    for command in _commands(lines):
+        found = PIP_INSTALL.search(command)
+        if not found:
             continue
-        words = [
-            word.strip("'\"").lower()
-            for word in line.split("pip install", 1)[1].split()
-        ]
-        constrained = "-c" in words and "requirements_gates.txt" in words
+        words = [word.strip("'\"").lower() for word in command[found.end() :].split()]
+        constrained = "requirements_gates.txt" in words and (
+            "-c" in words or "--constraint" in words
+        )
         names = {
-            word
+            re.match(r"[a-z][\w.-]*", word).group().replace("_", "-")
             for word in words
-            if re.fullmatch(r"[a-z][\w.-]*", word) and not word.endswith(".txt")
+            if re.match(r"[a-z]", word) and not word.endswith(".txt")
         }
         pinned = gate_pins if constrained else PINNED_BY_THE_PLUGIN
-        if "--upgrade" in words or names - pinned:
-            unpinned.append(line.strip())
+        if (
+            "--upgrade" in words
+            or any("://" in word for word in words)
+            or names - pinned
+        ):
+            unpinned.append(command.strip())
     return unpinned
 
 
@@ -303,12 +325,37 @@ def test_every_pip_install_in_the_workflow_takes_its_version_from_a_pin():
         'pip install "packaging"',
         "pip install PyYAML",
         "pip install -c requirements_gates.txt pygal",
+        'pip install "packaging>=24"',
+        'pip install -c requirements_gates.txt "pygal>=3"',
+        "pip3 install packaging",
+        "pip  install packaging",
+        "python -m pip install packaging",
+        "pip install git+https://example.invalid/tool.git",
     ],
 )
 def test_the_pin_check_sees_an_unpinned_install_however_it_is_written(line):
-    """Quoted, capitalised, or constrained by a file that has no pin for it,
-    a name went through: the check read the spelling, not the pin."""
+    """Quoted, capitalised, with a range, through pip3 or `python -m pip`, or
+    constrained by a file that has no pin for it, a name went through: the
+    check read the spelling, not the pin."""
     assert _unpinned([f"        run: {line}"])
+
+
+def test_the_pin_check_reads_an_install_continued_on_the_next_line():
+    assert _unpinned(["          pip install \\", "            packaging"])
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        'pip install "$PHCC_SPEC" pytest-timeout -r requirements.txt',
+        "pip install pytest_timeout",
+        "pip install --constraint requirements_gates.txt ruff",
+        "pip install -c requirements_gates.txt ruff  # the gates' pin",
+        "pip install $(python .github/scripts/core_modbus_requirements.py)",
+    ],
+)
+def test_the_pin_check_lets_a_pinned_install_through(line):
+    assert not _unpinned([f"        run: {line}"])
 
 
 def test_the_step_reader_skips_comments_and_stops_at_the_next_job():
