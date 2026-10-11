@@ -4485,5 +4485,12 @@
     "old": "    DeviceConstants.HZ3: CONF.HK3,\n",
     "new": "    DeviceConstants.HZ3: CONF.HK4,\n",
     "tests": "circuit_copy"
+  },
+  {
+    "label": "ci: the test job must install the ruff a test runs",
+    "path": ".github/workflows/test.yaml",
+    "old": "          pip install -c requirements_gates.txt ruff\n",
+    "new": "",
+    "tests": "test_job_installs_the_ruff_a_test_runs"
   }
 ]

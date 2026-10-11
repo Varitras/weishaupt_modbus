@@ -182,6 +182,8 @@ jobs:
           # the timeout that stops a hung run is exactly what must not depend
           # on some other package still happening to pull it in.
           pip install "$PHCC_SPEC" pytest-timeout -r requirements.txt
+          # The capture tool's formatter test runs ruff, the gates' pin.
+          pip install -c requirements_gates.txt ruff
       # requirements.txt gives modbus-connection a lower bound on purpose, so
       # this resolved a newer release than the tested Home Assistant pins and
       # the lane vouched for a combination no installation has.

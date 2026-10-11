@@ -220,6 +220,14 @@ def test_the_workflow_still_runs_ruff_pinned():
     assert "pip install -c requirements_gates.txt ruff" in workflow
 
 
+def test_the_test_job_installs_the_ruff_a_test_runs():
+    """The capture tool's formatter test runs ruff, and these jobs skip
+    requirements_test.txt, the one file that would have brought it."""
+    steps = _steps_of("pytest")
+
+    assert any("pip install -c requirements_gates.txt ruff" in line for line in steps)
+
+
 def test_the_secret_scan_in_ci_uses_the_repositorys_own_rules():
     """The allowlist for the register table lives in .gitleaks.toml. The
     action does not read it unless told, and then flags the translation keys
