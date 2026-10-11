@@ -476,6 +476,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
     def _after_failed_write(self, error: Exception) -> None:
         if isinstance(error.__cause__, Unreachable):
             self._rest()
+        if isinstance(error.__cause__, LoginRefused):
+            # Raised as not read back, so that the user does not save again.
+            self._refused = error.__cause__
         if isinstance(error, OtherValueShown):
             self._publish(self._heating, error.text)
         elif isinstance(error, (MaybeSaved, NotReadBack)):

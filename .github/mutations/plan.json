@@ -4548,5 +4548,12 @@
     "old": "        latest = kept.counts = budget.counts()\n",
     "new": "        latest = kept.counts\n",
     "tests": "reads_the_counts_from_the_file or being_saved"
+  },
+  {
+    "label": "power limit write: a login refused reading back is forgotten",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if isinstance(error.__cause__, LoginRefused):\n",
+    "new": "        if False:\n",
+    "tests": "refused_reading_back_a_save"
   }
 ]

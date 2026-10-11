@@ -1230,6 +1230,30 @@ async def test_after_an_unclear_save_the_heating_page_is_due_at_once(
     assert client.asked == [HEATING.path]
 
 
+async def test_a_login_refused_reading_back_a_save_holds_the_next_write(
+    coordinator, client, clock, quick
+):
+    """The read-back's own error hid the refusal: the coordinator still took
+    the credentials for good, and the next write went to the controller."""
+    await first_round_showing(coordinator, client, clock)
+
+    async def saved_then_refused(form, value, count_write):
+        count_write()
+        client.asked.append(SAVE)
+        client.answer(HEATING, LoginRefused("HTTP 303 to /index.html#wrongpassword"))
+
+    client.save = saved_then_refused
+    assert (await refused(coordinator.set_power_limit(61)))[0] == (
+        "webif_write_not_read_back"
+    )
+    client.asked.clear()
+
+    assert (await refused(coordinator.set_power_limit(62)))[0] == (
+        "webif_write_login_refused"
+    )
+    assert client.asked == []
+
+
 async def test_a_write_without_a_reading_still_reads_fresh(coordinator, client, quick):
     """No round has run yet, or the heating page failed twice: the write
     has no value to compare with and reads the controller."""
