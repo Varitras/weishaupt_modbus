@@ -628,6 +628,27 @@ async def test_a_round_waits_while_a_dialog_of_its_entry_visits(coordinator, cli
     assert client.asked == [HEAT_PUMP.path, STATISTICS.path, HEATING.path]
 
 
+async def test_a_round_waiting_for_a_write_holds_for_a_dialog_begun_meanwhile(
+    coordinator, client
+):
+    """The round passed the dialog check, then waited for a write; a dialog
+    begun in that time still had a page asked in front of its own."""
+    await coordinator._asking.acquire()
+    polling = asyncio.create_task(coordinator._async_update_data())
+    await settle()
+    visiting = coordinator.dialog_visiting()
+    await visiting.__aenter__()
+    coordinator._asking.release()
+    await settle()
+
+    assert client.asked == []
+    await visiting.__aexit__(None, None, None)
+    async with asyncio.timeout(HOLD_LIMIT_SECONDS):
+        await polling
+    await coordinator._async_update_data()
+    assert client.asked == [HEAT_PUMP.path, STATISTICS.path, HEATING.path]
+
+
 async def test_the_rounds_wait_until_the_last_of_two_dialogs_ends(coordinator, client):
     """Two reconfigure dialogs of one entry: the first to end let the rounds
     go while the second still visited."""

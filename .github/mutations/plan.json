@@ -3453,8 +3453,8 @@
   {
     "label": "power limit write: a round page is fetched beside a write",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            async with self._asking:\n                # The write the round waited for",
-    "new": "            if True:\n                # The write the round waited for",
+    "old": "            async with self._asking:\n                # A dialog may have begun",
+    "new": "            if True:\n                # A dialog may have begun",
     "tests": "no_round_request_lands_between_the_write_requests"
   },
   {
@@ -4562,5 +4562,19 @@
     "old": "        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n            # Here and not only where a page starts: a renewed login or a page\n            # asked again ran on after the close, up to a minute late, and so\n            # did a request that waited for Modbus while the client closed.\n            if self._closed and path != LOGOUT:\n                raise Closed(f\"{path}: the client is closed\")\n",
     "new": "        if self._closed and path != LOGOUT:\n            raise Closed(f\"{path}: the client is closed\")\n        cookie = {\"Cookie\": f\"{SESSION_COOKIE}={self._cookie}\"} if self._cookie else {}\n        async with self._host_lock:\n",
     "tests": "waiting_for_modbus_is_not_sent_once_the_client_closes"
+  },
+  {
+    "label": "webif rounds: a dialog begun while the round waited for a write is passed",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                if not self._no_dialog_visit.is_set():\n                    return True\n",
+    "new": "",
+    "tests": "dialog_begun_meanwhile"
+  },
+  {
+    "label": "webif rounds: the pages a dialog held are not asked after it",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                if not self._no_dialog_visit.is_set():\n                    return True\n",
+    "new": "                if not self._no_dialog_visit.is_set():\n                    for later in self._due():\n                        self._readings[later.key].asked_at = self._clock()\n                    return True\n",
+    "tests": "dialog_begun_meanwhile"
   }
 ]

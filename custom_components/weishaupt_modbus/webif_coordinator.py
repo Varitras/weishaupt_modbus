@@ -553,6 +553,10 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         for page in self._due():
             await self._no_dialog_visit.wait()
             async with self._asking:
+                # A dialog may have begun while the round waited for a write;
+                # the pages left stay due for the round after its visit.
+                if not self._no_dialog_visit.is_set():
+                    return True
                 # The write the round waited for may have read the page, or
                 # run into a timeout.
                 if page not in self._due():
