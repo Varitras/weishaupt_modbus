@@ -3544,7 +3544,7 @@
   {
     "label": "power limit write: a cancelled write leaves its callers waiting",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            if not outcome.done():\n                outcome.set_exception(_cut_off(counted=counted))\n",
+    "old": "            if not outcome.done() and not handed_on:\n                outcome.set_exception(_cut_off(counted=counted))\n",
     "new": "            pass\n",
     "tests": "cancelled_with_its_entry_lets_its_callers_go"
   },
@@ -4520,5 +4520,19 @@
     "old": "            except ModbusError, asyncio.CancelledError:\n",
     "new": "            except ModbusError:\n",
     "tests": "cancelled_on_its_way"
+  },
+  {
+    "label": "power limit write: a waiting write takes changes whose quiet time restarted",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                if self._burst is burst and self._quiet is not None:\n",
+    "new": "                if False:\n",
+    "tests": "as_a_write_ends_still_waits_its_quiet_time"
+  },
+  {
+    "label": "power limit write: changes handed on are cut off",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            if not outcome.done() and not handed_on:\n",
+    "new": "            if not outcome.done():\n",
+    "tests": "as_a_write_ends_still_waits_its_quiet_time"
   }
 ]

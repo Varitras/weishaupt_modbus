@@ -982,6 +982,30 @@ async def test_changes_while_a_write_runs_are_one_write_after_it(
     assert client.saved == [61, 63]
 
 
+async def test_a_change_as_a_write_ends_still_waits_its_quiet_time(
+    coordinator, client, clock, quick
+):
+    """The write waiting for the running one took its changes the moment that
+    ended, though the last of them had just restarted the quiet time: the
+    value still being changed went out, one EEPROM write more."""
+    await first_round_showing(coordinator, client, clock)
+    client.save_gate = asyncio.Event()
+    first = asyncio.create_task(coordinator.set_power_limit(61))
+    await until(lambda: client.saved)
+    second = asyncio.create_task(coordinator.set_power_limit(62))
+    await asyncio.sleep(2 * QUIET)
+
+    third = asyncio.create_task(coordinator.set_power_limit(63))
+    await asyncio.sleep(0)
+    client.save_gate.set()
+    await first
+    await asyncio.sleep(QUIET / 2)
+    fourth = asyncio.create_task(coordinator.set_power_limit(64))
+    await asyncio.gather(second, third, fourth)
+
+    assert client.saved == [61, 64]
+
+
 async def test_an_unload_calls_off_a_write_waiting_for_its_turn(
     coordinator, client, clock, quick
 ):

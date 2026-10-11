@@ -420,6 +420,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         """One write, its outcome handed to every caller that asked for it."""
         outcome = burst.outcome
         counted = False
+        handed_on = False
 
         def count_write() -> None:
             nonlocal counted
@@ -431,6 +432,11 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 # Live a write takes 20 to 60 s: the requests made while
                 # another ran joined this one, and from here on they wait
                 # for a write of their own.
+                if self._burst is burst and self._quiet is not None:
+                    # A change since this write was started restarted the
+                    # quiet time; the write that quiet time starts takes it.
+                    handed_on = True
+                    return
                 if self._burst is burst:
                     self._burst = None
                 if outcome.done():
@@ -464,7 +470,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             outcome.set_result(None)
         finally:
             # Cancelled as the entry unloads: no caller may wait for good.
-            if not outcome.done():
+            if not outcome.done() and not handed_on:
                 outcome.set_exception(_cut_off(counted=counted))
 
     def _after_failed_write(self, error: Exception) -> None:
