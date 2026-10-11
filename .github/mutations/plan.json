@@ -4450,5 +4450,40 @@
     "old": "            \"prefix\": name_prefix(pump_data, description.topic)\n",
     "new": "            \"prefix\": name_prefix({**pump_data, \"Name-Device-Prefix\": False}, description.topic)\n",
     "tests": "device_prefix_option_names_a_sensor_too"
+  },
+  {
+    "label": "register table: circuit 3's rows sit on circuit 4's device",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "    mbi3.device = DEVICES.HZ3\n",
+    "new": "    mbi3.device = DEVICES.HZ4\n",
+    "tests": "circuit_copy"
+  },
+  {
+    "label": "register table: circuit 2's room setpoint is bounded by circuit 3's",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "        mbi2.params = PARAMS_ROOMTEMP_MID2\n",
+    "new": "        mbi2.params = PARAMS_ROOMTEMP_MID3\n",
+    "tests": "circuit_copy"
+  },
+  {
+    "label": "register table: circuit 3's lowered setpoint is bounded by circuit 4's",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "PARAMS_ROOMTEMP_LOW3[\"dynamic_max\"] = PARAMS_ROOMTEMP_LOW3[\"dynamic_max\"] + \"3\"\n",
+    "new": "PARAMS_ROOMTEMP_LOW3[\"dynamic_max\"] = PARAMS_ROOMTEMP_LOW3[\"dynamic_max\"] + \"4\"\n",
+    "tests": "circuit_copy"
+  },
+  {
+    "label": "register table: circuit 3's copy sits where circuit 4's does",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "    mbi3.address = item.address + 200\n",
+    "new": "    mbi3.address = item.address + 300\n",
+    "tests": "circuit_copy"
+  },
+  {
+    "label": "coordinator: circuit 3's rows follow circuit 4's switch",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "    DeviceConstants.HZ3: CONF.HK3,\n",
+    "new": "    DeviceConstants.HZ3: CONF.HK4,\n",
+    "tests": "circuit_copy"
   }
 ]

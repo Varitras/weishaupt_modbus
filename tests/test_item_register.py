@@ -20,7 +20,11 @@ import re
 
 import pytest
 
-from custom_components.weishaupt_modbus.const import DEVICES, FORMATS, TYPES
+from custom_components.weishaupt_modbus.const import CONF, DEVICES, FORMATS, TYPES
+from custom_components.weishaupt_modbus.coordinator import (
+    CIRCUIT_DEVICE_SWITCHES,
+    CIRCUIT_SWITCHES,
+)
 from custom_components.weishaupt_modbus.entities import SWITCH_SUFFIX
 from custom_components.weishaupt_modbus.items import ModbusItem
 from custom_components.weishaupt_modbus.webif_sensor import (
@@ -30,6 +34,9 @@ from custom_components.weishaupt_modbus.webif_sensor import (
     WEBIF_SENSORS,
 )
 from custom_components.weishaupt_modbus.weishaupt_modbus_api import hpconst
+from custom_components.weishaupt_modbus.weishaupt_modbus_api.device import (
+    CIRCUIT_STRIDE,
+)
 from custom_components.weishaupt_modbus.write_counter_sensor import (
     WEBIF_WRITE_COUNTER_DESCRIPTIONS,
     WRITE_COUNTER_DESCRIPTIONS,
@@ -579,3 +586,28 @@ def test_the_digital_inputs_all_read_as_on_or_off():
     assert all(item.resultlist is hpconst.W2_STATUS for item in digital), (
         "one on/off list for every digital input, not a copy each"
     )
+
+
+@pytest.mark.parametrize("circuit", [2, 3, 4, 5])
+def test_every_circuit_copy_sits_on_its_own_device_switch_and_bounds(circuit):
+    """Each copy repeats its offset, device, switch and bound keys as
+    literals; one copied wrong - circuit 3 on circuit 4's device, or bounded
+    by circuit 4's setpoints - left every other test green."""
+    first = hpconst.MODBUS_HZ_ITEMS
+    rows = getattr(hpconst, f"MODBUS_HZ{circuit}_ITEMS")
+    device = getattr(DEVICES, f"HZ{circuit}")
+    offset = CIRCUIT_STRIDE * (circuit - 1)
+    keys = {row.translation_key for row in rows}
+
+    assert [row.address for row in rows] == [row.address + offset for row in first]
+    assert {row.device for row in rows} == {device}
+    switch = getattr(CONF, f"HK{circuit}")
+    assert CIRCUIT_SWITCHES[circuit] == CIRCUIT_DEVICE_SWITCHES[device] == switch
+    bounds = [
+        row.params[bound]
+        for row in rows
+        for bound in ("dynamic_min", "dynamic_max")
+        if bound in row.params
+    ]
+    assert bounds
+    assert set(bounds) <= keys, f"bounded by another circuit: {set(bounds) - keys}"
