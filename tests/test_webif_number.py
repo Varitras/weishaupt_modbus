@@ -39,6 +39,20 @@ def _number(heating):
     return PowerLimitNumber(FakeCoordinator(heating), PUMP_DATA)
 
 
+def test_the_naming_options_name_the_power_limit_like_the_sensors():
+    """The README promises both options for the web interface's values; only
+    the sensors were held to it."""
+    pump_data = {
+        **PUMP_DATA,
+        CONF.NAME_DEVICE_PREFIX: True,
+        CONF.NAME_TOPIC_PREFIX: True,
+    }
+
+    number = PowerLimitNumber(FakeCoordinator({}), pump_data)
+
+    assert number.translation_placeholders == {"prefix": f"WP_{CONST.DEF_PREFIX}_"}
+
+
 def test_the_number_shows_the_heating_page_value():
     number = _number({"Leistungsbegrenzung": "60 %", "Schaltdifferenz": "4.5 K"})
 

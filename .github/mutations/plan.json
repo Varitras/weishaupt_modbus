@@ -4576,5 +4576,12 @@
     "old": "            raise ModbusTimeoutError(f\"register {address}: no answer\") from err\n",
     "new": "            raise\n",
     "tests": "fails_as_a_modbus_timeout or circuit_configuration_read_that_never_answers"
+  },
+  {
+    "label": "webif number: the naming options leave the power limit's name alone",
+    "path": "custom_components/weishaupt_modbus/webif_number.py",
+    "old": "            \"prefix\": name_prefix(pump_data, POWER_LIMIT.topic)\n",
+    "new": "            \"prefix\": \"\"\n",
+    "tests": "naming_options_name_the_power_limit"
   }
 ]
