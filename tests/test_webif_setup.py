@@ -408,6 +408,9 @@ async def test_a_web_interface_follows_its_pump_to_a_new_address(
     hass.config_entries.async_update_entry(
         pump_entry, data={**pump_entry.data, CONF.HOST: other_pump.host}
     )
+    if running:
+        # As reconfigure does: the pump's own reload follows the new data.
+        hass.config_entries.async_schedule_reload(pump_entry.entry_id)
     await hass.async_block_till_done(wait_background_tasks=True)
 
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
