@@ -1,8 +1,8 @@
 # The gate tools at the versions check.sh and CI both run. One file for both:
 # requirements_test.txt includes it and the workflow installs against it, so
 # a Dependabot bump moves the local gates and CI together.
-ruff==0.16.9
-mypy==2.3.1
+ruff==0.16.10
+mypy==2.4.0
 pip-audit==2.10.1
 # resolve_phcc.py parses versions with it.
 packaging==26.3
