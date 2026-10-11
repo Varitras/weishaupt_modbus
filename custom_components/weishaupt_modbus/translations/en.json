@@ -1962,7 +1962,6 @@
       }
     }
   },
-  "title": "Weishaupt Heat Pump",
   "options": {
     "error": {
       "warning_above_limit": "The warning threshold is above the daily limit, so writes would be refused before it could fire"

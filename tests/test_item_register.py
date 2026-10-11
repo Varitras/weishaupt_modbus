@@ -141,6 +141,23 @@ def test_a_setpoint_switch_without_a_name_is_caught(path):
     assert not unnamed, f"{path.name}: switch(es) without a name: {unnamed}"
 
 
+def test_the_integration_has_one_name_everywhere():
+    """It was "Weishaupt WBB" in the list to add from and in HACS, then
+    "Weishaupt Heat Pump" or "Weishaupt Wärmepumpe" once added - a translated
+    title replaces the manifest's name - and "Weishaupt Modbus" in the README."""
+    repo = PACKAGE.parents[1]
+    name = json.loads((PACKAGE / "manifest.json").read_text(encoding="utf-8"))["name"]
+    hacs = json.loads((repo / "hacs.json").read_text(encoding="utf-8"))["name"]
+    readme = (repo / "README.md").read_text(encoding="utf-8").splitlines()[0]
+    titles = {
+        path.name: json.loads(path.read_text(encoding="utf-8")).get("title")
+        for path in TRANSLATION_FILES
+    }
+
+    assert (name, hacs, readme) == ("Weishaupt Modbus", name, f"# {name}")
+    assert not any(titles.values()), f"a title in place of the name: {titles}"
+
+
 # Every device name starts with it: the entity ids made from the device names
 # stay apart from other integrations' that way.
 DEVICE_NAME_PREFIX = "WH "

@@ -60,7 +60,7 @@ Add this repository as a custom repository in HACS (category *Integration*)
 and install it, or copy `custom_components/weishaupt_modbus/` into the
 `custom_components/` directory of your Home Assistant configuration and
 restart. Then add the integration under *Settings → Devices & services →
-Add integration → Weishaupt WBB*, or directly:
+Add integration → Weishaupt Modbus*, or directly:
 
 [![Start Config Flow](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start?domain=weishaupt_modbus)
 
@@ -326,7 +326,7 @@ little and stops on its own when the answers go wrong.
 The web interface belongs to a heat pump entry, so set the heat pump up
 first: the dialog offers *Web interface of a heat pump* only once a heat pump
 entry exists, and goes straight to the heat pump before that. Then
-*Settings → Devices & services → Add integration → Weishaupt WBB → Web
+*Settings → Devices & services → Add integration → Weishaupt Modbus → Web
 interface of a heat pump*, pick the heat pump and enter the web interface's
 user and password. A heat pump has one web interface entry: the list offers
 only heat pumps that have none yet. Logging in, finding the pages and reading
@@ -625,7 +625,7 @@ statistics changed; open *Developer tools -> Statistics* to settle each:
 
 ## Removal
 
-1. *Settings → Devices & services → Weishaupt WBB*, open the entry's menu and
+1. *Settings → Devices & services → Weishaupt Modbus*, open the entry's menu and
    choose *Delete*. This removes its devices and entities; what the
    recorder already stored stays in its database. A heat pump's web
    interface is an entry of its own: delete it as well, on its own it only

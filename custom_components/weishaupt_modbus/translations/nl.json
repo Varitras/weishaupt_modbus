@@ -1962,7 +1962,6 @@
       }
     }
   },
-  "title" : "Weishaupt Warmtepomp",
   "options" : {
     "error" : {
       "warning_above_limit" : "De waarschuwingsdrempel ligt boven de daglimiet, schrijfacties zouden worden geweigerd voordat die kan afgaan"

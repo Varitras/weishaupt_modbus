@@ -1962,7 +1962,6 @@
             }
         }
     },
-    "title": "Weishaupt Wärmepumpe",
     "options": {
         "error": {
           "warning_above_limit": "Die Warnschwelle liegt über dem Tageslimit, Schreibzugriffe würden abgelehnt, bevor sie greifen könnte"
