@@ -668,6 +668,19 @@ def _no_answer_in_time(pump, entry):
     entry.runtime_data.client._timeout = aiohttp.ClientTimeout(total=0.1)
 
 
+async def test_a_download_during_a_stop_shows_no_values_from_before_it(hass, pump):
+    """Home Assistant keeps the last data a refresh returned: the download
+    showed every page's values from before the stop as current, hours on."""
+    entry = await _start(hass, _entries(hass, pump))
+    _error_status(pump, entry)
+
+    await _until_stopped(entry)
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+    pages = diagnostics["coordinator"]["pages"]
+    assert pages == dict.fromkeys(pages)
+
+
 @pytest.mark.parametrize(
     ("failing", "reason"),
     [

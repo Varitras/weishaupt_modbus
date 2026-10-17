@@ -282,7 +282,8 @@ heating power limit; nothing else is written.
 This part is experimental. The controller's web server is slow and now and
 then answers with an incomplete page, and heavy polling has disturbed
 controllers before (upstream issue #159). The integration therefore asks
-little and stops on its own when the answers go wrong.
+little and pauses on its own when the answers go wrong, until they come
+right again.
 
 ### Switching it on
 
@@ -389,7 +390,7 @@ pump's devices.
 - **Setting** (configuration): the heating power limit, 10 to 100 %; see
   [Setting the heating power limit](#setting-the-heating-power-limit).
 - **Settings written** (diagnostic): in total and today, carried over
-  restarts and shown while the polling has stopped; the options limit them
+  restarts and shown while the polling is paused; the options limit them
   per day.
 - **The polling itself** (diagnostic): the answer time, which is the slowest
   answer since the round before - a setting written in between counts too -
@@ -398,8 +399,8 @@ pump's devices.
   failed; an error in the integration itself is not counted there. The
   counts carry over restarts, so Home Assistant's statistics show over weeks
   whether the web interface answers more slowly or serves more incomplete
-  pages, which preceded its crashes. They stay shown when polling has
-  stopped.
+  pages, which preceded its crashes. They stay shown while polling is
+  paused.
 
 The *Name topic prefix* and *Name device prefix* options of the heat pump
 entry name the values and the power limit like their Modbus siblings, with
@@ -426,10 +427,10 @@ the controller, 10 to 100 % in steps of one.
   form once and reads the heating page back. A value the controller already
   shows is not written.
 - The number shows a value only once the controller shows it, and unknown
-  while the heating page has no reading or polling has stopped. It stays
+  while the heating page has no reading or polling is paused. It stays
   available, so a value can be set without a reading. A refused or failed
   write says why at the call: the
-  daily limit reached, polling stopped, a form that does not match the
+  daily limit reached, polling paused, a form that does not match the
   value shown, or a save the controller did not confirm.
 - The save is never repeated. When its outcome is unclear, the next reading
   shows what the controller holds.
@@ -467,12 +468,12 @@ delete them. Home Assistant raises no repair notice for them.
   and not after a write. A write that meets one of these gives the same rest.
   A power limit you set during the rest still goes out.
 - A page that fails keeps its values once; the second failure in a row makes
-  them unavailable; the third stops polling and raises a repair notice.
+  them unavailable; the third pauses polling and raises a repair notice.
   A failed page is asked for again only after its own interval. The notice
   names the page and why; for a page that came wrong, the titles it lacked,
   showed blank or showed twice, or their number when there are more than
   five.
-- Once stopped, only that page is asked again: after 15 minutes, or after the
+- While paused, only that page is asked again: after 15 minutes, or after the
   shortest page interval if that is longer, then at waits doubling from
   there up to 2 hours. When it comes whole, polling resumes and the notice
   goes by itself; the other pages show values again once they are read
@@ -485,17 +486,18 @@ delete them. Home Assistant raises no repair notice for them.
   page.
 - A write of the heating power limit asks nothing of a round between its
   reads, its save and its read-back; a round waits for it. Its reads count
-  in the polling counts like a round's, but its failures do not stop
+  in the polling counts like a round's, but its failures do not pause
   polling.
 
 The user and password are stored in Home Assistant's configuration and sent
 to the heat pump only, as plain HTTP: the controller offers nothing else, so
 keep it on a network you trust. The diagnostics download leaves them out, and
-the page addresses the entry stores; after a stop, the reason it and the
+the page addresses the entry stores; after a pause, the reason it and the
 repair notice give is the kind of failure and its cause, such as
 `Unreachable (TimeoutError)` or `Unreachable (HTTP 500)`, never a page
 address or a value the controller sent; for a page that came wrong, the
-titles it lacked or showed blank, such as `Broken (missing: Hochdruck)`. Of
+titles it lacked, showed blank or showed twice, such as
+`Broken (missing: Hochdruck)`. Of
 each page it holds only the values the sensors show.
 
 ## Actions

@@ -4744,5 +4744,12 @@
     "old": "        self._stopped = _Stopped(page, reason, wait, self._clock() + wait)\n",
     "new": "        first = self._stopped is None\n        self._stopped = _Stopped(page, reason, wait, self._clock() + wait)\n        if not first:\n            return\n",
     "tests": "failed_retry_tells_its_own_reason_in_the_notice"
+  },
+  {
+    "label": "webif coordinator: the download shows Home Assistant's kept data",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            \"pages\": self._published(),\n",
+    "new": "            \"pages\": self.data,\n",
+    "tests": "download_during_a_stop_shows_no_values_from_before_it"
   }
 ]

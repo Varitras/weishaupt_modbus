@@ -557,6 +557,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         now = self._clock()
         stopped = self._stopped
         return {
+            # Not `data`: Home Assistant keeps the last data a refresh returned,
+            # through a stop the values from before it.
+            "pages": self._published(),
             "answer_seconds": self.answer_seconds,
             "traffic": asdict(self.traffic),
             "stopped_by": None if stopped is None else self._stopped_by(stopped),
