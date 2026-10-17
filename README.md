@@ -3,7 +3,8 @@
 A Home Assistant integration that reads and controls a Weishaupt heat pump
 (WBB, WWP, WSB and related models) over Modbus TCP: temperatures, operating
 states, error codes, energy statistics and an estimated heat output, plus the
-setpoints and operating modes the controller lets you write.
+setpoints and operating modes the controller lets you write. The Modbus
+register reference is in the [wiki](https://github.com/Varitras/weishaupt_modbus/wiki).
 
 This is a fork of [OStrama/weishaupt_modbus](https://github.com/OStrama/weishaupt_modbus).
 It differs from upstream on purpose:
