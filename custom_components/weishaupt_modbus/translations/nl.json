@@ -2015,7 +2015,7 @@
       "message" : "Modbus-communicatiefout: {error}"
     },
     "webif_stopped" : {
-      "message" : "Opvragen van de webinterface gestopt na herhaalde fouten van {page}: {error}"
+      "message" : "Opvragen van de webinterface gepauzeerd na herhaalde fouten van {page}: {error}"
     },
     "webif_pump_removed" : {
       "message" : "De bijbehorende warmtepompvermelding is verwijderd. Verwijder deze vermelding en voeg de webinterface opnieuw toe met de warmtepomp."
@@ -2024,7 +2024,7 @@
       "message" : "De webinterface heeft gebruiker en wachtwoord geweigerd."
     },
     "webif_write_stopped" : {
-      "message" : "Het opvragen van de webinterface is gestopt. Laad de vermelding opnieuw voordat u een waarde instelt."
+      "message" : "Het opvragen van de webinterface is gepauzeerd totdat de regelaar zijn pagina's weer levert. Opnieuw laden van de vermelding probeert het meteen."
     },
     "webif_write_login_refused" : {
       "message" : "De webinterface heeft gebruiker en wachtwoord geweigerd. Controleer ze in de vermelding."
@@ -2062,8 +2062,8 @@
   },
   "issues" : {
     "webif_stopped" : {
-      "title" : "Opvragen van de webinterface gestopt",
-      "description" : "De pagina {page} mislukte meerdere keren achter elkaar ({error}). Om de regelaar te sparen is het opvragen van de webinterface van de warmtepomp gestopt. Modbus blijft gewoon werken. Controleer de webinterface in een browser en houd de warmtepomp in de gaten; laad daarna de webinterface-vermelding opnieuw om het opvragen te hervatten."
+      "title" : "Opvragen van de webinterface gepauzeerd",
+      "description" : "De pagina {page} mislukte meerdere keren achter elkaar ({error}). Om de regelaar te sparen is het opvragen van de webinterface van de warmtepomp gepauzeerd. Modbus blijft gewoon werken. Alleen deze pagina wordt opnieuw opgevraagd, na 15 minuten, of na het kortste pagina-interval als dat langer is, en daarna met wachttijden die vanaf daar verdubbelen tot 2 uur; komt ze volledig, dan gaat het opvragen verder en verdwijnt deze melding vanzelf. Opnieuw laden van de webinterface-vermelding probeert het meteen."
     },
     "circuit_not_enabled" : {
       "title" : "Verwarmingscircuit {circuit} wordt niet gelezen",

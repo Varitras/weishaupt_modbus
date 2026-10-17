@@ -982,8 +982,8 @@
   {
     "label": "webif client: a page wrong twice passes",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        if not complete(text):\n            self.traffic.incomplete_pages += 1\n            raise Broken(path)\n",
-    "new": "        if not text:\n            self.traffic.incomplete_pages += 1\n            raise Broken(path)\n",
+    "old": "        if not complete(text):\n            self.traffic.incomplete_pages += 1\n            raise Broken(path, text=text)\n",
+    "new": "        if not text:\n            self.traffic.incomplete_pages += 1\n            raise Broken(path, text=text)\n",
     "tests": "page_wrong_twice_is_broken"
   },
   {
@@ -1024,8 +1024,8 @@
   {
     "label": "webif coordinator: the stop notice outlives its entry",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        ir.async_delete_issue(self.hass, CONST.DOMAIN, self._issue)\n",
-    "new": "",
+    "old": "            self._burst = None\n        ir.async_delete_issue(self.hass, CONST.DOMAIN, self._issue)\n",
+    "new": "            self._burst = None\n",
     "tests": "takes_the_stop_notice_along"
   },
   {
@@ -1246,18 +1246,11 @@
     "tests": "third_failure_in_a_row_stops or broken_for_good_stops"
   },
   {
-    "label": "webif coordinator: a stop leaves the round schedule running",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        self.update_interval = None\n",
-    "new": "",
-    "tests": "third_failure_in_a_row_stops"
-  },
-  {
     "label": "webif coordinator: a stopped coordinator still asks by hand",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        if self._stopped_by is None:\n            if not await self._round():\n",
-    "new": "        if True:\n            if not await self._round():\n",
-    "tests": "third_failure_in_a_row_stops"
+    "old": "        if self._stopped is not None:\n            return _retry_due(self._stopped, now)\n",
+    "new": "",
+    "tests": "stop_asks_the_failed_page_alone"
   },
   {
     "label": "webif coordinator: a good reading does not reset the count",
@@ -2319,23 +2312,23 @@
   {
     "label": "webif coordinator: rounds come on the shortest interval, whatever is due",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            min(self._due_in(page, now) for page in self._pages),\n",
-    "new": "            self._shortest_interval.total_seconds(),\n",
+    "old": "        return min(self._due_in(page, now) for page in self._pages)\n",
+    "new": "        return self._shortest_interval.total_seconds()\n",
     "tests": "refresh_by_hand_does_not_put_the_next_round_off or 7_minutes_beside_one_of_5"
   },
   {
     "label": "webif coordinator: a round ended by a timeout is followed at once",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            if not await self._round():\n                self._rest()\n",
-    "new": "            if not await self._round():\n                pass\n",
+    "old": "        if not await self._round():\n            self._rest()\n",
+    "new": "        if not await self._round():\n            pass\n",
     "tests": "round_ended_by_a_timeout_gives_the_controller_a_rest"
   },
   {
     "label": "webif coordinator: the next plan undoes the brake",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        if self._stopped_by is not None:\n            return\n        now = self._clock()\n",
-    "new": "        now = self._clock()\n",
-    "tests": "third_failure_in_a_row_stops"
+    "old": "        if self._stopped is not None:\n            return self._stopped.retry_at - now\n",
+    "new": "",
+    "tests": "each_failed_retry_doubles_the_wait"
   },
   {
     "label": "webif discovery: a menu served half reads as another language",
@@ -2417,8 +2410,8 @@
   {
     "label": "webif client: a second incomplete answer goes uncounted",
     "path": "custom_components/weishaupt_modbus/webif/client.py",
-    "old": "        if not complete(text):\n            self.traffic.incomplete_pages += 1\n            raise Broken(path)\n",
-    "new": "        if not complete(text):\n            raise Broken(path)\n",
+    "old": "        if not complete(text):\n            self.traffic.incomplete_pages += 1\n            raise Broken(path, text=text)\n",
+    "new": "        if not complete(text):\n            raise Broken(path, text=text)\n",
     "tests": "second_ask_is_counted_too"
   },
   {
@@ -2522,7 +2515,7 @@
   {
     "label": "webif coordinator: the download leaves the stop cause out",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            \"stopped_by\": self._stopped_by,\n",
+    "old": "            \"stopped_by\": None if stopped is None else self._stopped_by(stopped),\n",
     "new": "            \"stopped_by\": None,\n",
     "tests": "diagnostics_name_the_page_the_brake_stopped_on"
   },
@@ -2672,20 +2665,6 @@
     "old": "            return self._failed(page, type(error).__name__)\n",
     "new": "            return self._failed(page, str(error))\n",
     "tests": "unexpected_error_by_its_kind_only"
-  },
-  {
-    "label": "webif coordinator: a broken page's stop lets the round go on",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            if not self._failed(page, error.summary):\n                return False\n",
-    "new": "            self._failed(page, error.summary)\n",
-    "tests": "round_that_stops_polling_asks_nothing_more"
-  },
-  {
-    "label": "webif coordinator: an unexpected error's stop lets the round go on",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            return self._failed(page, type(error).__name__)\n",
-    "new": "            self._failed(page, type(error).__name__)\n            return True\n",
-    "tests": "round_that_stops_polling_asks_nothing_more"
   },
   {
     "label": "webif coordinator: a wait of zero plans no round at all",
@@ -3985,7 +3964,7 @@
   {
     "label": "webif coordinator: a stop gives the client's own text as its reason",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            if not self._failed(page, error.summary):\n",
+    "old": "            if not self._failed(page, _failure_reason(page, error)):\n",
     "new": "            if not self._failed(page, str(error)):\n",
     "tests": "keeps_the_page_address_out_of_the_download or nothing_of_its_own_into_the_stop_notice"
   },
@@ -4639,5 +4618,138 @@
     "old": "            or unchecked_files\n",
     "new": "",
     "tests": "unpinned_install_however_it_is_written"
+  },
+  {
+    "label": "webif coordinator: a stop is retried after a longer first wait",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "FIRST_RETRY_SECONDS = 15 * 60.0\n",
+    "new": "FIRST_RETRY_SECONDS = 20 * 60.0\n",
+    "tests": "stop_asks_the_failed_page_alone"
+  },
+  {
+    "label": "webif coordinator: a failed retry does not wait longer",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            wait = min(2 * self._stopped.wait, LONGEST_RETRY_SECONDS)\n",
+    "new": "            wait = min(self._stopped.wait, LONGEST_RETRY_SECONDS)\n",
+    "tests": "each_failed_retry_doubles_the_wait"
+  },
+  {
+    "label": "webif coordinator: the retry wait grows without a bound",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            wait = min(2 * self._stopped.wait, LONGEST_RETRY_SECONDS)\n",
+    "new": "            wait = 2 * self._stopped.wait\n",
+    "tests": "each_failed_retry_doubles_the_wait"
+  },
+  {
+    "label": "webif coordinator: the stop notice is an error",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            severity=ir.IssueSeverity.WARNING,\n",
+    "new": "            severity=ir.IssueSeverity.ERROR,\n",
+    "tests": "third_failure_in_a_row_stops_polling"
+  },
+  {
+    "label": "webif coordinator: a stop retries before its wait is over",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "    if stopped.retry_at - now > DUE_SLACK_SECONDS:\n        return []\n",
+    "new": "",
+    "tests": "stop_asks_the_failed_page_alone"
+  },
+  {
+    "label": "webif coordinator: a page read again does not resume polling",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            self._stopped = None\n            ir.async_delete_issue(self.hass, CONST.DOMAIN, self._issue)\n",
+    "new": "            ir.async_delete_issue(self.hass, CONST.DOMAIN, self._issue)\n",
+    "tests": "retry_that_reads_the_page_resumes_polling"
+  },
+  {
+    "label": "webif coordinator: resumed polling keeps the stop notice",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            self._stopped = None\n            ir.async_delete_issue(self.hass, CONST.DOMAIN, self._issue)\n",
+    "new": "            self._stopped = None\n",
+    "tests": "retry_that_reads_the_page_resumes_polling"
+  },
+  {
+    "label": "webif coordinator: the download gives the retry wait in seconds",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            \"retry_minutes\": None if stopped is None else stopped.wait / 60,\n",
+    "new": "            \"retry_minutes\": None if stopped is None else stopped.wait,\n",
+    "tests": "each_failed_retry_doubles_the_wait"
+  },
+  {
+    "label": "webif coordinator: a broken page's stop names no titles",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "    return f\"{error.summary} ({page.flaws(error.text)})\"\n",
+    "new": "    return error.summary\n",
+    "tests": "broken_page_names_the_titles_that_made_it_so"
+  },
+  {
+    "label": "webif coordinator: a broken error without its answer reads a page of none",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "    if not isinstance(error, Broken) or error.text is None:\n",
+    "new": "    if not isinstance(error, Broken):\n",
+    "tests": "broken_error_without_its_answer_is_named_by_kind_only"
+  },
+  {
+    "label": "webif coordinator: five lacking titles are counted, not named",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "    if len(titles) > TITLES_NAMED:\n",
+    "new": "    if len(titles) >= TITLES_NAMED:\n",
+    "tests": "page_lacking_more_than_five_titles_counts_them"
+  },
+  {
+    "label": "webif coordinator: a broken page names no blank titles",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            (\"blank or doubled\", self.unclear(text)),\n",
+    "new": "",
+    "tests": "broken_page_names_the_titles_that_made_it_so"
+  },
+  {
+    "label": "webif client: a broken page leaves its answer behind",
+    "path": "custom_components/weishaupt_modbus/webif/client.py",
+    "old": "        self.text = text\n",
+    "new": "        self.text = None\n",
+    "tests": "broken_page_carries_its_last_answer_outside_its_message"
+  },
+  {
+    "label": "webif coordinator: a stop says a first wait shorter than its rest",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            wait = max(FIRST_RETRY_SECONDS, self._shortest_interval.total_seconds())\n",
+    "new": "            wait = FIRST_RETRY_SECONDS\n",
+    "tests": "stop_waits_out_a_page_interval_longer"
+  },
+  {
+    "label": "webif coordinator: a stop keeps the other pages' old values",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            for reading in self._readings.values():\n                reading.values = None\n",
+    "new": "",
+    "tests": "other_pages_show_nothing_until_read_again"
+  },
+  {
+    "label": "webif coordinator: a value without a title is named by nothing",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "    return \", \".join(sorted(title or \"untitled\" for title in titles))\n",
+    "new": "    return \", \".join(sorted(titles))\n",
+    "tests": "value_without_a_title_is_named_untitled"
+  },
+  {
+    "label": "webif coordinator: resumed polling rests before the overdue pages",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            ir.async_delete_issue(self.hass, CONST.DOMAIN, self._issue)\n        return True\n",
+    "new": "            ir.async_delete_issue(self.hass, CONST.DOMAIN, self._issue)\n            self._rest()\n        return True\n",
+    "tests": "resumed_polling_asks_the_overdue_pages_at_once"
+  },
+  {
+    "label": "webif coordinator: a failed retry keeps the first reason in the notice",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self._stopped = _Stopped(page, reason, wait, self._clock() + wait)\n",
+    "new": "        first = self._stopped is None\n        self._stopped = _Stopped(page, reason, wait, self._clock() + wait)\n        if not first:\n            return\n",
+    "tests": "failed_retry_tells_its_own_reason_in_the_notice"
+  },
+  {
+    "label": "webif coordinator: the download shows Home Assistant's kept data",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            \"pages\": self._published(),\n",
+    "new": "            \"pages\": self.data,\n",
+    "tests": "download_during_a_stop_shows_no_values_from_before_it"
   }
 ]

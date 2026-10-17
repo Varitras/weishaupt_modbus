@@ -86,6 +86,17 @@ class LoginRefused(WebifError):
 class Broken(WebifError):
     """The page came whole but wrong, also after its one more try."""
 
+    def __init__(
+        self, message: str, cause: str = "", *, text: str | None = None
+    ) -> None:
+        """Keep the last answer apart from the message, which goes to the log.
+
+        `text` is what the page showed, for naming the titles it lacked;
+        None where no answer of a page stands behind the error.
+        """
+        super().__init__(message, cause)
+        self.text = text
+
 
 class Closed(WebifError):
     """The client was closed: its entry unloads or Home Assistant stops."""
@@ -370,7 +381,7 @@ class Client:
         text = _page_text(path, await self._request("GET", path))
         if not complete(text):
             self.traffic.incomplete_pages += 1
-            raise Broken(path)
+            raise Broken(path, text=text)
         return text
 
     async def close(self) -> None:

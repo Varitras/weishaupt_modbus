@@ -646,7 +646,7 @@ async def _until_stopped(entry):
     for _ in range(webif_coordinator.FAILURES_TO_STOP):
         clock.now += 3 * 3600
         await coordinator.async_refresh()
-    assert coordinator._stopped_by is not None, "the brake did not stop"
+    assert coordinator._stopped is not None, "the brake did not stop"
 
 
 def _stop_notice(hass, entry):
@@ -668,11 +668,24 @@ def _no_answer_in_time(pump, entry):
     entry.runtime_data.client._timeout = aiohttp.ClientTimeout(total=0.1)
 
 
+async def test_a_download_during_a_stop_shows_no_values_from_before_it(hass, pump):
+    """Home Assistant keeps the last data a refresh returned: the download
+    showed every page's values from before the stop as current, hours on."""
+    entry = await _start(hass, _entries(hass, pump))
+    _error_status(pump, entry)
+
+    await _until_stopped(entry)
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+    pages = diagnostics["coordinator"]["pages"]
+    assert pages == dict.fromkeys(pages)
+
+
 @pytest.mark.parametrize(
     ("failing", "reason"),
     [
         (_error_status, "Unreachable (HTTP 500)"),
-        (_served_half, "Broken"),
+        (_served_half, "Broken (missing: 31 titles)"),
         (_no_answer_in_time, "Unreachable (TimeoutError)"),
     ],
     ids=["an error status", "a page served half", "no answer in time"],
@@ -1166,7 +1179,8 @@ async def test_a_write_cancelled_in_the_gap_before_its_save_counts_nothing(
     monkeypatch.setattr(entry, "async_create_background_task", noted)
     leaf = f"{HEATING_PATH},{limit_segment(60)}"
     setting = asyncio.create_task(_set_power_limit(hass, 61))
-    await until(lambda: ("GET", leaf) in pump.asked, seconds=3 * SAVE_GAP)
+    # The debounce and two gaps lie before it: under a loaded gate 3 s ran out.
+    await until(lambda: ("GET", leaf) in pump.asked, seconds=10 * SAVE_GAP)
     await asyncio.sleep(SAVE_GAP / 2)
 
     started[0].cancel()

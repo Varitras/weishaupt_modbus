@@ -4,8 +4,9 @@ A round comes when the next page is due and asks for every page that is, the
 one with the oldest reading first: after a timeout nothing else is asked in
 that round, and a fixed order would leave the last pages starving on a
 struggling pump. A page that fails keeps its last values through one failure,
-the second in a row takes them away, and the third stops all polling until
-the entry is reloaded.
+the second in a row takes them away, and the third stops all polling. Then
+only that page is asked again, at waits growing to two hours, until it comes
+whole or the entry is reloaded.
 
 It also writes the one setting the integration sets, the heating power
 limit: once the requests have settled, between two pages of a round, never
@@ -32,6 +33,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .const import CONST
 from .webif import pages
 from .webif.client import (
+    Broken,
     Client,
     Closed,
     LoginRefused,
@@ -57,6 +59,11 @@ _LOGGER = logging.getLogger(__name__)
 # shows unavailable, the third stops polling.
 FAILURES_KEPT = 1
 FAILURES_TO_STOP = 3
+# User decision 2026-10-17: a stop held until a reload by hand, and a page
+# broken for minutes stopped polling for days. The page is asked alone again
+# after the first wait, each failed try doubling it up to the longest.
+FIRST_RETRY_SECONDS = 15 * 60.0
+LONGEST_RETRY_SECONDS = 2 * 3600.0
 # Home Assistant plans the next round from the whole second, so a round may
 # start up to a second before a page's interval is over. Five cover that with
 # room to spare and read a page at most 5 s early, nothing next to minutes.
@@ -66,6 +73,9 @@ DUE_SLACK_SECONDS = 5.0
 # second later instead.
 SHORTEST_WAIT_SECONDS = 1.0
 STOPPED_ISSUE = "webif_stopped"
+# A wrong page in place of the asked one lacks every title: more than these
+# are counted, not listed, in the notice and the log.
+TITLES_NAMED = 5
 # Spec decision, 2026-10-09: a write starts after this long without a further
 # request, so arrow clicks and second thoughts make one write, of the last.
 DEBOUNCE_SECONDS = 5.0
@@ -131,6 +141,22 @@ class Page:
         twice = {title for title in self.required if counts[title] > 1}
         return frozenset(empty | twice)
 
+    def flaws(self, text: str) -> str:
+        """What keeps the page from being whole, by its titles, never a value."""
+        named = (
+            ("missing", self.missing(text)),
+            ("blank or doubled", self.unclear(text)),
+        )
+        return "; ".join(
+            f"{kind}: {_titles(titles)}" for kind, titles in named if titles
+        )
+
+
+def _titles(titles: frozenset[str]) -> str:
+    if len(titles) > TITLES_NAMED:
+        return f"{len(titles)} titles"
+    return ", ".join(sorted(title or "untitled" for title in titles))
+
 
 def polled_pages(
     paths: Mapping[str, str],
@@ -184,6 +210,30 @@ class _Reading:
 
 def _oldest_first(reading: _Reading) -> float:
     return -math.inf if reading.read_at is None else reading.read_at
+
+
+@dataclass(frozen=True)
+class _Stopped:
+    """The page that stopped polling, why, and when it is asked again."""
+
+    page: Page
+    reason: str
+    wait: float
+    retry_at: float
+
+
+def _retry_due(stopped: _Stopped, now: float) -> list[Page]:
+    """While stopped, only the stopping page, once its wait is over."""
+    if stopped.retry_at - now > DUE_SLACK_SECONDS:
+        return []
+    return [stopped.page]
+
+
+def _failure_reason(page: Page, error: WebifError) -> str:
+    """The error's summary, with the titles a broken page lacked."""
+    if not isinstance(error, Broken) or error.text is None:
+        return error.summary
+    return f"{error.summary} ({page.flaws(error.text)})"
 
 
 class WriteFailed(WebifError):
@@ -308,7 +358,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         self.budget = budget
         self._readings = {page.key: _Reading() for page in polled}
         self._clock = clock
-        self._stopped_by: tuple[str, str] | None = None
+        self._stopped: _Stopped | None = None
         self._refused: LoginRefused | None = None
         self._traceback_logged = False
         # A write's own: its message sends the user to the log, also after a
@@ -331,7 +381,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         # The slowest answer since the last round that asked anything: a write
         # in between asks through the same client, and its answers count too.
         self.answer_seconds: float | None = None
-        # Reloading the entry is how polling resumes after a stop.
+        # Reloading the entry resumes polling at once after a stop.
         ir.async_delete_issue(hass, CONST.DOMAIN, self._issue)
 
     @asynccontextmanager
@@ -394,7 +444,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
 
     def _refuse_write(self) -> None:
         """Refuse a write that cannot go out, before any request."""
-        if self._stopped_by is not None:
+        if self._stopped is not None:
             raise HomeAssistantError(
                 translation_domain=CONST.DOMAIN, translation_key="webif_write_stopped"
             )
@@ -505,10 +555,15 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
     def diagnostics(self) -> dict[str, Any]:
         """The polling's own state, for the diagnostics download."""
         now = self._clock()
+        stopped = self._stopped
         return {
+            # Not `data`: Home Assistant keeps the last data a refresh returned,
+            # through a stop the values from before it.
+            "pages": self._published(),
             "answer_seconds": self.answer_seconds,
             "traffic": asdict(self.traffic),
-            "stopped_by": self._stopped_by,
+            "stopped_by": None if stopped is None else self._stopped_by(stopped),
+            "retry_minutes": None if stopped is None else stopped.wait / 60,
             "login_refused": self._refused is not None,
             "page_states": {
                 key: {
@@ -526,14 +581,13 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             raise ConfigEntryAuthFailed(
                 translation_domain=CONST.DOMAIN, translation_key="webif_login_refused"
             ) from self._refused
-        if self._stopped_by is None:
-            if not await self._round():
-                self._rest()
-            self._plan_next_round()
+        if not await self._round():
+            self._rest()
+        self._plan_next_round()
         if (slowest := self._client.take_slowest_answer()) is not None:
             self.answer_seconds = slowest
-        if self._stopped_by is not None:
-            page_name, error = self._stopped_by
+        if self._stopped is not None:
+            page_name, error = self._stopped_by(self._stopped)
             # The exception's own text, of the same name as the issue's; a
             # literal, as the translation check reads it from the source.
             raise UpdateFailed(
@@ -570,24 +624,34 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
     def _rest(self) -> None:
         self._rest_until = self._clock() + self._shortest_interval.total_seconds()
 
+    @staticmethod
+    def _stopped_by(stopped: _Stopped) -> tuple[str, str]:
+        """The stopping page as its user finds it in the menus, and why."""
+        return PAGE_MENUS[stopped.page.key], stopped.reason
+
     def _plan_next_round(self) -> None:
         # Home Assistant plans the next round from the end of every refresh,
         # one requested by hand included: on a fixed interval, an update just
         # before a page was due put that page off by a whole round.
-        if self._stopped_by is not None:
-            return
         now = self._clock()
         wait = max(
-            min(self._due_in(page, now) for page in self._pages),
+            self._next_due_in(now),
             self._rest_until - now,
             SHORTEST_WAIT_SECONDS,
         )
         self.update_interval = timedelta(seconds=wait)
 
+    def _next_due_in(self, now: float) -> float:
+        if self._stopped is not None:
+            return self._stopped.retry_at - now
+        return min(self._due_in(page, now) for page in self._pages)
+
     def _due(self) -> list[Page]:
         now = self._clock()
         if self._rest_until - now > DUE_SLACK_SECONDS:
             return []
+        if self._stopped is not None:
+            return _retry_due(self._stopped, now)
         due = [
             page for page in self._pages if self._due_in(page, now) <= DUE_SLACK_SECONDS
         ]
@@ -619,7 +683,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             return False
         except WebifError as error:
             _LOGGER.debug("%s: %s", page.key, error)
-            if not self._failed(page, error.summary):
+            if not self._failed(page, _failure_reason(page, error)):
                 return False
             # A struggling server gets no further request in this round.
             return not isinstance(error, Unreachable)
@@ -633,6 +697,10 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 _LOGGER.exception("%s failed on an unexpected error", page.key)
             return self._failed(page, type(error).__name__)
         self._store(page, text)
+        if self._stopped is not None:
+            # While stopped, the rounds ask the stopping page alone.
+            self._stopped = None
+            ir.async_delete_issue(self.hass, CONST.DOMAIN, self._issue)
         return True
 
     def _store(self, page: Page, text: str) -> None:
@@ -660,14 +728,24 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         return False
 
     def _stop(self, page: Page, reason: str) -> None:
-        self._stopped_by = (PAGE_MENUS[page.key], reason)
-        self.update_interval = None
+        """Stop polling, or wait longer for a page that failed its retry."""
+        if self._stopped is None:
+            # The stopping round rests the shortest interval anyway.
+            wait = max(FIRST_RETRY_SECONDS, self._shortest_interval.total_seconds())
+            # Hours may pass until polling resumes: the other pages' values
+            # from before the stop showed again as current.
+            for reading in self._readings.values():
+                reading.values = None
+        else:
+            wait = min(2 * self._stopped.wait, LONGEST_RETRY_SECONDS)
+        self._stopped = _Stopped(page, reason, wait, self._clock() + wait)
         ir.async_create_issue(
             self.hass,
             CONST.DOMAIN,
             self._issue,
             is_fixable=False,
-            severity=ir.IssueSeverity.ERROR,
+            # It goes by itself once the page comes whole again.
+            severity=ir.IssueSeverity.WARNING,
             translation_key=STOPPED_ISSUE,
             translation_placeholders={
                 "page": PAGE_MENUS[page.key],

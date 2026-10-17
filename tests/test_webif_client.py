@@ -396,6 +396,20 @@ async def test_a_page_wrong_twice_is_broken(pump, session):
     assert pump.asked == [*LOGIN, ("GET", PAGE), ("GET", PAGE)]
 
 
+async def test_a_broken_page_carries_its_last_answer_outside_its_message(pump, session):
+    """Live, 2026-10-17: the stop said "Broken" and nothing of what the page
+    lacked. The coordinator names the titles from the answer; the message
+    goes to the log and must not quote the page."""
+    pump.pages = [BROKEN]
+    client = connect(session, pump.host)
+
+    with pytest.raises(webif.Broken) as raised:
+        await client.page(PAGE, whole)
+
+    assert raised.value.text == BROKEN
+    assert BROKEN not in str(raised.value)
+
+
 async def test_an_error_status_is_no_page_and_gets_no_second_try(pump, session):
     """A struggling server, not a page served half: the round ends there."""
     pump.status = 500
@@ -1040,6 +1054,9 @@ async def test_a_save_called_off_in_its_gap_is_not_counted(pump, session, count)
     client = connect(session, pump.host, gap=GAP)
     form = await read_form(client)
     asked = len(pump.asked)
+    # A gap no stalled event loop outlasts: under a loaded gate the loop
+    # stood still past GAP / 2 and the save went out before the cancel.
+    client._gap = 60.0
     saving = asyncio.create_task(client.save(form, 61, count))
     await asyncio.sleep(GAP / 2)
 
