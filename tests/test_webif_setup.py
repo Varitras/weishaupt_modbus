@@ -1166,7 +1166,8 @@ async def test_a_write_cancelled_in_the_gap_before_its_save_counts_nothing(
     monkeypatch.setattr(entry, "async_create_background_task", noted)
     leaf = f"{HEATING_PATH},{limit_segment(60)}"
     setting = asyncio.create_task(_set_power_limit(hass, 61))
-    await until(lambda: ("GET", leaf) in pump.asked, seconds=3 * SAVE_GAP)
+    # The debounce and two gaps lie before it: under a loaded gate 3 s ran out.
+    await until(lambda: ("GET", leaf) in pump.asked, seconds=10 * SAVE_GAP)
     await asyncio.sleep(SAVE_GAP / 2)
 
     started[0].cancel()
