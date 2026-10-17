@@ -2063,7 +2063,7 @@
   "issues": {
     "webif_stopped": {
       "title": "Web interface polling paused",
-      "description": "The page {page} failed several times in a row ({error}), so polling of the heat pump's web interface paused to spare the controller. Modbus is not affected. Only this page is asked again, after 15 minutes and then at waits doubling up to 2 hours; once it comes whole, polling resumes and this notice goes by itself. Reloading the web interface entry tries at once."
+      "description": "The page {page} failed several times in a row ({error}), so polling of the heat pump's web interface paused to spare the controller. Modbus is not affected. Only this page is asked again, after 15 minutes, or the shortest page interval if that is longer, and then at waits doubling from there up to 2 hours; once it comes whole, polling resumes and this notice goes by itself. Reloading the web interface entry tries at once."
     },
     "circuit_not_enabled": {
       "title": "Heating circuit {circuit} not read",

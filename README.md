@@ -469,12 +469,14 @@ delete them. Home Assistant raises no repair notice for them.
 - A page that fails keeps its values once; the second failure in a row makes
   them unavailable; the third stops polling and raises a repair notice.
   A failed page is asked for again only after its own interval. The notice
-  names the page and why; for a page that came wrong, the titles it lacked
-  or showed blank, or their number when there are more than five.
+  names the page and why; for a page that came wrong, the titles it lacked,
+  showed blank or showed twice, or their number when there are more than
+  five.
 - Once stopped, only that page is asked again: after 15 minutes, or after the
-  shortest page interval if that is longer, then at waits doubling up to
-  2 hours. When it comes whole, polling resumes and the notice goes by
-  itself; reloading the entry resumes at once. An error in the integration
+  shortest page interval if that is longer, then at waits doubling from
+  there up to 2 hours. When it comes whole, polling resumes and the notice
+  goes by itself; the other pages show values again once they are read
+  anew. Reloading the entry resumes at once. An error in the integration
   itself counts as a failure too: the notice names only its kind, and its
   traceback is logged the first time after each load.
 - A refused login stops polling at once, an update requested by hand
@@ -492,8 +494,9 @@ keep it on a network you trust. The diagnostics download leaves them out, and
 the page addresses the entry stores; after a stop, the reason it and the
 repair notice give is the kind of failure and its cause, such as
 `Unreachable (TimeoutError)` or `Unreachable (HTTP 500)`, never a page
-address or text the controller sent. Of each page it holds only the values
-the sensors show.
+address or a value the controller sent; for a page that came wrong, the
+titles it lacked or showed blank, such as `Broken (missing: Hochdruck)`. Of
+each page it holds only the values the sensors show.
 
 ## Actions
 

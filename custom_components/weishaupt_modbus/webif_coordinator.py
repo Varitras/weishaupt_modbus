@@ -155,7 +155,7 @@ class Page:
 def _titles(titles: frozenset[str]) -> str:
     if len(titles) > TITLES_NAMED:
         return f"{len(titles)} titles"
-    return ", ".join(sorted(titles))
+    return ", ".join(sorted(title or "untitled" for title in titles))
 
 
 def polled_pages(
@@ -726,8 +726,14 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
 
     def _stop(self, page: Page, reason: str) -> None:
         """Stop polling, or wait longer for a page that failed its retry."""
-        wait = FIRST_RETRY_SECONDS
-        if self._stopped is not None:
+        if self._stopped is None:
+            # The stopping round rests the shortest interval anyway.
+            wait = max(FIRST_RETRY_SECONDS, self._shortest_interval.total_seconds())
+            # Hours may pass until polling resumes: the other pages' values
+            # from before the stop showed again as current.
+            for reading in self._readings.values():
+                reading.values = None
+        else:
             wait = min(2 * self._stopped.wait, LONGEST_RETRY_SECONDS)
         self._stopped = _Stopped(page, reason, wait, self._clock() + wait)
         ir.async_create_issue(

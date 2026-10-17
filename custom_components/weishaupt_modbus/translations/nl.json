@@ -2063,7 +2063,7 @@
   "issues" : {
     "webif_stopped" : {
       "title" : "Opvragen van de webinterface gepauzeerd",
-      "description" : "De pagina {page} mislukte meerdere keren achter elkaar ({error}). Om de regelaar te sparen is het opvragen van de webinterface van de warmtepomp gepauzeerd. Modbus blijft gewoon werken. Alleen deze pagina wordt opnieuw opgevraagd, na 15 minuten en daarna met wachttijden die verdubbelen tot 2 uur; komt ze volledig, dan gaat het opvragen verder en verdwijnt deze melding vanzelf. Opnieuw laden van de webinterface-vermelding probeert het meteen."
+      "description" : "De pagina {page} mislukte meerdere keren achter elkaar ({error}). Om de regelaar te sparen is het opvragen van de webinterface van de warmtepomp gepauzeerd. Modbus blijft gewoon werken. Alleen deze pagina wordt opnieuw opgevraagd, na 15 minuten, of na het kortste pagina-interval als dat langer is, en daarna met wachttijden die vanaf daar verdubbelen tot 2 uur; komt ze volledig, dan gaat het opvragen verder en verdwijnt deze melding vanzelf. Opnieuw laden van de webinterface-vermelding probeert het meteen."
     },
     "circuit_not_enabled" : {
       "title" : "Verwarmingscircuit {circuit} wordt niet gelezen",

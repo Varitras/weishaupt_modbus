@@ -553,9 +553,11 @@ async def test_a_stop_waits_out_a_page_interval_longer_than_the_first_retry(
 
     await round_at(coordinator, clock, (2 * 60 + 15) * 60)
     assert client.asked == []
+    assert coordinator.diagnostics()["retry_minutes"] == 60, "the wait it says"
 
     await round_at(coordinator, clock, 3 * 60 * 60)
     assert client.asked == [HEAT_PUMP.path]
+    assert coordinator.diagnostics()["retry_minutes"] == 120
 
 
 async def test_each_failed_retry_doubles_the_wait_up_to_two_hours(
@@ -593,6 +595,54 @@ async def test_a_retry_that_reads_the_page_resumes_polling_and_takes_the_notice(
     assert client.asked == [STATISTICS.path, HEATING.path, HEAT_PUMP.path]
 
 
+async def test_after_a_stop_the_other_pages_show_nothing_until_read_again(
+    coordinator, client, clock
+):
+    """Once the stopping page came whole, the other pages' values from
+    before the stop showed again as current, hours old."""
+    await round_at(coordinator, clock, 0)
+    client.answer(HEAT_PUMP, Unreachable("timeout"))
+    for quarter in (1, 2, 3):
+        await round_at(coordinator, clock, quarter * 15 * 60)
+    client.answer(HEAT_PUMP, WHOLE[HEAT_PUMP.path])
+
+    await round_at(coordinator, clock, 60 * 60)
+
+    assert coordinator.data["heat_pump"] == {"Hochdruck": "24.4 BAR"}
+    assert coordinator.data["statistics"] is None
+    assert coordinator.data["heating"] is None
+
+
+async def test_resumed_polling_asks_the_overdue_pages_at_once(
+    coordinator, client, clock
+):
+    """The page that came whole gives no cause for a rest: the pages the
+    stop held back are due, and wait no further interval."""
+    await _stopped(coordinator, client, clock)
+    await round_at(coordinator, clock, 45 * 60)
+    client.answer(HEAT_PUMP, WHOLE[HEAT_PUMP.path])
+
+    await round_at(coordinator, clock, 75 * 60)
+
+    assert coordinator.update_interval == timedelta(seconds=1)
+
+
+async def test_a_failed_retry_tells_its_own_reason_in_the_notice(
+    hass, coordinator, client, clock, entry
+):
+    await _stopped(coordinator, client, clock)
+    client.answer(HEAT_PUMP, BLANK_VALUE)
+
+    await round_at(coordinator, clock, 45 * 60)
+
+    issue = ir.async_get(hass).async_get_issue(
+        CONST.DOMAIN, f"{STOPPED_ISSUE}_{entry.entry_id}"
+    )
+    assert issue.translation_placeholders["error"] == (
+        "Broken (blank or doubled: Hochdruck)"
+    )
+
+
 async def test_a_broken_error_without_its_answer_is_named_by_kind_only(
     coordinator, client, clock
 ):
@@ -611,6 +661,37 @@ def test_a_page_lacking_more_than_five_titles_counts_them():
 
     assert page.flaws(value("A", "1")) == "missing: B, C, D, E, F"
     assert page.flaws("") == "missing: 6 titles"
+
+
+def test_a_value_without_a_title_is_named_untitled():
+    """It gave "blank or doubled: " with nothing after."""
+    page_text = WHOLE[HEAT_PUMP.path] + value("", "")
+
+    assert HEAT_PUMP.flaws(page_text) == "blank or doubled: untitled"
+
+
+@pytest.mark.parametrize(
+    ("name", "minutes", "hours"),
+    [
+        ("strings.json", "15 minutes", "2 hours"),
+        ("translations/en.json", "15 minutes", "2 hours"),
+        ("translations/de.json", "15 Minuten", "2 Stunden"),
+        ("translations/nl.json", "15 minuten", "2 uur"),
+    ],
+)
+def test_the_stop_notice_gives_the_waits_the_code_keeps(name, minutes, hours):
+    """The waits are written out in four languages and the README; a change
+    of the constants would leave them telling the old ones."""
+    assert webif_coordinator.FIRST_RETRY_SECONDS == 15 * 60
+    assert webif_coordinator.LONGEST_RETRY_SECONDS == 2 * 3600
+    texts = json.loads((TRANSLATIONS / name).read_text(encoding="utf-8"))
+    description = texts["issues"][STOPPED_ISSUE]["description"]
+
+    assert minutes in description
+    assert hours in description
+    readme = (TRANSLATIONS.parents[1] / "README.md").read_text(encoding="utf-8")
+    assert "after 15 minutes" in " ".join(readme.split())
+    assert "up to 2 hours" in " ".join(readme.split())
 
 
 async def test_a_broken_page_names_the_titles_that_made_it_so(
