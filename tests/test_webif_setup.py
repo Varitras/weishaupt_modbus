@@ -646,7 +646,7 @@ async def _until_stopped(entry):
     for _ in range(webif_coordinator.FAILURES_TO_STOP):
         clock.now += 3 * 3600
         await coordinator.async_refresh()
-    assert coordinator._stopped_by is not None, "the brake did not stop"
+    assert coordinator._stopped is not None, "the brake did not stop"
 
 
 def _stop_notice(hass, entry):
@@ -672,7 +672,7 @@ def _no_answer_in_time(pump, entry):
     ("failing", "reason"),
     [
         (_error_status, "Unreachable (HTTP 500)"),
-        (_served_half, "Broken"),
+        (_served_half, "Broken (missing: 31 titles)"),
         (_no_answer_in_time, "Unreachable (TimeoutError)"),
     ],
     ids=["an error status", "a page served half", "no answer in time"],

@@ -143,7 +143,7 @@ class FakeClient:
         if isinstance(answer, BaseException):
             raise answer
         if not complete(answer):
-            raise Broken(path)
+            raise Broken(path, text=answer)
         return answer
 
 
@@ -449,7 +449,10 @@ async def test_a_page_going_and_coming_back_is_logged_once_each(
         for record in caplog.records
         if record.levelno == logging.INFO and record.name == webif_coordinator.__name__
     ]
-    assert told == ["heat_pump unavailable: Broken", "heat_pump read again"]
+    assert told == [
+        "heat_pump unavailable: Broken (blank or doubled: Hochdruck)",
+        "heat_pump read again",
+    ]
 
 
 async def test_a_page_failing_until_the_stop_is_told_unavailable_once(
@@ -467,7 +470,7 @@ async def test_a_page_failing_until_the_stop_is_told_unavailable_once(
         for record in caplog.records
         if record.levelno == logging.INFO and record.name == webif_coordinator.__name__
     ]
-    assert told == ["heat_pump unavailable: Broken"]
+    assert told == ["heat_pump unavailable: Broken (blank or doubled: Hochdruck)"]
 
 
 async def test_a_page_never_read_has_no_values_to_keep(coordinator, client, clock):
@@ -488,20 +491,144 @@ async def test_the_third_failure_in_a_row_stops_polling(
         await round_at(coordinator, clock, quarter * 15 * 60)
 
     assert not coordinator.last_update_success
-    assert coordinator.update_interval is None
     issue = ir.async_get(hass).async_get_issue(
         CONST.DOMAIN, f"{STOPPED_ISSUE}_{entry.entry_id}"
     )
     assert issue is not None
+    assert issue.severity == ir.IssueSeverity.WARNING
     assert issue.translation_placeholders == {
         "page": "Info › Wärmepumpe (information › heat pump)",
         "error": "Unreachable (TimeoutError)",
     }
 
     client.asked.clear()
-    await round_at(coordinator, clock, 24 * 60 * 60)
-    assert client.asked == [], "no request once stopped, not even by hand"
+    await round_at(coordinator, clock, 40 * 60)
+    assert client.asked == [], "no request before the retry, not even by hand"
     assert not coordinator.last_update_success
+
+
+async def test_a_stop_asks_the_failed_page_alone_again_after_a_quarter_hour(
+    coordinator, client, clock
+):
+    """User decision, 2026-10-17: the stop held until a reload by hand, and a
+    page broken for four minutes of the pump's oil recirculation stopped
+    polling for good. One request a quarter of an hour later spares the
+    controller as well. A broken page, as a timeout's rest would hide the
+    wait."""
+    client.answer(HEAT_PUMP, BLANK_VALUE)
+    for quarter in range(3):
+        await round_at(coordinator, clock, quarter * 15 * 60)
+    client.asked.clear()
+
+    await round_at(coordinator, clock, 44 * 60)
+    assert client.asked == []
+
+    await round_at(coordinator, clock, 45 * 60)
+    assert client.asked == [HEAT_PUMP.path]
+
+    client.asked.clear()
+    await round_at(coordinator, clock, 60 * 60)
+    assert client.asked == [], "the other pages wait while it is stopped"
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [BLANK_VALUE, RuntimeError("a fault of the parser")],
+    ids=["broken", "unexpected"],
+)
+async def test_a_stop_waits_out_a_page_interval_longer_than_the_first_retry(
+    hass, entry, client, clock, failure
+):
+    """The round that stops polling gives the controller its rest, as one
+    ended by a timeout does: with hourly pages the retry comes after an
+    hour, not after a quarter."""
+    polled = [replace(HEAT_PUMP, interval=HOUR), STATISTICS]
+    coordinator = WebifCoordinator(
+        hass, entry, client, polled, budget=WriteBudget(0, 10), clock=clock
+    )
+    client.answer(HEAT_PUMP, failure)
+    for hour in range(3):
+        await round_at(coordinator, clock, hour * 60 * 60)
+    client.asked.clear()
+
+    await round_at(coordinator, clock, (2 * 60 + 15) * 60)
+    assert client.asked == []
+
+    await round_at(coordinator, clock, 3 * 60 * 60)
+    assert client.asked == [HEAT_PUMP.path]
+
+
+async def test_each_failed_retry_doubles_the_wait_up_to_two_hours(
+    coordinator, client, clock
+):
+    await _stopped(coordinator, client, clock)
+    waits = [coordinator.update_interval]
+    for _ in range(4):
+        later = clock.now + coordinator.update_interval.total_seconds()
+        await round_at(coordinator, clock, later)
+        waits.append(coordinator.update_interval)
+
+    assert waits == [timedelta(minutes=minutes) for minutes in (15, 30, 60, 120, 120)]
+    assert coordinator.diagnostics()["retry_minutes"] == 120
+
+
+async def test_a_retry_that_reads_the_page_resumes_polling_and_takes_the_notice(
+    hass, coordinator, client, clock, entry
+):
+    await _stopped(coordinator, client, clock)
+    client.answer(HEAT_PUMP, WHOLE[HEAT_PUMP.path])
+
+    await round_at(coordinator, clock, 45 * 60)
+
+    assert coordinator.last_update_success
+    assert coordinator.data["heat_pump"] == {"Hochdruck": "24.4 BAR"}
+    issue = ir.async_get(hass).async_get_issue(
+        CONST.DOMAIN, f"{STOPPED_ISSUE}_{entry.entry_id}"
+    )
+    assert issue is None
+    assert coordinator.diagnostics()["stopped_by"] is None
+    assert coordinator.diagnostics()["retry_minutes"] is None
+    client.asked.clear()
+    await round_at(coordinator, clock, 60 * 60)
+    assert client.asked == [STATISTICS.path, HEATING.path, HEAT_PUMP.path]
+
+
+async def test_a_broken_error_without_its_answer_is_named_by_kind_only(
+    coordinator, client, clock
+):
+    """Not every Broken carries the page: the dialogs' own kinds do not."""
+    client.answer(HEAT_PUMP, Broken(HEAT_PUMP.path))
+    for quarter in range(3):
+        await round_at(coordinator, clock, quarter * 15 * 60)
+
+    assert coordinator.diagnostics()["stopped_by"][1] == "Broken"
+
+
+def test_a_page_lacking_more_than_five_titles_counts_them():
+    """A wrong page in place of the asked one lacks every title: the stop
+    notice listed 31 of them."""
+    page = replace(HEAT_PUMP, required=frozenset("ABCDEF"))
+
+    assert page.flaws(value("A", "1")) == "missing: B, C, D, E, F"
+    assert page.flaws("") == "missing: 6 titles"
+
+
+async def test_a_broken_page_names_the_titles_that_made_it_so(
+    hass, coordinator, client, clock, entry
+):
+    """Live, 2026-10-17: polling stopped on "Broken" alone, and nothing told
+    which value the page had lacked during the pump's oil recirculation.
+    Titles only, never a value: the notice goes into public issues."""
+    client.answer(HEAT_PUMP, value("Verdichter", "") + value("JAZ Jahr", "4.16"))
+    for quarter in range(3):
+        await round_at(coordinator, clock, quarter * 15 * 60)
+
+    issue = ir.async_get(hass).async_get_issue(
+        CONST.DOMAIN, f"{STOPPED_ISSUE}_{entry.entry_id}"
+    )
+    assert issue.translation_placeholders["error"] == (
+        "Broken (missing: Hochdruck; blank or doubled: Verdichter)"
+    )
 
 
 async def test_a_page_broken_for_good_stops_polling_while_others_still_come(
@@ -512,7 +639,7 @@ async def test_a_page_broken_for_good_stops_polling_while_others_still_come(
     for hour in range(3):
         await round_at(coordinator, clock, hour * 60 * 60)
 
-    assert coordinator.update_interval is None
+    assert coordinator.diagnostics()["stopped_by"] is not None
 
 
 @pytest.mark.parametrize(
@@ -588,7 +715,7 @@ async def test_an_unexpected_error_counts_toward_the_brake(coordinator, client, 
     for quarter in range(3):
         await round_at(coordinator, clock, quarter * 15 * 60)
 
-    assert coordinator.update_interval is None
+    assert coordinator.diagnostics()["stopped_by"] is not None
     assert coordinator.diagnostics()["page_states"]["heat_pump"]["failures"] == 3
 
 
@@ -821,6 +948,7 @@ async def test_the_diagnostics_name_the_page_the_brake_stopped_on(
         "Info › Wärmepumpe (information › heat pump)",
         "Unreachable (TimeoutError)",
     )
+    assert diagnostics["retry_minutes"] == 15
     assert diagnostics["login_refused"] is False
 
 

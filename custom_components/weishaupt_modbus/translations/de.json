@@ -2015,7 +2015,7 @@
             "message": "Modbus-Kommunikationsfehler: {error}"
         },
         "webif_stopped": {
-            "message": "Abruf der Weboberfläche nach wiederholten Fehlschlägen von {page} gestoppt: {error}"
+            "message": "Abruf der Weboberfläche nach wiederholten Fehlschlägen von {page} pausiert: {error}"
         },
         "webif_pump_removed": {
             "message": "Ihr Wärmepumpen-Eintrag wurde gelöscht. Löschen Sie diesen Eintrag und fügen Sie die Weboberfläche mit der Wärmepumpe neu hinzu."
@@ -2024,7 +2024,7 @@
             "message": "Die Weboberfläche hat Benutzer und Passwort abgelehnt."
         },
         "webif_write_stopped": {
-            "message": "Der Abruf der Weboberfläche ist gestoppt. Laden Sie ihren Eintrag neu, bevor Sie einen Wert setzen."
+            "message": "Der Abruf der Weboberfläche pausiert, bis der Regler seine Seiten wieder liefert. Neuladen ihres Eintrags versucht es sofort."
         },
         "webif_write_login_refused": {
             "message": "Die Weboberfläche hat Benutzer und Passwort abgelehnt. Prüfen Sie diese in ihrem Eintrag."
@@ -2062,8 +2062,8 @@
     },
     "issues": {
         "webif_stopped": {
-            "title": "Abruf der Weboberfläche gestoppt",
-            "description": "Die Seite {page} schlug mehrmals in Folge fehl ({error}). Um den Regler zu schonen, wurde der Abruf der Weboberfläche gestoppt. Modbus ist davon nicht betroffen. Prüfen Sie die Weboberfläche im Browser und beobachten Sie die Wärmepumpe; laden Sie danach den Eintrag der Weboberfläche neu, um den Abruf fortzusetzen."
+            "title": "Abruf der Weboberfläche pausiert",
+            "description": "Die Seite {page} schlug mehrmals in Folge fehl ({error}). Um den Regler zu schonen, pausiert der Abruf der Weboberfläche. Modbus ist davon nicht betroffen. Nur diese Seite wird erneut abgerufen, nach 15 Minuten und dann in sich verdoppelnden Abständen bis 2 Stunden; kommt sie vollständig, läuft der Abruf weiter und dieser Hinweis verschwindet von selbst. Neuladen des Eintrags der Weboberfläche versucht es sofort."
         },
         "circuit_not_enabled": {
             "title": "Heizkreis {circuit} wird nicht gelesen",

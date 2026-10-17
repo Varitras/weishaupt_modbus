@@ -468,10 +468,15 @@ delete them. Home Assistant raises no repair notice for them.
   A power limit you set during the rest still goes out.
 - A page that fails keeps its values once; the second failure in a row makes
   them unavailable; the third stops polling and raises a repair notice.
-  A failed page is asked for again only after its own interval. Check the
-  web interface in a browser, then reload the entry to resume. An error in
-  the integration itself counts as a failure too: the notice names only its
-  kind, and its traceback is logged the first time after each load.
+  A failed page is asked for again only after its own interval. The notice
+  names the page and why; for a page that came wrong, the titles it lacked
+  or showed blank, or their number when there are more than five.
+- Once stopped, only that page is asked again: after 15 minutes, or after the
+  shortest page interval if that is longer, then at waits doubling up to
+  2 hours. When it comes whole, polling resumes and the notice goes by
+  itself; reloading the entry resumes at once. An error in the integration
+  itself counts as a failure too: the notice names only its kind, and its
+  traceback is logged the first time after each load.
 - A refused login stops polling at once, an update requested by hand
   included, and asks for the login again. Any other failed login, such as
   the controller reporting its database out of reach, counts like a failed

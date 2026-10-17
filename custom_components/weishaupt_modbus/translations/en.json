@@ -2015,7 +2015,7 @@
       "message": "Modbus communication failure: {error}"
     },
     "webif_stopped": {
-      "message": "Web interface polling stopped after repeated failures of {page}: {error}"
+      "message": "Web interface polling paused after repeated failures of {page}: {error}"
     },
     "webif_pump_removed": {
       "message": "Its heat pump entry was removed. Delete this entry and add the web interface again with the heat pump."
@@ -2024,7 +2024,7 @@
       "message": "The web interface refused the user and password."
     },
     "webif_write_stopped": {
-      "message": "Web interface polling has stopped. Reload its entry before setting a value."
+      "message": "Web interface polling is paused until the controller serves its pages again. Reloading its entry tries at once."
     },
     "webif_write_login_refused": {
       "message": "The web interface refused the user and password. Check them in its entry."
@@ -2062,8 +2062,8 @@
   },
   "issues": {
     "webif_stopped": {
-      "title": "Web interface polling stopped",
-      "description": "The page {page} failed several times in a row ({error}), so polling of the heat pump's web interface stopped to spare the controller. Modbus is not affected. Check the web interface in a browser and watch the heat pump, then reload the web interface entry to resume polling."
+      "title": "Web interface polling paused",
+      "description": "The page {page} failed several times in a row ({error}), so polling of the heat pump's web interface paused to spare the controller. Modbus is not affected. Only this page is asked again, after 15 minutes and then at waits doubling up to 2 hours; once it comes whole, polling resumes and this notice goes by itself. Reloading the web interface entry tries at once."
     },
     "circuit_not_enabled": {
       "title": "Heating circuit {circuit} not read",
