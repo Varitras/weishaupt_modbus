@@ -1054,6 +1054,9 @@ async def test_a_save_called_off_in_its_gap_is_not_counted(pump, session, count)
     client = connect(session, pump.host, gap=GAP)
     form = await read_form(client)
     asked = len(pump.asked)
+    # A gap no stalled event loop outlasts: under a loaded gate the loop
+    # stood still past GAP / 2 and the save went out before the cancel.
+    client._gap = 60.0
     saving = asyncio.create_task(client.save(form, 61, count))
     await asyncio.sleep(GAP / 2)
 
