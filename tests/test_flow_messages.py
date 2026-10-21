@@ -183,6 +183,17 @@ def test_every_password_help_says_it_goes_as_plain_http(name):
 
 
 @pytest.mark.parametrize("name", TRANSLATION_FILES)
+def test_the_language_question_points_at_the_web_interfaces_own_setting(name):
+    """It asked whether the controller's language was German or English, but
+    the web interface follows a setting of its own, offering Auto beside the
+    two, which the controller's display does not."""
+    translation = json.loads((FLOW.parent / name).read_text(encoding="utf-8"))
+    question = translation["config"]["error"]["missing_menu_entries"]
+
+    assert "Auto" in question, question
+
+
+@pytest.mark.parametrize("name", TRANSLATION_FILES)
 def test_a_field_reads_the_same_in_every_form_that_asks_for_it(name):
     """The password goes as plain HTTP whichever form takes it, yet only the
     form that added the web interface said so: what a field's help has to
