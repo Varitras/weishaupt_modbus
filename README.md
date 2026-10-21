@@ -3,8 +3,13 @@
 A Home Assistant integration that reads and controls a Weishaupt heat pump
 (WBB, WWP, WSB and related models) over Modbus TCP: temperatures, operating
 states, error codes, energy statistics and an estimated heat output, plus the
-setpoints and operating modes the controller lets you write. The Modbus
-register reference is in the [wiki](https://github.com/Varitras/weishaupt_modbus/wiki).
+setpoints and operating modes the controller lets you write. An experimental
+second entry reads the controller's local web interface for values Modbus does
+not carry.
+
+**The documentation is in the [wiki](https://github.com/Varitras/weishaupt_modbus/wiki)**:
+setup, every entity, how data updates, the web interface, troubleshooting,
+migration and the Modbus register reference.
 
 This is a fork of [OStrama/weishaupt_modbus](https://github.com/OStrama/weishaupt_modbus).
 It differs from upstream on purpose:
@@ -15,7 +20,7 @@ It differs from upstream on purpose:
   web interface is experimental (see [Web interface (experimental)](#web-interface-experimental)).
 - **One connection to the controller, shared.** Since 2.0 the integration
   borrows its Modbus unit from Home Assistant's own `modbus` integration
-  instead of opening a socket of its own (see [Upgrading from 1.x](#upgrading-from-1x)).
+  instead of opening a socket of its own.
 - **Entity ids are yours.** The integration no longer rewrites entity ids on
   every start; a rename in Home Assistant stays.
 - **Two Home Assistant versions are tested** on every change: the declared
@@ -27,20 +32,20 @@ It differs from upstream on purpose:
 ## Supported devices
 
 Weishaupt heat pumps whose controller offers *Modbus TCP* in its own settings
-menu (see [Prerequisites](#prerequisites)). Power maps ship for models of
-the WAB, WBB, WSB and WWP LS series (see [The power map](#the-power-map));
-a model without one works too, only the estimated heat output needs a map.
-For a model that does not work as expected, a register scan helps add it
-(see [Troubleshooting](#troubleshooting)).
+menu (see [Prerequisites](#prerequisites)). It is developed and checked on a
+WBB. Power maps for the estimated heat output ship for models of the WAB, WBB,
+WSB and WWP LS series; a model without one works too. For a model that does
+not work as expected, a register scan helps add it (see
+[Troubleshooting](https://github.com/Varitras/weishaupt_modbus/wiki/Troubleshooting-and-Diagnostics)).
 
-If your heat pump has the separate Weishaupt Modbus module, this integration
-will not work. [Weishaupt_CanApiJson](https://github.com/BorgNumberOne/Weishaupt_CanApiJson/)
+It has not been tested with heat pumps that use the separate Weishaupt Modbus
+module (WEM-Modbus gateway); [Weishaupt_CanApiJson](https://github.com/BorgNumberOne/Weishaupt_CanApiJson/)
 may be what you are looking for.
 
 ## Prerequisites
 
 Modbus TCP has to be enabled on the heat pump:
-User → Settings (second page) → Modbus TCP
+User → Settings → Modbus TCP
 
 - **Parameter**: On
 - **Network**: either the address of your Home Assistant host (only that host
@@ -49,8 +54,10 @@ User → Settings (second page) → Modbus TCP
 - **Netmask**: the netmask of your network, usually `255.255.255.0`.
 - **Port** 502, **slave address** 1.
 
-Modbus TCP has no authentication and no encryption. Keep the heat pump on a
-trusted local network and never expose port 502 to the internet.
+Modbus TCP is unencrypted, and every host the network setting admits can read
+and write; Weishaupt asks for a direct connection between client and heat pump
+rather than a home network. At least keep the heat pump on a trusted local
+network and never expose port 502 to the internet.
 
 ## Installation
 
@@ -66,448 +73,30 @@ Add integration → Weishaupt Modbus*, or directly:
 [![Start Config Flow](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start?domain=weishaupt_modbus)
 
 The setup dialog checks that the heat pump answers before it creates the
-entry. Add one entry per heat pump.
+entry. Add one entry per heat pump. The setup parameters, *Reconfigure*, the
+options and removal are described under
+[Installation and Setup](https://github.com/Varitras/weishaupt_modbus/wiki/Installation-and-Setup);
+prefix and device postfix cannot be changed after setup.
 
-## Configuration
-
-### Setup parameters
-
-| Parameter | Default | Meaning |
-|---|---|---|
-| Host | - | Name or IP address of the heat pump. Mandatory. |
-| Port | 502 | Modbus TCP port, as set on the heat pump. |
-| Prefix | `weishaupt_wbb` | Part of every entity's unique id. Leave it alone unless you are migrating from another integration and want to keep the recorded history. |
-| Device postfix | empty | Tells several heat pumps apart. Leave it empty for a single pump; every further pump needs a postfix of its own, the dialog refuses an empty or reused one. The postfix is appended to device names and ids. |
-| Operation map file | `weishaupt_wbb_kennfeld.json` | The power map of your model (see [The power map](#the-power-map)). |
-| 2nd - 5th heating circuit | off | Adds the entities of the additional heating circuit. |
-| Name device prefix | off | Puts the prefix in front of the name of every register entity, e.g. `weishaupt_wbb_Outside temperature`, and of the web interface's values and its power limit. The write counters and the sensors about the web interface's polling keep their names. |
-| Name topic prefix | off | Puts the device's short name in front of the name of every register entity, e.g. `WP_` for the heat pump, `WW_` for hot water, and of the web interface's values and its power limit. |
-
-Prefix and device postfix are part of every entity's unique id and cannot
-be changed afterwards: a change would orphan the recorded history of every
-entity and start the EEPROM write counters over. To change them, remove the
-entry and add it again.
-
-### Reconfigure
-
-*Reconfigure* in the entry's menu changes host, port, power map, heating
-circuits and the two name options without losing history. The heat pump has
-to answer at the new address before the change is saved. A heating circuit
-switched off here loses its device and entities at the next load; switched on
-again, they come back with their names, entity ids and history. While it is
-off, *Developer tools › Statistics* offers to delete its statistics - leave
-them if you may switch it on again.
-
-Each time the entry loads - at start, after a reconfigure or an options
-change - the integration compares heating circuits 2-5 enabled here with
-the controller's own setup (registers 41201, 41301, 41401, 41501: 0 means no
-circuit) and raises a repair notice for each circuit where they differ - set
-up at the controller but not enabled, or enabled but switched off there. A
-circuit switched off at the controller still answers with factory values,
-so its entities look real. A notice goes once the two match; one you ignore
-stays ignored, and only for its own circuit. A circuit the controller does
-not tell about - a refused read, a value it does not document, a link that
-drops - is not judged: its notice stays as it was, unless the circuit's
-switch here now says otherwise. Circuit 1 is always read, so it has nothing
-to compare.
-
-### Options
-
-The *Options* dialog holds the settings that can change at any time. A
-change reloads the integration.
-
-| Option | Default | Range | Meaning |
-|---|---|---|---|
-| Poll interval | 30 s | 5 - 600 s | How often all registers are read. |
-| Warn at this many writes per day | 50 | 0 - 100 000 | Logs a warning once when reached; 0 never warns. |
-| Refuse writes above this many per day | 0 (no limit) | 0 - 100 000 | Writes beyond it are refused until the next day. Must not be below the warning threshold. |
-
-## How data is updated
-
-The integration polls the heat pump at the poll interval and reads every
-register of the enabled devices in one pass. It asks Home Assistant's
-`modbus` integration for the connection, so every entry and every other
-integration using the same address shares one link.
-
-A poll that fails keeps the last values; the entities go unavailable on the
-fourth failed poll in a row and come back with the next good one. An error in
-the integration itself counts as a failed poll too; its traceback is logged
-the first time after each load. A device that answers but refuses the system
-registers 30001-30006 is not treated as a heat pump with missing modules:
-that poll fails.
-
-A write goes out immediately, unless the value is already set: when the
-last poll shows the same value, the register is read once more first, so a
-change made at the controller's panel since then is not missed. A number goes out rounded to its step, the grid the
-controller's menu offers, so a value set in Fahrenheit lands on that grid
-too.
+Coming from 1.x or an earlier 2.x release: see
+[Migration](https://github.com/Varitras/weishaupt_modbus/wiki/Migration).
 
 ## Entities
 
-Each entry creates these devices, each named with a `WH` prefix and the
-device postfix:
+Each entry creates the devices System, Heat pump, Hot water, Heating circuit
+(1 - 5), 2nd heat source, Statistics and Input/output, each named with a `WH`
+prefix and the device postfix. The entity types are sensors, numbers
+(writable setpoints), selects (writable modes) and switches (setpoints the
+controller can switch off). Every entity, with its register, unit and range, is
+listed under [Entities](https://github.com/Varitras/weishaupt_modbus/wiki/Entities).
 
-| Device | Contains |
-|---|---|
-| System | System operating mode, PV setpoint, outside and air intake temperature, error, warning and status codes, write counters |
-| Heat pump | Operating state, error, power request, flow, return, evaporation and buffer temperatures, spread, electrical power, estimated heat output, pump and volume-flow settings |
-| Hot water | Temperature and setpoint, normal and lowering setpoints, SG-Ready increase, hot water push |
-| Heating circuit (1 - 5) | Room temperature, humidity and setpoints, flow temperature and setpoint, operating mode, request type, pause/party, heating curve, summer/winter changeover, constant temperatures |
-| 2nd heat source | Status, operating hours and switching cycles of the second heat source and the electric heaters, limit and bivalence temperatures |
-| Statistics | Energy today, yesterday, this month and this year - total, heating, hot water, cooling and defrost - and the performance factors |
-| Input/output | SG-Ready 1 and 2, inputs H1.2 - H1.5, DE1 and DE2, and their configuration |
-
-The entity types are sensors (read-only values), numbers (writable
-setpoints), selects (writable modes) and switches. Two undocumented
-registers are created disabled: 31106 (`Adr. 31106`, per circuit) repeats
-the circuit's operating mode, and 36801 (`Adr. 36801`) has no known meaning
-and read 0 on every controller seen. One that already exists stays enabled
-or disabled as it was.
-
-**Setpoints that can be switched off.** Some setpoints can be switched off
-at the controller - the constant flow temperatures, the summer/winter
-switchover and the SG-Ready boost. The register then reports an "off" word
-instead of a temperature. Each of these comes as a number *and* a switch
-(`… active`): the number reads unknown while the setpoint is off, the switch
-turns it off and back on. Turning on restores the value it held before, also
-after a reload or a restart; the lowest allowed one only when the switch
-never saw a value.
-
-**Reported setpoints.** The setpoints the controller only reports - room,
-flow and DHW setpoint temperature - read 0 °C while the controller
-demands nothing, and say so: their `demand` attribute is `none` then and
-`active` while a setpoint is in force. (The controller reports "no demand"
-as the value 1, which used to show as 0.1 °C.) To Home Assistant the 0 is a
-temperature like any other: it goes into the long-term statistics, so an
-hour with a stretch without demand has a minimum of 0 °C and a lower mean,
-and a whole hour without demand a row of zeros where it had none; it shows
-as 32 °F with US customary units. An automation that waited for
-`unknown`, which 2.0.2 showed for no demand, should look at `demand`
-instead.
-
-**Counters.** The second heat source's operating hours and switching cycles
-are totals: the long-term statistics count hours and cycles per period.
-Up to 2.1.0b2 they were averaged; that older statistic stays in the
-database, but graphs no longer show it. In the first minutes after the
-update Home Assistant may list a *mean type changed* notice for them; it
-goes by itself with the next statistics run - do not delete the statistics
-for it. A counter
-that reads 0x8000 or 0xFFFF, and a percentage from 101 up, reads as
-unknown: in a total such a word would stay in the sum for good. A
-percentage of 0xFFFF means no sensor and reads as unavailable.
-
-**Electrical power.** Register 33126 is in no Weishaupt data-point list.
-Checked against an external meter on one WBB 12 it is the heat pump's own
-electrical draw in watts; the circulation pump and the controller are not
-in it (about 80 W there). Firmware that does not serve the register gets no
-entity - decided at the first poll after the integration starts, so after a
-firmware update reload the integration.
-
-**System operating mode.** *Automatic* and *Cooling* work only when cooling
-is enabled at the controller (the heating circuit's *Freigabe Kühlbetrieb*,
-installer level): Weishaupt's data-point list marks both "bei
-Kühlfreigabe", and the controller's own menu leaves them out otherwise.
-Without it the controller acknowledges the write - the write counters count
-it - but keeps the previous mode, and the select shows that mode again
-after the next poll.
-
-**Write counters.** Writes go to the heat pump's EEPROM, which Weishaupt
-rates for 100 000 writes over its lifetime. Two diagnostic sensors on the
-System device count the writes that went out, in total and today - one
-whose answer was lost or no longer waited for too, since the controller
-may have stored it, and one whose connection failed, which looks the
-same - and
-stay shown while the polling fails; the [Options](#options) set a
-warning threshold and a daily limit. The counts are kept with the entry,
-not in the sensors: they carry over restarts and reloads with the sensors
-disabled too, and go when the entry is removed.
-
-### The power map
-
-The heat power (*Wärmeleistung*) is calculated from the power request,
-the air intake temperature (register 30002, the air the heat pump draws
-its heat from) and the flow temperature. That relation is model
-specific; the integration ships a precompiled grid per model, read from the
-graphs in the Weishaupt documentation:
-
-- `weishaupt._wab8_kennfeld.json`
-- `weishaupt_ls13_kennfeld.json`
-- `weishaupt_wab11_kennfeld.json`
-- `weishaupt_wbb12_kennfeld.json`
-- `weishaupt_wbb20_kennfeld.json`
-- `weishaupt_wbb_kennfeld.json`
-- `weishaupt_wsb12_kennfeld.json`
-- `weishaupt_wsb15_armd_kennfeld.json`
-- `weishaupt_wsb6_kennfeld.json`
-- `weishaupt_wsb8_armea_kennfeld.json`
-- `weishaupt_wsb8_kennfeld.json`
-- `weishaupt_wwp_ls_10_kennfeld.json`
-- `weishaupt_wwp_ls_8_kennfeld.json`
-
-The two `wwp_ls` grids follow the "compressor frequency maximal" curves of the
-outdoor-unit manuals (83306301, 83306401). Their 55 °C curve ends at -15 °C,
-the operating limit; below it the value is carried on flat rather than
-dropping to 0 W, which used to halve the interpolated power for 45 °C flow.
-
-Pick the file matching your model. If yours is missing, copy the closest
-one, adjust `known_x`, `known_y` and `known_t` from your documentation and
-compile it once with `.github/scripts/compile_kennfeld.py` (needs `numpy`;
-with `scipy` the curve between your points is smooth, without it a straight
-line; `pygal` draws the preview picture). Keep the copy beside the shipped
-ones, in `custom_components/weishaupt_modbus/kennfeld/` of the
-configuration directory, under a name ending in `kennfeld.json`: only
-those are offered, and the picture is found as the `.svg` of the same
-name. Then pick it under *Reconfigure*. The
-integration only reads compiled grids. Contributions of new grids are welcome.
-A map compiled before 2.0.2 carries its file name in the picture's title;
-compile it again if that name should not be public.
-
-The preview picture of the selected map is published as
-`www/local/weishaupt_modbus_powermap.svg` in the configuration directory
-(with `_<postfix>` for a further pump), which Home Assistant serves as
-`/local/local/weishaupt_modbus_powermap.svg`. If the integration had to
-create `www/` itself, restart Home Assistant once so it serves the folder.
-Everything under `www/` can be fetched without logging in. A picture that
-carries script or links to the web is refused.
-
-## Web interface (experimental)
-
-The heat pump's controller also serves a local web interface, *WEM Lokal*.
-It shows values Modbus does not carry: the refrigerant circuit (pressures,
-temperatures, superheat, valve openings), compressor speed and counters,
-target and actual output, the flow rate, energy statistics to three decimals
-including the yearly totals, and the heating power limit. The integration
-reads them in a second entry beside the heat pump, and sets one of them, the
-heating power limit; nothing else is written.
-
-This part is experimental. The controller's web server is slow and now and
-then answers with an incomplete page, and heavy polling has disturbed
-controllers before (upstream issue #159). The integration therefore asks
-little and pauses on its own when the answers go wrong, until they come
-right again.
-
-### Switching it on
-
-1. Switch the web server on at the heat pump's display. It sits in the OEM
-   level, which opens from the same password entry as the installer level
-   (*Fachmann-Ebene*); the PIN decides which level opens. On a WBB, PIN 11
-   opens the installer level and PIN 21 the OEM level. In the OEM level, set
-   *Settings → Webserver* to on, and change nothing else there: that level
-   also holds the settings the heat pump runs by. Menu names can differ with
-   the controller and its firmware.
-2. Open `http://<address of the heat pump>/` in a browser. On the first
-   visit the page asks you to set a user name and a password; there are no
-   default credentials. These two go into the integration.
-3. Keep the controller's language on **German** or **English**
-   (*Settings → Language*, see the heat pump's manual). The web interface
-   shows its texts in the language set there, and the integration finds its
-   pages and values by their titles in these two languages. A text value,
-   such as the diverter valve position, keeps the controller's wording and
-   so changes with its language. With another language the dialog names
-   the menu entries it could not find and asks about the language. Another
-   model may show other values on its pages; the dialog then says the
-   controller is not supported yet. In either case - a language that has to
-   stay, or a model the integration does not know - open an
-   [issue](https://github.com/Varitras/weishaupt_modbus/issues) so that it
-   can be added: the integration needs its menu and value titles.
-   [`tools/webif_capture.py`](tools/webif_capture.py) collects them.
-   Download the repository (*Code → Download ZIP*) and unpack it on a
-   computer in the same network. On Windows double-click
-   `tools\webif_capture.bat` and enter the heat pump's address: no Python is
-   needed. On its first start it downloads the official portable Python from
-   python.org (about 11 MB) into `tools\python`, checks it against the
-   checksum python.org publishes and runs nothing else; nothing is
-   installed, and deleting that folder removes it. Elsewhere run
-   `python tools/webif_capture.py <address of the heat pump>` (Python 3.10
-   or newer). It asks for the user and the
-   password and opens six pages: it finds the menu entries the integration
-   reads by their codes, else by their German titles, else you pick them by
-   number and confirm each pick; Reset, Service and the time programs are
-   never offered on the controller the tool was built for. On another one
-   it knows them by their codes only, so check each title before you
-   confirm a pick. When the controller serves a page half or does not
-   answer, it rests a minute and goes on, ten times at most: a run takes
-   about a minute, one the controller keeps failing up to about three
-   quarters of an hour before the tool gives up. The file it writes holds
-   the titles, and the values of the three pages the integration reads; the
-   tool adds no address, credentials or page address, and lands in the
-   folder the tool ran in (`tools` for the batch file). The values are what
-   those pages show: check the file for a serial number, an access code or
-   a network address before you attach it to the issue.
-
-### Adding it
-
-The web interface belongs to a heat pump entry, so set the heat pump up
-first: the dialog offers *Web interface of a heat pump* only once a heat pump
-entry exists, and goes straight to the heat pump before that. Then
-*Settings → Devices & services → Add integration → Weishaupt Modbus → Web
-interface of a heat pump*, pick the heat pump and enter the web interface's
-user and password. A heat pump has one web interface entry: the list offers
-only heat pumps that have none yet. Logging in, finding the pages and reading
-each once can take several minutes when the controller answers slowly, and
-the dialog shows its progress meanwhile; pages the controller serves only half
-are searched once more before the dialog asks you to try again a little later,
-and the dialog logs out again afterwards; a page of values that shows none of
-its titles counts as served half. A page that lacks a title the sensors read,
-or shows a value in a unit they do not know, is named in the dialog with those
-titles: that controller is not supported yet. Values shown empty or twice, and
-a menu entry shown twice, are searched once more as well and then named the
-same way, with a request to try again.
-
-To read only the web interface, for example from a second Home Assistant
-beside one that polls the heat pump over Modbus, disable the heat pump entry
-afterwards: *⋮ → Disable* on the entry itself. Disabling only its devices
-leaves the entry connecting over Modbus at every start. The web interface
-keeps working without it, and only the other Home Assistant polls the heat
-pump over Modbus.
-
-The entry takes the heat pump's address and follows it when the heat pump
-entry is reconfigured; when the heat pump entry is deleted, it stops. Its
-options set how often each page is read, 1 to 60 minutes: the heat pump
-page every 5 minutes by default, the statistics and the heating settings
-every 15. They also set how many settings it may write a day, 10 by default;
-0 switches the limit off. *Reconfigure* takes a new
-user and password and searches the pages again; a refused login asks for a
-new one by itself.
-
-### What it reads
-
-46 sensors with the pump's values, the heating power limit as a number,
-five sensors about the polling itself and two counting the settings written,
-on a device of their own, *WH Web interface* (with the heat pump's postfix). Home
-Assistant gives every device to one entry, so they cannot join the heat
-pump's devices.
-
-- **Readings**: setpoint temperature, dynamic switching difference, pump M1
-  speed, flow rate, diverter valve position, target and actual output, eight
-  refrigerant circuit temperatures, low, intermediate and high pressure,
-  three superheat values, three valve openings, compressor speed, operating
-  hours, starts and defrost cycles.
-- **Statistics**: the thermal and electrical energy of today, this month and
-  this year to three decimals, and the performance factors of the year and
-  overall.
-- **Diagnostic**: the heating switching difference, the two controller
-  software versions and the outdoor unit variant.
-- **Setting** (configuration): the heating power limit, 10 to 100 %; see
-  [Setting the heating power limit](#setting-the-heating-power-limit).
-- **Settings written** (diagnostic): in total and today, carried over
-  restarts and shown while the polling is paused; the options limit them
-  per day.
-- **The polling itself** (diagnostic): the answer time, which is the slowest
-  answer since the round before - a setting written in between counts too -
-  and the counts of requests, logins, pages that
-  came incomplete and failed reads. A failed read is one the web interface
-  failed; an error in the integration itself is not counted there. The
-  counts carry over restarts, so Home Assistant's statistics show over weeks
-  whether the web interface answers more slowly or serves more incomplete
-  pages, which preceded its crashes. They stay shown while polling is
-  paused.
-
-The *Name topic prefix* and *Name device prefix* options of the heat pump
-entry name the values and the power limit like their Modbus siblings, with
-`WP_` or `ST_` and the prefix in front; the sensors about the polling and
-the settings written keep their names.
-
-A value counts only in the unit the page shows for it; anything else reads as
-unknown. The page shows an idle power or speed as `Aus` (in English an idle
-power as `off`), which reads as 0 there and as unknown on any other number;
-a text value keeps the word. It shows the setpoint temperature as `--` while nothing is
-demanded, which reads as 0 °C like the Modbus setpoints, in the statistics
-too, but without a `demand` attribute; any other `--` reads as unknown.
-
-### Setting the heating power limit
-
-The number *Heating power limit* sets *Wärmepumpe › Heizen ›
-Leistungsbegrenzung* (*heat pump › heating › output limit* in English) at
-the controller, 10 to 100 % in steps of one.
-
-- A change waits 5 seconds for further changes, so a few clicks on the arrows
-  make one write, of the last value. A change made while a write runs is
-  written after it.
-- The write reads the heating page and the limit's own page fresh, sends the
-  form once and reads the heating page back. A value the controller already
-  shows is not written.
-- The number shows a value only once the controller shows it, and unknown
-  while the heating page has no reading or polling is paused. It stays
-  available, so a value can be set without a reading. A refused or failed
-  write says why at the call: the
-  daily limit reached, polling paused, a form that does not match the
-  value shown, or a save the controller did not confirm.
-- The save is never repeated. When its outcome is unclear, the next reading
-  shows what the controller holds.
-- The controller stores the limit in its EEPROM. The options limit the
-  settings written to 10 a day by default, and two diagnostic sensors count
-  them. Nothing else is ever written through the web interface.
-
-Until 2.1.0b2 the power limit was a sensor. The entry removes it from the
-registry when it loads; automations that read `sensor.…heating_power_limit`
-move to the number. Its history stays in the recorder: *Developer tools →
-Statistics* lists its long-term statistics as having no state and offers to
-delete them. Home Assistant raises no repair notice for them.
-
-### How gently it asks
-
-- One request at a time, at least 5 seconds apart, each limited to 20 seconds.
-  The gap holds between everything that asks one heat pump's web interface,
-  a dialog's visit and the running entry included. While *Reconfigure* or a
-  new login checks the web interface, the entry starts no page of its own -
-  one it is reading finishes first - so the dialog hardly waits behind it.
-- Never at the same moment as a Modbus request from this integration to the
-  same heat pump. Another integration on Home Assistant's connection to it,
-  or a second Home Assistant polling it over Modbus as above, is not
-  coordinated with it.
-- It stays logged in. It logs in again when the controller has dropped the
-  session, renews the session once a day, and logs out when the entry is
-  unloaded or Home Assistant stops.
-- The first round, a login and the three pages, takes 20 seconds or more.
-  It runs after the entry has started, so Home Assistant's start does not
-  wait for it; the sensors show unavailable until it is done.
-- A page that arrived whole but wrong is asked for once more. After a
-  timeout, a broken connection, an error status or a session dropped right
-  after the login, nothing more is asked in that round, and no page before
-  the shortest page interval has passed: not by an update requested by hand,
-  and not after a write. A write that meets one of these gives the same rest.
-  A power limit you set during the rest still goes out.
-- A page that fails keeps its values once; the second failure in a row makes
-  them unavailable; the third pauses polling and raises a repair notice.
-  A failed page is asked for again only after its own interval. The notice
-  names the page and why; for a page that came wrong, the titles it lacked,
-  showed blank or showed twice, or their number when there are more than
-  five.
-- While paused, only that page is asked again: after 15 minutes, or after the
-  shortest page interval if that is longer, then at waits doubling from
-  there up to 2 hours. When it comes whole, polling resumes and the notice
-  goes by itself; the other pages show values again once they are read
-  anew. Reloading the entry resumes at once. An error in the integration
-  itself counts as a failure too: the notice names only its kind, and its
-  traceback is logged the first time after each load.
-- A refused login stops polling at once, an update requested by hand
-  included, and asks for the login again. Any other failed login, such as
-  the controller reporting its database out of reach, counts like a failed
-  page.
-- A write of the heating power limit asks nothing of a round between its
-  reads, its save and its read-back; a round waits for it. Its reads count
-  in the polling counts like a round's, but its failures do not pause
-  polling.
-
-The user and password are stored in Home Assistant's configuration and sent
-to the heat pump only, as plain HTTP: the controller offers nothing else, so
-keep it on a network you trust. The diagnostics download leaves them out, and
-the page addresses the entry stores; after a pause, the reason it and the
-repair notice give is the kind of failure and its cause, such as
-`Unreachable (TimeoutError)` or `Unreachable (HTTP 500)`, never a page
-address or a value the controller sent; for a page that came wrong, the
-titles it lacked, showed blank or showed twice, such as
-`Broken (missing: Hochdruck)`. Of
-each page it holds only the values the sensors show.
-
-## Actions
-
-The integration registers no actions of its own. Values are written with
-Home Assistant's standard actions: `number.set_value`,
-`select.select_option`, `switch.turn_on` and `switch.turn_off`.
-
-## Examples
+The integration registers no actions of its own. Values are written with Home
+Assistant's standard actions: `number.set_value`, `select.select_option`,
+`switch.turn_on` and `switch.turn_off`. Writes go to the heat pump's EEPROM,
+which Weishaupt rates for 100 000 writes; trigger automations that set values
+on a change, not on a schedule. Two sensors count the writes, and the options
+set a warning threshold and a daily limit (see
+[How Data Updates](https://github.com/Varitras/weishaupt_modbus/wiki/How-Data-Updates)).
 
 Show the power map of your model on a dashboard:
 
@@ -516,166 +105,61 @@ type: picture
 image: /local/local/weishaupt_modbus_powermap.svg
 ```
 
-When an automation sets a value, trigger it on a change (a PV surplus, a
-tariff switch), not on a schedule: every write that changes a value costs an
-EEPROM write, and the integration already skips writes of a value that is
-already set.
+## Web interface (experimental)
+
+The controller's local web interface, *WEM Lokal*, shows values Modbus does
+not carry: the refrigerant circuit, compressor speed and counters, target and
+actual output, the flow rate, energy statistics to three decimals including
+the yearly totals, and the heating power limit. The integration reads them in
+a second entry beside the heat pump and sets one of them, the heating power
+limit; nothing else is written.
+
+The controller's web server is slow and now and then answers with an
+incomplete page, so the integration asks little: one request at a time, at
+least 5 seconds apart, never at the same moment as its Modbus requests. After
+three failures in a row it pauses, asks that page again after 15 minutes and
+then at waits doubling up to 2 hours, and resumes by itself when the page
+comes whole. Switching the web server on, adding the entry and everything it
+reads are described under
+[Web Interface](https://github.com/Varitras/weishaupt_modbus/wiki/Web-Interface).
+It needs the web interface's language set to Auto, German or English.
+
+For another language or another model, open an
+[issue](https://github.com/Varitras/weishaupt_modbus/issues) and attach the
+file [`tools/webif_capture.py`](tools/webif_capture.py) writes: it collects the
+menu and value titles the integration needs. On Windows,
+`tools\webif_capture.bat` runs it without an installed Python. How to run it
+and what the file holds:
+[Capturing the titles](https://github.com/Varitras/weishaupt_modbus/wiki/Web-Interface#capturing-the-titles).
 
 ## Known limitations
 
-- The yearly energy registers (36104 and the other `… Jahr` rows) answer but
-  stay at 0 on every controller seen so far, even after years of operation -
-  the yearly total exists only on the display, in the WEM portal and in the
-  web interface (see [Web interface (experimental)](#web-interface-experimental)).
-  The yearly performance factor over Modbus therefore has no value.
-- The performance factors over Modbus are heat energy divided by electric
-  energy, and both registers count whole kWh. So a factor is shown only from
-  5 kWh of electricity on - unknown before that, as on most hot-water-only
-  summer days and in the first days of a month - and even then it can be off
-  by up to a fifth; with 20 kWh by about a twentieth. The web interface's
-  statistics give the energies to three decimals.
+- The yearly energy registers answer but stay at 0 on every controller seen
+  so far; the yearly total exists only on the display, in the WEM portal and in
+  the web interface.
+- The performance factors over Modbus are shown only from 5 kWh of
+  electricity on, since both energies count whole kWh.
 - The heat output is calculated from the power map, not measured. The
-  electrical power is measured by the heat pump, but undocumented and
-  checked on one model only.
-- Prefix and device postfix cannot be changed after setup.
-- Heat pumps with the separate Weishaupt Modbus module are not supported.
-- The web interface is read only with the controller's language set to
-  German or English, and its values are those of a WBB; another model may
-  show other rows, and the dialog then says it is not supported yet.
+  electrical power is measured by the heat pump, but undocumented and checked
+  on one model only.
+- The web interface's values are those of a WBB; another model may show other
+  rows, and the dialog then says it is not supported yet.
+
+More under [How Data Updates](https://github.com/Varitras/weishaupt_modbus/wiki/How-Data-Updates#known-limits-of-the-values).
 
 ## Troubleshooting
 
-**Setup says "Failed to connect".** In the heat pump dialog, check that
-Modbus TCP is on (see [Prerequisites](#prerequisites)), that its network
-and netmask admit the Home Assistant host, and that the port matches. In
-the web interface dialog, check that the web server is on (see
-[Switching it on](#switching-it-on)) and that the web interface opens in a
-browser; a slow controller may need another try a little later.
-
-**Setup says a device answers but refuses the value.** The network is fine,
-but the device at that address and port is not the heat pump's Modbus TCP
-server, or not a Weishaupt one: check the address and the port.
-
-**All entities are unavailable.** Four polls in a row failed. The heat pump
-is off the network or does not answer; the entities come back with the next
-good poll. The log shows one error when they go; their return is logged at
-info level, which Home Assistant's default log level hides. Shorter
-drop-outs, which keep the last values, show only in the debug log. A
-register range the controller stops serving, and a web interface page whose
-values go unavailable, are logged at info level as they go and as they
-come back.
-
-**A write is refused.** The value is outside the range the controller
-currently allows, or the daily write limit from the [Options](#options) is
-reached.
-
-**The recorder warns about a changed unit or a removed state class after an
-upgrade.** See [Upgrading from 1.x](#upgrading-from-1x).
-
-**Debug logging.** On the integration's page choose *Enable debug logging*,
-reproduce the problem, then *Disable debug logging*; the log file is
-downloaded. Attach it to an [issue](https://github.com/Varitras/weishaupt_modbus/issues),
-together with *Download diagnostics* from the entry's menu: the register
-values and which address bands the heat pump serves, without its address
-or any name you typed (prefix, postfix, map file). It is offered once the
-entry has loaded, not while setup retries. The log is not cleaned the same
-way: a connection error names the heat pump's address, and a map that
-fails to load names its path. Replace IP addresses and host names, your
-user name in paths and any names of people or rooms before you attach it
-to a public issue. For the web interface the log lists every request with
-its answer and how long it took, page addresses included; the user name,
-the password and the session id never appear in it.
-Debug logging also switches on the Modbus transport's log, which writes
-every frame in hex: reproduce the problem and switch it off again.
-
-**A heat pump model nobody has tested.** Entities stay unavailable or show
-odd values. [`tools/weishaupt_scan.bat`](tools/weishaupt_scan.bat) reads
-every register the heat pump answers, without Home Assistant, and saves them
-as a CSV file: download it to a Windows PC in the same network, double-click
-it and enter the heat pump's address. It only reads, never writes, and the
-file holds no address, so it can be attached to an issue as it is. The scan
-takes about a minute.
-
-## Upgrading from 1.x
-
-Up to 1.x the integration opened its connection to the controller itself,
-with its own reconnect logic and block planner. Since 2.0 it asks Home
-Assistant's `modbus` integration for a *unit* on the connection to the
-controller's address. Home Assistant keeps one connection per endpoint and
-serialises everything that goes over it, so two entries of this integration,
-or another integration asking for the same endpoint, queue up behind one
-link. A hub from the YAML `modbus:` configuration is *not* part of that: it
-opens a client of its own. The wire is handled by the
-[modbus-connection](https://github.com/home-assistant-libs/modbus-connection)
-library (tmodbus backend), which Home Assistant installs with its `modbus`
-integration.
-
-What stays the same: the entities, their unique ids and history (except
-where the recorder notices below say otherwise), the entity ids you chose
-(one exception: an id of the three relabelled second-heat-source counters
-that ends in the old label, such as `..._switching_cycles_e_heating_2`,
-takes the new label - also when you chose it) and the shipped power map you
-selected. A power map of your own has to be compiled once (see
-[The power map](#the-power-map)); until then the heat power reads unknown.
-What is gone: this integration's own
-`pymodbus` requirement, the `pygal` requirement (the preview picture is drawn
-by the compile script, not at runtime), its reconnect and back-off logic, and
-the five-register block limit - the controller serves each address band in
-one read.
-
-New in 2.0: a switch beside every setpoint the controller can switch off
-(see [Entities](#entities)), the [Options](#options) dialog (poll interval,
-EEPROM write warning and limit) and the write counters. New entities,
-nothing existing is renamed.
-
-Some state strings changed. An automation that matched on an old one needs
-the new name; Home Assistant raises no notice for them:
-
-- Operating status (30006): 0 (undefined) was `system_operationmode_pvmode`,
-  now `system_operationmode_undefined`; 10 (utility lock) was
-  `system_operationmode_sgtariff`, now `system_operationmode_evu`; 37 and 39
-  (heating and hot water in SG-Ready mode) were `..._heating_sgr` and
-  `..._hotwater_sgr`, now `..._heating_sgr3` and `..._hotwater_sgr3`.
-- Heat pump operation (33101): 36 was `heatpump_operationmode_bereitschaft`,
-  now `heatpump_operationmode_regenerativ`; 37 and 39 changed from `_sgr` to
-  `_sgr3` as above.
-- SG-Ready 1 and 2 (35101, 35102) showed their input as a number, 0 or 1;
-  they now read off and on, states `w2_status_aus` and `w2_status_ein`.
-  Their long-term statistics end there, without a notice.
-
-Upgrading: install 2.0 and restart. Existing entries migrate on first start
-(entry version 11); an entry keeps the host and port you configured. If the
-controller does not answer during setup, Home Assistant retries.
-
-After the upgrade the recorder raises a notice once per sensor whose
-statistics changed; open *Developer tools -> Statistics* to settle each:
-
-- A changed unit on the three relabelled second-heat-source counters (hours
-  and cycles had swapped names) and a few unit-less rows (an empty unit
-  became none): choose to update the unit of the recorded statistics - the
-  history is the register's and stays.
-- A changed unit on H1.2 to H1.5 (now °C, as the data-point list says): 1.x
-  recorded their raw register words - tenths of a degree, and 32768 without
-  a sensor - so delete their old statistics instead; with the unit updated
-  they would read ten times too high.
-- A removed state class on the seven "... yesterday" energy sensors: a
-  yesterday's value is no growing total, so they keep no long-term
-  statistics any more. Delete their old statistics; the matching "... today"
-  sensors keep them.
-
-## Removal
-
-1. *Settings → Devices & services → Weishaupt Modbus*, open the entry's menu and
-   choose *Delete*. This removes its devices and entities; what the
-   recorder already stored stays in its database. A heat pump's web
-   interface is an entry of its own: delete it as well, on its own it only
-   stops.
-2. Delete `www/local/weishaupt_modbus_powermap*.svg` from your configuration
-   directory if you no longer want the preview picture.
-3. To remove the integration itself, uninstall it in HACS (or delete
-   `custom_components/weishaupt_modbus/`) and restart.
-
-Optionally switch Modbus TCP off on the heat pump again.
+For a problem, attach a debug log and the diagnostics to an
+[issue](https://github.com/Varitras/weishaupt_modbus/issues): on the
+integration's page choose *Enable debug logging*, reproduce the problem, then
+*Disable debug logging*; *Download diagnostics* is in the entry's menu. The
+diagnostics leave out the heat pump's address and the names you typed; the log
+does not, so replace addresses, host names and names of people or rooms before
+you attach it. For a heat pump model nobody has tested,
+[`tools/weishaupt_scan.bat`](tools/weishaupt_scan.bat) reads every register it
+answers into a CSV file, read only. Error messages, repair notices and what the
+log shows are explained under
+[Troubleshooting and Diagnostics](https://github.com/Varitras/weishaupt_modbus/wiki/Troubleshooting-and-Diagnostics).
 
 ## Development
 
