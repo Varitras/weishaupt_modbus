@@ -54,11 +54,6 @@ from .weishaupt_modbus_api.const import DEFAULT_PORT, MODBUS_UNIT_ID
 from .weishaupt_modbus_api.device import WeishauptHeatPump
 from .weishaupt_modbus_api.hpconst import DEVICELISTS
 from .weishaupt_modbus_api.write_budget import WriteBudget
-from .write_counter_sensor import (
-    TOTAL_WRITES,
-    WEBIF_WRITE_COUNTER_DESCRIPTIONS,
-    WRITES_TODAY,
-)
 from .write_counts import async_keep_write_counts, async_remove_write_counts
 
 _LOGGER = logging.getLogger(__name__)
@@ -154,9 +149,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     )
     unit = async_get_unit(hass, entry, params, MODBUS_UNIT_ID)
     budget = write_budget(entry)
-    await async_keep_write_counts(
-        hass, entry, budget, entry.data, (TOTAL_WRITES.key, WRITES_TODAY.key)
-    )
+    await async_keep_write_counts(hass, entry, budget)
     pump = WeishauptHeatPump(
         unit, itemlist, budget, host_lock(hass, entry.data[CONF.HOST])
     )
@@ -269,10 +262,7 @@ async def _async_setup_web_interface(
         ),
         today=lambda: dt_util.now().date(),
     )
-    total, today = WEBIF_WRITE_COUNTER_DESCRIPTIONS
-    await async_keep_write_counts(
-        hass, entry, budget, started_with, (total.key, today.key)
-    )
+    await async_keep_write_counts(hass, entry, budget)
     coordinator = WebifCoordinator(hass, entry, client, polled, budget=budget)
     entry.runtime_data = WebifData(
         coordinator=coordinator, client=client, pump_data=started_with
