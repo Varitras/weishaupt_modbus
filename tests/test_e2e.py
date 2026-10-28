@@ -54,7 +54,6 @@ from homeassistant.helpers import (
     entity_registry as er,
     issue_registry as ir,
 )
-from homeassistant.helpers.restore_state import async_get as async_get_restored
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -1625,9 +1624,10 @@ async def test_a_counter_renamed_and_renamed_back_counts_its_writes_once(hass):
     assert _counts(entry) == (1, 1)
 
 
-async def test_the_counts_the_sensors_recorded_are_taken_over_once(hass, hass_storage):
-    """Before the counts had a store of their own, the sensors held them: the
-    first start takes them over, every later one reads the store."""
+async def test_a_new_entry_starts_its_counts_without_the_sensors_last_states(hass):
+    """The first start took over the counts the sensors had recorded, read
+    from Home Assistant's internal last states, which 2026.11 renamed: the
+    entry failed to set up."""
     entry = _entry(hass)
     registry = er.async_get(hass)
     ids = [
@@ -1637,55 +1637,17 @@ async def test_the_counts_the_sensors_recorded_are_taken_over_once(hass, hass_st
         for unique_id in (WRITES_TOTAL_UNIQUE_ID, WRITES_TODAY_UNIQUE_ID)
     ]
     today = {"day": dt_util.now().date().isoformat()}
-    recorded = {"native_value": 7, "native_unit_of_measurement": None}
     mock_restore_cache_with_extra_data(
         hass,
         [
-            (State(ids[0], "7"), recorded),
-            (State(ids[1], "2", today), {**recorded, "native_value": 2}),
-        ],
-    )
-    await _setup(hass, entry)
-    assert _counts(entry) == (7, 2)
-    assert (await _saved_counts(hass, hass_storage, entry))[:2] == (7, 2), (
-        "the counts taken over were not saved"
-    )
-
-    # The sensors record no state any more: the next start has only the store.
-    async_get_restored(hass).last_states.clear()
-    assert await hass.config_entries.async_reload(entry.entry_id)
-    await hass.async_block_till_done()
-    assert _counts(entry) == (7, 2), "the counts taken over were not saved"
-
-    await _write_once(hass, entry)
-    assert await hass.config_entries.async_reload(entry.entry_id)
-    await hass.async_block_till_done()
-
-    assert _counts(entry) == (8, 3)
-
-
-async def test_a_count_recorded_as_unavailable_is_taken_over_as_zero(hass):
-    """Before the store, a counter went unavailable with the polling, and its
-    last state then held no count."""
-    entry = _entry(hass)
-    registry = er.async_get(hass)
-    ids = [
-        registry.async_get_or_create(
-            "sensor", CONST.DOMAIN, unique_id, config_entry=entry
-        ).entity_id
-        for unique_id in (WRITES_TOTAL_UNIQUE_ID, WRITES_TODAY_UNIQUE_ID)
-    ]
-    mock_restore_cache_with_extra_data(
-        hass,
-        [
-            (State(ids[0], "5"), {"native_value": 5}),
-            (State(ids[1], "unavailable"), {"native_value": None}),
+            (State(ids[0], "7"), {"native_value": 7}),
+            (State(ids[1], "2", today), {"native_value": 2}),
         ],
     )
 
     await _setup(hass, entry)
 
-    assert _counts(entry) == (5, 0)
+    assert _counts(entry) == (0, 0)
 
 
 async def test_removing_the_entry_removes_its_write_counts(hass, hass_storage):

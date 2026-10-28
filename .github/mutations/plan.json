@@ -4365,7 +4365,7 @@
     "path": "custom_components/weishaupt_modbus/write_counts.py",
     "old": "    budget.load(counts)\n",
     "new": "",
-    "tests": "sensors_disabled or taken_over_once or write_counters_survive_a_reload or reads_the_counts_from_the_file"
+    "tests": "sensors_disabled or write_counters_survive_a_reload or reads_the_counts_from_the_file"
   },
   {
     "label": "write counts: a counted write is never saved",
@@ -4375,25 +4375,11 @@
     "tests": "reads_the_counts_from_the_file"
   },
   {
-    "label": "write counts: the sensors' counts are not taken over",
-    "path": "custom_components/weishaupt_modbus/write_counts.py",
-    "old": "        taken_over = _recorded_by_the_sensors(hass, id_data, keys)\n",
-    "new": "        taken_over = {}\n",
-    "tests": "taken_over_once"
-  },
-  {
-    "label": "write counts: the counts taken over are not saved",
-    "path": "custom_components/weishaupt_modbus/write_counts.py",
-    "old": "        kept.store.async_delay_save(lambda: taken_over, 0)\n",
-    "new": "",
-    "tests": "taken_over_once"
-  },
-  {
     "label": "write counts: a reload opens a store of its own",
     "path": "custom_components/weishaupt_modbus/write_counts.py",
     "old": "    if entry_id not in stores:\n",
     "new": "    if True:\n",
-    "tests": "sensors_disabled or taken_over_once or write_counters_survive_a_reload"
+    "tests": "sensors_disabled or write_counters_survive_a_reload"
   },
   {
     "label": "write counts: removing the entry leaves its counts",
@@ -4751,5 +4737,12 @@
     "old": "            \"pages\": self._published(),\n",
     "new": "            \"pages\": self.data,\n",
     "tests": "download_during_a_stop_shows_no_values_from_before_it"
+  },
+  {
+    "label": "write counts: a new entry takes over the sensors' last states",
+    "path": "custom_components/weishaupt_modbus/write_counts.py",
+    "old": "        counts = await kept.store.async_load() or {}\n",
+    "new": "        counts = await kept.store.async_load() or {\"total\": 7}\n",
+    "tests": "without_the_sensors_last_states"
   }
 ]
