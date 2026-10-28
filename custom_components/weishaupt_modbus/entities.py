@@ -439,6 +439,10 @@ class MySetpointSwitchEntity(MyEntity, SwitchEntity, RestoreEntity):
         if isinstance(value, int) and not isinstance(value, bool):
             self._api_item.last_setting = value
 
+    @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Renamed in place: the kept value lives with the register."""
+
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Write the off word."""
         try:

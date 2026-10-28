@@ -10,6 +10,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import EntityCategory
+from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -104,6 +105,10 @@ class WriteCounterSensor(CoordinatorEntity[DataUpdateCoordinator[Any]], SensorEn
         """Show each counted write as it is counted."""
         await super().async_added_to_hass()
         self.async_on_remove(self._budget.add_listener(self.async_write_ha_state))
+
+    @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Renamed in place: the listener writes under the current id."""
 
 
 def pump_write_counters(

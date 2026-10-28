@@ -4744,5 +4744,26 @@
     "old": "        counts = await kept.store.async_load() or {}\n",
     "new": "        counts = await kept.store.async_load() or {\"total\": 7}\n",
     "tests": "without_the_sensors_last_states"
+  },
+  {
+    "label": "entity id change: the setpoint switch is removed and added again",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "    def async_entity_id_changed(",
+    "new": "    def entity_id_changed_elsewhere(",
+    "tests": "renamed_in_place"
+  },
+  {
+    "label": "entity id change: a traffic count is removed and added again",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    def async_entity_id_changed(",
+    "new": "    def entity_id_changed_elsewhere(",
+    "tests": "renamed_in_place"
+  },
+  {
+    "label": "entity id change: a write counter is removed and added again",
+    "path": "custom_components/weishaupt_modbus/write_counter_sensor.py",
+    "old": "    def async_entity_id_changed(",
+    "new": "    def entity_id_changed_elsewhere(",
+    "tests": "renamed_in_place"
   }
 ]
