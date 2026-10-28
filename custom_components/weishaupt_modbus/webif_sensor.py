@@ -26,6 +26,7 @@ from homeassistant.const import (
     UnitOfTime,
     UnitOfVolumeFlowRate,
 )
+from homeassistant.core import callback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DEVICES
@@ -506,8 +507,9 @@ class TrafficSensor(_PollingSensor, RestoreSensor):
     """A count of what was asked, running on across restarts.
 
     The client starts its counts at zero on every (re)load; the last recorded
-    state is added on top in async_added_to_hass, once: a sensor given a new
-    id and its old one back is added again, and added its count twice.
+    state is added on top in async_added_to_hass, once: up to Home Assistant
+    2026.10, a sensor given a new id and its old one back is added again, and
+    added its count twice.
     """
 
     _restored = False
@@ -529,3 +531,7 @@ class TrafficSensor(_PollingSensor, RestoreSensor):
         # RestoreSensor types the value as any sensor value; ours is a count.
         recorded = int(str(last_data.native_value))
         self.coordinator.traffic.restore(self.entity_description.key, recorded)
+
+    @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Renamed in place: the count lives with the client."""
