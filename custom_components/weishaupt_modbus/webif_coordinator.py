@@ -28,9 +28,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import CONST
+from .outage import ExpectedOutage, log_expected_outages_at_info
 from .webif import pages
 from .webif.client import (
     Broken,
@@ -352,6 +353,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             name="weishaupt-webif",
             update_interval=shortest,
         )
+        log_expected_outages_at_info(_LOGGER)
         self._shortest_interval = shortest
         self._client = client
         self._pages = polled
@@ -590,7 +592,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             page_name, error = self._stopped_by(self._stopped)
             # The exception's own text, of the same name as the issue's; a
             # literal, as the translation check reads it from the source.
-            raise UpdateFailed(
+            # At INFO: the stop's repair notice says what to do.
+            raise ExpectedOutage(
                 translation_domain=CONST.DOMAIN,
                 translation_key="webif_stopped",
                 translation_placeholders={"page": page_name, "error": error},

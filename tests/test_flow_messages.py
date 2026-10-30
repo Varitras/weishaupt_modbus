@@ -276,10 +276,10 @@ def _raised_errors() -> tuple[list[str], dict[str, set[str]]]:
 def test_the_packages_own_subclass_of_a_user_facing_error_is_checked():
     """A subclass of UpdateFailed raised the same text, and the scan, knowing
     the base class names only, never looked at it."""
-    assert "PumpUnreachable" in _user_facing_errors(
+    assert "ExpectedOutage" in _user_facing_errors(
         [
             ast.parse((FLOW.parent / module).read_text(encoding="utf-8"))
-            for module in ("coordinator.py",)
+            for module in ("outage.py",)
         ]
     )
 

@@ -127,7 +127,8 @@ async def test_calculated_sensor_is_not_polled_and_reads_as_none(hass):
 async def test_communication_failure_is_update_failed(hass, caplog):
     """The coordinator contract: transport trouble is UpdateFailed, so the
     entities go unavailable instead of the update loop dying. Its own text
-    says what went wrong, and it is no fault to log a traceback for."""
+    says what kind of failure it was, and it is no fault to log a traceback
+    for."""
     entry = _entry(hass)
     client = FakeDevice([], fail=ModbusConnectionError("down"))
     coordinator = _modbus_coordinator(hass, entry, client, [])
@@ -135,8 +136,28 @@ async def test_communication_failure_is_update_failed(hass, caplog):
     with pytest.raises(UpdateFailed) as raised:
         await coordinator._async_update_data()
 
-    assert raised.value.translation_placeholders == {"error": "down"}
+    assert raised.value.translation_placeholders == {"error": "ModbusConnectionError"}
     assert not [record for record in caplog.records if record.exc_info]
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        ModbusConnectionError("could not connect to 192.0.2.10:502"),
+        ModbusTimeoutError("192.0.2.10:502 did not answer"),
+        ModbusProtocolError("garbled answer from 192.0.2.10"),
+    ],
+)
+async def test_an_outage_names_no_address(hass, failure):
+    """The library names the host it could not reach, and the outage line
+    went into every log people attach to an issue."""
+    client = FakeDevice([], fail=failure)
+    coordinator = _modbus_coordinator(hass, _entry(hass), client, [])
+
+    with pytest.raises(UpdateFailed) as raised:
+        await coordinator._async_update_data()
+
+    assert raised.value.translation_placeholders == {"error": type(failure).__name__}
 
 
 async def test_a_poll_that_timed_out_names_its_kind(hass):
@@ -238,7 +259,9 @@ async def test_an_unexpected_error_in_a_poll_logs_its_traceback_once(hass, caplo
     [
         (ModbusConnectionError("down"), logging.INFO),
         (ModbusTimeoutError("no answer"), logging.INFO),
-        (TimeoutError(), logging.INFO),
+        # The band limit ends a read that hangs; the library's own timeout
+        # is the pump not answering.
+        (TimeoutError(), logging.ERROR),
         (SystemBandRefused("refused"), logging.ERROR),
         (ModbusProtocolError("garbled"), logging.ERROR),
         (RuntimeError("a fault of the decoding"), logging.ERROR),

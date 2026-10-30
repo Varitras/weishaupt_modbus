@@ -4782,16 +4782,16 @@
   },
   {
     "label": "outage log: the filter leaves the level as it is",
-    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "path": "custom_components/weishaupt_modbus/outage.py",
     "old": "            record.levelno = logging.INFO\n",
     "new": "            pass\n",
-    "tests": "logged_as_info"
+    "tests": "logged_as_info or stop_is_logged_at_info"
   },
   {
     "label": "outage log: a refused system band counts as unreachable",
     "path": "custom_components/weishaupt_modbus/coordinator.py",
-    "old": "UNREACHABLE = (TimeoutError, ModbusConnectionError)\n",
-    "new": "UNREACHABLE = (TimeoutError, ModbusError)\n",
+    "old": "UNREACHABLE = (ModbusTimeoutError, ModbusConnectionError)\n",
+    "new": "UNREACHABLE = (ModbusTimeoutError, ModbusError)\n",
     "tests": "logged_as_info"
   },
   {
@@ -4839,8 +4839,43 @@
   {
     "label": "outage log: the filter is never added",
     "path": "custom_components/weishaupt_modbus/coordinator.py",
-    "old": "        _LOGGER.addFilter(_UNREACHABLE_IS_NO_ERROR)\n",
+    "old": "        log_expected_outages_at_info(_LOGGER)\n",
     "new": "",
     "tests": "logged_as_info"
+  },
+  {
+    "label": "outage log: a band read that hangs counts as unreachable",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "UNREACHABLE = (ModbusTimeoutError, ModbusConnectionError)\n",
+    "new": "UNREACHABLE = (TimeoutError, ModbusConnectionError)\n",
+    "tests": "logged_as_info"
+  },
+  {
+    "label": "outage log: the failure names the host",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        reason = type(err).__name__\n",
+    "new": "        reason = str(err) or type(err).__name__\n",
+    "tests": "names_no_address or communication_failure"
+  },
+  {
+    "label": "outage log: the web interface's stop is logged at error",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        log_expected_outages_at_info(_LOGGER)\n",
+    "new": "",
+    "tests": "stop_is_logged_at_info"
+  },
+  {
+    "label": "outage log: the filter is put on no logger",
+    "path": "custom_components/weishaupt_modbus/outage.py",
+    "old": "    logger.addFilter(_EXPECTED_OUTAGE_IS_NO_ERROR)\n",
+    "new": "",
+    "tests": "logged_as_info or stop_is_logged_at_info"
+  },
+  {
+    "label": "capture: a picked menu with nothing to open stays picked",
+    "path": "tools/webif_capture.py",
+    "old": "        _drop_pick(walk, step.parent)\n",
+    "new": "",
+    "tests": "picked_menu_with_nothing"
   }
 ]
