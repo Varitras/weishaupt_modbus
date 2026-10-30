@@ -4807,5 +4807,33 @@
     "old": "        del walk.read[step.parent]\n",
     "new": "        pass\n",
     "tests": "nothing_to_open"
+  },
+  {
+    "label": "scan tool: a register answer to another function is a reading",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "    Assert-AnswersFunction $body $function\n",
+    "new": "",
+    "tests": "malformed_register"
+  },
+  {
+    "label": "scan tool: a register answer of another byte count is a reading",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "    if ($body[1] -ne 2 -or $body.Length -ne 4) {",
+    "new": "    if ($false) {",
+    "tests": "malformed_register"
+  },
+  {
+    "label": "scan tool: an identification answer to another function is read",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "        Assert-AnswersFunction $body $FunctionEncapsulated\n",
+    "new": "",
+    "tests": "another_requests_answer"
+  },
+  {
+    "label": "scan tool: an identification of another MEI type is read",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "        if ($body[1] -ne $MeiReadDeviceId) {",
+    "new": "        if ($false) {",
+    "tests": "another_requests_answer"
   }
 ]
