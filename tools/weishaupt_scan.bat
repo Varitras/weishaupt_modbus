@@ -88,6 +88,13 @@ function Assert-Length([byte[]]$body, [int]$needed) {
     if ($body.Length -lt $needed) { throw [System.IO.IOException]::new($MalformedAnswer) }
 }
 
+# An answer to another function, or with the exception flag on another
+# function's code, passed as this one's.
+function Assert-AnswersFunction([byte[]]$body, [int]$function) {
+    $answers = $body[0] -eq $function -or $body[0] -eq ($function -bor $ExceptionFlag)
+    if (-not $answers) { throw [System.IO.IOException]::new($MalformedAnswer) }
+}
+
 function Invoke-Pdu([byte[]]$pdu) {
     $script:transactionId = ($script:transactionId + 1) -band 0xFFFF
     $length = $pdu.Length + 1
@@ -111,8 +118,10 @@ function Invoke-Pdu([byte[]]$pdu) {
 function Read-Register([int]$function, [int]$address) {
     $body = Invoke-Pdu ([byte[]]@($function, ($address -shr 8), ($address -band 0xFF), 0, 1))
     Assert-Length $body 2
+    Assert-AnswersFunction $body $function
     if ($body[0] -band $ExceptionFlag) { return @{ Exception = [int]$body[1] } }
-    Assert-Length $body 4
+    # One register: a byte count of 2 and exactly its two bytes.
+    if ($body[1] -ne 2 -or $body.Length -ne 4) { throw [System.IO.IOException]::new($MalformedAnswer) }
     return @{ Value = $body[2] * 256 + $body[3] }
 }
 
@@ -121,9 +130,11 @@ function Read-DeviceIdentification {
     for ($page = 0; $page -lt $MaxDeviceIdPages; $page++) {
         $body = Invoke-Pdu ([byte[]]@($FunctionEncapsulated, $MeiReadDeviceId, $DeviceIdBasic, $objectId))
         Assert-Length $body 2
+        Assert-AnswersFunction $body $FunctionEncapsulated
         if ($body[0] -band $ExceptionFlag) {
             return [pscustomobject]@{ table = 'device_id'; address = ''; value = ''; note = "exception $($body[1])" }
         }
+        if ($body[1] -ne $MeiReadDeviceId) { throw [System.IO.IOException]::new($MalformedAnswer) }
         # fc, MEI type, id code, conformity, more follows, next id, object count, objects
         Assert-Length $body 7
         $offset = 7

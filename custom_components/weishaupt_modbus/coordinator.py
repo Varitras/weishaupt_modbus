@@ -5,7 +5,7 @@ from datetime import timedelta
 import logging
 from typing import Any
 
-from modbus_connection import ModbusError
+from modbus_connection import ModbusConnectionError, ModbusError, ModbusTimeoutError
 
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.const import (
     CIRCUIT_OFF,
@@ -21,6 +21,7 @@ from .configentry import MyConfigEntry
 from .const import CONF, CONST, DeviceConstants
 from .items import ModbusItem
 from .migrate_helpers import device_postfix
+from .outage import ExpectedOutage, log_expected_outages_at_info
 from .weishaupt_modbus_api.device import WeishauptHeatPump
 from .weishaupt_modbus_api.hpconst import HZ_KONFIGURATION
 from .weishaupt_modbus_api.write_budget import WriteBudget
@@ -44,6 +45,9 @@ DOCUMENTED_SETUPS = frozenset(status.number for status in HZ_KONFIGURATION)
 # entities go unavailable on the fourth failed poll in a row - and never
 # before the first refresh has produced values to keep.
 FAILED_POLLS_TOLERATED = 3
+# No answer at all: the pump switched off, or the link down. A band read that
+# hangs ends in a bare TimeoutError, which is not that.
+UNREACHABLE = (ModbusTimeoutError, ModbusConnectionError)
 
 
 def check_configured(modbus_item: ModbusItem, config_entry: MyConfigEntry) -> bool:
@@ -177,6 +181,7 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.modbus_items = api_items
         self._failed_polls = 0
         self._traceback_logged = False
+        log_expected_outages_at_info(_LOGGER)
 
     @property
     def failed_polls(self) -> int:
@@ -195,8 +200,8 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             await self.device.async_update()
         except (TimeoutError, ModbusError) as err:
-            # A band's time limit raises a bare TimeoutError, without a text.
-            return self._failed_poll(str(err) or type(err).__name__, err)
+            # Its kind only: the library's text names the host it could not reach.
+            return self._failed_poll(err)
         except Exception as err:
             # A fault of this code or of a library, not of the link. Counted
             # all the same: uncounted, it passed the grace polls, and Home
@@ -205,12 +210,13 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if not self._traceback_logged:
                 self._traceback_logged = True
                 _LOGGER.exception("A poll failed on an unexpected error")
-            return self._failed_poll(type(err).__name__, err)
+            return self._failed_poll(err)
         self._failed_polls = 0
         return self._results()
 
-    def _failed_poll(self, reason: str, err: Exception) -> dict[str, Any]:
+    def _failed_poll(self, err: Exception) -> dict[str, Any]:
         """The last values while the grace polls last; UpdateFailed after."""
+        reason = type(err).__name__
         self._failed_polls += 1
         if self.data is not None and self._failed_polls <= FAILED_POLLS_TOLERATED:
             # Debug only: the outage itself is logged once, by the base
@@ -222,6 +228,12 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 reason,
             )
             return self.data
+        if isinstance(err, UNREACHABLE):
+            raise ExpectedOutage(
+                translation_domain=CONST.DOMAIN,
+                translation_key="communication_failed",
+                translation_placeholders={"error": reason},
+            ) from err
         raise UpdateFailed(
             translation_domain=CONST.DOMAIN,
             translation_key="communication_failed",

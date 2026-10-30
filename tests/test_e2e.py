@@ -384,7 +384,8 @@ async def test_an_outage_is_logged_once_when_it_starts_and_once_when_it_ends(
     hass, pump, caplog
 ):
     """Every tolerated failure logged a warning: a blip that healed itself
-    left three warnings, an outage three plus the error."""
+    left three warnings, an outage three plus the error. The start and the
+    end are logged once each, at INFO like Home Assistant's own recovery."""
     caplog.set_level(logging.INFO)
     entry = await _setup(hass, _entry(hass))
     coordinator = entry.runtime_data.coordinator
@@ -398,7 +399,13 @@ async def test_an_outage_is_logged_once_when_it_starts_and_once_when_it_ends(
     await coordinator.async_refresh()
     await coordinator.async_refresh()
     assert coordinator.last_update_success is False
-    assert len(_integration_warnings(caplog)) == 1
+    assert not _integration_warnings(caplog), "a pump that went away is no fault"
+    started = [
+        record.levelno
+        for record in caplog.records
+        if record.getMessage().startswith("Error fetching")
+    ]
+    assert started == [logging.INFO]
 
     pump.fail_requests(None)
     await coordinator.async_refresh()
@@ -1123,6 +1130,26 @@ async def test_two_legacy_entries_on_one_pump_do_not_get_the_same_identity(
     assert first.unique_id == "192.0.2.10:502"
     assert second.unique_id is None
     assert "same host and port" in caplog.text
+
+
+async def test_the_warning_about_two_entries_on_one_pump_names_no_titles(hass, caplog):
+    """The warning named both entries by their titles, which often hold the
+    host, and logs are what people attach to issues."""
+    first = _entry(hass, version=10)
+    second = _entry(hass, data={**BASE_DATA, CONF.DEVICE_POSTFIX: "2"}, version=10)
+    hass.config_entries.async_update_entry(first, title="pump at private-host-a")
+    hass.config_entries.async_update_entry(second, title="pump at private-host-b")
+
+    await _setup(hass, first)
+    await hass.async_block_till_done()
+
+    warning = next(
+        record.getMessage()
+        for record in caplog.records
+        if "same host and port" in record.getMessage()
+    )
+    assert "private-host" not in warning, warning
+    assert first.entry_id in warning and second.entry_id in warning, warning
 
 
 async def test_a_web_interface_entry_is_stripped_of_its_settings_and_entities(hass):

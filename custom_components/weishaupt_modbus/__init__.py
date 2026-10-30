@@ -369,8 +369,8 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) 
         _LOGGER.warning(
             "Entry %s uses the same host and port as entry %s; both poll and "
             "write the same pump. Remove one of them",
-            config_entry.title,
-            holder.title,
+            config_entry.entry_id,
+            holder.entry_id,
         )
         unique_id = None
     hass.config_entries.async_update_entry(
@@ -440,7 +440,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload the platforms; the unit is released with the entry's unload hooks.
 
-    A web interface stops polling and logs out first.
+    A web interface then stops polling and logs out.
     """
     if is_web_interface(entry):
         web: WebifData = entry.runtime_data

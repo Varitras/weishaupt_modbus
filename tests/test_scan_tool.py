@@ -316,6 +316,10 @@ MALFORMED_REGISTER = {
     "an exception without its code": bytes([READ_INPUT | EXCEPTION_FLAG]),
     "a length of zero": Raw(bytes([0, 0, 1])),
     "a length of one": Raw(bytes([0, 1, 1])),
+    # Both read as the value 195: one answers another function, the other
+    # says it holds no data bytes.
+    "another function's answer": bytes([READ_HOLDING, 2, 0, 0xC3]),
+    "a byte count of zero": bytes([READ_INPUT, 0, 0, 0xC3]),
 }
 
 
@@ -334,6 +338,36 @@ def test_a_malformed_identification_answer_does_not_end_the_scan(
     assert _values(rows, "input") == {30002: 195}, process.stderr
 
 
+@pytest.mark.parametrize(
+    "answer",
+    [
+        pytest.param(
+            bytes([READ_INPUT, 0x0E, 1, 1, 0, 0, 1, 0, 3]) + b"Wei",
+            id="another function",
+        ),
+        pytest.param(
+            bytes([ENCAPSULATED, 0x0D, 1, 1, 0, 0, 1, 0, 3]) + b"Wei",
+            id="another MEI type",
+        ),
+    ],
+)
+def test_another_requests_answer_is_no_identification(tmp_path, serve, answer):
+    """Only the exception flag was checked: an answer to another request was
+    read as the controller's name."""
+    pump = _StandInPump(
+        registers={(READ_INPUT, 30002): 195},
+        malformed={(ENCAPSULATED, None): answer},
+    )
+    port = serve(pump)
+
+    process, rows = _scan(tmp_path, port, InputRegisters=[30002], HoldingRegisters=[])
+
+    # The identification's texts go into the note column.
+    notes = [row["note"] for row in rows if row["table"] == "device_id"]
+    assert notes, process.stderr
+    assert "Wei" not in notes, notes
+
+
 @pytest.mark.parametrize("shape", sorted(MALFORMED_REGISTER))
 def test_a_malformed_register_answer_does_not_end_the_scan(tmp_path, serve, shape):
     pump = _StandInPump(
@@ -347,3 +381,5 @@ def test_a_malformed_register_answer_does_not_end_the_scan(tmp_path, serve, shap
     )
 
     assert _values(rows, "input") == {30002: 195}, process.stderr
+    noted = [row for row in rows if row["address"] == "30001"]
+    assert noted and all(row["note"] for row in noted), rows

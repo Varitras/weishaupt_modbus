@@ -282,6 +282,7 @@ files = [
   "custom_components/weishaupt_modbus/config_flow.py",
   "custom_components/weishaupt_modbus/configentry.py",
   "custom_components/weishaupt_modbus/coordinator.py",
+  "custom_components/weishaupt_modbus/outage.py",
   "custom_components/weishaupt_modbus/diagnostics.py",
   "custom_components/weishaupt_modbus/entities.py",
   "custom_components/weishaupt_modbus/items.py",

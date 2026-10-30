@@ -12,7 +12,11 @@ import logging
 import textwrap
 from types import SimpleNamespace
 
-from modbus_connection import ModbusConnectionError
+from modbus_connection import (
+    ModbusConnectionError,
+    ModbusProtocolError,
+    ModbusTimeoutError,
+)
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -24,6 +28,9 @@ from custom_components.weishaupt_modbus.coordinator import (
     write_budget,
 )
 from custom_components.weishaupt_modbus.items import ModbusItem
+from custom_components.weishaupt_modbus.weishaupt_modbus_api.exceptions import (
+    SystemBandRefused,
+)
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.hpconst import (
     MODBUS_SYS_ITEMS,
 )
@@ -120,7 +127,8 @@ async def test_calculated_sensor_is_not_polled_and_reads_as_none(hass):
 async def test_communication_failure_is_update_failed(hass, caplog):
     """The coordinator contract: transport trouble is UpdateFailed, so the
     entities go unavailable instead of the update loop dying. Its own text
-    says what went wrong, and it is no fault to log a traceback for."""
+    says what kind of failure it was, and it is no fault to log a traceback
+    for."""
     entry = _entry(hass)
     client = FakeDevice([], fail=ModbusConnectionError("down"))
     coordinator = _modbus_coordinator(hass, entry, client, [])
@@ -128,8 +136,28 @@ async def test_communication_failure_is_update_failed(hass, caplog):
     with pytest.raises(UpdateFailed) as raised:
         await coordinator._async_update_data()
 
-    assert raised.value.translation_placeholders == {"error": "down"}
+    assert raised.value.translation_placeholders == {"error": "ModbusConnectionError"}
     assert not [record for record in caplog.records if record.exc_info]
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        ModbusConnectionError("could not connect to 192.0.2.10:502"),
+        ModbusTimeoutError("192.0.2.10:502 did not answer"),
+        ModbusProtocolError("garbled answer from 192.0.2.10"),
+    ],
+)
+async def test_an_outage_names_no_address(hass, failure):
+    """The library names the host it could not reach, and the outage line
+    went into every log people attach to an issue."""
+    client = FakeDevice([], fail=failure)
+    coordinator = _modbus_coordinator(hass, _entry(hass), client, [])
+
+    with pytest.raises(UpdateFailed) as raised:
+        await coordinator._async_update_data()
+
+    assert raised.value.translation_placeholders == {"error": type(failure).__name__}
 
 
 async def test_a_poll_that_timed_out_names_its_kind(hass):
@@ -224,6 +252,41 @@ async def test_an_unexpected_error_in_a_poll_logs_its_traceback_once(hass, caplo
         if record.exc_info and record.levelno >= logging.ERROR
     ]
     assert len(tracebacks) == 1
+
+
+@pytest.mark.parametrize(
+    ("failure", "level"),
+    [
+        (ModbusConnectionError("down"), logging.INFO),
+        (ModbusTimeoutError("no answer"), logging.INFO),
+        # The band limit ends a read that hangs; the library's own timeout
+        # is the pump not answering.
+        (TimeoutError(), logging.ERROR),
+        (SystemBandRefused("refused"), logging.ERROR),
+        (ModbusProtocolError("garbled"), logging.ERROR),
+        (RuntimeError("a fault of the decoding"), logging.ERROR),
+    ],
+)
+async def test_a_pump_that_stops_answering_is_logged_as_info(
+    hass, caplog, failure, level
+):
+    """Home Assistant logs a failed refresh at ERROR, so a pump switched off
+    or a link that dropped showed as a fault of the integration. A pump that
+    answers wrongly, or a fault of this code, is still an error."""
+    coordinator, device, _ = _polled_once(hass)
+    await coordinator.async_refresh()
+    device.fail = failure
+
+    for _ in range(4):
+        await coordinator.async_refresh()
+
+    assert not coordinator.last_update_success
+    outages = [
+        record.levelno
+        for record in caplog.records
+        if record.getMessage().startswith("Error fetching")
+    ]
+    assert outages == [level]
 
 
 async def test_a_value_is_looked_up_by_translation_key(hass):

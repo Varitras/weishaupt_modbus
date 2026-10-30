@@ -465,10 +465,13 @@ async def test_a_page_failing_until_the_stop_is_told_unavailable_once(
     for minutes in (15, 30, 45):
         await round_at(coordinator, clock, minutes * 60)
 
+    # Home Assistant's own line for the stop is test_the_stop_is_logged_at_info's.
     told = [
         record.getMessage()
         for record in caplog.records
-        if record.levelno == logging.INFO and record.name == webif_coordinator.__name__
+        if record.levelno == logging.INFO
+        and record.name == webif_coordinator.__name__
+        and not record.getMessage().startswith("Error fetching")
     ]
     assert told == ["heat_pump unavailable: Broken (blank or doubled: Hochdruck)"]
 
@@ -505,6 +508,23 @@ async def test_the_third_failure_in_a_row_stops_polling(
     await round_at(coordinator, clock, 40 * 60)
     assert client.asked == [], "no request before the retry, not even by hand"
     assert not coordinator.last_update_success
+
+
+async def test_the_stop_is_logged_at_info(coordinator, client, clock, caplog):
+    """Home Assistant logs a failed refresh at ERROR: a pump switched off left
+    one each day, beside the Modbus entry's line at INFO. The notice that
+    comes with the stop says what to do."""
+    client.answer(HEAT_PUMP, Unreachable("GET /x: TimeoutError", "TimeoutError"))
+    for quarter in range(3):
+        await round_at(coordinator, clock, quarter * 15 * 60)
+
+    assert not coordinator.last_update_success
+    stops = [
+        record.levelno
+        for record in caplog.records
+        if record.getMessage().startswith("Error fetching")
+    ]
+    assert stops == [logging.INFO]
 
 
 async def test_a_stop_asks_the_failed_page_alone_again_after_a_quarter_hour(
