@@ -69,8 +69,7 @@ class _UnreachableIsNoError(logging.Filter):
         return True
 
 
-# On the coordinator's own logger: a filter on a parent never sees the record.
-_LOGGER.addFilter(_UnreachableIsNoError())
+_UNREACHABLE_IS_NO_ERROR = _UnreachableIsNoError()
 
 
 def check_configured(modbus_item: ModbusItem, config_entry: MyConfigEntry) -> bool:
@@ -204,6 +203,9 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.modbus_items = api_items
         self._failed_polls = 0
         self._traceback_logged = False
+        # On the coordinator's own logger: a filter on a parent never sees the
+        # record. The same filter is added once however many entries there are.
+        _LOGGER.addFilter(_UNREACHABLE_IS_NO_ERROR)
 
     @property
     def failed_polls(self) -> int:
@@ -249,8 +251,13 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 reason,
             )
             return self.data
-        failure = PumpUnreachable if isinstance(err, UNREACHABLE) else UpdateFailed
-        raise failure(
+        if isinstance(err, UNREACHABLE):
+            raise PumpUnreachable(
+                translation_domain=CONST.DOMAIN,
+                translation_key="communication_failed",
+                translation_placeholders={"error": reason},
+            ) from err
+        raise UpdateFailed(
             translation_domain=CONST.DOMAIN,
             translation_key="communication_failed",
             translation_placeholders={"error": reason},

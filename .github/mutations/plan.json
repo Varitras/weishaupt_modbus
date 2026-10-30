@@ -4776,8 +4776,8 @@
   {
     "label": "outage log: an unreachable pump fails like any other",
     "path": "custom_components/weishaupt_modbus/coordinator.py",
-    "old": "        failure = PumpUnreachable if isinstance(err, UNREACHABLE) else UpdateFailed\n",
-    "new": "        failure = UpdateFailed\n",
+    "old": "        if isinstance(err, UNREACHABLE):\n",
+    "new": "        if False:\n",
     "tests": "logged_as_info"
   },
   {
@@ -4835,5 +4835,12 @@
     "old": "        if ($body[1] -ne $MeiReadDeviceId) {",
     "new": "        if ($false) {",
     "tests": "another_requests_answer"
+  },
+  {
+    "label": "outage log: the filter is never added",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        _LOGGER.addFilter(_UNREACHABLE_IS_NO_ERROR)\n",
+    "new": "",
+    "tests": "logged_as_info"
   }
 ]

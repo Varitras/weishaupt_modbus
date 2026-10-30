@@ -223,17 +223,42 @@ def _called_name(func: ast.expr) -> str | None:
     return None
 
 
+def _user_facing_errors(trees: list[ast.Module]) -> set[str]:
+    """The errors above and the package's own subclasses of them, which a
+    list written out here would miss."""
+    names = set(USER_FACING_ERRORS)
+    classes = [
+        node
+        for tree in trees
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ClassDef)
+    ]
+    grown = True
+    while grown:
+        found = {
+            node.name
+            for node in classes
+            if any(_called_name(base) in names for base in node.bases)
+        }
+        grown = not found <= names
+        names |= found
+    return names
+
+
 def _raised_errors() -> tuple[list[str], dict[str, set[str]]]:
     """Raises of a user-facing error without a translation key, and the
     placeholders each translation key is raised with."""
     untranslated = []
     placeholders: dict[str, set[str]] = {}
-    for module in sorted(FLOW.parent.rglob("*.py")):
-        for node in ast.walk(ast.parse(module.read_text(encoding="utf-8"))):
+    modules = sorted(FLOW.parent.rglob("*.py"))
+    trees = [ast.parse(module.read_text(encoding="utf-8")) for module in modules]
+    user_facing = _user_facing_errors(trees)
+    for module, tree in zip(modules, trees, strict=True):
+        for node in ast.walk(tree):
             if not (
                 isinstance(node, ast.Raise)
                 and isinstance(node.exc, ast.Call)
-                and _called_name(node.exc.func) in USER_FACING_ERRORS
+                and _called_name(node.exc.func) in user_facing
             ):
                 continue
             keywords = {keyword.arg: keyword.value for keyword in node.exc.keywords}
@@ -246,6 +271,17 @@ def _raised_errors() -> tuple[list[str], dict[str, set[str]]]:
                 {k.value for k in given.keys} if isinstance(given, ast.Dict) else set()
             )
     return untranslated, placeholders
+
+
+def test_the_packages_own_subclass_of_a_user_facing_error_is_checked():
+    """A subclass of UpdateFailed raised the same text, and the scan, knowing
+    the base class names only, never looked at it."""
+    assert "PumpUnreachable" in _user_facing_errors(
+        [
+            ast.parse((FLOW.parent / module).read_text(encoding="utf-8"))
+            for module in ("coordinator.py",)
+        ]
+    )
 
 
 def test_every_error_the_user_sees_is_translated():
