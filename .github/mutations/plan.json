@@ -4765,5 +4765,12 @@
     "old": "    def async_entity_id_changed(",
     "new": "    def entity_id_changed_elsewhere(",
     "tests": "renamed_in_place"
+  },
+  {
+    "label": "migration: the duplicate warning names the entries by title",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "            config_entry.entry_id,\n            holder.entry_id,\n",
+    "new": "            config_entry.title,\n            holder.title,\n",
+    "tests": "names_no_titles"
   }
 ]

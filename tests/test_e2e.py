@@ -1125,6 +1125,26 @@ async def test_two_legacy_entries_on_one_pump_do_not_get_the_same_identity(
     assert "same host and port" in caplog.text
 
 
+async def test_the_warning_about_two_entries_on_one_pump_names_no_titles(hass, caplog):
+    """The warning named both entries by their titles, which often hold the
+    host, and logs are what people attach to issues."""
+    first = _entry(hass, version=10)
+    second = _entry(hass, data={**BASE_DATA, CONF.DEVICE_POSTFIX: "2"}, version=10)
+    hass.config_entries.async_update_entry(first, title="pump at private-host-a")
+    hass.config_entries.async_update_entry(second, title="pump at private-host-b")
+
+    await _setup(hass, first)
+    await hass.async_block_till_done()
+
+    warning = next(
+        record.getMessage()
+        for record in caplog.records
+        if "same host and port" in record.getMessage()
+    )
+    assert "private-host" not in warning, warning
+    assert first.entry_id in warning and second.entry_id in warning, warning
+
+
 async def test_a_web_interface_entry_is_stripped_of_its_settings_and_entities(hass):
     """Versions 5 to 8 stored web-interface credentials and switches in the
     entry and registered web-interface sensors. Version 9 takes both out, so
