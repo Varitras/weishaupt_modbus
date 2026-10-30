@@ -19,9 +19,9 @@ from a copy of the whole repository (Code -> Download ZIP, unpacked).
 On the first start it downloads the official embeddable Python from
 python.org (about 11 MB) into the folder "python" next to this file, checks
 its SHA-256 and unpacks it; later starts use it again. Nothing is installed
-and nothing is written outside this folder: deleting "python" removes it.
+and the portable Python stays in this folder: deleting "python" removes it.
 The capture asks for the web interface's user and password, and the file it
-writes lands in this folder.
+writes lands in the current working directory.
 #>
 param(
     [Parameter(Mandatory = $true)][string]$HostName,

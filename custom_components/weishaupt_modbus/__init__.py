@@ -440,7 +440,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload the platforms; the unit is released with the entry's unload hooks.
 
-    A web interface stops polling and logs out first.
+    A web interface then stops polling and logs out.
     """
     if is_web_interface(entry):
         web: WebifData = entry.runtime_data

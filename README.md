@@ -117,10 +117,10 @@ limit; nothing else is written.
 The controller's web server is slow and now and then answers with an
 incomplete page, so the integration asks little: one request at a time, at
 least 5 seconds apart, never at the same moment as its Modbus requests. After
-three failures in a row it pauses, asks that page again after 15 minutes and
-then at waits doubling up to 2 hours, and resumes by itself when the page
-comes whole. Switching the web server on, adding the entry and everything it
-reads are described under
+three failures in a row it pauses, asks that page again after 15 minutes (or
+the shortest page interval, if longer), then at waits doubling up to 2 hours,
+and resumes by itself when the page comes whole. Switching the web server on,
+adding the entry and everything it reads are described under
 [Web Interface](https://github.com/Varitras/weishaupt_modbus/wiki/Web-Interface).
 It needs the web interface's language set to Auto, German or English.
 
