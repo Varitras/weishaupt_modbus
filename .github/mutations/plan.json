@@ -4772,5 +4772,26 @@
     "old": "            config_entry.entry_id,\n            holder.entry_id,\n",
     "new": "            config_entry.title,\n            holder.title,\n",
     "tests": "names_no_titles"
+  },
+  {
+    "label": "outage log: an unreachable pump fails like any other",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        failure = PumpUnreachable if isinstance(err, UNREACHABLE) else UpdateFailed\n",
+    "new": "        failure = UpdateFailed\n",
+    "tests": "logged_as_info"
+  },
+  {
+    "label": "outage log: the filter leaves the level as it is",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "            record.levelno = logging.INFO\n",
+    "new": "            pass\n",
+    "tests": "logged_as_info"
+  },
+  {
+    "label": "outage log: a refused system band counts as unreachable",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "UNREACHABLE = (TimeoutError, ModbusConnectionError)\n",
+    "new": "UNREACHABLE = (TimeoutError, ModbusError)\n",
+    "tests": "logged_as_info"
   }
 ]

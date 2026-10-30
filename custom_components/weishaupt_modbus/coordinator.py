@@ -5,7 +5,7 @@ from datetime import timedelta
 import logging
 from typing import Any
 
-from modbus_connection import ModbusError
+from modbus_connection import ModbusConnectionError, ModbusError
 
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.const import (
     CIRCUIT_OFF,
@@ -44,6 +44,33 @@ DOCUMENTED_SETUPS = frozenset(status.number for status in HZ_KONFIGURATION)
 # entities go unavailable on the fourth failed poll in a row - and never
 # before the first refresh has produced values to keep.
 FAILED_POLLS_TOLERATED = 3
+# No answer at all: the pump switched off, or the link down. A timeout of the
+# library is a TimeoutError too.
+UNREACHABLE = (TimeoutError, ModbusConnectionError)
+
+
+class PumpUnreachable(UpdateFailed):
+    """A failed refresh for a pump that did not answer at all."""
+
+
+class _UnreachableIsNoError(logging.Filter):
+    """A pump that went away is logged at INFO, like its return.
+
+    Home Assistant logs every failed refresh at ERROR, with no switch for it.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        unreachable = record.levelno == logging.ERROR and any(
+            isinstance(argument, PumpUnreachable) for argument in (record.args or ())
+        )
+        if unreachable:
+            record.levelno = logging.INFO
+            record.levelname = logging.getLevelName(logging.INFO)
+        return True
+
+
+# On the coordinator's own logger: a filter on a parent never sees the record.
+_LOGGER.addFilter(_UnreachableIsNoError())
 
 
 def check_configured(modbus_item: ModbusItem, config_entry: MyConfigEntry) -> bool:
@@ -222,7 +249,8 @@ class WeishauptModbusCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 reason,
             )
             return self.data
-        raise UpdateFailed(
+        failure = PumpUnreachable if isinstance(err, UNREACHABLE) else UpdateFailed
+        raise failure(
             translation_domain=CONST.DOMAIN,
             translation_key="communication_failed",
             translation_placeholders={"error": reason},

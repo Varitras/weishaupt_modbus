@@ -384,7 +384,8 @@ async def test_an_outage_is_logged_once_when_it_starts_and_once_when_it_ends(
     hass, pump, caplog
 ):
     """Every tolerated failure logged a warning: a blip that healed itself
-    left three warnings, an outage three plus the error."""
+    left three warnings, an outage three plus the error. The start and the
+    end are logged once each, at INFO like Home Assistant's own recovery."""
     caplog.set_level(logging.INFO)
     entry = await _setup(hass, _entry(hass))
     coordinator = entry.runtime_data.coordinator
@@ -398,7 +399,13 @@ async def test_an_outage_is_logged_once_when_it_starts_and_once_when_it_ends(
     await coordinator.async_refresh()
     await coordinator.async_refresh()
     assert coordinator.last_update_success is False
-    assert len(_integration_warnings(caplog)) == 1
+    assert not _integration_warnings(caplog), "a pump that went away is no fault"
+    started = [
+        record.levelno
+        for record in caplog.records
+        if record.getMessage().startswith("Error fetching")
+    ]
+    assert started == [logging.INFO]
 
     pump.fail_requests(None)
     await coordinator.async_refresh()

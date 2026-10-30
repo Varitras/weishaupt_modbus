@@ -12,7 +12,11 @@ import logging
 import textwrap
 from types import SimpleNamespace
 
-from modbus_connection import ModbusConnectionError
+from modbus_connection import (
+    ModbusConnectionError,
+    ModbusProtocolError,
+    ModbusTimeoutError,
+)
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -24,6 +28,9 @@ from custom_components.weishaupt_modbus.coordinator import (
     write_budget,
 )
 from custom_components.weishaupt_modbus.items import ModbusItem
+from custom_components.weishaupt_modbus.weishaupt_modbus_api.exceptions import (
+    SystemBandRefused,
+)
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.hpconst import (
     MODBUS_SYS_ITEMS,
 )
@@ -224,6 +231,39 @@ async def test_an_unexpected_error_in_a_poll_logs_its_traceback_once(hass, caplo
         if record.exc_info and record.levelno >= logging.ERROR
     ]
     assert len(tracebacks) == 1
+
+
+@pytest.mark.parametrize(
+    ("failure", "level"),
+    [
+        (ModbusConnectionError("down"), logging.INFO),
+        (ModbusTimeoutError("no answer"), logging.INFO),
+        (TimeoutError(), logging.INFO),
+        (SystemBandRefused("refused"), logging.ERROR),
+        (ModbusProtocolError("garbled"), logging.ERROR),
+        (RuntimeError("a fault of the decoding"), logging.ERROR),
+    ],
+)
+async def test_a_pump_that_stops_answering_is_logged_as_info(
+    hass, caplog, failure, level
+):
+    """Home Assistant logs a failed refresh at ERROR, so a pump switched off
+    or a link that dropped showed as a fault of the integration. A pump that
+    answers wrongly, or a fault of this code, is still an error."""
+    coordinator, device, _ = _polled_once(hass)
+    await coordinator.async_refresh()
+    device.fail = failure
+
+    for _ in range(4):
+        await coordinator.async_refresh()
+
+    assert not coordinator.last_update_success
+    outages = [
+        record.levelno
+        for record in caplog.records
+        if record.getMessage().startswith("Error fetching")
+    ]
+    assert outages == [level]
 
 
 async def test_a_value_is_looked_up_by_translation_key(hass):
