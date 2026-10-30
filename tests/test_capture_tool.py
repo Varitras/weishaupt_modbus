@@ -350,6 +350,37 @@ async def test_a_page_served_half_is_asked_for_again_after_a_minute(
     ]
 
 
+async def test_a_menu_served_with_nothing_to_open_is_asked_for_again(
+    socket_enabled,
+):
+    """A menu that came with Service and Reset only had nothing left to
+    offer: the tool asked for a number from 1 to 0 until stopped."""
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN)
+        whole = pump.site.pop(WALK[2])
+        nothing_to_open = column(
+            link([KNOWN["pump"], SERVICE], "Service")
+            + link([KNOWN["pump"], RESET], "Reset")
+        )
+        pump.pages = [nothing_to_open, whole]
+        report, questions, rests = await run_capture(pump)
+
+    assert questions == []
+    assert rests.count(A_MINUTE) == 1
+    assert pump.asked == [
+        *LOGIN,
+        *asked(WALK[:5]),
+        *LOGOUT,
+        *LOGIN,
+        *asked([WALK[2], WALK[5]]),
+        *LOGOUT,
+    ]
+    assert by_page(report)["heating"]["entries"] == [
+        ["Switching difference", "4.5 K"],
+        ["Power limit", "60 %"],
+    ]
+
+
 async def test_a_page_showing_another_sections_values_is_read_again(socket_enabled):
     """The controller now and then sends the statistics in place of the heat
     pump page: whole by every check of its own, and the file taught the

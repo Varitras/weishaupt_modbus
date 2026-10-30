@@ -448,6 +448,10 @@ def _entry(step: Step, walk: _Walk, ask: Callable[[str], str]) -> Any:
         for entry in walk.read[step.parent]
         if entry.href is not None and _item(entry.href) not in NEVER_OPENED
     ]
+    if not offered:
+        # Kept, the parent would offer nothing in every later attempt too.
+        del walk.read[step.parent]
+        raise Half(f"{STEP_BY_KEY[step.parent].what} came with nothing to open")
     by_code = [entry for entry in offered if _item(entry.href) == step.code]
     by_title = [entry for entry in offered if entry.title == step.german]
     found = by_code if len(by_code) == 1 else by_title

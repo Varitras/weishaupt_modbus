@@ -4793,5 +4793,19 @@
     "old": "UNREACHABLE = (TimeoutError, ModbusConnectionError)\n",
     "new": "UNREACHABLE = (TimeoutError, ModbusError)\n",
     "tests": "logged_as_info"
+  },
+  {
+    "label": "capture: a menu with nothing to open goes to the pick",
+    "path": "tools/webif_capture.py",
+    "old": "    if not offered:\n",
+    "new": "    if False:\n",
+    "tests": "nothing_to_open"
+  },
+  {
+    "label": "capture: a menu with nothing to open is kept",
+    "path": "tools/webif_capture.py",
+    "old": "        del walk.read[step.parent]\n",
+    "new": "        pass\n",
+    "tests": "nothing_to_open"
   }
 ]
