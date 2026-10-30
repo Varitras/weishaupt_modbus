@@ -2921,7 +2921,7 @@
   {
     "label": "coordinator: an unexpected error passes the grace polls",
     "path": "custom_components/weishaupt_modbus/coordinator.py",
-    "old": "        except Exception as err:\n            # A fault of this code or of a library, not of the link. Counted\n            # all the same: uncounted, it passed the grace polls, and Home\n            # Assistant logged its traceback every poll. Its kind only, as\n            # its text may hold the pump's address.\n            if not self._traceback_logged:\n                self._traceback_logged = True\n                _LOGGER.exception(\"A poll failed on an unexpected error\")\n            return self._failed_poll(type(err).__name__, err)\n",
+    "old": "        except Exception as err:\n            # A fault of this code or of a library, not of the link. Counted\n            # all the same: uncounted, it passed the grace polls, and Home\n            # Assistant logged its traceback every poll. Its kind only, as\n            # its text may hold the pump's address.\n            if not self._traceback_logged:\n                self._traceback_logged = True\n                _LOGGER.exception(\"A poll failed on an unexpected error\")\n            return self._failed_poll(err)\n",
     "new": "",
     "tests": "unexpected_error_counts_as_a_failed_poll"
   },
@@ -2935,9 +2935,9 @@
   {
     "label": "coordinator: an unexpected error's text reaches the notice",
     "path": "custom_components/weishaupt_modbus/coordinator.py",
-    "old": "            return self._failed_poll(type(err).__name__, err)\n",
-    "new": "            return self._failed_poll(str(err), err)\n",
-    "tests": "unexpected_error_counts_as_a_failed_poll"
+    "old": "        reason = type(err).__name__\n",
+    "new": "        reason = str(err)\n",
+    "tests": "unexpected_error_counts_as_a_failed_poll or poll_that_timed_out_names_its_kind"
   },
   {
     "label": "capture: a German controller's pages are found by their titles",
@@ -3078,13 +3078,6 @@
     "old": "                with suppress(WebifError):\n",
     "new": "                with suppress():\n",
     "tests": "logout_the_pump_does_not_serve_ends_the_close_quietly"
-  },
-  {
-    "label": "coordinator: a failure without a text names its kind",
-    "path": "custom_components/weishaupt_modbus/coordinator.py",
-    "old": "            return self._failed_poll(str(err) or type(err).__name__, err)\n",
-    "new": "            return self._failed_poll(str(err), err)\n",
-    "tests": "poll_that_timed_out_names_its_kind"
   },
   {
     "label": "config flow: values shown unclearly are not searched again",
