@@ -4926,5 +4926,12 @@
     "old": "set(entry.data) - SHOWN",
     "new": "{CONF.HOST, CONF.PREFIX, CONF.DEVICE_POSTFIX, CONF.KENNFELD_FILE}",
     "tests": "does_not_know or what_the_pump_answered or names_a_user_typed"
+  },
+  {
+    "label": "ci: the mutation step is tied to the matrix name",
+    "path": ".github/workflows/test.yaml",
+    "old": "        if: matrix.run-mutations\n",
+    "new": "        if: matrix.name == 'current HA'\n",
+    "tests": "opts_in_by_a_key"
   }
 ]
