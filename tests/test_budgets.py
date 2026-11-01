@@ -26,9 +26,8 @@ PACKAGE = (
     / "weishaupt_modbus"
 )
 
-# No module may pass this without an entry below. It sits in today's gap
-# between the ordinary modules (the largest is under 600 lines) and the
-# register table.
+# No module may pass this without an entry below; only the register table
+# has one.
 LINE_LIMIT = 900
 
 LINE_BUDGETS = {
@@ -40,9 +39,8 @@ LINE_BUDGETS = {
 # re-read from the top to change safely.
 COMPLEXITY_LIMIT = 15
 
-# What is over the limit today, exactly. None of these was simplified on
-# adoption - the point of the guard is that nothing gets worse and every
-# improvement is written down.
+# A function over the limit needs an entry here, at its score: nothing gets
+# worse unnoticed, and every improvement is written down.
 COMPLEXITY_BUDGETS: dict[str, int] = {}
 
 
