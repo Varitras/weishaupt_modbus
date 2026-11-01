@@ -13,16 +13,19 @@ class _ExpectedOutageIsNoError(logging.Filter):
     """An expected outage is logged at INFO, like the return after it.
 
     Home Assistant logs every failed refresh at ERROR, with no switch for it.
+    The logger checked the level against ERROR before the filter ran, so the
+    lowered record is checked against INFO here.
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
         expected = record.levelno == logging.ERROR and any(
             isinstance(argument, ExpectedOutage) for argument in (record.args or ())
         )
-        if expected:
-            record.levelno = logging.INFO
-            record.levelname = logging.getLevelName(logging.INFO)
-        return True
+        if not expected:
+            return True
+        record.levelno = logging.INFO
+        record.levelname = logging.getLevelName(logging.INFO)
+        return logging.getLogger(record.name).isEnabledFor(logging.INFO)
 
 
 _EXPECTED_OUTAGE_IS_NO_ERROR = _ExpectedOutageIsNoError()

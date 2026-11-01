@@ -4776,8 +4776,8 @@
   {
     "label": "outage log: the filter leaves the level as it is",
     "path": "custom_components/weishaupt_modbus/outage.py",
-    "old": "            record.levelno = logging.INFO\n",
-    "new": "            pass\n",
+    "old": "        record.levelno = logging.INFO\n",
+    "new": "",
     "tests": "logged_as_info or stop_is_logged_at_info"
   },
   {
@@ -4870,5 +4870,19 @@
     "old": "        _drop_pick(walk, step.parent)\n",
     "new": "",
     "tests": "picked_menu_with_nothing"
+  },
+  {
+    "label": "outage log: the lowered record keeps the name ERROR",
+    "path": "custom_components/weishaupt_modbus/outage.py",
+    "old": "        record.levelname = logging.getLevelName(logging.INFO)\n",
+    "new": "",
+    "tests": "logged_as_info or stop_is_logged_at_info"
+  },
+  {
+    "label": "outage log: the lowered record skips the level check",
+    "path": "custom_components/weishaupt_modbus/outage.py",
+    "old": "        return logging.getLogger(record.name).isEnabledFor(logging.INFO)\n",
+    "new": "        return True\n",
+    "tests": "not_logged_where_info"
   }
 ]

@@ -520,11 +520,11 @@ async def test_the_stop_is_logged_at_info(coordinator, client, clock, caplog):
 
     assert not coordinator.last_update_success
     stops = [
-        record.levelno
+        (record.levelno, record.levelname)
         for record in caplog.records
         if record.getMessage().startswith("Error fetching")
     ]
-    assert stops == [logging.INFO]
+    assert stops == [(logging.INFO, "INFO")]
 
 
 async def test_a_stop_asks_the_failed_page_alone_again_after_a_quarter_hour(
