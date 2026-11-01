@@ -11,8 +11,7 @@ Two different rules, because the two numbers behave differently:
   headroom for the next person to spend.
 
 Adding an entry is allowed. It is meant to be a visible, deliberate act in a
-diff. Every number below was frozen at what the code weighed when the guard
-was adopted - none of them is a target, and each is a place to shrink.
+diff. No number below is a target; each is a place to shrink.
 """
 
 import ast

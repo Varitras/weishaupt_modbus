@@ -1,9 +1,8 @@
 """Every module is type-checked, or says in one line why it is not yet.
 
-The mypy scope in pyproject.toml was frozen at the modules that were clean
-when the gate was adopted. Nothing would otherwise stop a module added to the
-package from simply not being checked - the job stays green because the file
-is never named, which is the same shape as a guard that goes blind.
+Nothing would otherwise stop a module added to the package from simply not
+being checked - the job stays green because the file is never named, which
+is the same shape as a guard that goes blind.
 
 This does not demand that everything be typed. It demands that leaving a
 module out be a decision somebody wrote down.
@@ -18,9 +17,8 @@ import tomllib
 REPO = pathlib.Path(__file__).resolve().parents[1]
 PACKAGE = REPO / "custom_components" / "weishaupt_modbus"
 
-# What is deliberately still outside, and why - the error count mypy reported
-# on adoption. Emptying this list is the point; every entry is a promise, not
-# a permanent exemption.
+# What is deliberately still outside, with the error count mypy reports for
+# it. Every entry is a promise, not a permanent exemption.
 NOT_TYPE_CHECKED_YET = {}
 
 
