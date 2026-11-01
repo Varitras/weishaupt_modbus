@@ -40,6 +40,8 @@ param(
 
 Set-StrictMode -Version 3
 $ErrorActionPreference = 'Stop'
+# The prompt keeps a pasted space; the integration strips it too.
+$HostName = $HostName.Trim()
 
 $FunctionReadHolding = 0x03
 $FunctionReadInput = 0x04

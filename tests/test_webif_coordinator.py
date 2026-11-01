@@ -520,11 +520,11 @@ async def test_the_stop_is_logged_at_info(coordinator, client, clock, caplog):
 
     assert not coordinator.last_update_success
     stops = [
-        record.levelno
+        (record.levelno, record.levelname)
         for record in caplog.records
         if record.getMessage().startswith("Error fetching")
     ]
-    assert stops == [logging.INFO]
+    assert stops == [(logging.INFO, "INFO")]
 
 
 async def test_a_stop_asks_the_failed_page_alone_again_after_a_quarter_hour(
@@ -613,6 +613,30 @@ async def test_a_retry_that_reads_the_page_resumes_polling_and_takes_the_notice(
     client.asked.clear()
     await round_at(coordinator, clock, 60 * 60)
     assert client.asked == [STATISTICS.path, HEATING.path, HEAT_PUMP.path]
+
+
+async def test_after_a_stop_a_page_with_a_long_interval_is_read_when_polling_resumes(
+    hass, entry, client, clock
+):
+    """The stop wipes every page's values, but an hourly page waited out the
+    hour from its last request: polling resumed, and its sensors stayed
+    unavailable until then."""
+    polled = [HEAT_PUMP, replace(STATISTICS, interval=HOUR), HEATING]
+    coordinator = WebifCoordinator(
+        hass, entry, client, polled, budget=WriteBudget(0, 10), clock=clock
+    )
+    client.answer(HEAT_PUMP, BLANK_VALUE)
+    for quarter in range(3):
+        await round_at(coordinator, clock, quarter * 15 * 60)
+    client.answer(HEAT_PUMP, WHOLE[HEAT_PUMP.path])
+    await round_at(coordinator, clock, 45 * 60)
+    assert coordinator.diagnostics()["stopped_by"] is None
+    client.asked.clear()
+
+    await round_at(coordinator, clock, 45 * 60 + 1)
+
+    assert STATISTICS.path in client.asked
+    assert coordinator.data["statistics"] is not None
 
 
 async def test_after_a_stop_the_other_pages_show_nothing_until_read_again(

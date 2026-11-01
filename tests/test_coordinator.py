@@ -282,11 +282,38 @@ async def test_a_pump_that_stops_answering_is_logged_as_info(
 
     assert not coordinator.last_update_success
     outages = [
-        record.levelno
+        (record.levelno, record.levelname)
         for record in caplog.records
         if record.getMessage().startswith("Error fetching")
     ]
-    assert outages == [level]
+    assert outages == [(level, logging.getLevelName(level))]
+
+
+async def test_an_outage_is_not_logged_where_info_is_not(hass, caplog):
+    """Home Assistant logs at WARNING unless told otherwise. The outage, lowered
+    to INFO after that level was checked, still reached the log while the
+    recovery at INFO did not: the log showed an outage that never ended."""
+    integration = logging.getLogger("custom_components.weishaupt_modbus")
+    integration.setLevel(logging.WARNING)
+    try:
+        coordinator, device, _ = _polled_once(hass)
+        await coordinator.async_refresh()
+        device.fail = ModbusConnectionError("down")
+        for _ in range(4):
+            await coordinator.async_refresh()
+        assert not coordinator.last_update_success
+        device.fail = None
+        await coordinator.async_refresh()
+        assert coordinator.last_update_success
+    finally:
+        integration.setLevel(logging.NOTSET)
+
+    assert not [
+        record
+        for record in caplog.records
+        if record.name.startswith("custom_components.weishaupt_modbus")
+        and record.levelno < logging.WARNING
+    ]
 
 
 async def test_a_value_is_looked_up_by_translation_key(hass):

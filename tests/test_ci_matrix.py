@@ -195,6 +195,17 @@ def test_the_test_job_runs_the_whole_suite_and_the_mutations():
     )
 
 
+def test_the_mutations_run_on_a_job_that_opts_in_by_a_key_not_by_its_name():
+    """The step ran where the matrix entry was called "current HA": renamed,
+    the mutations were skipped on every job, and the run stayed green."""
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+
+    assert re.search(r"if:\s*matrix\.run-mutations\s*$", workflow, re.MULTILINE)
+    assert workflow.count("run-mutations: true") == 1, (
+        "the mutations run on no job, or edit the workspace of two at once"
+    )
+
+
 def test_the_type_check_runs_the_same_home_assistant_as_the_test_job():
     """A checker that vouches for another release vouches for nothing."""
     steps = _steps_of("mypy")

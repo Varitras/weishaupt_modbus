@@ -158,6 +158,9 @@ jobs:
             phcc: "pytest-homeassistant-custom-component==0.13.363"
           - name: "current HA"
             python-version: "3.14"
+            # The answer does not depend on the Home Assistant version, and
+            # the mutations edit files in the workspace: one job is enough.
+            run-mutations: true
             # Resolved by the step below, not a literal requirement.
             phcc: "latest-stable-ha"
     steps:
@@ -218,8 +221,6 @@ jobs:
       - name: Run test suite
         run: pytest tests/ -q -m "" --cov=custom_components/weishaupt_modbus --cov-report=term:skip-covered --cov-fail-under=99
       # A green suite says the tests pass, not that they would catch anything.
-      # Only on one job: the answer does not depend on the Home Assistant
-      # version, and the mutations edit files in the workspace.
       - name: Verify the tests actually catch a broken fix
-        if: matrix.name == 'current HA'
+        if: matrix.run-mutations
         run: python .github/scripts/mutate.py .github/mutations/plan.json

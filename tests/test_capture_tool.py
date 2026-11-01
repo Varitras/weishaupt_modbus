@@ -751,6 +751,34 @@ def test_a_web_address_is_refused_before_anything_is_asked(monkeypatch):
         capture_tool.main(["http://192.0.2.1/"])
 
 
+def test_an_address_typed_with_a_space_is_read_without_it(monkeypatch):
+    """The prompt keeps what was pasted: a trailing space ended in a traceback
+    after the user name and the password, where the integration strips it."""
+    monkeypatch.setattr("builtins.input", lambda _prompt: USER)
+    monkeypatch.setattr(capture_tool.getpass, "getpass", lambda _prompt: PASSWORD)
+    hosts = []
+
+    def captured(host, *_arguments):
+        hosts.append(host)
+
+    monkeypatch.setattr(capture_tool, "capture", captured)
+
+    capture_tool.main([" 192.0.2.10 "])
+
+    assert hosts == ["192.0.2.10"]
+
+
+@pytest.mark.parametrize("typed", ["", "   ", "192.0.2. 10"])
+def test_an_address_that_cannot_be_dialled_is_refused_before_anything_is_asked(
+    monkeypatch, typed
+):
+    monkeypatch.setattr("builtins.input", lambda _prompt: pytest.fail("asked"))
+    monkeypatch.setattr(capture_tool, "capture", lambda *_arguments: pytest.fail("ran"))
+
+    with pytest.raises(SystemExit):
+        capture_tool.main([typed])
+
+
 def test_ctrl_c_ends_the_run_without_a_traceback(monkeypatch):
     monkeypatch.setattr("builtins.input", lambda _prompt: USER)
     monkeypatch.setattr(capture_tool.getpass, "getpass", lambda _prompt: PASSWORD)

@@ -105,6 +105,9 @@ type: picture
 image: /local/local/weishaupt_modbus_powermap.svg
 ```
 
+For a further heat pump with a device postfix, the file name ends in
+`_<postfix>`, such as `weishaupt_modbus_powermap_2.svg`.
+
 ## Web interface (experimental)
 
 The controller's local web interface, *WEM Lokal*, shows values Modbus does

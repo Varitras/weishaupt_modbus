@@ -272,11 +272,9 @@ property-decorators = ["propcache.api.cached_property"]
 
 [tool.mypy]
 python_version = "3.14"
-# The type-check scope. Frozen at the modules that were clean when the gate
-# was adopted; the nine that were not are listed with their error count in
-# tests/test_mypy_scope.py, and widening this list is how that list empties.
-# A module in neither place fails that guard - leaving one out is a decision
-# somebody writes down, not something that happens.
+# The type-check scope. A module left out has to be listed with its error
+# count in tests/test_mypy_scope.py, or that guard fails - leaving one out is
+# a decision somebody writes down, not something that happens.
 files = [
   "custom_components/weishaupt_modbus/__init__.py",
   "custom_components/weishaupt_modbus/config_flow.py",
@@ -299,8 +297,7 @@ files = [
   "custom_components/weishaupt_modbus/entity_helpers.py",
   # Named so mypy resolves the MODULE: kennfeld.py sits next to a kennfeld/
   # data directory, and a followed import lands on the directory instead,
-  # leaving every attribute of the module "undefined". Its own errors are
-  # switched off below until it is typed.
+  # leaving every attribute of the module "undefined".
   "custom_components/weishaupt_modbus/kennfeld.py",
   "custom_components/weishaupt_modbus/migrate_helpers.py",
   "custom_components/weishaupt_modbus/number.py",
