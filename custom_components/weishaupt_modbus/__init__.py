@@ -18,7 +18,7 @@ from homeassistant.config_entries import (
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryError
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.typing import UNDEFINED
@@ -46,7 +46,7 @@ from .coordinator import (
 )
 from .items import ModbusItem
 from .kennfeld import PowerMap
-from .migrate_helpers import entry_unique_id, unique_id_from_parts
+from .migrate_helpers import device_postfix, entry_unique_id, unique_id_from_parts
 from .webif.client import Client
 from .webif_coordinator import WebifCoordinator, polled_pages
 from .webif_sensor import ENGLISH_TITLES, POWER_LIMIT, REQUIRED_TITLES
@@ -75,6 +75,16 @@ LEGACY_WEBIF_KEYS = (
     "Poll Wärmepumpe",
     "Poll 2. Wärmeerzeuger",
     "Poll Statistik",
+    # The upstream 2.0 line stored the pump's MAC address, beside the login
+    # above, and called that version 9 as well.
+    "mac",
+)
+# The devices 1.x registered the web-interface entities under.
+LEGACY_WEBIF_DEVICES = (
+    "Webif Info Heizkreis",
+    "Webif Info Wärmepumpe",
+    "Webif 2. Wärmeerzeuger",
+    "Webif Statistik",
 )
 LEGACY_WEBIF_UNIQUE_ID_PREFIX = "webif_"
 # 1.0.18 and 1.0.19 named them prefix, "_", name, postfix and this. A pump's
@@ -305,6 +315,20 @@ def _is_legacy_web_interface(unique_id: str, entry_data: Mapping[str, Any]) -> b
     )
 
 
+def _remove_legacy_web_interface_devices(
+    hass: HomeAssistant, config_entry: MyConfigEntry, entry_data: Mapping[str, Any]
+) -> None:
+    """Left behind, they stayed empty, and the UI offers no delete for them."""
+    registry = dr.async_get(hass)
+    postfix = device_postfix(entry_data)
+    for name in LEGACY_WEBIF_DEVICES:
+        found = registry.async_get_device_by_identifier(
+            (CONST.DOMAIN, name + postfix), config_entry.entry_id
+        )
+        if found is not None:
+            registry.async_remove_device(found.id)
+
+
 async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) -> bool:
     """Migrate old entry."""
     if is_web_interface(config_entry):
@@ -339,18 +363,21 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) 
         new_data[CONF.NAME_DEVICE_PREFIX] = False
         new_data[CONF.NAME_TOPIC_PREFIX] = False
 
+    # Whatever version wrote them: the upstream 2.0 line's version 9 holds
+    # the login too.
+    for key in LEGACY_WEBIF_KEYS:
+        new_data.pop(key, None)
     if config_entry.version < 9:
         _LOGGER.debug("Version <9 detected")
-        # Versions 5 to 8 added the web-interface settings; the web interface
-        # is gone, and so are its keys and the entities it registered.
-        for key in LEGACY_WEBIF_KEYS:
-            new_data.pop(key, None)
+        # Versions 5 to 8 added the web interface; it is gone, and so are the
+        # entities and devices it registered.
         registry = er.async_get(hass)
         for registry_entry in er.async_entries_for_config_entry(
             registry, config_entry.entry_id
         ):
             if _is_legacy_web_interface(registry_entry.unique_id, new_data):
                 registry.async_remove(registry_entry.entity_id)
+        _remove_legacy_web_interface_devices(hass, config_entry, new_data)
 
     if config_entry.version < 10:
         _LOGGER.debug("Version <10 detected")

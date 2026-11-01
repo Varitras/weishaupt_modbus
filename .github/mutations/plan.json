@@ -72,8 +72,8 @@
   {
     "label": "setup: the migration must strip the web-interface keys",
     "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "        for key in LEGACY_WEBIF_KEYS:\n            new_data.pop(key, None)\n",
-    "new": "        for key in LEGACY_WEBIF_KEYS:\n            pass\n",
+    "old": "    for key in LEGACY_WEBIF_KEYS:\n        new_data.pop(key, None)\n",
+    "new": "    for key in LEGACY_WEBIF_KEYS:\n        pass\n",
     "tests": "stripped_of_its_settings"
   },
   {
@@ -814,8 +814,8 @@
   {
     "label": "diagnostics: the pump's address is redacted",
     "path": "custom_components/weishaupt_modbus/diagnostics.py",
-    "old": "TO_REDACT = {CONF.HOST, CONF.PREFIX, CONF.DEVICE_POSTFIX, CONF.KENNFELD_FILE}\n",
-    "new": "TO_REDACT = {CONF.PREFIX, CONF.DEVICE_POSTFIX, CONF.KENNFELD_FILE}\n",
+    "old": "SHOWN = {\n    CONF.PORT,\n",
+    "new": "SHOWN = {\n    CONF.HOST,\n    CONF.PORT,\n",
     "tests": "diagnostics_show_what_the_pump_answered"
   },
   {
@@ -842,8 +842,8 @@
   {
     "label": "diagnostics: a postfix the user typed is redacted",
     "path": "custom_components/weishaupt_modbus/diagnostics.py",
-    "old": "TO_REDACT = {CONF.HOST, CONF.PREFIX, CONF.DEVICE_POSTFIX, CONF.KENNFELD_FILE}\n",
-    "new": "TO_REDACT = {CONF.HOST, CONF.PREFIX, CONF.KENNFELD_FILE}\n",
+    "old": "SHOWN = {\n    CONF.PORT,\n",
+    "new": "SHOWN = {\n    CONF.DEVICE_POSTFIX,\n    CONF.PORT,\n",
     "tests": "diagnostics_carry_none_of_the_names_a_user_typed"
   },
   {
@@ -4891,5 +4891,40 @@
     "old": "                reading.asked_at = None\n",
     "new": "",
     "tests": "long_interval_is_read_when"
+  },
+  {
+    "label": "migration: legacy keys are removed below version 9 only",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    for key in LEGACY_WEBIF_KEYS:\n        new_data.pop(key, None)\n    if config_entry.version < 9:\n",
+    "new": "    if config_entry.version < 9:\n        for key in LEGACY_WEBIF_KEYS:\n            new_data.pop(key, None)\n",
+    "tests": "upstream_2_0_line"
+  },
+  {
+    "label": "migration: the upstream MAC address stays",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    \"mac\",\n",
+    "new": "",
+    "tests": "upstream_2_0_line"
+  },
+  {
+    "label": "migration: the 1.x web-interface devices stay",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        _remove_legacy_web_interface_devices(hass, config_entry, new_data)\n",
+    "new": "",
+    "tests": "devices_of_1_x"
+  },
+  {
+    "label": "migration: the 1.x web-interface devices are looked up without the postfix",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    postfix = device_postfix(entry_data)\n    for name in LEGACY_WEBIF_DEVICES:\n",
+    "new": "    postfix = \"\"\n    for name in LEGACY_WEBIF_DEVICES:\n",
+    "tests": "devices_of_1_x"
+  },
+  {
+    "label": "diagnostics: only the named keys are hidden",
+    "path": "custom_components/weishaupt_modbus/diagnostics.py",
+    "old": "set(entry.data) - SHOWN",
+    "new": "{CONF.HOST, CONF.PREFIX, CONF.DEVICE_POSTFIX, CONF.KENNFELD_FILE}",
+    "tests": "does_not_know or what_the_pump_answered or names_a_user_typed"
   }
 ]

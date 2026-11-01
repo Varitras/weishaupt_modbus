@@ -1058,6 +1058,20 @@ async def test_diagnostics_carry_none_of_the_names_a_user_typed(hass, hass_clien
     assert BASE_DATA[CONF.HOST] not in str(diagnostics)
 
 
+async def test_diagnostics_hide_a_key_this_integration_does_not_know(hass, hass_client):
+    """The download hid the keys it was told to; one another version left in
+    the entry, a password or a MAC address, went out as stored."""
+    entry = await _setup(
+        hass, _entry(hass, data={**BASE_DATA, "mac": "00:00:5e:00:53:01"})
+    )
+
+    diagnostics = await get_diagnostics_for_config_entry(hass, hass_client, entry)
+
+    assert diagnostics["entry"]["data"]["mac"] == "**REDACTED**"
+    assert diagnostics["entry"]["data"][CONF.PORT] == BASE_DATA[CONF.PORT]
+    assert diagnostics["entry"]["data"][CONF.HK2] is False
+
+
 async def test_setup_creates_all_three_platforms(hass):
     await _setup(hass, _entry(hass))
 
@@ -1191,6 +1205,58 @@ async def test_a_web_interface_entry_is_stripped_of_its_settings_and_entities(ha
         )
         is None
     ), "the web-interface entity was left in the registry"
+
+
+async def test_an_entry_of_the_upstream_2_0_line_is_stripped_of_its_login_and_mac(
+    hass,
+):
+    """The upstream 2.0 line wrote version 9 too, with the web-interface login
+    and the pump's MAC address. Only an entry below version 9 was cleaned up:
+    the password stayed on disk and went out in the diagnostics download."""
+    upstream = {
+        **BASE_DATA,
+        "enable-webif": True,
+        "username": "user",
+        "password": "secret",
+        "Web-IF-Token": "token",
+        "mac": "00:00:5e:00:53:01",
+    }
+    entry = _entry(hass, data=upstream, version=9)
+
+    await _setup(hass, entry)
+
+    assert entry.version == 11
+    for key in ("enable-webif", "username", "password", "Web-IF-Token", "mac"):
+        assert key not in entry.data, f"{key!r} survived the migration"
+
+
+@pytest.mark.parametrize("postfix", ["", "2"])
+async def test_the_web_interface_devices_of_1_x_go_with_their_entities(hass, postfix):
+    """The migration removed the web-interface entities of 1.x but left their
+    devices, empty and with no way to delete them."""
+    entry = _entry(hass, data={**BASE_DATA, CONF.DEVICE_POSTFIX: postfix}, version=8)
+    registry = dr.async_get(hass)
+    suffix = f"_{postfix}" if postfix else ""
+    for name in (
+        "Webif Info Heizkreis",
+        "Webif Info Wärmepumpe",
+        "Webif 2. Wärmeerzeuger",
+        "Webif Statistik",
+    ):
+        registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(CONST.DOMAIN, name + suffix)},
+        )
+
+    await _setup(hass, entry)
+
+    left = [
+        identifier
+        for device in dr.async_entries_for_config_entry(registry, entry.entry_id)
+        for _, identifier in device.identifiers
+        if identifier.startswith("Webif")
+    ]
+    assert left == []
 
 
 @pytest.mark.parametrize(

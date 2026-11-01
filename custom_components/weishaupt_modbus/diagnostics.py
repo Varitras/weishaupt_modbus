@@ -10,9 +10,19 @@ from homeassistant.core import HomeAssistant
 from .configentry import MyConfigEntry, WebifConfigEntry, is_web_interface
 from .const import CONF
 
-# Free text the user typed or chose: a prefix or postfix is often a family
-# name or a room, and the download is meant for a public issue.
-TO_REDACT = {CONF.HOST, CONF.PREFIX, CONF.DEVICE_POSTFIX, CONF.KENNFELD_FILE}
+# Shown as stored; every other key is hidden. Host, prefix, postfix and the
+# map's file name are free text the user typed or chose, a family name or a
+# room maybe, and the download is meant for a public issue. A key another
+# version left in the entry may be a password.
+SHOWN = {
+    CONF.PORT,
+    CONF.HK2,
+    CONF.HK3,
+    CONF.HK4,
+    CONF.HK5,
+    CONF.NAME_DEVICE_PREFIX,
+    CONF.NAME_TOPIC_PREFIX,
+}
 # The page addresses are menu codes of the controller firmware, with a field
 # the title capture treats as the device's: of no use in an issue either way.
 # The pump title is free text again.
@@ -31,7 +41,7 @@ async def async_get_config_entry_diagnostics(
         "entry": {
             "version": entry.version,
             "minor_version": entry.minor_version,
-            "data": async_redact_data(dict(entry.data), TO_REDACT),
+            "data": async_redact_data(dict(entry.data), set(entry.data) - SHOWN),
             "options": dict(entry.options),
         },
         "coordinator": {
