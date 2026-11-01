@@ -1231,11 +1231,17 @@ async def test_an_entry_of_the_upstream_2_0_line_is_stripped_of_its_login_and_ma
 
 
 @pytest.mark.parametrize("postfix", ["", "2"])
-async def test_the_web_interface_devices_of_1_x_go_with_their_entities(hass, postfix):
+# 11: an entry an earlier release had migrated already, devices left behind.
+@pytest.mark.parametrize("version", [8, 11])
+async def test_the_web_interface_devices_of_1_x_go_with_their_entities(
+    hass, postfix, version
+):
     """The migration removed the web-interface entities of 1.x but left their
     devices, empty and with no way to delete them. The pump's own devices,
     and those of another entry, are not touched."""
-    entry = _entry(hass, data={**BASE_DATA, CONF.DEVICE_POSTFIX: postfix}, version=8)
+    entry = _entry(
+        hass, data={**BASE_DATA, CONF.DEVICE_POSTFIX: postfix}, version=version
+    )
     other = _entry(hass, data={**BASE_DATA, CONF.DEVICE_POSTFIX: "other"})
     registry = dr.async_get(hass)
     suffix = f"_{postfix}" if postfix else ""

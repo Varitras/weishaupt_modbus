@@ -4907,16 +4907,16 @@
     "tests": "upstream_2_0_line"
   },
   {
-    "label": "migration: the 1.x web-interface devices stay",
+    "label": "setup: the 1.x web-interface devices stay",
     "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "        _remove_legacy_web_interface_devices(hass, config_entry, new_data)\n",
+    "old": "    _remove_legacy_web_interface_devices(hass, entry)\n",
     "new": "",
     "tests": "devices_of_1_x"
   },
   {
-    "label": "migration: the 1.x web-interface devices are looked up without the postfix",
+    "label": "setup: the 1.x web-interface devices are looked up without the postfix",
     "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "    postfix = device_postfix(entry_data)\n    for name in LEGACY_WEBIF_DEVICES:\n",
+    "old": "    postfix = device_postfix(config_entry.data)\n    for name in LEGACY_WEBIF_DEVICES:\n",
     "new": "    postfix = \"\"\n    for name in LEGACY_WEBIF_DEVICES:\n",
     "tests": "devices_of_1_x"
   },
@@ -4956,7 +4956,7 @@
     "tests": "scanned_without_it"
   },
   {
-    "label": "migration: the 1.x cleanup removes every device of the entry",
+    "label": "setup: the 1.x cleanup removes every device of the entry",
     "path": "custom_components/weishaupt_modbus/__init__.py",
     "old": "    for name in LEGACY_WEBIF_DEVICES:\n",
     "new": "    for device in dr.async_entries_for_config_entry(registry, config_entry.entry_id):\n        registry.async_remove_device(device.id)\n    for name in LEGACY_WEBIF_DEVICES:\n",

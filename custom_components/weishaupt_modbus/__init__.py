@@ -182,6 +182,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
         configurations = {}
     report_circuits(hass, entry, configurations)
     remove_circuits_left_off(hass, entry)
+    # On every setup, not in the migration: releases before 2.1.2 migrated
+    # the entry and left them behind.
+    _remove_legacy_web_interface_devices(hass, entry)
 
     powermap = PowerMap(entry, hass)
     await powermap.initialize()
@@ -315,12 +318,13 @@ def _is_legacy_web_interface(unique_id: str, entry_data: Mapping[str, Any]) -> b
     )
 
 
+@callback
 def _remove_legacy_web_interface_devices(
-    hass: HomeAssistant, config_entry: MyConfigEntry, entry_data: Mapping[str, Any]
+    hass: HomeAssistant, config_entry: MyConfigEntry
 ) -> None:
     """Left behind, they stayed empty, and the UI offers no delete for them."""
     registry = dr.async_get(hass)
-    postfix = device_postfix(entry_data)
+    postfix = device_postfix(config_entry.data)
     for name in LEGACY_WEBIF_DEVICES:
         found = registry.async_get_device_by_identifier(
             (CONST.DOMAIN, name + postfix), config_entry.entry_id
@@ -370,14 +374,13 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) 
     if config_entry.version < 9:
         _LOGGER.debug("Version <9 detected")
         # Versions 5 to 8 added the web interface; it is gone, and so are the
-        # entities and devices it registered.
+        # entities it registered. Their devices go at setup.
         registry = er.async_get(hass)
         for registry_entry in er.async_entries_for_config_entry(
             registry, config_entry.entry_id
         ):
             if _is_legacy_web_interface(registry_entry.unique_id, new_data):
                 registry.async_remove(registry_entry.entity_id)
-        _remove_legacy_web_interface_devices(hass, config_entry, new_data)
 
     if config_entry.version < 10:
         _LOGGER.debug("Version <10 detected")
