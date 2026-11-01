@@ -586,7 +586,13 @@ def _address(text: str) -> str:
         raise argparse.ArgumentTypeError(
             "give the address alone, like 192.0.2.10 or a name, not a web address"
         )
-    return text
+    # The prompt keeps a pasted space; the integration strips it too.
+    address = text.strip()
+    if not address or any(character.isspace() for character in address):
+        raise argparse.ArgumentTypeError(
+            "give the address of the heat pump, like 192.0.2.10 or a name"
+        )
+    return address
 
 
 def main(argv: list[str] | None = None) -> int:

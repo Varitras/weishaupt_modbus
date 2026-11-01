@@ -4933,5 +4933,26 @@
     "old": "        if: matrix.run-mutations\n",
     "new": "        if: matrix.name == 'current HA'\n",
     "tests": "opts_in_by_a_key"
+  },
+  {
+    "label": "capture: an address keeps a pasted space",
+    "path": "tools/webif_capture.py",
+    "old": "    address = text.strip()\n",
+    "new": "    address = text\n",
+    "tests": "with_a_space"
+  },
+  {
+    "label": "capture: an address with a space inside is taken",
+    "path": "tools/webif_capture.py",
+    "old": "    if not address or any(character.isspace() for character in address):\n",
+    "new": "    if not address:\n",
+    "tests": "cannot_be_dialled"
+  },
+  {
+    "label": "scan tool: an address keeps a pasted space",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "$HostName = $HostName.Trim()",
+    "new": "$HostName = $HostName",
+    "tests": "scanned_without_it"
   }
 ]

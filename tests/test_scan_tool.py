@@ -214,6 +214,20 @@ def test_only_read_requests_reach_the_pump(tmp_path, serve):
     assert _values(rows, "holding") == {41101: 3}
 
 
+def test_an_address_typed_with_a_space_is_scanned_without_it(tmp_path, serve):
+    """The prompt keeps what was pasted: with a trailing space the address
+    went to a name lookup, and the scan ended on "No such host is known"."""
+    pump = _StandInPump(registers={(READ_INPUT, 30002): 195})
+    port = serve(pump)
+
+    process, rows = _scan(
+        tmp_path, port, host=" 127.0.0.1 ", InputRegisters=[30002], HoldingRegisters=[]
+    )
+
+    assert process.returncode == 0, process.stderr
+    assert _values(rows, "input") == {30002: 195}
+
+
 def test_a_register_reading_zero_counts_as_answered(tmp_path, serve):
     """PowerShell's `0 -ne ''` is false: the closing line counted 23 of 41
     answered registers on a real pump, every one reading 0 left out."""
