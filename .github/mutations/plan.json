@@ -4954,5 +4954,12 @@
     "old": "$HostName = $HostName.Trim()",
     "new": "$HostName = $HostName",
     "tests": "scanned_without_it"
+  },
+  {
+    "label": "migration: the 1.x cleanup removes every device of the entry",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    for name in LEGACY_WEBIF_DEVICES:\n",
+    "new": "    for device in dr.async_entries_for_config_entry(registry, config_entry.entry_id):\n        registry.async_remove_device(device.id)\n    for name in LEGACY_WEBIF_DEVICES:\n",
+    "tests": "devices_of_1_x"
   }
 ]

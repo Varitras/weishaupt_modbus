@@ -1233,30 +1233,45 @@ async def test_an_entry_of_the_upstream_2_0_line_is_stripped_of_its_login_and_ma
 @pytest.mark.parametrize("postfix", ["", "2"])
 async def test_the_web_interface_devices_of_1_x_go_with_their_entities(hass, postfix):
     """The migration removed the web-interface entities of 1.x but left their
-    devices, empty and with no way to delete them."""
+    devices, empty and with no way to delete them. The pump's own devices,
+    and those of another entry, are not touched."""
     entry = _entry(hass, data={**BASE_DATA, CONF.DEVICE_POSTFIX: postfix}, version=8)
+    other = _entry(hass, data={**BASE_DATA, CONF.DEVICE_POSTFIX: "other"})
     registry = dr.async_get(hass)
     suffix = f"_{postfix}" if postfix else ""
-    for name in (
-        "Webif Info Heizkreis",
-        "Webif Info Wärmepumpe",
-        "Webif 2. Wärmeerzeuger",
-        "Webif Statistik",
-    ):
+    registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(CONST.DOMAIN, DeviceConstants.SYS + suffix)},
+    )
+    registry.async_get_or_create(
+        config_entry_id=other.entry_id,
+        identifiers={(CONST.DOMAIN, "Webif Info Heizkreis" + suffix)},
+    )
+    legacy = {
         registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(CONST.DOMAIN, name + suffix)},
+        ).id
+        for name in (
+            "Webif Info Heizkreis",
+            "Webif Info Wärmepumpe",
+            "Webif 2. Wärmeerzeuger",
+            "Webif Statistik",
         )
+    }
+    # Removed and added again by the setup, a device is back at once with
+    # its id; the removal is what shows.
+    removed = set()
+
+    def note_removal(event):
+        if event.data["action"] == "remove":
+            removed.add(event.data["device_id"])
+
+    hass.bus.async_listen(dr.EVENT_DEVICE_REGISTRY_UPDATED, note_removal)
 
     await _setup(hass, entry)
 
-    left = [
-        identifier
-        for device in dr.async_entries_for_config_entry(registry, entry.entry_id)
-        for _, identifier in device.identifiers
-        if identifier.startswith("Webif")
-    ]
-    assert left == []
+    assert removed == legacy
 
 
 @pytest.mark.parametrize(
