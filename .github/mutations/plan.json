@@ -4699,8 +4699,8 @@
   {
     "label": "webif coordinator: a stop keeps the other pages' old values",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            for reading in self._readings.values():\n                reading.values = None\n",
-    "new": "",
+    "old": "                reading.values = None\n                reading.asked_at = None\n",
+    "new": "                reading.asked_at = None\n",
     "tests": "other_pages_show_nothing_until_read_again"
   },
   {
@@ -4884,5 +4884,12 @@
     "old": "        return logging.getLogger(record.name).isEnabledFor(logging.INFO)\n",
     "new": "        return True\n",
     "tests": "not_logged_where_info"
+  },
+  {
+    "label": "web interface: a stop keeps when each page was last asked",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                reading.asked_at = None\n",
+    "new": "",
+    "tests": "long_interval_is_read_when"
   }
 ]

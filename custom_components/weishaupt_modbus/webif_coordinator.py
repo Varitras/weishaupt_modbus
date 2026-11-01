@@ -736,9 +736,11 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             # The stopping round rests the shortest interval anyway.
             wait = max(FIRST_RETRY_SECONDS, self._shortest_interval.total_seconds())
             # Hours may pass until polling resumes: the other pages' values
-            # from before the stop showed again as current.
+            # from before the stop showed again as current. Each page is asked
+            # once polling resumes, not after its interval, an hour maybe.
             for reading in self._readings.values():
                 reading.values = None
+                reading.asked_at = None
         else:
             wait = min(2 * self._stopped.wait, LONGEST_RETRY_SECONDS)
         self._stopped = _Stopped(page, reason, wait, self._clock() + wait)
