@@ -64,6 +64,7 @@ def test_a_shown_value_is_a_reading_only_in_its_unit(key, shown, expected):
 IDLE_SHOWN_AS_AUS = {
     "soll_leistung",
     "ist_leistung",
+    "leistungsabgabe",
     "drehzahl_pumpe_m1",
     "verdichter_drehzahl",
     "verdichter_frequenz",
@@ -119,12 +120,12 @@ def test_every_page_requires_the_titles_of_its_sensors():
 
 
 def test_an_evoblock_reads_every_row_its_page_shares_with_a_wbb():
-    """23 of the 34 rows a WEB 13/20 showed: one tagged for a WBB alone would
+    """24 of the 34 rows a WEB 13/20 showed: one tagged for a WBB alone would
     drop a sensor and a row of the whole-page check, without a word."""
     assert {
         page: len(titles) for page, titles in REQUIRED_TITLES[EVOBLOCK].items()
     } == {
-        HEAT_PUMP_PAGE: 23,
+        HEAT_PUMP_PAGE: 24,
         STATISTICS_PAGE: 14,
         HEATING_PAGE: 2,
     }

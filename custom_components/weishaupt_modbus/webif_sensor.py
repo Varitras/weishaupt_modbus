@@ -187,7 +187,9 @@ def _percentage(
     )
 
 
-def _power(key: str, title: str, english_title: str) -> WebifSensorDescription:
+def _power(
+    key: str, title: str, english_title: str, **attributes: Any
+) -> WebifSensorDescription:
     return _sensor(
         key,
         title,
@@ -198,6 +200,7 @@ def _power(key: str, title: str, english_title: str) -> WebifSensorDescription:
         native_unit_of_measurement=UnitOfPower.KILO_WATT,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,
+        **attributes,
     )
 
 
@@ -271,6 +274,7 @@ HEAT_PUMP_SENSORS = (
     _text("stellung_umschaltventil", "Stellung Umschaltventil", "change valve"),
     _power("soll_leistung", "Soll Leistung", "power set"),
     _power("ist_leistung", "Ist Leistung", "power actual"),
+    _power("leistungsabgabe", "Leistungsabgabe", NOT_SEEN, models=ONLY_EVOBLOCK),
     _temperature(
         "expansionsventil_ag_eintritt", "Expansionsventil AG Eintr", "INLET TEMP"
     ),

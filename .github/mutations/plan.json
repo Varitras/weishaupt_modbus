@@ -5073,5 +5073,12 @@
     "old": "        NOT_SEEN,\n        models=ONLY_EVOBLOCK,\n        entity_category=EntityCategory.DIAGNOSTIC,\n",
     "new": "        NOT_SEEN,\n        models=ONLY_EVOBLOCK,\n",
     "tests": "show_what_they_are"
+  },
+  {
+    "label": "webif family: a WBB must show the power output of an Evoblock",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    _power(\"leistungsabgabe\", \"Leistungsabgabe\", NOT_SEEN, models=ONLY_EVOBLOCK),\n",
+    "new": "    _power(\"leistungsabgabe\", \"Leistungsabgabe\", NOT_SEEN),\n",
+    "tests": "each_value_is_read_under_the_titles"
   }
 ]

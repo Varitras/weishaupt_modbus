@@ -1,4 +1,4 @@
-"""An Evoblock's pages, by the titles and units a WEB 13/20 showed on 2026-11-05."""
+"""An Evoblock's pages, by the titles and units a WEB 13/20 showed while running."""
 
 import json
 from pathlib import Path
@@ -51,7 +51,7 @@ from .webif_stand_in import (
 ROWS = json.loads(
     (Path(__file__).parent / "evoblock_titles.json").read_text(encoding="utf-8")
 )
-# The capture was made at a standstill: these showed a word, not a number.
+# A row that shows a word, not a number.
 WORD = "Aus"
 SAMPLE_NUMBER = "12.0"
 
@@ -203,6 +203,7 @@ async def test_an_evoblock_gets_the_sensors_its_page_can_fill(hass, pump):
 
     assert _state(hass, "verdichter_frequenz") == "12.0"
     assert _state(hass, "wasserdruck") == "12.0"
+    assert _state(hass, "leistungsabgabe") == "12.0"
     assert _state(hass, "waermetauscher_ag_austritt") == "12.0"
     assert _state(hass, "version_web_cpu") == "Aus"
     assert _state(hass, "evi_sauggastemperatur") is None
@@ -236,6 +237,7 @@ async def test_a_wbb_entry_gets_no_sensor_of_an_evoblock(hass, pump):
     assert _state(hass, "verdichter_drehzahl") == "2568.0"
     assert _state(hass, "verdichter_frequenz") is None
     assert _state(hass, "wasserdruck") is None
+    assert _state(hass, "leistungsabgabe") is None
 
 
 async def test_an_evoblock_page_without_a_row_of_its_own_is_refused(hass, pump):

@@ -1882,6 +1882,9 @@
       "webif_wasserdruck" : {
         "name" : "{prefix}Waterdruk"
       },
+      "webif_leistungsabgabe" : {
+        "name" : "{prefix}Afgegeven vermogen"
+      },
       "webif_version_web_cpu" : {
         "name" : "{prefix}Versie WEB CPU"
       },

@@ -42,8 +42,7 @@ def test_each_value_is_read_under_the_titles_and_unit_the_controller_shows(senso
 
 @pytest.mark.parametrize("sensor", VALUES[EVOBLOCK], ids=lambda sensor: sensor.key)
 def test_each_evoblock_value_is_read_under_the_title_a_web_13_20_showed(sensor):
-    """A row without a unit there showed a word, at a standstill: "Aus" tells
-    no unit."""
+    """A row without a unit there showed a word, not a number."""
     rows = dict(EVOBLOCK_TITLES[sensor.page])
 
     assert sensor.title in rows
