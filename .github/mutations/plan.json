@@ -1731,7 +1731,7 @@
   {
     "label": "webif sensor: a page counts as whole without its sensors' titles",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "        page: frozenset(value.title for value in values if value.page == page)\n",
+    "old": "        page: frozenset(\n            value.title\n            for value in values\n            if value.page == page and model not in value.conditional_on\n        )\n",
     "new": "        page: frozenset()\n",
     "tests": "requires_the_titles_of_its_sensors"
   },
@@ -2011,7 +2011,7 @@
   {
     "label": "webif coordinator: a page keeps every entry it shows",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            title: shown for title, shown in page.read(text) if title in page.required\n",
+    "old": "            title: shown for title, shown in page.read(text) if title in read\n",
     "new": "            title: shown for title, shown in page.read(text)\n",
     "tests": "keeps_only_the_titles_its_sensors_read"
   },
@@ -3656,8 +3656,8 @@
   {
     "label": "webif english: the dialog reads the pages without the English titles",
     "path": "custom_components/weishaupt_modbus/webif_visit.py",
-    "old": "                found, {}, REQUIRED_TITLES[model], ENGLISH_TITLES[model]\n",
-    "new": "                found, {}, REQUIRED_TITLES[model], {key: {} for key in REQUIRED_TITLES[model]}\n",
+    "old": "                ENGLISH_TITLES[model],\n",
+    "new": "                {key: {} for key in REQUIRED_TITLES[model]},\n",
     "tests": "reads_each_page_it_found_once"
   },
   {
@@ -5051,7 +5051,7 @@
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
     "old": "    _temperature(\"oelsumpftemperatur\", \"Ölsumpftemperatur\", \"OIL SUMP T\"),\n",
     "new": "    _temperature(\"oelsumpftemperatur\", \"Ölsumpftemperatur\", \"OIL SUMP T\", models=ONLY_WBB),\n",
-    "tests": "reads_every_row_its_page_shares"
+    "tests": "must_show_every_row_it_reads"
   },
   {
     "label": "webif family: the compressor frequency reads in kHz",
@@ -5080,5 +5080,47 @@
     "old": "    _power(\"leistungsabgabe\", \"Leistungsabgabe\", NOT_SEEN, models=ONLY_EVOBLOCK),\n",
     "new": "    _power(\"leistungsabgabe\", \"Leistungsabgabe\", NOT_SEEN),\n",
     "tests": "each_value_is_read_under_the_titles"
+  },
+  {
+    "label": "webif family: a conditional row is required after all",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "            if value.page == page and model not in value.conditional_on\n",
+    "new": "            if value.page == page\n",
+    "tests": "dynamic_switching"
+  },
+  {
+    "label": "webif family: a conditional row is not read while shown",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        read = page.required | page.optional\n",
+    "new": "        read = page.required\n",
+    "tests": "read_while_the_page_shows_it"
+  },
+  {
+    "label": "webif family: the running entry does not hand on the conditional rows",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        OPTIONAL_TITLES[model],\n",
+    "new": "        {key: frozenset() for key in REQUIRED_TITLES[model]},\n",
+    "tests": "read_while_the_page_shows_it"
+  },
+  {
+    "label": "webif sensor: a power shown in KW is stored as W",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        native_unit_of_measurement=UnitOfPower.KILO_WATT,\n",
+    "new": "        native_unit_of_measurement=UnitOfPower.WATT,\n",
+    "tests": "shown_unit_reaches_home_assistant"
+  },
+  {
+    "label": "webif sensor: a power is no power",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        device_class=SensorDeviceClass.POWER,\n",
+    "new": "",
+    "tests": "shown_unit_reaches_home_assistant"
+  },
+  {
+    "label": "webif sensor: a pressure is no pressure",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        device_class=SensorDeviceClass.PRESSURE,\n",
+    "new": "",
+    "tests": "shown_unit_reaches_home_assistant"
   }
 ]

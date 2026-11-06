@@ -60,8 +60,8 @@ MODELS = (WBB, EVOBLOCK)
 ONLY_WBB = frozenset({WBB})
 ONLY_EVOBLOCK = frozenset({EVOBLOCK})
 EVOBLOCK_VERSION_TITLE = "Version WEB CPU"
-# Only a WEB 13/20 set to German was seen, 2026-11-05: what its own values
-# are called in English is not known.
+# Only a WEB 13/20 set to German was seen, 2026-11-05 and 06: what its own
+# values are called in English is not known.
 NOT_SEEN = ""
 
 
@@ -76,6 +76,8 @@ class WebifSensorDescription(SensorEntityDescription):
     `topic` is the pump device whose short name the name prefix option puts
     in front, as for the Modbus sensors of the same subject.
     `models` are the controller families whose page shows the value.
+    `conditional_on` are the families whose page may leave it out: the page
+    is whole without it, and the sensor reads unknown.
     `off_is_zero` marks a power or speed, which the controller shows as "Aus"
     when idle; set to English, an idle power as "off". On any other number
     they read unknown, since a 0 on a rising total resets it in Home
@@ -91,6 +93,7 @@ class WebifSensorDescription(SensorEntityDescription):
     shown_unit: str | None
     topic: str = DEVICES.WP
     models: frozenset[str] = frozenset(MODELS)
+    conditional_on: frozenset[str] = frozenset()
     off_is_zero: bool = False
     no_value_is_zero: bool = False
 
@@ -255,8 +258,13 @@ def _performance(key: str, title: str, english_title: str) -> WebifSensorDescrip
 # Info > Wärmepumpe: the values Modbus does not carry, 31 on a WBB.
 HEAT_PUMP_SENSORS = (
     _temperature("solltemperatur", "Solltemperatur", "setpoint", no_value_is_zero=True),
+    # An Evoblock shows it only with the setting of that name on, its manual
+    # says (83336001, 6.7.1.2); required, that one setting cost every value.
     _difference(
-        "schaltdifferenz_dynamisch", "Schaltdifferenz dynamisch", "dynamic switching"
+        "schaltdifferenz_dynamisch",
+        "Schaltdifferenz dynamisch",
+        "dynamic switching",
+        conditional_on=ONLY_EVOBLOCK,
     ),
     _percentage(
         "drehzahl_pumpe_m1", "Drehzahl Pumpe M1", "pump speed", off_is_zero=True
@@ -350,7 +358,6 @@ HEAT_PUMP_SENSORS = (
         NOT_SEEN,
         HERTZ,
         models=ONLY_EVOBLOCK,
-        off_is_zero=True,
         device_class=SensorDeviceClass.FREQUENCY,
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
         state_class=SensorStateClass.MEASUREMENT,
@@ -451,7 +458,23 @@ POLLED_PAGES = (HEAT_PUMP_PAGE, STATISTICS_PAGE, HEATING_PAGE)
 # from it: that is what tells a page served half from a whole one.
 REQUIRED_TITLES = {
     model: {
-        page: frozenset(value.title for value in values if value.page == page)
+        page: frozenset(
+            value.title
+            for value in values
+            if value.page == page and model not in value.conditional_on
+        )
+        for page in POLLED_PAGES
+    }
+    for model, values in VALUES.items()
+}
+# What a page may leave out, and is read all the same when it shows it.
+OPTIONAL_TITLES = {
+    model: {
+        page: frozenset(
+            value.title
+            for value in values
+            if value.page == page and model in value.conditional_on
+        )
         for page in POLLED_PAGES
     }
     for model, values in VALUES.items()

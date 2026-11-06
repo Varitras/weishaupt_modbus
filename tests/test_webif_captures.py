@@ -23,6 +23,7 @@ from custom_components.weishaupt_modbus.webif.discovery import (
 from custom_components.weishaupt_modbus.webif_coordinator import polled_pages
 from custom_components.weishaupt_modbus.webif_sensor import (
     ENGLISH_TITLES,
+    OPTIONAL_TITLES,
     REQUIRED_TITLES,
     WBB,
     shown_in_unknown_units,
@@ -96,7 +97,9 @@ def test_the_catalogue_reads_the_captured_page(capture, key):
     """Every value read is on the page once, in the unit its sensor expects."""
     page = next(
         page
-        for page in polled_pages(PATHS, {}, REQUIRED_TITLES[WBB], ENGLISH_TITLES[WBB])
+        for page in polled_pages(
+            PATHS, {}, REQUIRED_TITLES[WBB], ENGLISH_TITLES[WBB], OPTIONAL_TITLES[WBB]
+        )
         if page.key == key
     )
     text = _as_served(key, _page(capture, key)["entries"])

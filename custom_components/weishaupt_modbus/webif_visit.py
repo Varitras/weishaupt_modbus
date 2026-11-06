@@ -27,6 +27,7 @@ from .webif_coordinator import Page, polled_pages
 from .webif_sensor import (
     ENGLISH_TITLES,
     MODELS,
+    OPTIONAL_TITLES,
     REQUIRED_TITLES,
     model_shown,
     shown_in_unknown_units,
@@ -144,7 +145,11 @@ async def _visit(client: Client) -> Visited:
         model: {
             page.key: page
             for page in polled_pages(
-                found, {}, REQUIRED_TITLES[model], ENGLISH_TITLES[model]
+                found,
+                {},
+                REQUIRED_TITLES[model],
+                ENGLISH_TITLES[model],
+                OPTIONAL_TITLES[model],
             )
         }
         for model in MODELS

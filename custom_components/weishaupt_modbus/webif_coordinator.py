@@ -105,7 +105,8 @@ class Page:
 
     A menu page is read for the values its entries show one level down.
     `english` maps the titles a controller set to English shows to the
-    German ones everything else goes by.
+    German ones everything else goes by. `optional` are titles read when the
+    page shows them, which it need not.
     """
 
     key: str
@@ -115,6 +116,7 @@ class Page:
     menu: bool = False
     # Left out of the hash: a dict has none, and every page lost its own.
     english: Mapping[str, str] = field(default_factory=dict, hash=False)
+    optional: frozenset[str] = frozenset()
 
     def read(self, text: str) -> list[tuple[str, str]]:
         """The titles and values the page shows, English titles made German."""
@@ -164,11 +166,13 @@ def polled_pages(
     options: Mapping[str, Any],
     required: Mapping[str, frozenset[str]],
     english: Mapping[str, Mapping[str, str]],
+    optional: Mapping[str, frozenset[str]],
 ) -> list[Page]:
     """The pages at `paths`, each on the interval its option sets.
 
     `required` are the titles each page must show, those of its sensors;
-    `english` maps each page's English titles to them.
+    `english` maps each page's English titles to them; `optional` are the
+    titles its sensors read that a page may leave out.
     """
 
     def every(key: str) -> timedelta:
@@ -182,6 +186,7 @@ def polled_pages(
             required[HEAT_PUMP_PAGE],
             every(HEAT_PUMP_PAGE),
             english=english[HEAT_PUMP_PAGE],
+            optional=optional[HEAT_PUMP_PAGE],
         ),
         Page(
             STATISTICS_PAGE,
@@ -189,6 +194,7 @@ def polled_pages(
             required[STATISTICS_PAGE],
             every(STATISTICS_PAGE),
             english=english[STATISTICS_PAGE],
+            optional=optional[STATISTICS_PAGE],
         ),
         Page(
             HEATING_PAGE,
@@ -197,6 +203,7 @@ def polled_pages(
             every(HEATING_PAGE),
             menu=True,
             english=english[HEATING_PAGE],
+            optional=optional[HEATING_PAGE],
         ),
     ]
 
@@ -710,8 +717,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         reading = self._readings[page.key]
         # Only what a sensor reads: the rest of a page would go into the
         # diagnostics download, an identifying entry among it maybe.
+        read = page.required | page.optional
         reading.values = {
-            title: shown for title, shown in page.read(text) if title in page.required
+            title: shown for title, shown in page.read(text) if title in read
         }
         reading.read_at = self._clock()
         if reading.failures > FAILURES_KEPT:

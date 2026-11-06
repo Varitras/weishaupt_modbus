@@ -1,5 +1,7 @@
 """What a web interface value becomes as a sensor: reading, place and name."""
 
+import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -21,6 +23,17 @@ from custom_components.weishaupt_modbus.webif_sensor import (
     reading,
 )
 from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.const import (
+    PERCENTAGE,
+    REVOLUTIONS_PER_MINUTE,
+    UnitOfEnergy,
+    UnitOfFrequency,
+    UnitOfPower,
+    UnitOfPressure,
+    UnitOfTemperature,
+    UnitOfTime,
+    UnitOfVolumeFlowRate,
+)
 
 PUMP_DATA = {
     CONF.PREFIX: CONST.DEF_PREFIX,
@@ -67,9 +80,38 @@ IDLE_SHOWN_AS_AUS = {
     "leistungsabgabe",
     "drehzahl_pumpe_m1",
     "verdichter_drehzahl",
-    "verdichter_frequenz",
 }
 NO_DEMAND_SHOWN_AS_DASHES = {"solltemperatur"}
+READ_OVER_MODBUS_OR_CONDITIONAL = {
+    "Betrieb",
+    "Störmeldung",
+    "Leistungsanforderung",
+    "Vorlauftemperatur",
+    "Rücklauftemperatur",
+    "Schaltdifferenz dynamisch",
+    "Weichentemperatur",
+    "Warmwassertemperatur",
+    "Luftansaugtemperatur",
+    "Verdichtersauggastemp.",
+    "Verdampfungstemperatur",
+}
+WHAT_A_UNIT_IS = {
+    "°C": (UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE),
+    "K": (UnitOfTemperature.KELVIN, SensorDeviceClass.TEMPERATURE_DELTA),
+    "BAR": (UnitOfPressure.BAR, SensorDeviceClass.PRESSURE),
+    "KW": (UnitOfPower.KILO_WATT, SensorDeviceClass.POWER),
+    "KWh": (UnitOfEnergy.KILO_WATT_HOUR, SensorDeviceClass.ENERGY),
+    "Hz": (UnitOfFrequency.HERTZ, SensorDeviceClass.FREQUENCY),
+    "m3/h": (
+        UnitOfVolumeFlowRate.CUBIC_METERS_PER_HOUR,
+        SensorDeviceClass.VOLUME_FLOW_RATE,
+    ),
+    "h": (UnitOfTime.HOURS, SensorDeviceClass.DURATION),
+    "%": (PERCENTAGE, None),
+    "rpm": (REVOLUTIONS_PER_MINUTE, None),
+    "": (None, None),
+    None: (None, None),
+}
 
 
 @pytest.mark.parametrize("off", ["Aus", "off"], ids=["German", "English"])
@@ -119,16 +161,29 @@ def test_every_page_requires_the_titles_of_its_sensors():
     }
 
 
-def test_an_evoblock_reads_every_row_its_page_shares_with_a_wbb():
-    """24 of the 34 rows a WEB 13/20 showed: one tagged for a WBB alone would
-    drop a sensor and a row of the whole-page check, without a word."""
-    assert {
-        page: len(titles) for page, titles in REQUIRED_TITLES[EVOBLOCK].items()
-    } == {
-        HEAT_PUMP_PAGE: 24,
-        STATISTICS_PAGE: 14,
-        HEATING_PAGE: 2,
+def test_an_evoblock_must_show_every_row_it_reads_but_the_conditional_one():
+    """Of the rows a WEB 13/20 showed: one tagged for a WBB alone would drop a
+    sensor and a row of the whole-page check, without a word."""
+    rows = json.loads(
+        (Path(__file__).parent / "evoblock_titles.json").read_text(encoding="utf-8")
+    )
+
+    assert REQUIRED_TITLES[EVOBLOCK] == {
+        page: {title for title, _ in shown} - READ_OVER_MODBUS_OR_CONDITIONAL
+        for page, shown in rows.items()
     }
+
+
+@pytest.mark.parametrize("sensor", WEBIF_SENSORS, ids=lambda sensor: sensor.key)
+def test_a_shown_unit_reaches_home_assistant_as_what_it_is(sensor):
+    """A power stored as W from a page that shows KW is off by a thousand, and
+    nothing else looks at it."""
+    assert (
+        sensor.native_unit_of_measurement,
+        sensor.device_class,
+    ) == WHAT_A_UNIT_IS[sensor.shown_unit]
+    if sensor.shown_unit is not None:
+        assert sensor.state_class is not None
 
 
 @pytest.mark.parametrize("model", MODELS)

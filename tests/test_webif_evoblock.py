@@ -51,6 +51,7 @@ from .webif_stand_in import (
 ROWS = json.loads(
     (Path(__file__).parent / "evoblock_titles.json").read_text(encoding="utf-8")
 )
+CONDITIONAL_ROW = "Schaltdifferenz dynamisch"
 # A row that shows a word, not a number.
 WORD = "Aus"
 SAMPLE_NUMBER = "12.0"
@@ -139,6 +140,31 @@ async def test_the_visit_opens_each_page_once(hass, pump):
 
     for path in PAGES.values():
         assert pump.asked.count(("GET", path)) == 1
+
+
+async def test_the_dialog_takes_an_evoblock_with_dynamic_switching_off(hass, pump):
+    """Its manual shows the row only with the setting on, the factory value."""
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(without(CONDITIONAL_ROW))
+
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert visited.model == EVOBLOCK
+
+
+async def test_dynamic_switching_turned_off_costs_only_its_own_sensor(hass, pump):
+    """Required, the row took every value of the entry with it."""
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(without(CONDITIONAL_ROW))
+
+    await _evoblock(hass, pump)
+
+    assert _state(hass, "schaltdifferenz_dynamisch") == "unknown"
+    assert _state(hass, "hochdruck") == "12.0"
+
+
+async def test_dynamic_switching_is_read_while_the_page_shows_it(hass, pump):
+    await _evoblock(hass, pump)
+
+    assert _state(hass, "schaltdifferenz_dynamisch") == "12.0"
 
 
 async def test_a_wbb_page_without_its_evi_rows_is_no_evoblock(hass, pump):
