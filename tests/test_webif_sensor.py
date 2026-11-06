@@ -11,8 +11,10 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     STATISTICS_PAGE,
 )
 from custom_components.weishaupt_modbus.webif_sensor import (
-    READ_VALUES,
+    MODELS,
     REQUIRED_TITLES,
+    VALUES,
+    WBB,
     WEBIF_SENSORS,
     WebifSensor,
     reading,
@@ -63,6 +65,7 @@ IDLE_SHOWN_AS_AUS = {
     "ist_leistung",
     "drehzahl_pumpe_m1",
     "verdichter_drehzahl",
+    "verdichter_frequenz",
 }
 NO_DEMAND_SHOWN_AS_DASHES = {"solltemperatur"}
 
@@ -107,19 +110,28 @@ def test_an_energy_shows_the_three_decimals_the_controller_gives():
 def test_every_page_requires_the_titles_of_its_sensors():
     """The value list: 31 values only the web interface has on the heat pump
     page, all 14 statistics, and the two heating settings."""
-    assert {page: len(titles) for page, titles in REQUIRED_TITLES.items()} == {
+    assert {page: len(titles) for page, titles in REQUIRED_TITLES[WBB].items()} == {
         HEAT_PUMP_PAGE: 31,
         STATISTICS_PAGE: 14,
         HEATING_PAGE: 2,
     }
-    assert len({sensor.key for sensor in WEBIF_SENSORS}) == len(WEBIF_SENSORS)
 
 
-@pytest.mark.parametrize("page", list(REQUIRED_TITLES))
+@pytest.mark.parametrize("model", MODELS)
+def test_no_two_values_of_a_family_share_a_key_or_a_title(model):
+    """Two sensors with one key would be one entity; the catalogue holds a
+    key twice only for a value the families show under different titles."""
+    values = VALUES[model]
+
+    assert len({value.key for value in values}) == len(values)
+    assert len({(value.page, value.title) for value in values}) == len(values)
+
+
+@pytest.mark.parametrize("page", list(REQUIRED_TITLES[WBB]))
 def test_every_value_has_an_english_title_no_other_value_has(page):
     """Set to English, the controller shows each value under a title of its
     own; one equal to another value's title would be read as that value."""
-    values = [value for value in READ_VALUES if value.page == page]
+    values = [value for value in VALUES[WBB] if value.page == page]
     titles = [value.title for value in values]
 
     assert len({value.english_title for value in values}) == len(values)

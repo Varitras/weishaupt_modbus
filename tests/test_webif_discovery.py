@@ -168,7 +168,7 @@ async def test_the_dialog_finds_the_pages_and_logs_out_again(hass, pump, monkeyp
 
     found = await read_web_interface(hass, pump.host, USER, PASSWORD)
 
-    assert found[HEATING_PAGE] == STACK + f"{PUMP_MENU},{HEATING}"
+    assert found.pages[HEATING_PAGE] == STACK + f"{PUMP_MENU},{HEATING}"
     assert pump.asked[-1] == ("GET", webif.LOGOUT)
 
 
@@ -187,7 +187,7 @@ async def test_the_dialog_waits_while_its_pump_is_asked(hass, pump, monkeypatch)
         await until(lambda: lock.waited or pump.asked)
         assert pump.asked == []
 
-    assert (await visit)[HEATING_PAGE] == STACK + f"{PUMP_MENU},{HEATING}"
+    assert (await visit).pages[HEATING_PAGE] == STACK + f"{PUMP_MENU},{HEATING}"
     assert all(pump.held), "the dialog asked without its pump's lock"
 
 
@@ -209,13 +209,13 @@ async def test_the_dialog_reads_each_page_it_found_once(hass, pump, monkeypatch,
 
     found = await read_web_interface(hass, pump.host, USER, PASSWORD)
 
-    assert found == PAGES
+    assert found.pages == PAGES
     assert pump.asked == [
         *LOGIN,
         ("GET", PAGE_PATH),
         ("GET", STACK + INFO),
         ("GET", STACK + PUMP_MENU),
-        *(("GET", path) for path in found.values()),
+        *(("GET", path) for path in found.pages.values()),
         ("GET", webif.LOGOUT),
     ]
 
@@ -429,7 +429,7 @@ async def test_no_value_and_off_are_no_unknown_unit(hass, pump, monkeypatch, off
 
     found = await read_web_interface(hass, pump.host, USER, PASSWORD)
 
-    assert found[HEAT_PUMP_PAGE] == PAGES[HEAT_PUMP_PAGE]
+    assert found.pages[HEAT_PUMP_PAGE] == PAGES[HEAT_PUMP_PAGE]
 
 
 async def test_a_menu_served_half_twice_is_searched_once_more(hass, pump, monkeypatch):
@@ -442,7 +442,7 @@ async def test_a_menu_served_half_twice_is_searched_once_more(hass, pump, monkey
 
     found = await read_web_interface(hass, pump.host, USER, PASSWORD)
 
-    assert found[STATISTICS_PAGE] == STACK + f"{INFO},{STATISTICS_INFO}"
+    assert found.pages[STATISTICS_PAGE] == STACK + f"{INFO},{STATISTICS_INFO}"
     assert len(pump.forms) == 1, "searched again in the same session"
 
 

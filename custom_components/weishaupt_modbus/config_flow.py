@@ -30,8 +30,14 @@ from .migrate_helpers import entry_unique_id
 from .webif.client import LoginRefused, Unreachable, WebifError
 from .webif.discovery import ENGLISH_MENU_TITLES, DoubledMenuEntries, MissingMenuEntries
 from .webif_coordinator import INTERVAL_OPTIONS
-from .webif_sensor import ENGLISH_TITLES
-from .webif_visit import MissingTitles, UnclearValues, UnknownUnits, read_web_interface
+from .webif_sensor import ENGLISH_TITLES, WBB
+from .webif_visit import (
+    MissingTitles,
+    UnclearValues,
+    UnknownUnits,
+    Visited,
+    read_web_interface,
+)
 from .weishaupt_modbus_api.const import (
     DEFAULT_PORT,
     DEFAULT_WRITE_LIMIT_PER_DAY,
@@ -174,7 +180,7 @@ def web_interface_error(error: WebifError) -> str:
 # them: its user looks for those.
 TITLES_IN_ENGLISH = {
     german: english
-    for titles in (ENGLISH_MENU_TITLES, *ENGLISH_TITLES.values())
+    for titles in (ENGLISH_MENU_TITLES, *ENGLISH_TITLES[WBB].values())
     for english, german in titles.items()
 }
 
@@ -245,7 +251,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         """Initialize the flow."""
         self._stored_data: dict[str, Any] = {}
         self._reconfigure_entry: config_entries.ConfigEntry | None = None
-        self._visit: asyncio.Task[dict[str, str]] | None = None
+        self._visit: asyncio.Task[Visited] | None = None
         self._visit_login: dict[str, Any] = {}
         self._after_visit = ""
 
@@ -432,15 +438,15 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
     def _webif_visited(
         self,
         pumps: dict[str, config_entries.ConfigEntry],
-        visit: asyncio.Task[dict[str, str]],
+        visit: asyncio.Task[Visited],
     ) -> config_entries.ConfigFlowResult:
         """The new entry with the pages the visit found, or the form again."""
-        pages, errors, placeholders = self._visit_result(visit)
+        visited, errors, placeholders = self._visit_result(visit)
         login = self._visit_login
         pump = pumps.get(login[CONF.PUMP_ENTRY])
         if pump is None:
             return self.async_abort(reason="no_pump")
-        if pages is None:
+        if visited is None:
             return self._webif_form(
                 self._pumps_without_web_interface(), errors, placeholders
             )
@@ -451,7 +457,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
                 CONF.PUMP_ENTRY: pump.entry_id,
                 CONF.USERNAME: login[CONF.USERNAME],
                 CONF.PASSWORD: login[CONF.PASSWORD],
-                CONF.PAGES: pages,
+                CONF.PAGES: visited.pages,
+                CONF.MODEL: visited.model,
                 CONF.PUMP_TITLE: pump.title,
             },
         )
@@ -520,9 +527,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         return self.async_show_progress_done(next_step_id=self._after_visit)
 
     def _visit_result(
-        self, visit: asyncio.Task[dict[str, str]]
-    ) -> tuple[dict[str, str] | None, dict[str, str], dict[str, str]]:
-        """The pages the finished visit found, or the form's error and its placeholders."""
+        self, visit: asyncio.Task[Visited]
+    ) -> tuple[Visited | None, dict[str, str], dict[str, str]]:
+        """What the finished visit found, or the form's error and its placeholders."""
         self._visit = None
         try:
             return visit.result(), {}, {}
@@ -573,12 +580,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
     ) -> config_entries.ConfigFlowResult:
         """Check the login on a short visit; the pages it finds replace the old."""
         if (visit := self._visit) is not None:
-            pages, errors, placeholders = self._visit_result(visit)
-            if pages is None:
+            visited, errors, placeholders = self._visit_result(visit)
+            if visited is None:
                 return self._login_form(entry, step_id, errors, placeholders)
             return self.async_update_reload_and_abort(
                 entry,
-                data_updates={**self._visit_login, CONF.PAGES: pages},
+                data_updates={
+                    **self._visit_login,
+                    CONF.PAGES: visited.pages,
+                    CONF.MODEL: visited.model,
+                },
                 reason=reason,
             )
         if user_input is None:

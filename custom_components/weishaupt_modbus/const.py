@@ -35,6 +35,7 @@ class ConfConstants:
     USERNAME: str = CONF_USERNAME
     PASSWORD: str = CONF_PASSWORD
     PAGES: str = "pages"
+    MODEL: str = "model"
 
 
 CONF = ConfConstants()

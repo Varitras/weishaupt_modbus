@@ -31,10 +31,12 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     DoubledMenuEntries,
     MissingMenuEntries,
 )
+from custom_components.weishaupt_modbus.webif_sensor import EVOBLOCK, WBB
 from custom_components.weishaupt_modbus.webif_visit import (
     MissingTitles,
     UnclearValues,
     UnknownUnits,
+    Visited,
 )
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.helpers import config_validation as cv
@@ -581,7 +583,7 @@ def web_interface(monkeypatch):
     The entry a dialog creates is not started here; starting it has tests of
     its own.
     """
-    script = SimpleNamespace(visits=[], outcome=FOUND_PAGES, held=None)
+    script = SimpleNamespace(visits=[], outcome=Visited(FOUND_PAGES, WBB), held=None)
 
     async def visit(_hass, host, user, password):
         script.visits.append((host, user, password))
@@ -715,6 +717,7 @@ async def test_a_pumps_web_interface_is_added_with_the_pages_found(hass, web_int
         CONF.PUMP_ENTRY: pump.entry_id,
         **WEB_LOGIN,
         CONF.PAGES: FOUND_PAGES,
+        CONF.MODEL: WBB,
         CONF.PUMP_TITLE: pump.title,
     }
     assert result["result"].unique_id == f"{pump.entry_id}-{CONST.WEB_INTERFACE}"
@@ -1052,7 +1055,7 @@ async def test_a_web_interface_entry_is_reconfigured_with_a_new_login_and_pages(
         **FOUND_PAGES,
         "statistics": "/settings_export.html?stack=0C000C28000000000000000A0B020003000401",
     }
-    web_interface.outcome = moved
+    web_interface.outcome = Visited(moved, EVOBLOCK)
     renewed = {CONF.USERNAME: "other", CONF.PASSWORD: "renewed"}
 
     form = await entry.start_reconfigure_flow(hass)
@@ -1066,6 +1069,7 @@ async def test_a_web_interface_entry_is_reconfigured_with_a_new_login_and_pages(
     assert result["reason"] == "reconfigure_successful"
     assert {key: entry.data[key] for key in renewed} == renewed
     assert entry.data[CONF.PAGES] == moved
+    assert entry.data[CONF.MODEL] == EVOBLOCK
     assert entry.data[CONF.PUMP_TITLE] == pump.title
     assert web_interface.visits == [(HOST, "other", "renewed")]
 

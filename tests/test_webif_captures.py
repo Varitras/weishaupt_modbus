@@ -24,6 +24,7 @@ from custom_components.weishaupt_modbus.webif_coordinator import polled_pages
 from custom_components.weishaupt_modbus.webif_sensor import (
     ENGLISH_TITLES,
     REQUIRED_TITLES,
+    WBB,
     shown_in_unknown_units,
 )
 
@@ -95,13 +96,13 @@ def test_the_catalogue_reads_the_captured_page(capture, key):
     """Every value read is on the page once, in the unit its sensor expects."""
     page = next(
         page
-        for page in polled_pages(PATHS, {}, REQUIRED_TITLES, ENGLISH_TITLES)
+        for page in polled_pages(PATHS, {}, REQUIRED_TITLES[WBB], ENGLISH_TITLES[WBB])
         if page.key == key
     )
     text = _as_served(key, _page(capture, key)["entries"])
 
     assert page.is_whole(text), f"lacks {sorted(page.missing(text))}"
-    assert not shown_in_unknown_units(key, page.read(text))
+    assert not shown_in_unknown_units(key, page.read(text), WBB)
 
 
 @pytest.mark.parametrize("capture", CAPTURED, ids=lambda capture: capture.stem)

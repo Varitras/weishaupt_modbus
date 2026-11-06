@@ -1876,6 +1876,15 @@
       "webif_verdichter_drehzahl": {
         "name": "{prefix}Compressor speed"
       },
+      "webif_verdichter_frequenz": {
+        "name": "{prefix}Compressor frequency"
+      },
+      "webif_wasserdruck": {
+        "name": "{prefix}Water pressure"
+      },
+      "webif_version_web_cpu": {
+        "name": "{prefix}Version WEB CPU"
+      },
       "webif_betriebsstunden_verdichter": {
         "name": "{prefix}Compressor operating hours"
       },

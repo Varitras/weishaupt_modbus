@@ -213,6 +213,7 @@ def test_an_entity_name_with_a_double_space_is_caught(path):
 
 # Names that read the same in every language: addresses and product terms.
 SAME_IN_EVERY_LANGUAGE = {
+    "webif_version_web_cpu",
     "adr31106",
     "adr311062",
     "adr311063",
