@@ -5086,7 +5086,7 @@
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
     "old": "            if value.page == page and model not in value.conditional_on\n",
     "new": "            if value.page == page\n",
-    "tests": "dynamic_switching"
+    "tests": "takes_an_evoblock_with_dynamic_switching_off"
   },
   {
     "label": "webif family: a conditional row is not read while shown",
@@ -5122,5 +5122,12 @@
     "old": "        device_class=SensorDeviceClass.PRESSURE,\n",
     "new": "",
     "tests": "shown_unit_reaches_home_assistant"
+  },
+  {
+    "label": "webif family: a WBB must show the conditional row",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        conditional_on=frozenset(MODELS),\n",
+    "new": "        conditional_on=ONLY_EVOBLOCK,\n",
+    "tests": "wbb_with_dynamic_switching_off"
   }
 ]

@@ -258,13 +258,14 @@ def _performance(key: str, title: str, english_title: str) -> WebifSensorDescrip
 # Info > Wärmepumpe: the values Modbus does not carry, 31 on a WBB.
 HEAT_PUMP_SENSORS = (
     _temperature("solltemperatur", "Solltemperatur", "setpoint", no_value_is_zero=True),
-    # An Evoblock shows it only with the setting of that name on, its manual
-    # says (83336001, 6.7.1.2); required, that one setting cost every value.
+    # Shown only with the setting of that name on: an Evoblock's manual says so
+    # (83336001, 6.7.1.2), and a WBB left it out with the setting off
+    # (2026-11-06). Required, that one setting cost every value.
     _difference(
         "schaltdifferenz_dynamisch",
         "Schaltdifferenz dynamisch",
         "dynamic switching",
-        conditional_on=ONLY_EVOBLOCK,
+        conditional_on=frozenset(MODELS),
     ),
     _percentage(
         "drehzahl_pumpe_m1", "Drehzahl Pumpe M1", "pump speed", off_is_zero=True

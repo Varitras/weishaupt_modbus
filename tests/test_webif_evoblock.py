@@ -161,6 +161,36 @@ async def test_dynamic_switching_turned_off_costs_only_its_own_sensor(hass, pump
     assert _state(hass, "hochdruck") == "12.0"
 
 
+def wbb_page_without_dynamic_switching():
+    return column(
+        "".join(
+            value(title, shown)
+            for title, shown in SHOWN[HEAT_PUMP_PAGE].items()
+            if title != CONDITIONAL_ROW
+        )
+    )
+
+
+async def test_the_dialog_takes_a_wbb_with_dynamic_switching_off(hass, pump):
+    """Turned off on a WBB, 2026-11-06, the row went and polling stopped."""
+    pump.site.update(SITE)
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = wbb_page_without_dynamic_switching()
+
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert visited.model == WBB
+
+
+async def test_a_wbb_with_dynamic_switching_off_keeps_its_other_values(hass, pump):
+    pump.site.update(SITE)
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = wbb_page_without_dynamic_switching()
+
+    await _start(hass, _entries(hass, pump))
+
+    assert _state(hass, "schaltdifferenz_dynamisch") == "unknown"
+    assert _state(hass, "verdichter_drehzahl") == "2568.0"
+
+
 async def test_dynamic_switching_is_read_while_the_page_shows_it(hass, pump):
     await _evoblock(hass, pump)
 

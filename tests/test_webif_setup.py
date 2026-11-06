@@ -687,7 +687,7 @@ async def test_a_download_during_a_stop_shows_no_values_from_before_it(hass, pum
     ("failing", "reason"),
     [
         (_error_status, "Unreachable (HTTP 500)"),
-        (_served_half, "Broken (missing: 31 titles)"),
+        (_served_half, "Broken (missing: 30 titles)"),
         (_no_answer_in_time, "Unreachable (TimeoutError)"),
     ],
     ids=["an error status", "a page served half", "no answer in time"],
