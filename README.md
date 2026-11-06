@@ -34,8 +34,8 @@ It differs from upstream on purpose:
 Weishaupt heat pumps whose controller offers *Modbus TCP* in its own settings
 menu (see [Prerequisites](#prerequisites)). It is developed and checked on a
 WBB. Power maps for the estimated heat output ship for models of the WAB, WBB,
-WEB (Evoblock), WSB and WWP LS series; a model without one works too. For a model that does
-not work as expected, a register scan helps add it (see
+WEB (Evoblock), WSB and WWP LS series; a model without one works too. For a
+model that does not work as expected, a register scan helps add it (see
 [Troubleshooting](https://github.com/Varitras/weishaupt_modbus/wiki/Troubleshooting-and-Diagnostics)).
 
 It has not been tested with heat pumps that use the separate Weishaupt Modbus
