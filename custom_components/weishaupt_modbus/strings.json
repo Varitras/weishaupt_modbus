@@ -1883,7 +1883,7 @@
         "name": "{prefix}Water pressure"
       },
       "webif_version_web_cpu": {
-        "name": "{prefix}Version WEB CPU"
+        "name": "{prefix}WEB CPU version"
       },
       "webif_betriebsstunden_verdichter": {
         "name": "{prefix}Compressor operating hours"

@@ -26,6 +26,8 @@ from custom_components.weishaupt_modbus.webif_visit import (
     UnknownUnits,
     read_web_interface,
 )
+from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.const import EntityCategory, UnitOfFrequency, UnitOfPressure
 from homeassistant.helpers import entity_registry as er
 
 from .test_webif_setup import (
@@ -87,6 +89,14 @@ async def _evoblock(hass, pump):
     return await _start(hass, web)
 
 
+def _entry(hass, key):
+    registry = er.async_get(hass)
+    unique_id = f"{CONST.DEF_PREFIX}webif_{key}"
+    return registry.async_get(
+        registry.async_get_entity_id("sensor", CONST.DOMAIN, unique_id)
+    )
+
+
 def _state(hass, key):
     unique_id = f"{CONST.DEF_PREFIX}webif_{key}"
     entity_id = er.async_get(hass).async_get_entity_id(
@@ -101,6 +111,17 @@ async def test_the_dialog_accepts_an_evoblock(hass, pump):
 
     assert visited.model == EVOBLOCK
     assert visited.pages[HEATING_PAGE] == PAGES[HEATING_PAGE]
+
+
+async def test_an_answer_without_the_version_row_does_not_settle_the_family(hass, pump):
+    """Broken first answers are common: judged by one, an Evoblock would be
+    refused for lacking the rows of a WBB."""
+    whole = pump.site.pop(PAGES[HEAT_PUMP_PAGE])
+    pump.pages = [heat_pump_page(without("Version WEB CPU")), whole]
+
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert visited.model == EVOBLOCK
 
 
 async def test_a_wbb_stays_a_wbb(hass, pump):
@@ -186,6 +207,17 @@ async def test_an_evoblock_gets_the_sensors_its_page_can_fill(hass, pump):
     assert _state(hass, "version_web_cpu") == "Aus"
     assert _state(hass, "evi_sauggastemperatur") is None
     assert _state(hass, "verdichter_drehzahl") is None
+
+
+async def test_the_sensors_of_an_evoblock_show_what_they_are(hass, pump):
+    await _evoblock(hass, pump)
+
+    frequency = _entry(hass, "verdichter_frequenz")
+    assert frequency.unit_of_measurement == UnitOfFrequency.HERTZ
+    assert frequency.original_device_class is SensorDeviceClass.FREQUENCY
+    assert _entry(hass, "wasserdruck").unit_of_measurement == UnitOfPressure.BAR
+    version = _entry(hass, "version_web_cpu")
+    assert version.entity_category is EntityCategory.DIAGNOSTIC
 
 
 async def test_an_evoblock_keeps_the_power_limit(hass, pump):

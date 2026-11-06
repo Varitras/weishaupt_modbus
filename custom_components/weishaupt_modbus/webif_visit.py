@@ -81,7 +81,7 @@ class UnknownUnits(WebifError):
 async def read_web_interface(
     hass: HomeAssistant, host: str, user: str, password: str
 ) -> Visited:
-    """The pages to poll, found and read once on a short visit that logs out.
+    """The pages to poll and their family, read once on a visit that logs out.
 
     Pages served half are searched once more in the same session before the
     visit gives up. Raises WebifError.

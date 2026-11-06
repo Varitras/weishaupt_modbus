@@ -51,9 +51,9 @@ HERTZ = "Hz"
 HOURS = "h"
 NO_UNIT = ""
 
-# The controller families. No register and no value names one the same way on
-# both (the outdoor unit's variant says RMHA-10 on a WBB); the row with the
-# controller's version does, and the rows of a page go by the family.
+# The controller families. No register names one, and the outdoor unit's
+# variant names the unit, not the family; the row with the controller's version
+# does, and the rows of a page go by the family.
 WBB = "wbb"
 EVOBLOCK = "evoblock"
 MODELS = (WBB, EVOBLOCK)
@@ -70,7 +70,8 @@ class WebifSensorDescription(SensorEntityDescription):
     """A value of a web interface page: its page, its title, its unit there.
 
     `english_title` is the title a controller set to English shows instead,
-    as it showed it on 2026-10-10: cut at 25 characters, typing errors kept.
+    as it showed it on 2026-10-10: cut at 25 characters, typing errors kept;
+    NOT_SEEN for a value no controller set to English has shown.
     `shown_unit` is the text after the number; None for a value that is text.
     `topic` is the pump device whose short name the name prefix option puts
     in front, as for the Modbus sensors of the same subject.

@@ -11,6 +11,7 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     STATISTICS_PAGE,
 )
 from custom_components.weishaupt_modbus.webif_sensor import (
+    EVOBLOCK,
     MODELS,
     REQUIRED_TITLES,
     VALUES,
@@ -112,6 +113,18 @@ def test_every_page_requires_the_titles_of_its_sensors():
     page, all 14 statistics, and the two heating settings."""
     assert {page: len(titles) for page, titles in REQUIRED_TITLES[WBB].items()} == {
         HEAT_PUMP_PAGE: 31,
+        STATISTICS_PAGE: 14,
+        HEATING_PAGE: 2,
+    }
+
+
+def test_an_evoblock_reads_every_row_its_page_shares_with_a_wbb():
+    """23 of the 34 rows a WEB 13/20 showed: one tagged for a WBB alone would
+    drop a sensor and a row of the whole-page check, without a word."""
+    assert {
+        page: len(titles) for page, titles in REQUIRED_TITLES[EVOBLOCK].items()
+    } == {
+        HEAT_PUMP_PAGE: 23,
         STATISTICS_PAGE: 14,
         HEATING_PAGE: 2,
     }

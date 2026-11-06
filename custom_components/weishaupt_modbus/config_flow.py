@@ -578,7 +578,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
         step_id: str,
         reason: str,
     ) -> config_entries.ConfigFlowResult:
-        """Check the login on a short visit; the pages it finds replace the old."""
+        """Check the login on a short visit; what it finds replaces the old."""
         if (visit := self._visit) is not None:
             visited, errors, placeholders = self._visit_result(visit)
             if visited is None:

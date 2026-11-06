@@ -5038,5 +5038,40 @@
     "old": "            if value.page == page and value.english_title != NOT_SEEN\n",
     "new": "            if value.page == page\n",
     "tests": "not_seen_in_english"
+  },
+  {
+    "label": "webif family: the first answer settles the family",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "old": "        return polled[model_of(text)][key]\n",
+    "new": "        return polled[model_of(shown[1] if len(shown) > 1 else text)][key]\n",
+    "tests": "does_not_settle_the_family"
+  },
+  {
+    "label": "webif family: a row both show is read on a WBB alone",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    _temperature(\"oelsumpftemperatur\", \"Ölsumpftemperatur\", \"OIL SUMP T\"),\n",
+    "new": "    _temperature(\"oelsumpftemperatur\", \"Ölsumpftemperatur\", \"OIL SUMP T\", models=ONLY_WBB),\n",
+    "tests": "reads_every_row_its_page_shares"
+  },
+  {
+    "label": "webif family: the compressor frequency reads in kHz",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        native_unit_of_measurement=UnitOfFrequency.HERTZ,\n",
+    "new": "        native_unit_of_measurement=UnitOfFrequency.KILOHERTZ,\n",
+    "tests": "show_what_they_are"
+  },
+  {
+    "label": "webif family: the compressor frequency is no frequency",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        device_class=SensorDeviceClass.FREQUENCY,\n",
+    "new": "",
+    "tests": "show_what_they_are"
+  },
+  {
+    "label": "webif family: the version of an Evoblock is no diagnostic",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        NOT_SEEN,\n        models=ONLY_EVOBLOCK,\n        entity_category=EntityCategory.DIAGNOSTIC,\n",
+    "new": "        NOT_SEEN,\n        models=ONLY_EVOBLOCK,\n",
+    "tests": "show_what_they_are"
   }
 ]

@@ -16,7 +16,8 @@ from .webif.setting import shown_percent
 from .webif_coordinator import WebifCoordinator
 from .webif_sensor import POWER_LIMIT
 
-# The controller's own list: 10 to 100 % in steps of one.
+# The list a WBB offers, 10 to 100 % in steps of one. Another controller's
+# form is read before each save: a target it does not offer is not sent.
 POWER_LIMIT_MIN = 10
 POWER_LIMIT_MAX = 100
 
