@@ -961,15 +961,15 @@
   {
     "label": "webif pages: a blank value passes for complete",
     "path": "custom_components/weishaupt_modbus/webif/pages.py",
-    "old": "    return bool(found) and shown_once and all(text for _, text in found)\n",
-    "new": "    return bool(found) and shown_once\n",
+    "old": "    return bool(found) and shown_once and never_twice and all(text for _, text in found)\n",
+    "new": "    return bool(found) and shown_once and never_twice\n",
     "tests": "entry_left_without_its_value_makes_the_page_incomplete"
   },
   {
     "label": "webif pages: another section passes for the one asked for",
     "path": "custom_components/weishaupt_modbus/webif/pages.py",
-    "old": "    return bool(found) and shown_once and all(text for _, text in found)\n",
-    "new": "    return bool(found) and all(text for _, text in found)\n",
+    "old": "    return bool(found) and shown_once and never_twice and all(text for _, text in found)\n",
+    "new": "    return bool(found) and never_twice and all(text for _, text in found)\n",
     "tests": "values_of_another_section_do_not_pass"
   },
   {
@@ -2263,8 +2263,8 @@
   {
     "label": "webif pages: a page showing nothing passes for complete",
     "path": "custom_components/weishaupt_modbus/webif/pages.py",
-    "old": "    return bool(found) and shown_once and all(text for _, text in found)\n",
-    "new": "    return shown_once and all(text for _, text in found)\n",
+    "old": "    return bool(found) and shown_once and never_twice and all(text for _, text in found)\n",
+    "new": "    return shown_once and never_twice and all(text for _, text in found)\n",
     "tests": "showing_nothing_is_never_complete"
   },
   {
@@ -2354,7 +2354,7 @@
   {
     "label": "webif coordinator: a title shown twice is not unclear",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        twice = {title for title in self.required if counts[title] > 1}\n",
+    "old": "        twice = {title for title in self.required | self.optional if counts[title] > 1}\n",
     "new": "        twice = set()\n",
     "tests": "values_shown_empty_or_twice_are_named"
   },
@@ -2543,8 +2543,8 @@
   {
     "label": "webif pages: an unread entry left empty passes for complete",
     "path": "custom_components/weishaupt_modbus/webif/pages.py",
-    "old": "    return bool(found) and shown_once and all(text for _, text in found)\n",
-    "new": "    return bool(found) and shown_once and all(text for title, text in found if title in required)\n",
+    "old": "    return bool(found) and shown_once and never_twice and all(text for _, text in found)\n",
+    "new": "    return bool(found) and shown_once and never_twice and all(text for title, text in found if title in required)\n",
     "tests": "values_shown_empty_or_twice_are_named"
   },
   {
@@ -5129,5 +5129,54 @@
     "old": "        conditional_on=frozenset(MODELS),\n",
     "new": "        conditional_on=ONLY_EVOBLOCK,\n",
     "tests": "wbb_with_dynamic_switching_off"
+  },
+  {
+    "label": "webif family: a vanished row keeps its old value",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        reading.values = {\n            title: shown for title, shown in page.read(text) if title in read\n        }\n",
+    "new": "        reading.values = {\n            **(reading.values or {}),\n            **{title: shown for title, shown in page.read(text) if title in read},\n        }\n",
+    "tests": "leaves_no_old_value"
+  },
+  {
+    "label": "webif family: a conditional row shown twice passes",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "    never_twice = all(counts[title] <= 1 for title in optional)\n",
+    "new": "    never_twice = True\n",
+    "tests": "conditional_row_shown_twice"
+  },
+  {
+    "label": "webif family: the dialog does not hand on the conditional rows",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "old": "                OPTIONAL_TITLES[model],\n",
+    "new": "                {key: frozenset() for key in REQUIRED_TITLES[model]},\n",
+    "tests": "conditional_row_shown_twice"
+  },
+  {
+    "label": "webif family: the doubled conditional row is not named",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        twice = {title for title in self.required | self.optional if counts[title] > 1}\n",
+    "new": "        twice = {title for title in self.required if counts[title] > 1}\n",
+    "tests": "conditional_row_shown_twice"
+  },
+  {
+    "label": "webif sensor: an energy is kept as a measurement",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        state_class=SensorStateClass.TOTAL_INCREASING,\n        suggested_display_precision=3,\n",
+    "new": "        state_class=SensorStateClass.MEASUREMENT,\n        suggested_display_precision=3,\n",
+    "tests": "running_total_is_kept"
+  },
+  {
+    "label": "webif sensor: the operating hours are kept as a measurement",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        native_unit_of_measurement=UnitOfTime.HOURS,\n        state_class=SensorStateClass.TOTAL_INCREASING,\n",
+    "new": "        native_unit_of_measurement=UnitOfTime.HOURS,\n        state_class=SensorStateClass.MEASUREMENT,\n",
+    "tests": "running_total_is_kept"
+  },
+  {
+    "label": "webif sensor: the power output sits with the statistics",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    _power(\"leistungsabgabe\", \"Leistungsabgabe\", NOT_SEEN, models=ONLY_EVOBLOCK),\n",
+    "new": "    _power(\"leistungsabgabe\", \"Leistungsabgabe\", NOT_SEEN, models=ONLY_EVOBLOCK, topic=DEVICES.ST),\n",
+    "tests": "power_output_sits_with"
   }
 ]

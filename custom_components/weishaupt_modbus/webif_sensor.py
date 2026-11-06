@@ -455,8 +455,8 @@ VALUES = {
 }
 POLLED_PAGES = (HEAT_PUMP_PAGE, STATISTICS_PAGE, HEATING_PAGE)
 
-# A page counts as whole only with the title of every value its family reads
-# from it: that is what tells a page served half from a whole one.
+# A page counts as whole only with the title of every value its family must
+# show on it: that is what tells a page served half from a whole one.
 REQUIRED_TITLES = {
     model: {
         page: frozenset(

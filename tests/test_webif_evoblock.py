@@ -23,6 +23,7 @@ from custom_components.weishaupt_modbus.webif_sensor import (
 )
 from custom_components.weishaupt_modbus.webif_visit import (
     MissingTitles,
+    UnclearValues,
     UnknownUnits,
     read_web_interface,
 )
@@ -34,6 +35,7 @@ from .test_webif_setup import (
     PAGES,
     SHOWN,
     SITE,
+    Clock,
     _enable_custom_integrations,  # noqa: F401
     _entries,
     _start,
@@ -52,6 +54,8 @@ ROWS = json.loads(
     (Path(__file__).parent / "evoblock_titles.json").read_text(encoding="utf-8")
 )
 CONDITIONAL_ROW = "Schaltdifferenz dynamisch"
+# Past every page's interval.
+ROUND_LATER = 3 * 3600
 # A row that shows a word, not a number.
 WORD = "Aus"
 SAMPLE_NUMBER = "12.0"
@@ -191,6 +195,36 @@ async def test_a_wbb_with_dynamic_switching_off_keeps_its_other_values(hass, pum
     assert _state(hass, "verdichter_drehzahl") == "2568.0"
 
 
+async def test_dynamic_switching_turned_off_leaves_no_old_value(hass, pump):
+    """Unknown from the round after, and read again once the row is back: the
+    last value kept would pass for the current one for as long as it is off."""
+    entry = await _evoblock(hass, pump)
+    coordinator = entry.runtime_data.coordinator
+    clock = coordinator._clock = Clock()
+
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(without(CONDITIONAL_ROW))
+    clock.now += ROUND_LATER
+    await coordinator.async_refresh()
+    assert _state(hass, "schaltdifferenz_dynamisch") == "unknown"
+
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(ROWS[HEAT_PUMP_PAGE])
+    clock.now += ROUND_LATER
+    await coordinator.async_refresh()
+    assert _state(hass, "schaltdifferenz_dynamisch") == "12.0"
+
+
+async def test_a_conditional_row_shown_twice_is_refused(hass, pump):
+    """Its sensor would have two values to pick from, as any other row's."""
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(
+        [*ROWS[HEAT_PUMP_PAGE], [CONDITIONAL_ROW, "K"]]
+    )
+
+    with pytest.raises(UnclearValues) as raised:
+        await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert raised.value.titles == {CONDITIONAL_ROW}
+
+
 async def test_dynamic_switching_is_read_while_the_page_shows_it(hass, pump):
     await _evoblock(hass, pump)
 
@@ -275,6 +309,7 @@ async def test_the_sensors_of_an_evoblock_show_what_they_are(hass, pump):
     assert _entry(hass, "wasserdruck").unit_of_measurement == UnitOfPressure.BAR
     version = _entry(hass, "version_web_cpu")
     assert version.entity_category is EntityCategory.DIAGNOSTIC
+    assert _entry(hass, "leistungsabgabe").entity_category is None
 
 
 async def test_an_evoblock_keeps_the_power_limit(hass, pump):

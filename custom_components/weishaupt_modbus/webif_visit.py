@@ -43,7 +43,7 @@ class Visited:
 
 
 class MissingTitles(Broken):
-    """A page that came without titles its sensors read.
+    """A page that came without titles its sensors need.
 
     Another model or firmware than the one this was built for, not a hiccup.
     """
@@ -137,7 +137,7 @@ async def _visit_twice(client: Client) -> Visited:
 async def _visit(client: Client) -> Visited:
     """The pages found, each read once, and the family they are of.
 
-    A page another model shows without a title its sensors read fails here,
+    A page another model shows without a title its sensors need fails here,
     not in the brake ten minutes after the entry was added.
     """
     found = await find_pages(client)

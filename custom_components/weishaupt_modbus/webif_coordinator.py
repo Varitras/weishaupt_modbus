@@ -130,18 +130,18 @@ class Page:
 
     def is_whole(self, text: str) -> bool:
         """Every required title is there once, and no value is left blank."""
-        return pages.is_complete(self.read(text), self.required)
+        return pages.is_complete(self.read(text), self.required, self.optional)
 
     def missing(self, text: str) -> frozenset[str]:
         """The required titles the page does not show."""
         return self.required - {title for title, _ in self.read(text)}
 
     def unclear(self, text: str) -> frozenset[str]:
-        """The titles shown without a value, and the required ones shown twice."""
+        """The titles shown without a value, and the ones read shown twice."""
         found = self.read(text)
         counts = Counter(title for title, _ in found)
         empty = {title for title, shown in found if not shown}
-        twice = {title for title in self.required if counts[title] > 1}
+        twice = {title for title in self.required | self.optional if counts[title] > 1}
         return frozenset(empty | twice)
 
     def flaws(self, text: str) -> str:
@@ -170,7 +170,7 @@ def polled_pages(
 ) -> list[Page]:
     """The pages at `paths`, each on the interval its option sets.
 
-    `required` are the titles each page must show, those of its sensors;
+    `required` are the titles each page must show;
     `english` maps each page's English titles to them; `optional` are the
     titles its sensors read that a page may leave out.
     """

@@ -22,7 +22,7 @@ from custom_components.weishaupt_modbus.webif_sensor import (
     WebifSensor,
     reading,
 )
-from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import (
     PERCENTAGE,
     REVOLUTIONS_PER_MINUTE,
@@ -95,6 +95,7 @@ READ_OVER_MODBUS_OR_CONDITIONAL = {
     "Verdichtersauggastemp.",
     "Verdampfungstemperatur",
 }
+UNITS_OF_RUNNING_TOTALS = {"KWh", "h"}
 WHAT_A_UNIT_IS = {
     "°C": (UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE),
     "K": (UnitOfTemperature.KELVIN, SensorDeviceClass.TEMPERATURE_DELTA),
@@ -183,8 +184,26 @@ def test_a_shown_unit_reaches_home_assistant_as_what_it_is(sensor):
         sensor.native_unit_of_measurement,
         sensor.device_class,
     ) == WHAT_A_UNIT_IS[sensor.shown_unit]
-    if sensor.shown_unit is not None:
-        assert sensor.state_class is not None
+
+
+@pytest.mark.parametrize(
+    "sensor",
+    [sensor for sensor in WEBIF_SENSORS if sensor.shown_unit],
+    ids=lambda sensor: sensor.key,
+)
+def test_a_running_total_is_kept_as_one(sensor):
+    """Kept as a measurement, Home Assistant's long-term statistics average
+    what they should add up."""
+    total = sensor.shown_unit in UNITS_OF_RUNNING_TOTALS
+    expected = (
+        SensorStateClass.TOTAL_INCREASING if total else SensorStateClass.MEASUREMENT
+    )
+
+    assert sensor.state_class is expected
+
+
+def test_the_power_output_sits_with_the_heat_pump():
+    assert _description("leistungsabgabe").topic == DEVICES.WP
 
 
 @pytest.mark.parametrize("model", MODELS)
