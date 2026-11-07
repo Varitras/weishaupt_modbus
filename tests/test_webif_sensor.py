@@ -1,5 +1,7 @@
 """What a web interface value becomes as a sensor: reading, place and name."""
 
+import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -11,13 +13,27 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     STATISTICS_PAGE,
 )
 from custom_components.weishaupt_modbus.webif_sensor import (
-    READ_VALUES,
+    EVOBLOCK,
+    MODELS,
     REQUIRED_TITLES,
+    VALUES,
+    WBB,
     WEBIF_SENSORS,
     WebifSensor,
     reading,
 )
-from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+from homeassistant.const import (
+    PERCENTAGE,
+    REVOLUTIONS_PER_MINUTE,
+    UnitOfEnergy,
+    UnitOfFrequency,
+    UnitOfPower,
+    UnitOfPressure,
+    UnitOfTemperature,
+    UnitOfTime,
+    UnitOfVolumeFlowRate,
+)
 
 PUMP_DATA = {
     CONF.PREFIX: CONST.DEF_PREFIX,
@@ -61,10 +77,43 @@ def test_a_shown_value_is_a_reading_only_in_its_unit(key, shown, expected):
 IDLE_SHOWN_AS_AUS = {
     "soll_leistung",
     "ist_leistung",
+    "leistungsabgabe",
     "drehzahl_pumpe_m1",
     "verdichter_drehzahl",
 }
 NO_DEMAND_SHOWN_AS_DASHES = {"solltemperatur"}
+READ_OVER_MODBUS_OR_CONDITIONAL = {
+    "Betrieb",
+    "Störmeldung",
+    "Leistungsanforderung",
+    "Vorlauftemperatur",
+    "Rücklauftemperatur",
+    "Schaltdifferenz dynamisch",
+    "Weichentemperatur",
+    "Warmwassertemperatur",
+    "Luftansaugtemperatur",
+    "Verdichtersauggastemp.",
+    "Verdampfungstemperatur",
+}
+UNITS_OF_RUNNING_TOTALS = {"KWh", "h"}
+COUNTS = {"schaltspiele_verdichter", "schaltspiele_abtauen"}
+WHAT_A_UNIT_IS = {
+    "°C": (UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE),
+    "K": (UnitOfTemperature.KELVIN, SensorDeviceClass.TEMPERATURE_DELTA),
+    "BAR": (UnitOfPressure.BAR, SensorDeviceClass.PRESSURE),
+    "KW": (UnitOfPower.KILO_WATT, SensorDeviceClass.POWER),
+    "KWh": (UnitOfEnergy.KILO_WATT_HOUR, SensorDeviceClass.ENERGY),
+    "Hz": (UnitOfFrequency.HERTZ, SensorDeviceClass.FREQUENCY),
+    "m3/h": (
+        UnitOfVolumeFlowRate.CUBIC_METERS_PER_HOUR,
+        SensorDeviceClass.VOLUME_FLOW_RATE,
+    ),
+    "h": (UnitOfTime.HOURS, SensorDeviceClass.DURATION),
+    "%": (PERCENTAGE, None),
+    "rpm": (REVOLUTIONS_PER_MINUTE, None),
+    "": (None, None),
+    None: (None, None),
+}
 
 
 @pytest.mark.parametrize("off", ["Aus", "off"], ids=["German", "English"])
@@ -105,21 +154,74 @@ def test_an_energy_shows_the_three_decimals_the_controller_gives():
 
 
 def test_every_page_requires_the_titles_of_its_sensors():
-    """The value list: 31 values only the web interface has on the heat pump
-    page, all 14 statistics, and the two heating settings."""
-    assert {page: len(titles) for page, titles in REQUIRED_TITLES.items()} == {
-        HEAT_PUMP_PAGE: 31,
+    """The value list: the 31 values only the web interface has on the heat
+    pump page but the conditional one, all 14 statistics, and the two heating
+    settings."""
+    assert {page: len(titles) for page, titles in REQUIRED_TITLES[WBB].items()} == {
+        HEAT_PUMP_PAGE: 30,
         STATISTICS_PAGE: 14,
         HEATING_PAGE: 2,
     }
-    assert len({sensor.key for sensor in WEBIF_SENSORS}) == len(WEBIF_SENSORS)
 
 
-@pytest.mark.parametrize("page", list(REQUIRED_TITLES))
+def test_an_evoblock_must_show_every_row_it_reads_but_the_conditional_one():
+    """Of the rows a WEB 13/20 showed: one tagged for a WBB alone would drop a
+    sensor and a row of the whole-page check, without a word."""
+    rows = json.loads(
+        (Path(__file__).parent / "evoblock_titles.json").read_text(encoding="utf-8")
+    )
+
+    assert REQUIRED_TITLES[EVOBLOCK] == {
+        page: {title for title, _ in shown} - READ_OVER_MODBUS_OR_CONDITIONAL
+        for page, shown in rows.items()
+    }
+
+
+@pytest.mark.parametrize("sensor", WEBIF_SENSORS, ids=lambda sensor: sensor.key)
+def test_a_shown_unit_reaches_home_assistant_as_what_it_is(sensor):
+    """A power stored as W from a page that shows KW is off by a thousand, and
+    nothing else looks at it."""
+    assert (
+        sensor.native_unit_of_measurement,
+        sensor.device_class,
+    ) == WHAT_A_UNIT_IS[sensor.shown_unit]
+
+
+@pytest.mark.parametrize(
+    "sensor",
+    [sensor for sensor in WEBIF_SENSORS if sensor.shown_unit is not None],
+    ids=lambda sensor: sensor.key,
+)
+def test_a_running_total_is_kept_as_one(sensor):
+    """Kept as a measurement, Home Assistant's long-term statistics average
+    what they should add up."""
+    total = sensor.shown_unit in UNITS_OF_RUNNING_TOTALS or sensor.key in COUNTS
+    expected = (
+        SensorStateClass.TOTAL_INCREASING if total else SensorStateClass.MEASUREMENT
+    )
+
+    assert sensor.state_class is expected
+
+
+def test_the_power_output_sits_with_the_heat_pump():
+    assert _description("leistungsabgabe").topic == DEVICES.WP
+
+
+@pytest.mark.parametrize("model", MODELS)
+def test_no_two_values_of_a_family_share_a_key_or_a_title(model):
+    """Two sensors with one key would be one entity; the catalogue holds a
+    key twice only for a value the families show under different titles."""
+    values = VALUES[model]
+
+    assert len({value.key for value in values}) == len(values)
+    assert len({(value.page, value.title) for value in values}) == len(values)
+
+
+@pytest.mark.parametrize("page", list(REQUIRED_TITLES[WBB]))
 def test_every_value_has_an_english_title_no_other_value_has(page):
     """Set to English, the controller shows each value under a title of its
     own; one equal to another value's title would be read as that value."""
-    values = [value for value in READ_VALUES if value.page == page]
+    values = [value for value in VALUES[WBB] if value.page == page]
     titles = [value.title for value in values]
 
     assert len({value.english_title for value in values}) == len(values)

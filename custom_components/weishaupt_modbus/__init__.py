@@ -49,7 +49,13 @@ from .kennfeld import PowerMap
 from .migrate_helpers import device_postfix, entry_unique_id, unique_id_from_parts
 from .webif.client import Client
 from .webif_coordinator import WebifCoordinator, polled_pages
-from .webif_sensor import ENGLISH_TITLES, POWER_LIMIT, REQUIRED_TITLES
+from .webif_sensor import (
+    ENGLISH_TITLES,
+    OPTIONAL_TITLES,
+    POWER_LIMIT,
+    REQUIRED_TITLES,
+    entry_model,
+)
 from .weishaupt_modbus_api.const import DEFAULT_PORT, MODBUS_UNIT_ID
 from .weishaupt_modbus_api.device import WeishauptHeatPump
 from .weishaupt_modbus_api.hpconst import DEVICELISTS
@@ -264,8 +270,13 @@ async def _async_setup_web_interface(
         unique_id_from_parts(started_with, f"webif_{POWER_LIMIT.key}"),
     ):
         registry.async_remove(old_sensor)
+    model = entry_model(entry.data)
     polled = polled_pages(
-        entry.data[CONF.PAGES], entry.options, REQUIRED_TITLES, ENGLISH_TITLES
+        entry.data[CONF.PAGES],
+        entry.options,
+        REQUIRED_TITLES[model],
+        ENGLISH_TITLES[model],
+        OPTIONAL_TITLES[model],
     )
     # No warning: the daily limit is the guard for settings written here.
     budget = WriteBudget(

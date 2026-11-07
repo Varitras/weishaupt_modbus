@@ -15,6 +15,7 @@ from .webif_sensor import (
     AnswerTimeSensor,
     TrafficSensor,
     WebifSensor,
+    entry_model,
 )
 from .write_counter_sensor import pump_write_counters, web_write_counters
 
@@ -35,6 +36,7 @@ async def async_setup_entry(
                 *(
                     WebifSensor(web.coordinator, web.pump_data, description)
                     for description in WEBIF_SENSORS
+                    if entry_model(config_entry.data) in description.models
                 ),
                 *(
                     TrafficSensor(web.coordinator, web.pump_data, description)

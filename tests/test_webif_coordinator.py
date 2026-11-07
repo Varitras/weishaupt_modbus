@@ -202,7 +202,9 @@ def intervals(options):
     paths = {key: f"/{key}" for key in (HEAT_PUMP_PAGE, STATISTICS_PAGE, HEATING_PAGE)}
     required = dict.fromkeys(paths, frozenset())
     english = {key: {} for key in paths}
-    polled = polled_pages(paths, options, required, english)
+    polled = polled_pages(
+        paths, options, required, english, dict.fromkeys(required, frozenset())
+    )
     return {page.key: page.interval for page in polled}
 
 

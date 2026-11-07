@@ -5,6 +5,9 @@ out: a login the controller refuses, or a page another model shows, fails in
 the dialog rather than in the brake minutes after the entry was added.
 """
 
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+
 import aiohttp
 
 from homeassistant.core import HomeAssistant
@@ -12,13 +15,35 @@ from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .configentry import host_lock, host_pacing
 from .webif.client import Broken, Client, WebifError
-from .webif.discovery import PAGE_MENUS, DoubledMenuEntries, find_pages
+from .webif.discovery import (
+    HEAT_PUMP_PAGE,
+    HEATING_PAGE,
+    PAGE_MENUS,
+    STATISTICS_PAGE,
+    DoubledMenuEntries,
+    find_pages,
+)
 from .webif_coordinator import Page, polled_pages
-from .webif_sensor import ENGLISH_TITLES, REQUIRED_TITLES, shown_in_unknown_units
+from .webif_sensor import (
+    ENGLISH_TITLES,
+    MODELS,
+    OPTIONAL_TITLES,
+    REQUIRED_TITLES,
+    model_shown,
+    shown_in_unknown_units,
+)
+
+
+@dataclass(frozen=True)
+class Visited:
+    """What a visit found: the pages to poll, and the family showing them."""
+
+    pages: dict[str, str]
+    model: str
 
 
 class MissingTitles(Broken):
-    """A page that came without titles its sensors read.
+    """A page that came without titles its sensors need.
 
     Another model or firmware than the one this was built for, not a hiccup.
     """
@@ -56,8 +81,8 @@ class UnknownUnits(WebifError):
 
 async def read_web_interface(
     hass: HomeAssistant, host: str, user: str, password: str
-) -> dict[str, str]:
-    """The pages to poll, found and read once on a short visit that logs out.
+) -> Visited:
+    """The pages to poll and their family, read once on a visit that logs out.
 
     Pages served half are searched once more in the same session before the
     visit gives up. Raises WebifError.
@@ -93,7 +118,7 @@ async def read_web_interface(
 SEARCHED_AGAIN = (Broken, UnclearValues, DoubledMenuEntries)
 
 
-async def _visit_twice(client: Client) -> dict[str, str]:
+async def _visit_twice(client: Client) -> Visited:
     """The visit, once more after a page served half or unclear.
 
     The controller now and then serves a page half, twice in a row. Titles
@@ -109,34 +134,61 @@ async def _visit_twice(client: Client) -> dict[str, str]:
     return await _visit(client)
 
 
-async def _visit(client: Client) -> dict[str, str]:
-    """The pages found, each read once.
+async def _visit(client: Client) -> Visited:
+    """The pages found, each read once, and the family they are of.
 
-    A page another model shows without a title its sensors read fails here,
+    A page another model shows without a title its sensors need fails here,
     not in the brake ten minutes after the entry was added.
     """
     found = await find_pages(client)
-    for page in polled_pages(found, {}, REQUIRED_TITLES, ENGLISH_TITLES):
-        await _read_whole(client, page)
-    return found
+    polled = {
+        model: {
+            page.key: page
+            for page in polled_pages(
+                found,
+                {},
+                REQUIRED_TITLES[model],
+                ENGLISH_TITLES[model],
+                OPTIONAL_TITLES[model],
+            )
+        }
+        for model in MODELS
+    }
+    # An answer served half may lack the row that tells the family, so each
+    # answer is judged by what it says itself.
+    model = model_shown(await _read_whole(client, polled, HEAT_PUMP_PAGE, model_shown))
+    for key in (STATISTICS_PAGE, HEATING_PAGE):
+        await _read_whole(client, polled, key, lambda _: model)
+    return Visited(found, model)
 
 
-async def _read_whole(client: Client, page: Page) -> None:
-    shown: list[str] = []
+async def _read_whole(
+    client: Client,
+    polled: Mapping[str, Mapping[str, Page]],
+    key: str,
+    model_of: Callable[[str], str],
+) -> str:
+    """The page at key, whole by the rows of the family `model_of` tells."""
+    shown: list[str] = [""]
+
+    def page_of(text: str) -> Page:
+        return polled[model_of(text)][key]
 
     def whole(text: str) -> bool:
         shown.append(text)
-        return page.is_whole(text)
+        return page_of(text).is_whole(text)
 
     try:
-        text = await client.page(page.path, whole)
+        text = await client.page(page_of("").path, whole)
     except Broken as error:
-        lacking = _lacking(page, shown[-1] if shown else "")
+        lacking = _lacking(page_of(shown[-1]), shown[-1])
         if lacking is None:
             raise
         raise lacking from error
-    if unknown := shown_in_unknown_units(page.key, page.read(text)):
-        raise UnknownUnits(PAGE_MENUS[page.key], unknown)
+    page = page_of(text)
+    if unknown := shown_in_unknown_units(key, page.read(text), model_of(text)):
+        raise UnknownUnits(PAGE_MENUS[key], unknown)
+    return text
 
 
 def _lacking(page: Page, text: str) -> Broken | None:

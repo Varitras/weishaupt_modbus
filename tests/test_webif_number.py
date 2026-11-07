@@ -9,6 +9,7 @@ from custom_components.weishaupt_modbus.webif.discovery import HEATING_PAGE
 from custom_components.weishaupt_modbus.webif_number import PowerLimitNumber
 from custom_components.weishaupt_modbus.webif_sensor import (
     REQUIRED_TITLES,
+    WBB,
     WEBIF_SENSORS,
 )
 from homeassistant.components.number import NumberMode
@@ -110,7 +111,10 @@ async def test_a_value_between_two_percentages_is_refused():
 def test_the_heating_page_still_requires_the_power_limit():
     """The number reads it from the heating page's reading, which keeps only
     the titles the page requires."""
-    assert REQUIRED_TITLES[HEATING_PAGE] == {"Leistungsbegrenzung", "Schaltdifferenz"}
+    assert REQUIRED_TITLES[WBB][HEATING_PAGE] == {
+        "Leistungsbegrenzung",
+        "Schaltdifferenz",
+    }
     assert "leistungsbegrenzung_heizen" not in {sensor.key for sensor in WEBIF_SENSORS}
 
 

@@ -145,8 +145,9 @@ and what the file holds:
 - The heat output is calculated from the power map, not measured. The
   electrical power is measured by the heat pump, but undocumented and checked
   on one model only.
-- The web interface's values are those of a WBB; another model may show other
-  rows, and the dialog then says it is not supported yet.
+- The web interface's values are those of a WBB and, with its titles in German,
+  of an Evoblock (seen on a WEB 13/20); another model may show other rows, and
+  the dialog then says it is not supported yet.
 
 More under [How Data Updates](https://github.com/Varitras/weishaupt_modbus/wiki/How-Data-Updates#known-limits-of-the-values).
 

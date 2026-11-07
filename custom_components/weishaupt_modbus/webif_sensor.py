@@ -20,6 +20,7 @@ from homeassistant.const import (
     REVOLUTIONS_PER_MINUTE,
     EntityCategory,
     UnitOfEnergy,
+    UnitOfFrequency,
     UnitOfPower,
     UnitOfPressure,
     UnitOfTemperature,
@@ -29,7 +30,7 @@ from homeassistant.const import (
 from homeassistant.core import callback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DEVICES
+from .const import CONF, DEVICES
 from .entities import device_info, name_prefix
 from .migrate_helpers import unique_id_from_parts
 from .webif import pages
@@ -46,8 +47,22 @@ KILOWATT = "KW"
 KILOWATT_HOURS = "KWh"
 CUBIC_METRES_PER_HOUR = "m3/h"
 RPM = "rpm"
+HERTZ = "Hz"
 HOURS = "h"
 NO_UNIT = ""
+
+# The controller families. No register names one, and the outdoor unit's
+# variant names the unit, not the family; the row with the controller's version
+# does, and the rows of a page go by the family.
+WBB = "wbb"
+EVOBLOCK = "evoblock"
+MODELS = (WBB, EVOBLOCK)
+ONLY_WBB = frozenset({WBB})
+ONLY_EVOBLOCK = frozenset({EVOBLOCK})
+EVOBLOCK_VERSION_TITLE = "Version WEB CPU"
+# Only a WEB 13/20 set to German was seen, 2026-11-05 and 06: what its own
+# values are called in English is not known.
+NOT_SEEN = ""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -55,10 +70,14 @@ class WebifSensorDescription(SensorEntityDescription):
     """A value of a web interface page: its page, its title, its unit there.
 
     `english_title` is the title a controller set to English shows instead,
-    as it showed it on 2026-10-10: cut at 25 characters, typing errors kept.
+    as it showed it on 2026-10-10: cut at 25 characters, typing errors kept;
+    NOT_SEEN for a value no controller set to English has shown.
     `shown_unit` is the text after the number; None for a value that is text.
     `topic` is the pump device whose short name the name prefix option puts
     in front, as for the Modbus sensors of the same subject.
+    `models` are the controller families whose page shows the value.
+    `conditional_on` are the families whose page may leave it out: the page
+    is whole without it, and the sensor reads unknown.
     `off_is_zero` marks a power or speed, which the controller shows as "Aus"
     when idle; set to English, an idle power as "off". On any other number
     they read unknown, since a 0 on a rising total resets it in Home
@@ -73,6 +92,8 @@ class WebifSensorDescription(SensorEntityDescription):
     english_title: str
     shown_unit: str | None
     topic: str = DEVICES.WP
+    models: frozenset[str] = frozenset(MODELS)
+    conditional_on: frozenset[str] = frozenset()
     off_is_zero: bool = False
     no_value_is_zero: bool = False
 
@@ -133,7 +154,9 @@ def _difference(
     )
 
 
-def _pressure(key: str, title: str, english_title: str) -> WebifSensorDescription:
+def _pressure(
+    key: str, title: str, english_title: str, **attributes: Any
+) -> WebifSensorDescription:
     return _sensor(
         key,
         title,
@@ -143,6 +166,7 @@ def _pressure(key: str, title: str, english_title: str) -> WebifSensorDescriptio
         native_unit_of_measurement=UnitOfPressure.BAR,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,
+        **attributes,
     )
 
 
@@ -166,7 +190,9 @@ def _percentage(
     )
 
 
-def _power(key: str, title: str, english_title: str) -> WebifSensorDescription:
+def _power(
+    key: str, title: str, english_title: str, **attributes: Any
+) -> WebifSensorDescription:
     return _sensor(
         key,
         title,
@@ -177,6 +203,7 @@ def _power(key: str, title: str, english_title: str) -> WebifSensorDescription:
         native_unit_of_measurement=UnitOfPower.KILO_WATT,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,
+        **attributes,
     )
 
 
@@ -228,11 +255,17 @@ def _performance(key: str, title: str, english_title: str) -> WebifSensorDescrip
     )
 
 
-# Info > Wärmepumpe: the 31 values Modbus does not carry.
+# Info > Wärmepumpe: the values Modbus does not carry, 31 on a WBB.
 HEAT_PUMP_SENSORS = (
     _temperature("solltemperatur", "Solltemperatur", "setpoint", no_value_is_zero=True),
+    # Shown only with the setting of that name on: an Evoblock's manual says so
+    # (83336001, 6.7.1.2), and a WBB left it out with the setting off
+    # (2026-11-06). Were it required, that one setting would cost every value.
     _difference(
-        "schaltdifferenz_dynamisch", "Schaltdifferenz dynamisch", "dynamic switching"
+        "schaltdifferenz_dynamisch",
+        "Schaltdifferenz dynamisch",
+        "dynamic switching",
+        conditional_on=frozenset(MODELS),
     ),
     _percentage(
         "drehzahl_pumpe_m1", "Drehzahl Pumpe M1", "pump speed", off_is_zero=True
@@ -250,36 +283,84 @@ HEAT_PUMP_SENSORS = (
     _text("stellung_umschaltventil", "Stellung Umschaltventil", "change valve"),
     _power("soll_leistung", "Soll Leistung", "power set"),
     _power("ist_leistung", "Ist Leistung", "power actual"),
+    _power("leistungsabgabe", "Leistungsabgabe", NOT_SEEN, models=ONLY_EVOBLOCK),
     _temperature(
         "expansionsventil_ag_eintritt", "Expansionsventil AG Eintr", "INLET TEMP"
     ),
     _temperature(
-        "waermetauscher_ag_austritt", "Wärmetauscher AG Austrit", "OUTLET TEMP"
+        "waermetauscher_ag_austritt",
+        "Wärmetauscher AG Austrit",
+        "OUTLET TEMP",
+        models=ONLY_WBB,
     ),
-    _temperature("evi_sauggastemperatur", "EVI Sauggastemperatur", "EVI SUC G T"),
-    _temperature("kaeltemittel_ig_austritt", "Kältemittel IG Austritt", "COOLA OUTLET"),
+    _temperature(
+        "waermetauscher_ag_austritt",
+        "Wärmetauscher AG Austritt",
+        NOT_SEEN,
+        models=ONLY_EVOBLOCK,
+    ),
+    _temperature(
+        "evi_sauggastemperatur",
+        "EVI Sauggastemperatur",
+        "EVI SUC G T",
+        models=ONLY_WBB,
+    ),
+    _temperature(
+        "kaeltemittel_ig_austritt",
+        "Kältemittel IG Austritt",
+        "COOLA OUTLET",
+        models=ONLY_WBB,
+    ),
     _temperature("oelsumpftemperatur", "Ölsumpftemperatur", "OIL SUMP T"),
     _temperature("druckgastemperatur", "Druckgastemperatur", "PR GAS TEMP"),
     _pressure("niederdruck", "Niederdruck", "LOW PRESS"),
     _pressure("hochdruck", "Hochdruck", "HIGH PRESS"),
-    _pressure("mitteldruck", "Mitteldruck", "AVER PRESS"),
+    _pressure("mitteldruck", "Mitteldruck", "AVER PRESS", models=ONLY_WBB),
+    _pressure("wasserdruck", "Wasserdruck", NOT_SEEN, models=ONLY_EVOBLOCK),
     _temperature("kondensationstemperatur", "Kondensationstemperatur", "CONDENS TEMP"),
     _temperature(
-        "saettigungstemperatur_evi", "Sättigungstemperatur EVI", "SATURAT TEMP"
+        "saettigungstemperatur_evi",
+        "Sättigungstemperatur EVI",
+        "SATURAT TEMP",
+        models=ONLY_WBB,
     ),
-    _difference("ueberhitzung_heizen", "Überhitzung Heizen", "EXCESS HEAT"),
+    _difference(
+        "ueberhitzung_heizen", "Überhitzung Heizen", "EXCESS HEAT", models=ONLY_WBB
+    ),
     _difference("ueberhitzung_verdichter", "Überhitzung Verdichter", "EXCESS H COM"),
-    _difference("ueberhitzung_evi", "Überhitzung EVI", "EXCESS H EVI"),
-    _percentage("oeffnungsgrad_exv_heizen", "Öffnungsgrad EXV Heizen", "DEG OP EXV H"),
-    _percentage("oeffnungsgrad_exv_kuehlen", "Öffnungsgrad EXV Kühlen", "DEGOPEXVCOOL"),
-    _percentage("oeffnungsgrad_evi", "Öffnungsgrad EVI", "DEG OP EVI"),
+    _difference("ueberhitzung_evi", "Überhitzung EVI", "EXCESS H EVI", models=ONLY_WBB),
+    _percentage(
+        "oeffnungsgrad_exv_heizen",
+        "Öffnungsgrad EXV Heizen",
+        "DEG OP EXV H",
+        models=ONLY_WBB,
+    ),
+    _percentage(
+        "oeffnungsgrad_exv_kuehlen",
+        "Öffnungsgrad EXV Kühlen",
+        "DEGOPEXVCOOL",
+        models=ONLY_WBB,
+    ),
+    _percentage("oeffnungsgrad_evi", "Öffnungsgrad EVI", "DEG OP EVI", models=ONLY_WBB),
     _sensor(
         "verdichter_drehzahl",
         "Verdichter",
         "compressor",
         RPM,
+        models=ONLY_WBB,
         off_is_zero=True,
         native_unit_of_measurement=REVOLUTIONS_PER_MINUTE,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=0,
+    ),
+    _sensor(
+        "verdichter_frequenz",
+        "Verdichter",
+        NOT_SEEN,
+        HERTZ,
+        models=ONLY_EVOBLOCK,
+        device_class=SensorDeviceClass.FREQUENCY,
+        native_unit_of_measurement=UnitOfFrequency.HERTZ,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=0,
     ),
@@ -307,6 +388,14 @@ HEAT_PUMP_SENSORS = (
         "version_wwp_ec_wbb",
         "Version WWP-EC WBB",
         "version WWP-EC WBB",
+        models=ONLY_WBB,
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    _text(
+        "version_web_cpu",
+        EVOBLOCK_VERSION_TITLE,
+        NOT_SEEN,
+        models=ONLY_EVOBLOCK,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     _text(
@@ -360,18 +449,48 @@ POWER_LIMIT = _percentage(
     HEATING_PAGE,
 )
 READ_VALUES = (*WEBIF_SENSORS, POWER_LIMIT)
+VALUES = {
+    model: tuple(value for value in READ_VALUES if model in value.models)
+    for model in MODELS
+}
+POLLED_PAGES = (HEAT_PUMP_PAGE, STATISTICS_PAGE, HEATING_PAGE)
 
-# A page counts as whole only with the title of every value read from it.
+# A page counts as whole only with the title of every value its family must
+# show on it: that is what tells a page served half from a whole one.
 REQUIRED_TITLES = {
-    page: frozenset(value.title for value in READ_VALUES if value.page == page)
-    for page in (HEAT_PUMP_PAGE, STATISTICS_PAGE, HEATING_PAGE)
+    model: {
+        page: frozenset(
+            value.title
+            for value in values
+            if value.page == page and model not in value.conditional_on
+        )
+        for page in POLLED_PAGES
+    }
+    for model, values in VALUES.items()
+}
+# What a page may leave out, and is read all the same when it shows it.
+OPTIONAL_TITLES = {
+    model: {
+        page: frozenset(
+            value.title
+            for value in values
+            if value.page == page and model in value.conditional_on
+        )
+        for page in POLLED_PAGES
+    }
+    for model, values in VALUES.items()
 }
 # Each page's English titles, to the German ones the values are kept under.
 ENGLISH_TITLES = {
-    page: {
-        value.english_title: value.title for value in READ_VALUES if value.page == page
+    model: {
+        page: {
+            value.english_title: value.title
+            for value in values
+            if value.page == page and value.english_title != NOT_SEEN
+        }
+        for page in POLLED_PAGES
     }
-    for page in REQUIRED_TITLES
+    for model, values in VALUES.items()
 }
 
 # User wish, 2026-10-03: whether the access gets worse over time shows in
@@ -396,6 +515,17 @@ ANSWER_TIME = SensorEntityDescription(
 )
 
 
+def model_shown(heat_pump_page: str) -> str:
+    """The family whose heat pump page this is; a WBB unless it says otherwise."""
+    titles = {title for title, _ in pages.values(heat_pump_page)}
+    return EVOBLOCK if EVOBLOCK_VERSION_TITLE in titles else WBB
+
+
+def entry_model(entry_data: Mapping[str, Any]) -> str:
+    """The family of a web interface entry; one made before there were two is a WBB."""
+    return str(entry_data.get(CONF.MODEL, WBB))
+
+
 def reading(description: WebifSensorDescription, shown: str | None) -> Any:
     """The value as Home Assistant shows it; None for no value or a wrong unit."""
     if shown == pages.NO_VALUE and description.no_value_is_zero:
@@ -411,13 +541,15 @@ def reading(description: WebifSensorDescription, shown: str | None) -> Any:
     return pages.number(shown)
 
 
-def shown_in_unknown_units(page: str, found: list[tuple[str, str]]) -> frozenset[str]:
-    """The titles of the page whose sensor cannot read the value shown.
+def shown_in_unknown_units(
+    page: str, found: list[tuple[str, str]], model: str
+) -> frozenset[str]:
+    """The titles of the page whose sensor on `model` cannot read the value shown.
 
     "--", "Aus" and "off" are the controller's own words for no value, not a
     unit.
     """
-    sensors = {value.title: value for value in READ_VALUES if value.page == page}
+    sensors = {value.title: value for value in VALUES[model] if value.page == page}
     return frozenset(
         title
         for title, shown in found

@@ -961,15 +961,15 @@
   {
     "label": "webif pages: a blank value passes for complete",
     "path": "custom_components/weishaupt_modbus/webif/pages.py",
-    "old": "    return bool(found) and shown_once and all(text for _, text in found)\n",
-    "new": "    return bool(found) and shown_once\n",
+    "old": "    return bool(found) and shown_once and never_twice and all(text for _, text in found)\n",
+    "new": "    return bool(found) and shown_once and never_twice\n",
     "tests": "entry_left_without_its_value_makes_the_page_incomplete"
   },
   {
     "label": "webif pages: another section passes for the one asked for",
     "path": "custom_components/weishaupt_modbus/webif/pages.py",
-    "old": "    return bool(found) and shown_once and all(text for _, text in found)\n",
-    "new": "    return bool(found) and all(text for _, text in found)\n",
+    "old": "    return bool(found) and shown_once and never_twice and all(text for _, text in found)\n",
+    "new": "    return bool(found) and never_twice and all(text for _, text in found)\n",
     "tests": "values_of_another_section_do_not_pass"
   },
   {
@@ -1710,8 +1710,8 @@
   {
     "label": "webif sensor: an idle compressor reads unknown",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "        RPM,\n        off_is_zero=True,\n",
-    "new": "        RPM,\n",
+    "old": "        RPM,\n        models=ONLY_WBB,\n        off_is_zero=True,\n",
+    "new": "        RPM,\n        models=ONLY_WBB,\n",
     "tests": "aus_reads_0_only"
   },
   {
@@ -1731,8 +1731,8 @@
   {
     "label": "webif sensor: a page counts as whole without its sensors' titles",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "    page: frozenset(value.title for value in READ_VALUES if value.page == page)\n",
-    "new": "    page: frozenset()\n",
+    "old": "        page: frozenset(\n            value.title\n            for value in values\n            if value.page == page and model not in value.conditional_on\n        )\n",
+    "new": "        page: frozenset()\n",
     "tests": "requires_the_titles_of_its_sensors"
   },
   {
@@ -1899,7 +1899,7 @@
   {
     "label": "config flow: a reconfigured web interface keeps its old pages",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "                data_updates={**self._visit_login, CONF.PAGES: pages},\n",
+    "old": "                data_updates={\n                    **self._visit_login,\n                    CONF.PAGES: visited.pages,\n                    CONF.MODEL: visited.model,\n                },\n",
     "new": "                data_updates=self._visit_login,\n",
     "tests": "web_interface_entry_is_reconfigured_with_a_new_login"
   },
@@ -1976,7 +1976,7 @@
   {
     "label": "config flow: the dialog does not read the pages it found",
     "path": "custom_components/weishaupt_modbus/webif_visit.py",
-    "old": "        await _read_whole(client, page)\n",
+    "old": "        await _read_whole(client, polled, key, lambda _: model)\n",
     "new": "        pass\n",
     "tests": "reads_each_page_it_found_once or without_a_title_its_sensors_read"
   },
@@ -2011,7 +2011,7 @@
   {
     "label": "webif coordinator: a page keeps every entry it shows",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            title: shown for title, shown in page.read(text) if title in page.required\n",
+    "old": "            title: shown for title, shown in page.read(text) if title in read\n",
     "new": "            title: shown for title, shown in page.read(text)\n",
     "tests": "keeps_only_the_titles_its_sensors_read"
   },
@@ -2235,8 +2235,8 @@
   {
     "label": "config flow: a new login does not reload the web interface",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "            return self.async_update_reload_and_abort(\n                entry,\n                data_updates={**self._visit_login, CONF.PAGES: pages},\n                reason=reason,\n            )\n",
-    "new": "            self.hass.config_entries.async_update_entry(\n                entry, data={**entry.data, **self._visit_login, CONF.PAGES: pages}\n            )\n            return self.async_abort(reason=reason)\n",
+    "old": "            return self.async_update_reload_and_abort(\n                entry,\n                data_updates={\n                    **self._visit_login,\n                    CONF.PAGES: visited.pages,\n                    CONF.MODEL: visited.model,\n                },\n                reason=reason,\n            )\n",
+    "new": "            self.hass.config_entries.async_update_entry(\n                entry, data={**entry.data, **self._visit_login, CONF.PAGES: visited.pages, CONF.MODEL: visited.model}\n            )\n            return self.async_abort(reason=reason)\n",
     "tests": "new_login_reloads_the_web_interface"
   },
   {
@@ -2263,8 +2263,8 @@
   {
     "label": "webif pages: a page showing nothing passes for complete",
     "path": "custom_components/weishaupt_modbus/webif/pages.py",
-    "old": "    return bool(found) and shown_once and all(text for _, text in found)\n",
-    "new": "    return shown_once and all(text for _, text in found)\n",
+    "old": "    return bool(found) and shown_once and never_twice and all(text for _, text in found)\n",
+    "new": "    return shown_once and never_twice and all(text for _, text in found)\n",
     "tests": "showing_nothing_is_never_complete"
   },
   {
@@ -2354,7 +2354,7 @@
   {
     "label": "webif coordinator: a title shown twice is not unclear",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        twice = {title for title in self.required if counts[title] > 1}\n",
+    "old": "        twice = {title for title in self.required | self.optional if counts[title] > 1}\n",
     "new": "        twice = set()\n",
     "tests": "values_shown_empty_or_twice_are_named"
   },
@@ -2368,7 +2368,7 @@
   {
     "label": "config flow: a value in an unknown unit passes the dialog",
     "path": "custom_components/weishaupt_modbus/webif_visit.py",
-    "old": "    if unknown := shown_in_unknown_units(page.key, page.read(text)):\n        raise UnknownUnits(PAGE_MENUS[page.key], unknown)\n",
+    "old": "    if unknown := shown_in_unknown_units(key, page.read(text), model_of(text)):\n        raise UnknownUnits(PAGE_MENUS[key], unknown)\n",
     "new": "",
     "tests": "unit_its_sensor_does_not_read_is_named"
   },
@@ -2543,8 +2543,8 @@
   {
     "label": "webif pages: an unread entry left empty passes for complete",
     "path": "custom_components/weishaupt_modbus/webif/pages.py",
-    "old": "    return bool(found) and shown_once and all(text for _, text in found)\n",
-    "new": "    return bool(found) and shown_once and all(text for title, text in found if title in required)\n",
+    "old": "    return bool(found) and shown_once and never_twice and all(text for _, text in found)\n",
+    "new": "    return bool(found) and shown_once and never_twice and all(text for title, text in found if title in required)\n",
     "tests": "values_shown_empty_or_twice_are_named"
   },
   {
@@ -2809,8 +2809,8 @@
   {
     "label": "config flow: a page is judged by its first answer",
     "path": "custom_components/weishaupt_modbus/webif_visit.py",
-    "old": "        lacking = _lacking(page, shown[-1] if shown else \"\")\n",
-    "new": "        lacking = _lacking(page, shown[0] if shown else \"\")\n",
+    "old": "        lacking = _lacking(page_of(shown[-1]), shown[-1])\n",
+    "new": "        first = shown[min(1, len(shown) - 1)]\n        lacking = _lacking(page_of(first), first)\n",
     "tests": "page_is_judged_by_its_last_answer"
   },
   {
@@ -3110,8 +3110,8 @@
   {
     "label": "config flow: a new login keeps what the entry's title was made from",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "                data_updates={**self._visit_login, CONF.PAGES: pages},\n",
-    "new": "                data={CONF.KIND: CONST.WEB_INTERFACE, CONF.PUMP_ENTRY: entry.data[CONF.PUMP_ENTRY], **self._visit_login, CONF.PAGES: pages},\n",
+    "old": "                data_updates={\n                    **self._visit_login,\n                    CONF.PAGES: visited.pages,\n                    CONF.MODEL: visited.model,\n                },\n",
+    "new": "                data={CONF.KIND: CONST.WEB_INTERFACE, CONF.PUMP_ENTRY: entry.data[CONF.PUMP_ENTRY], **self._visit_login, CONF.PAGES: visited.pages, CONF.MODEL: visited.model},\n",
     "tests": "refused_login_is_replaced_by_a_new_one or reconfigured_with_a_new_login_and_pages"
   },
   {
@@ -3649,15 +3649,15 @@
   {
     "label": "webif english: the running entry polls without the English titles",
     "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "        entry.data[CONF.PAGES], entry.options, REQUIRED_TITLES, ENGLISH_TITLES\n",
-    "new": "        entry.data[CONF.PAGES], entry.options, REQUIRED_TITLES, {key: {} for key in REQUIRED_TITLES}\n",
+    "old": "        ENGLISH_TITLES[model],\n",
+    "new": "        {key: {} for key in REQUIRED_TITLES[model]},\n",
     "tests": "become_sensors_on_a_device or power_limit_is_set_from_home_assistant"
   },
   {
     "label": "webif english: the dialog reads the pages without the English titles",
     "path": "custom_components/weishaupt_modbus/webif_visit.py",
-    "old": "    for page in polled_pages(found, {}, REQUIRED_TITLES, ENGLISH_TITLES):\n",
-    "new": "    for page in polled_pages(found, {}, REQUIRED_TITLES, {key: {} for key in REQUIRED_TITLES}):\n",
+    "old": "                ENGLISH_TITLES[model],\n",
+    "new": "                {key: {} for key in REQUIRED_TITLES[model]},\n",
     "tests": "reads_each_page_it_found_once"
   },
   {
@@ -4961,5 +4961,243 @@
     "old": "    for name in LEGACY_WEBIF_DEVICES:\n",
     "new": "    for device in dr.async_entries_for_config_entry(registry, config_entry.entry_id):\n        registry.async_remove_device(device.id)\n    for name in LEGACY_WEBIF_DEVICES:\n",
     "tests": "devices_of_1_x"
+  },
+  {
+    "label": "webif family: a WBB entry gets the sensors of an Evoblock",
+    "path": "custom_components/weishaupt_modbus/sensor.py",
+    "old": "                    if entry_model(config_entry.data) in description.models\n",
+    "new": "",
+    "tests": "wbb_entry_gets_no_sensor or evoblock_gets_the_sensors"
+  },
+  {
+    "label": "webif family: an Evoblock is taken for a WBB",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    return EVOBLOCK if EVOBLOCK_VERSION_TITLE in titles else WBB\n",
+    "new": "    return WBB\n",
+    "tests": "heat_pump_page_tells_the_family"
+  },
+  {
+    "label": "webif family: an entry from before the families is no WBB",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    return str(entry_data.get(CONF.MODEL, WBB))\n",
+    "new": "    return str(entry_data.get(CONF.MODEL, EVOBLOCK))\n",
+    "tests": "before_there_were_two_families"
+  },
+  {
+    "label": "webif family: the running entry polls an Evoblock by the rows of a WBB",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    model = entry_model(entry.data)\n",
+    "new": "    model = 'wbb'\n",
+    "tests": "evoblock_gets_the_sensors"
+  },
+  {
+    "label": "webif family: the visit forgets the family it found",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "old": "    return Visited(found, model)\n",
+    "new": "    return Visited(found, 'wbb')\n",
+    "tests": "accepts_an_evoblock"
+  },
+  {
+    "label": "webif family: the visit judges every page by the rows of a WBB",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "old": "        return polled[model_of(text)][key]\n",
+    "new": "        return polled['wbb'][key]\n",
+    "tests": "accepts_an_evoblock"
+  },
+  {
+    "label": "webif family: the units are checked against every family's sensors",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    sensors = {value.title: value for value in VALUES[model] if value.page == page}\n",
+    "new": "    sensors = {value.title: value for value in READ_VALUES if value.page == page}\n",
+    "tests": "compressor_in"
+  },
+  {
+    "label": "webif family: a new entry does not keep its family",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                CONF.MODEL: visited.model,\n                CONF.PUMP_TITLE: pump.title,\n",
+    "new": "                CONF.PUMP_TITLE: pump.title,\n",
+    "tests": "added_with_the_pages_found"
+  },
+  {
+    "label": "webif family: a new login does not take the family found",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                    CONF.MODEL: visited.model,\n                },\n",
+    "new": "                },\n",
+    "tests": "reconfigured_with_a_new_login_and_pages"
+  },
+  {
+    "label": "webif family: a WBB must show the water pressure of an Evoblock",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    _pressure(\"wasserdruck\", \"Wasserdruck\", NOT_SEEN, models=ONLY_EVOBLOCK),\n",
+    "new": "    _pressure(\"wasserdruck\", \"Wasserdruck\", NOT_SEEN),\n",
+    "tests": "each_value_is_read_under_the_titles"
+  },
+  {
+    "label": "webif family: a value not seen in English gets an empty English title",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "            if value.page == page and value.english_title != NOT_SEEN\n",
+    "new": "            if value.page == page\n",
+    "tests": "not_seen_in_english"
+  },
+  {
+    "label": "webif family: the first answer settles the family",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "old": "        return polled[model_of(text)][key]\n",
+    "new": "        return polled[model_of(shown[1] if len(shown) > 1 else text)][key]\n",
+    "tests": "does_not_settle_the_family"
+  },
+  {
+    "label": "webif family: a row both show is read on a WBB alone",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    _temperature(\"oelsumpftemperatur\", \"Ölsumpftemperatur\", \"OIL SUMP T\"),\n",
+    "new": "    _temperature(\"oelsumpftemperatur\", \"Ölsumpftemperatur\", \"OIL SUMP T\", models=ONLY_WBB),\n",
+    "tests": "must_show_every_row_it_reads"
+  },
+  {
+    "label": "webif family: the compressor frequency reads in kHz",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        native_unit_of_measurement=UnitOfFrequency.HERTZ,\n",
+    "new": "        native_unit_of_measurement=UnitOfFrequency.KILOHERTZ,\n",
+    "tests": "show_what_they_are"
+  },
+  {
+    "label": "webif family: the compressor frequency is no frequency",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        device_class=SensorDeviceClass.FREQUENCY,\n",
+    "new": "",
+    "tests": "show_what_they_are"
+  },
+  {
+    "label": "webif family: the version of an Evoblock is no diagnostic",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        NOT_SEEN,\n        models=ONLY_EVOBLOCK,\n        entity_category=EntityCategory.DIAGNOSTIC,\n",
+    "new": "        NOT_SEEN,\n        models=ONLY_EVOBLOCK,\n",
+    "tests": "show_what_they_are"
+  },
+  {
+    "label": "webif family: a WBB must show the power output of an Evoblock",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    _power(\"leistungsabgabe\", \"Leistungsabgabe\", NOT_SEEN, models=ONLY_EVOBLOCK),\n",
+    "new": "    _power(\"leistungsabgabe\", \"Leistungsabgabe\", NOT_SEEN),\n",
+    "tests": "each_value_is_read_under_the_titles"
+  },
+  {
+    "label": "webif family: a conditional row is required after all",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "            if value.page == page and model not in value.conditional_on\n",
+    "new": "            if value.page == page\n",
+    "tests": "takes_an_evoblock_with_dynamic_switching_off"
+  },
+  {
+    "label": "webif family: a conditional row is not read while shown",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        read = page.required | page.optional\n",
+    "new": "        read = page.required\n",
+    "tests": "read_while_the_page_shows_it"
+  },
+  {
+    "label": "webif family: the running entry does not hand on the conditional rows",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        OPTIONAL_TITLES[model],\n",
+    "new": "        {key: frozenset() for key in REQUIRED_TITLES[model]},\n",
+    "tests": "read_while_the_page_shows_it"
+  },
+  {
+    "label": "webif sensor: a power shown in KW is stored as W",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        native_unit_of_measurement=UnitOfPower.KILO_WATT,\n",
+    "new": "        native_unit_of_measurement=UnitOfPower.WATT,\n",
+    "tests": "shown_unit_reaches_home_assistant"
+  },
+  {
+    "label": "webif sensor: a power is no power",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        device_class=SensorDeviceClass.POWER,\n",
+    "new": "",
+    "tests": "shown_unit_reaches_home_assistant"
+  },
+  {
+    "label": "webif sensor: a pressure is no pressure",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        device_class=SensorDeviceClass.PRESSURE,\n",
+    "new": "",
+    "tests": "shown_unit_reaches_home_assistant"
+  },
+  {
+    "label": "webif family: a WBB must show the conditional row",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        conditional_on=frozenset(MODELS),\n",
+    "new": "        conditional_on=ONLY_EVOBLOCK,\n",
+    "tests": "wbb_with_dynamic_switching_off"
+  },
+  {
+    "label": "webif family: a vanished row keeps its old value",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        reading.values = {\n            title: shown for title, shown in page.read(text) if title in read\n        }\n",
+    "new": "        reading.values = {\n            **(reading.values or {}),\n            **{title: shown for title, shown in page.read(text) if title in read},\n        }\n",
+    "tests": "leaves_no_old_value"
+  },
+  {
+    "label": "webif family: a conditional row shown twice passes",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "    never_twice = all(counts[title] <= 1 for title in optional)\n",
+    "new": "    never_twice = True\n",
+    "tests": "conditional_row_shown_twice"
+  },
+  {
+    "label": "webif family: the dialog does not hand on the conditional rows",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "old": "                OPTIONAL_TITLES[model],\n",
+    "new": "                {key: frozenset() for key in REQUIRED_TITLES[model]},\n",
+    "tests": "conditional_row_shown_twice"
+  },
+  {
+    "label": "webif family: the doubled conditional row is not named",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        twice = {title for title in self.required | self.optional if counts[title] > 1}\n",
+    "new": "        twice = {title for title in self.required if counts[title] > 1}\n",
+    "tests": "conditional_row_shown_twice"
+  },
+  {
+    "label": "webif sensor: an energy is kept as a measurement",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        state_class=SensorStateClass.TOTAL_INCREASING,\n        suggested_display_precision=3,\n",
+    "new": "        state_class=SensorStateClass.MEASUREMENT,\n        suggested_display_precision=3,\n",
+    "tests": "running_total_is_kept"
+  },
+  {
+    "label": "webif sensor: the operating hours are kept as a measurement",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        native_unit_of_measurement=UnitOfTime.HOURS,\n        state_class=SensorStateClass.TOTAL_INCREASING,\n",
+    "new": "        native_unit_of_measurement=UnitOfTime.HOURS,\n        state_class=SensorStateClass.MEASUREMENT,\n",
+    "tests": "running_total_is_kept"
+  },
+  {
+    "label": "webif sensor: the power output sits with the statistics",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    _power(\"leistungsabgabe\", \"Leistungsabgabe\", NOT_SEEN, models=ONLY_EVOBLOCK),\n",
+    "new": "    _power(\"leistungsabgabe\", \"Leistungsabgabe\", NOT_SEEN, models=ONLY_EVOBLOCK, topic=DEVICES.ST),\n",
+    "tests": "power_output_sits_with"
+  },
+  {
+    "label": "webif family: polling lets a doubled conditional row pass",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        return pages.is_complete(self.read(text), self.required, self.optional)\n",
+    "new": "        return pages.is_complete(self.read(text), self.required)\n",
+    "tests": "doubled_conditional_row_stops_polling"
+  },
+  {
+    "label": "webif sensor: a count is kept as a measurement",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        state_class=SensorStateClass.TOTAL_INCREASING,\n        suggested_display_precision=0,\n    )\n",
+    "new": "        state_class=SensorStateClass.MEASUREMENT,\n        suggested_display_precision=0,\n    )\n",
+    "tests": "running_total_is_kept"
+  },
+  {
+    "label": "webif sensor: a performance factor has no state class",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        state_class=SensorStateClass.MEASUREMENT,\n        suggested_display_precision=2,\n",
+    "new": "        suggested_display_precision=2,\n",
+    "tests": "running_total_is_kept"
   }
 ]

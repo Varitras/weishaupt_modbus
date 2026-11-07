@@ -253,16 +253,22 @@ def setting_form(page: str) -> SettingForm | None:
     )
 
 
-def is_complete(found: list[tuple[str, str]], required: frozenset[str]) -> bool:
-    """Every required title is there once, and no value is left blank.
+def is_complete(
+    found: list[tuple[str, str]],
+    required: frozenset[str],
+    optional: frozenset[str] = frozenset(),
+) -> bool:
+    """Every required title is there once, none read twice, no value blank.
 
     The required titles are what tells a heat pump page from the statistics
     the controller sometimes sends in its place. One shown twice would leave
-    its sensor two values to pick from.
+    its sensor two values to pick from; so would an optional one, which may
+    only be left out.
     """
     counts = Counter(title for title, _ in found)
     shown_once = all(counts[title] == 1 for title in required)
-    return bool(found) and shown_once and all(text for _, text in found)
+    never_twice = all(counts[title] <= 1 for title in optional)
+    return bool(found) and shown_once and never_twice and all(text for _, text in found)
 
 
 def unit(text: str) -> str:

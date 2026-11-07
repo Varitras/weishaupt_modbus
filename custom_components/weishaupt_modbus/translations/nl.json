@@ -1876,6 +1876,18 @@
       "webif_verdichter_drehzahl" : {
         "name" : "{prefix}Toerental compressor"
       },
+      "webif_verdichter_frequenz" : {
+        "name" : "{prefix}Compressorfrequentie"
+      },
+      "webif_wasserdruck" : {
+        "name" : "{prefix}Waterdruk"
+      },
+      "webif_leistungsabgabe" : {
+        "name" : "{prefix}Afgegeven vermogen"
+      },
+      "webif_version_web_cpu" : {
+        "name" : "{prefix}Versie WEB CPU"
+      },
       "webif_betriebsstunden_verdichter" : {
         "name" : "{prefix}Bedrijfsuren compressor"
       },

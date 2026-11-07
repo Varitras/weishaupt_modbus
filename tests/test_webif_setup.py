@@ -31,8 +31,9 @@ from custom_components.weishaupt_modbus.webif.discovery import (
 from custom_components.weishaupt_modbus.webif_sensor import (
     ANSWER_TIME,
     POWER_LIMIT,
-    READ_VALUES,
     TRAFFIC_SENSORS,
+    VALUES,
+    WBB,
     WEBIF_SENSORS,
 )
 from custom_components.weishaupt_modbus.webif_visit import read_web_interface
@@ -98,11 +99,12 @@ SAMPLE = {
     None: "V3.0",
 }
 # The values, and the sensors about the polling itself.
-EVERY_SENSOR = (*WEBIF_SENSORS, *TRAFFIC_SENSORS, ANSWER_TIME)
+WBB_SENSORS = [sensor for sensor in WEBIF_SENSORS if WBB in sensor.models]
+EVERY_SENSOR = (*WBB_SENSORS, *TRAFFIC_SENSORS, ANSWER_TIME)
 # And the one setting it writes, a number, with the counts of its writes.
 EVERY_ENTITY = (*EVERY_SENSOR, POWER_LIMIT, *WEBIF_WRITE_COUNTER_DESCRIPTIONS)
 SHOWN: dict = {}
-for sensor in READ_VALUES:
+for sensor in VALUES[WBB]:
     SHOWN.setdefault(sensor.page, {})[sensor.title] = SAMPLE[sensor.shown_unit]
 HEATING_LINKS = {
     "Schaltdifferenz": SWITCHING_DIFFERENCE,
@@ -136,7 +138,7 @@ def site(shown_as=lambda title: title):
 
 def english_site():
     """The three pages of a controller set to English."""
-    english = {sensor.title: sensor.english_title for sensor in READ_VALUES}
+    english = {sensor.title: sensor.english_title for sensor in VALUES[WBB]}
     return site(english.__getitem__)
 
 
@@ -685,7 +687,7 @@ async def test_a_download_during_a_stop_shows_no_values_from_before_it(hass, pum
     ("failing", "reason"),
     [
         (_error_status, "Unreachable (HTTP 500)"),
-        (_served_half, "Broken (missing: 31 titles)"),
+        (_served_half, "Broken (missing: 30 titles)"),
         (_no_answer_in_time, "Unreachable (TimeoutError)"),
     ],
     ids=["an error status", "a page served half", "no answer in time"],

@@ -23,7 +23,9 @@ from custom_components.weishaupt_modbus.webif.discovery import (
 from custom_components.weishaupt_modbus.webif_coordinator import polled_pages
 from custom_components.weishaupt_modbus.webif_sensor import (
     ENGLISH_TITLES,
+    OPTIONAL_TITLES,
     REQUIRED_TITLES,
+    WBB,
     shown_in_unknown_units,
 )
 
@@ -52,6 +54,13 @@ PATHS = {
 TITLES = json.loads(
     (pathlib.Path(__file__).parent / "webif_titles.json").read_text(encoding="utf-8")
 )
+
+
+def _rows_shown(capture: pathlib.Path, key: str, rows: list) -> list:
+    """The file's rows without an optional one the capture does not show."""
+    shown = set(_titles(capture, key))
+    optional = OPTIONAL_TITLES[WBB].get(key, frozenset())
+    return [row for row in rows if row[0] not in optional or shown & set(row[:2])]
 
 
 def _page(capture: pathlib.Path, key: str) -> dict:
@@ -95,13 +104,15 @@ def test_the_catalogue_reads_the_captured_page(capture, key):
     """Every value read is on the page once, in the unit its sensor expects."""
     page = next(
         page
-        for page in polled_pages(PATHS, {}, REQUIRED_TITLES, ENGLISH_TITLES)
+        for page in polled_pages(
+            PATHS, {}, REQUIRED_TITLES[WBB], ENGLISH_TITLES[WBB], OPTIONAL_TITLES[WBB]
+        )
         if page.key == key
     )
     text = _as_served(key, _page(capture, key)["entries"])
 
     assert page.is_whole(text), f"lacks {sorted(page.missing(text))}"
-    assert not shown_in_unknown_units(key, page.read(text))
+    assert not shown_in_unknown_units(key, page.read(text), WBB)
 
 
 @pytest.mark.parametrize("capture", CAPTURED, ids=lambda capture: capture.stem)
@@ -109,7 +120,7 @@ def test_the_catalogue_reads_the_captured_page(capture, key):
 def test_the_titles_file_lists_the_captured_rows(capture, key):
     """Row by row, in one of its two languages: a pair in the file that the
     controller does not show so would let CI vouch for a wrong pairing."""
-    rows = TITLES["pages"].get(key) or TITLES["menus"][key]
+    rows = _rows_shown(capture, key, TITLES["pages"].get(key) or TITLES["menus"][key])
 
     assert _titles(capture, key) in (
         [row[0] for row in rows],
@@ -121,7 +132,7 @@ def test_the_titles_file_lists_the_captured_rows(capture, key):
 @pytest.mark.parametrize("key", list(TITLES["pages"]))
 def test_the_titles_file_names_the_captured_units(capture, key):
     entries = _page(capture, key)["entries"]
-    rows = TITLES["pages"][key]
+    rows = _rows_shown(capture, key, TITLES["pages"][key])
 
     assert {
         title: pages.unit(shown)

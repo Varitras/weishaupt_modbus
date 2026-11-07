@@ -1,0 +1,362 @@
+"""An Evoblock's pages, by the titles and units a WEB 13/20 showed while running."""
+
+import json
+from pathlib import Path
+
+import pytest
+
+from custom_components.weishaupt_modbus.const import CONF, CONST
+from custom_components.weishaupt_modbus.webif import client as webif
+from custom_components.weishaupt_modbus.webif.discovery import (
+    HEAT_PUMP_PAGE,
+    HEATING_PAGE,
+    STATISTICS_PAGE,
+)
+from custom_components.weishaupt_modbus.webif_sensor import (
+    ENGLISH_TITLES,
+    EVOBLOCK,
+    VALUES,
+    WBB,
+    entry_model,
+    model_shown,
+    shown_in_unknown_units,
+)
+from custom_components.weishaupt_modbus.webif_visit import (
+    MissingTitles,
+    UnclearValues,
+    UnknownUnits,
+    read_web_interface,
+)
+from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.const import EntityCategory, UnitOfFrequency, UnitOfPressure
+from homeassistant.helpers import entity_registry as er
+
+from .test_webif_setup import (
+    PAGES,
+    SHOWN,
+    SITE,
+    Clock,
+    _enable_custom_integrations,  # noqa: F401
+    _entries,
+    _start,
+    _until_stopped,
+)
+from .webif_stand_in import (
+    PASSWORD,
+    USER,
+    StandInPump,
+    column,
+    menu_site,
+    serving,
+    value,
+)
+
+ROWS = json.loads(
+    (Path(__file__).parent / "evoblock_titles.json").read_text(encoding="utf-8")
+)
+CONDITIONAL_ROW = "Schaltdifferenz dynamisch"
+# Past every page's interval.
+ROUND_LATER = 3 * 3600
+# A row that shows a word, not a number.
+WORD = "Aus"
+SAMPLE_NUMBER = "12.0"
+
+
+def shown(unit):
+    return WORD if unit is None else f"{SAMPLE_NUMBER} {unit}".strip()
+
+
+def heat_pump_page(rows):
+    return column("".join(value(title, shown(unit)) for title, unit in rows))
+
+
+def without(*titles):
+    return [row for row in ROWS[HEAT_PUMP_PAGE] if row[0] not in titles]
+
+
+@pytest.fixture
+async def pump(socket_enabled, monkeypatch):
+    """The menus, and the pages an Evoblock shows."""
+    monkeypatch.setattr(webif, "MIN_GAP_SECONDS", 0)
+    stand_in = StandInPump()
+    stand_in.site = {
+        **menu_site(),
+        **SITE,
+        PAGES[HEAT_PUMP_PAGE]: heat_pump_page(ROWS[HEAT_PUMP_PAGE]),
+    }
+    async with serving(stand_in) as served:
+        yield served
+
+
+async def _evoblock(hass, pump):
+    """A web interface entry the dialog made for an Evoblock, started."""
+    web = _entries(hass, pump)
+    hass.config_entries.async_update_entry(web, data={**web.data, CONF.MODEL: EVOBLOCK})
+    return await _start(hass, web)
+
+
+def _entry(hass, key):
+    registry = er.async_get(hass)
+    unique_id = f"{CONST.DEF_PREFIX}webif_{key}"
+    return registry.async_get(
+        registry.async_get_entity_id("sensor", CONST.DOMAIN, unique_id)
+    )
+
+
+def _state(hass, key):
+    unique_id = f"{CONST.DEF_PREFIX}webif_{key}"
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "sensor", CONST.DOMAIN, unique_id
+    )
+    return None if entity_id is None else hass.states.get(entity_id).state
+
+
+async def test_the_dialog_accepts_an_evoblock(hass, pump):
+    """It had refused one: its page lacks the EVI rows of a WBB."""
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert visited.model == EVOBLOCK
+    assert visited.pages[HEATING_PAGE] == PAGES[HEATING_PAGE]
+
+
+async def test_an_answer_without_the_version_row_does_not_settle_the_family(hass, pump):
+    """Broken first answers are common: judged by one, an Evoblock would be
+    refused for lacking the rows of a WBB."""
+    whole = pump.site.pop(PAGES[HEAT_PUMP_PAGE])
+    pump.pages = [heat_pump_page(without("Version WEB CPU")), whole]
+
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert visited.model == EVOBLOCK
+
+
+async def test_a_wbb_stays_a_wbb(hass, pump):
+    pump.site.update(SITE)
+
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert visited.model == WBB
+
+
+async def test_the_visit_opens_each_page_once(hass, pump):
+    """The family comes from the answer the page is read for anyway: the
+    controller is slow to answer, and each extra page is seconds of it."""
+    await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    for path in PAGES.values():
+        assert pump.asked.count(("GET", path)) == 1
+
+
+async def test_the_dialog_takes_an_evoblock_with_dynamic_switching_off(hass, pump):
+    """Its manual shows the row only with the setting on, the factory value."""
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(without(CONDITIONAL_ROW))
+
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert visited.model == EVOBLOCK
+
+
+async def test_dynamic_switching_turned_off_costs_only_its_own_sensor(hass, pump):
+    """Required, the row took every value of the entry with it."""
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(without(CONDITIONAL_ROW))
+
+    await _evoblock(hass, pump)
+
+    assert _state(hass, "schaltdifferenz_dynamisch") == "unknown"
+    assert _state(hass, "hochdruck") == "12.0"
+
+
+def wbb_page_without_dynamic_switching():
+    return column(
+        "".join(
+            value(title, shown)
+            for title, shown in SHOWN[HEAT_PUMP_PAGE].items()
+            if title != CONDITIONAL_ROW
+        )
+    )
+
+
+async def test_the_dialog_takes_a_wbb_with_dynamic_switching_off(hass, pump):
+    """Turned off on a WBB, 2026-11-06, the row went and polling stopped."""
+    pump.site.update(SITE)
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = wbb_page_without_dynamic_switching()
+
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert visited.model == WBB
+
+
+async def test_a_wbb_with_dynamic_switching_off_keeps_its_other_values(hass, pump):
+    pump.site.update(SITE)
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = wbb_page_without_dynamic_switching()
+
+    await _start(hass, _entries(hass, pump))
+
+    assert _state(hass, "schaltdifferenz_dynamisch") == "unknown"
+    assert _state(hass, "verdichter_drehzahl") == "2568.0"
+
+
+async def test_dynamic_switching_turned_off_leaves_no_old_value(hass, pump):
+    """Unknown from the round after, and read again once the row is back: the
+    last value kept would pass for the current one for as long as it is off."""
+    entry = await _evoblock(hass, pump)
+    coordinator = entry.runtime_data.coordinator
+    clock = coordinator._clock = Clock()
+
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(without(CONDITIONAL_ROW))
+    clock.now += ROUND_LATER
+    await coordinator.async_refresh()
+    assert _state(hass, "schaltdifferenz_dynamisch") == "unknown"
+
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(ROWS[HEAT_PUMP_PAGE])
+    clock.now += ROUND_LATER
+    await coordinator.async_refresh()
+    assert _state(hass, "schaltdifferenz_dynamisch") == "12.0"
+
+
+async def test_a_conditional_row_shown_twice_is_refused(hass, pump):
+    """Its sensor would have two values to pick from, as any other row's."""
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(
+        [*ROWS[HEAT_PUMP_PAGE], [CONDITIONAL_ROW, "K"]]
+    )
+
+    with pytest.raises(UnclearValues) as raised:
+        await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert raised.value.titles == {CONDITIONAL_ROW}
+
+
+async def test_a_doubled_conditional_row_stops_polling_and_says_which(hass, pump):
+    """Judged as in the dialog: a guess between two values would pass for a
+    reading, and a stop without a reason helps nobody."""
+    entry = await _evoblock(hass, pump)
+
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(
+        [*ROWS[HEAT_PUMP_PAGE], [CONDITIONAL_ROW, "K"]]
+    )
+    await _until_stopped(entry)
+
+    stopped = entry.runtime_data.coordinator.diagnostics()["stopped_by"]
+    assert stopped[1] == f"Broken (blank or doubled: {CONDITIONAL_ROW})"
+
+
+async def test_dynamic_switching_is_read_while_the_page_shows_it(hass, pump):
+    await _evoblock(hass, pump)
+
+    assert _state(hass, "schaltdifferenz_dynamisch") == "12.0"
+
+
+async def test_a_wbb_page_without_its_evi_rows_is_no_evoblock(hass, pump):
+    """Told by the rows missing, a WBB page served short would become an
+    Evoblock and lose its sensors for good."""
+    rows = {
+        title: shown
+        for title, shown in SHOWN[HEAT_PUMP_PAGE].items()
+        if "EVI" not in title
+    }
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = column(
+        "".join(value(title, shown) for title, shown in rows.items())
+    )
+
+    with pytest.raises(MissingTitles) as raised:
+        await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert "EVI Sauggastemperatur" in raised.value.titles
+
+
+async def test_the_compressor_in_rpm_is_an_unknown_unit_on_an_evoblock(hass, pump):
+    rows = [
+        [title, "rpm" if title == "Verdichter" else unit]
+        for title, unit in ROWS[HEAT_PUMP_PAGE]
+    ]
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(rows)
+
+    with pytest.raises(UnknownUnits) as raised:
+        await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert raised.value.titles == {"Verdichter"}
+
+
+def test_the_compressor_in_hertz_is_an_unknown_unit_on_a_wbb():
+    found = [("Verdichter", "12.0 Hz")]
+
+    assert shown_in_unknown_units(HEAT_PUMP_PAGE, found, WBB) == {"Verdichter"}
+    assert not shown_in_unknown_units(HEAT_PUMP_PAGE, found, EVOBLOCK)
+
+
+@pytest.mark.parametrize("key", [STATISTICS_PAGE, HEATING_PAGE])
+def test_the_other_pages_do_not_tell_the_family(key):
+    """They read alike on both: only the heat pump page can say."""
+    assert {value.title for value in VALUES[WBB] if value.page == key} == {
+        value.title for value in VALUES[EVOBLOCK] if value.page == key
+    }
+
+
+def test_the_heat_pump_page_tells_the_family():
+    assert model_shown(heat_pump_page(ROWS[HEAT_PUMP_PAGE])) == EVOBLOCK
+    assert model_shown(SITE[PAGES[HEAT_PUMP_PAGE]]) == WBB
+    assert model_shown("") == WBB
+
+
+def test_an_entry_made_before_there_were_two_families_is_a_wbb():
+    assert entry_model({}) == WBB
+    assert entry_model({CONF.MODEL: EVOBLOCK}) == EVOBLOCK
+
+
+async def test_an_evoblock_gets_the_sensors_its_page_can_fill(hass, pump):
+    await _evoblock(hass, pump)
+
+    assert _state(hass, "verdichter_frequenz") == "12.0"
+    assert _state(hass, "wasserdruck") == "12.0"
+    assert _state(hass, "leistungsabgabe") == "12.0"
+    assert _state(hass, "waermetauscher_ag_austritt") == "12.0"
+    assert _state(hass, "version_web_cpu") == "Aus"
+    assert _state(hass, "evi_sauggastemperatur") is None
+    assert _state(hass, "verdichter_drehzahl") is None
+
+
+async def test_the_sensors_of_an_evoblock_show_what_they_are(hass, pump):
+    await _evoblock(hass, pump)
+
+    frequency = _entry(hass, "verdichter_frequenz")
+    assert frequency.unit_of_measurement == UnitOfFrequency.HERTZ
+    assert frequency.original_device_class is SensorDeviceClass.FREQUENCY
+    assert _entry(hass, "wasserdruck").unit_of_measurement == UnitOfPressure.BAR
+    version = _entry(hass, "version_web_cpu")
+    assert version.entity_category is EntityCategory.DIAGNOSTIC
+    assert _entry(hass, "leistungsabgabe").entity_category is None
+
+
+async def test_an_evoblock_keeps_the_power_limit(hass, pump):
+    await _evoblock(hass, pump)
+
+    assert er.async_get(hass).async_get_entity_id(
+        "number", CONST.DOMAIN, f"{CONST.DEF_PREFIX}webif_leistungsbegrenzung_heizen"
+    )
+
+
+async def test_a_wbb_entry_gets_no_sensor_of_an_evoblock(hass, pump):
+    pump.site.update(SITE)
+
+    await _start(hass, _entries(hass, pump))
+
+    assert _state(hass, "verdichter_drehzahl") == "2568.0"
+    assert _state(hass, "verdichter_frequenz") is None
+    assert _state(hass, "wasserdruck") is None
+    assert _state(hass, "leistungsabgabe") is None
+
+
+async def test_an_evoblock_page_without_a_row_of_its_own_is_refused(hass, pump):
+    """Only the WBB's rows left out of the catalogue, a page served without
+    the Evoblock's would pass for whole."""
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(without("Wasserdruck"))
+
+    with pytest.raises(MissingTitles) as raised:
+        await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert raised.value.titles == {"Wasserdruck"}
+
+
+def test_a_value_not_seen_in_english_gets_no_english_title():
+    """An empty one would read a row without a title as that value."""
+    assert not any("" in titles for titles in ENGLISH_TITLES[EVOBLOCK].values())

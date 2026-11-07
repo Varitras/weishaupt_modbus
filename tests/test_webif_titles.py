@@ -12,15 +12,29 @@ from pathlib import Path
 
 import pytest
 
-from custom_components.weishaupt_modbus.webif.discovery import ENGLISH_MENU_TITLES
-from custom_components.weishaupt_modbus.webif_sensor import ENGLISH_TITLES, READ_VALUES
+from custom_components.weishaupt_modbus.webif import pages
+from custom_components.weishaupt_modbus.webif.discovery import (
+    ENGLISH_MENU_TITLES,
+    HEAT_PUMP_PAGE,
+)
+from custom_components.weishaupt_modbus.webif_sensor import (
+    ENGLISH_TITLES,
+    EVOBLOCK,
+    OPTIONAL_TITLES,
+    REQUIRED_TITLES,
+    VALUES,
+    WBB,
+)
 
 TITLES = json.loads(
     (Path(__file__).parent / "webif_titles.json").read_text(encoding="utf-8")
 )
+EVOBLOCK_TITLES = json.loads(
+    (Path(__file__).parent / "evoblock_titles.json").read_text(encoding="utf-8")
+)
 
 
-@pytest.mark.parametrize("sensor", READ_VALUES, ids=lambda sensor: sensor.key)
+@pytest.mark.parametrize("sensor", VALUES[WBB], ids=lambda sensor: sensor.key)
 def test_each_value_is_read_under_the_titles_and_unit_the_controller_shows(sensor):
     """An English title paired with another value of the same unit passed
     every test CI runs, and its sensor would show that value."""
@@ -32,6 +46,27 @@ def test_each_value_is_read_under_the_titles_and_unit_the_controller_shows(senso
     assert rows[sensor.title] == (sensor.english_title, sensor.shown_unit)
 
 
+@pytest.mark.parametrize("sensor", VALUES[EVOBLOCK], ids=lambda sensor: sensor.key)
+def test_each_evoblock_value_is_read_under_the_title_a_web_13_20_showed(sensor):
+    rows = dict(EVOBLOCK_TITLES[sensor.page])
+
+    assert rows[sensor.title] == sensor.shown_unit
+
+
+def test_a_wbb_page_without_its_conditional_row_is_whole():
+    """By the rows a controller showed, not the catalogue's own; a capture of
+    it stays out of CI, and the tests over those are opt-in."""
+    conditional = OPTIONAL_TITLES[WBB][HEAT_PUMP_PAGE]
+    shown = [
+        (german, "1")
+        for german, _, _ in TITLES["pages"][HEAT_PUMP_PAGE]
+        if german not in conditional
+    ]
+
+    assert conditional
+    assert pages.is_complete(shown, REQUIRED_TITLES[WBB][HEAT_PUMP_PAGE], conditional)
+
+
 @pytest.mark.parametrize(("english", "german"), ENGLISH_MENU_TITLES.items())
 def test_each_menu_entry_is_found_under_the_title_the_controller_shows(english, german):
     pairs = {tuple(pair) for rows in TITLES["menus"].values() for pair in rows}
@@ -39,7 +74,7 @@ def test_each_menu_entry_is_found_under_the_title_the_controller_shows(english, 
     assert (german, english) in pairs
 
 
-@pytest.mark.parametrize("key", list(ENGLISH_TITLES))
+@pytest.mark.parametrize("key", list(ENGLISH_TITLES[WBB]))
 def test_no_english_title_is_the_german_title_of_another_row(key):
     """Every title a page shows is mapped, read or not: an English title
     equal to another row's German one would read that row as the value."""
@@ -47,7 +82,7 @@ def test_no_english_title_is_the_german_title_of_another_row(key):
 
     assert {
         english: german
-        for english, german in ENGLISH_TITLES[key].items()
+        for english, german in ENGLISH_TITLES[WBB][key].items()
         if english in shown - {german}
     } == {}
 

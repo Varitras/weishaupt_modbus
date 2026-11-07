@@ -23,6 +23,7 @@ from custom_components.weishaupt_modbus.webif.discovery import (
 )
 from custom_components.weishaupt_modbus.webif_sensor import (
     REQUIRED_TITLES,
+    WBB,
     shown_in_unknown_units,
 )
 
@@ -80,7 +81,7 @@ def _recorded(key: str) -> list[list[tuple[str, str]]]:
 @pytest.mark.parametrize("key", list(RECORDED_AS))
 def test_the_catalogue_reads_the_recorded_page(key):
     """Every sensor's title is on a whole recording, in the unit it expects."""
-    required = REQUIRED_TITLES[key]
+    required = REQUIRED_TITLES[WBB][key]
     recordings = _recorded(key)
     whole = [found for found in recordings if pages.is_complete(found, required)]
     closest = min(
@@ -93,6 +94,6 @@ def test_the_catalogue_reads_the_recorded_page(key):
     wrong = {
         title: dict(found)[title]
         for found in whole
-        for title in shown_in_unknown_units(key, found)
+        for title in shown_in_unknown_units(key, found, WBB)
     }
     assert not wrong, f"shown in another unit than the catalogue expects: {wrong}"
