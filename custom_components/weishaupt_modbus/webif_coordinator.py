@@ -129,7 +129,7 @@ class Page:
         return [(self.english.get(title, title), shown) for title, shown in found]
 
     def is_whole(self, text: str) -> bool:
-        """Every required title is there once, and no value is left blank."""
+        """Every required title is there once, none read twice, no value blank."""
         return pages.is_complete(self.read(text), self.required, self.optional)
 
     def missing(self, text: str) -> frozenset[str]:
@@ -170,9 +170,9 @@ def polled_pages(
 ) -> list[Page]:
     """The pages at `paths`, each on the interval its option sets.
 
-    `required` are the titles each page must show;
-    `english` maps each page's English titles to them; `optional` are the
-    titles its sensors read that a page may leave out.
+    `required` are the titles each page must show; `english` maps each page's
+    English titles to them; `optional` are the titles its sensors read that a
+    page may leave out.
     """
 
     def every(key: str) -> timedelta:

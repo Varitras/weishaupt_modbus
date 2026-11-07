@@ -258,7 +258,7 @@ def is_complete(
     required: frozenset[str],
     optional: frozenset[str] = frozenset(),
 ) -> bool:
-    """Every required title is there once, and no value is left blank.
+    """Every required title is there once, none read twice, no value blank.
 
     The required titles are what tells a heat pump page from the statistics
     the controller sometimes sends in its place. One shown twice would leave

@@ -56,6 +56,13 @@ TITLES = json.loads(
 )
 
 
+def _rows_shown(capture: pathlib.Path, key: str, rows: list) -> list:
+    """The file's rows without an optional one the capture does not show."""
+    shown = set(_titles(capture, key))
+    optional = OPTIONAL_TITLES[WBB].get(key, frozenset())
+    return [row for row in rows if row[0] not in optional or shown & set(row[:2])]
+
+
 def _page(capture: pathlib.Path, key: str) -> dict:
     captured = json.loads(capture.read_text(encoding="utf-8"))["pages"]
     return next(page for page in captured if page["page"] == key)
@@ -113,7 +120,7 @@ def test_the_catalogue_reads_the_captured_page(capture, key):
 def test_the_titles_file_lists_the_captured_rows(capture, key):
     """Row by row, in one of its two languages: a pair in the file that the
     controller does not show so would let CI vouch for a wrong pairing."""
-    rows = TITLES["pages"].get(key) or TITLES["menus"][key]
+    rows = _rows_shown(capture, key, TITLES["pages"].get(key) or TITLES["menus"][key])
 
     assert _titles(capture, key) in (
         [row[0] for row in rows],
@@ -125,7 +132,7 @@ def test_the_titles_file_lists_the_captured_rows(capture, key):
 @pytest.mark.parametrize("key", list(TITLES["pages"]))
 def test_the_titles_file_names_the_captured_units(capture, key):
     entries = _page(capture, key)["entries"]
-    rows = TITLES["pages"][key]
+    rows = _rows_shown(capture, key, TITLES["pages"][key])
 
     assert {
         title: pages.unit(shown)

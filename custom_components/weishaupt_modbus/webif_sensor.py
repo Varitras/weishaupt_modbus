@@ -260,7 +260,7 @@ HEAT_PUMP_SENSORS = (
     _temperature("solltemperatur", "Solltemperatur", "setpoint", no_value_is_zero=True),
     # Shown only with the setting of that name on: an Evoblock's manual says so
     # (83336001, 6.7.1.2), and a WBB left it out with the setting off
-    # (2026-11-06). Required, that one setting cost every value.
+    # (2026-11-06). Were it required, that one setting would cost every value.
     _difference(
         "schaltdifferenz_dynamisch",
         "Schaltdifferenz dynamisch",

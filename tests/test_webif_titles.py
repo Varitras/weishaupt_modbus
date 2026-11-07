@@ -12,10 +12,16 @@ from pathlib import Path
 
 import pytest
 
-from custom_components.weishaupt_modbus.webif.discovery import ENGLISH_MENU_TITLES
+from custom_components.weishaupt_modbus.webif import pages
+from custom_components.weishaupt_modbus.webif.discovery import (
+    ENGLISH_MENU_TITLES,
+    HEAT_PUMP_PAGE,
+)
 from custom_components.weishaupt_modbus.webif_sensor import (
     ENGLISH_TITLES,
     EVOBLOCK,
+    OPTIONAL_TITLES,
+    REQUIRED_TITLES,
     VALUES,
     WBB,
 )
@@ -45,6 +51,20 @@ def test_each_evoblock_value_is_read_under_the_title_a_web_13_20_showed(sensor):
     rows = dict(EVOBLOCK_TITLES[sensor.page])
 
     assert rows[sensor.title] == sensor.shown_unit
+
+
+def test_a_wbb_page_without_its_conditional_row_is_whole():
+    """By the rows a controller showed, not the catalogue's own; a capture of
+    it stays out of CI, and the tests over those are opt-in."""
+    conditional = OPTIONAL_TITLES[WBB][HEAT_PUMP_PAGE]
+    shown = [
+        (german, "1")
+        for german, _, _ in TITLES["pages"][HEAT_PUMP_PAGE]
+        if german not in conditional
+    ]
+
+    assert conditional
+    assert pages.is_complete(shown, REQUIRED_TITLES[WBB][HEAT_PUMP_PAGE], conditional)
 
 
 @pytest.mark.parametrize(("english", "german"), ENGLISH_MENU_TITLES.items())

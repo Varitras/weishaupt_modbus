@@ -96,6 +96,7 @@ READ_OVER_MODBUS_OR_CONDITIONAL = {
     "Verdampfungstemperatur",
 }
 UNITS_OF_RUNNING_TOTALS = {"KWh", "h"}
+COUNTS = {"schaltspiele_verdichter", "schaltspiele_abtauen"}
 WHAT_A_UNIT_IS = {
     "°C": (UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE),
     "K": (UnitOfTemperature.KELVIN, SensorDeviceClass.TEMPERATURE_DELTA),
@@ -188,13 +189,13 @@ def test_a_shown_unit_reaches_home_assistant_as_what_it_is(sensor):
 
 @pytest.mark.parametrize(
     "sensor",
-    [sensor for sensor in WEBIF_SENSORS if sensor.shown_unit],
+    [sensor for sensor in WEBIF_SENSORS if sensor.shown_unit is not None],
     ids=lambda sensor: sensor.key,
 )
 def test_a_running_total_is_kept_as_one(sensor):
     """Kept as a measurement, Home Assistant's long-term statistics average
     what they should add up."""
-    total = sensor.shown_unit in UNITS_OF_RUNNING_TOTALS
+    total = sensor.shown_unit in UNITS_OF_RUNNING_TOTALS or sensor.key in COUNTS
     expected = (
         SensorStateClass.TOTAL_INCREASING if total else SensorStateClass.MEASUREMENT
     )

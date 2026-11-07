@@ -39,6 +39,7 @@ from .test_webif_setup import (
     _enable_custom_integrations,  # noqa: F401
     _entries,
     _start,
+    _until_stopped,
 )
 from .webif_stand_in import (
     PASSWORD,
@@ -223,6 +224,20 @@ async def test_a_conditional_row_shown_twice_is_refused(hass, pump):
         await read_web_interface(hass, pump.host, USER, PASSWORD)
 
     assert raised.value.titles == {CONDITIONAL_ROW}
+
+
+async def test_a_doubled_conditional_row_stops_polling_and_says_which(hass, pump):
+    """Judged as in the dialog: a guess between two values would pass for a
+    reading, and a stop without a reason helps nobody."""
+    entry = await _evoblock(hass, pump)
+
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(
+        [*ROWS[HEAT_PUMP_PAGE], [CONDITIONAL_ROW, "K"]]
+    )
+    await _until_stopped(entry)
+
+    stopped = entry.runtime_data.coordinator.diagnostics()["stopped_by"]
+    assert stopped[1] == f"Broken (blank or doubled: {CONDITIONAL_ROW})"
 
 
 async def test_dynamic_switching_is_read_while_the_page_shows_it(hass, pump):
