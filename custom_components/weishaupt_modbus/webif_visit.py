@@ -25,10 +25,10 @@ from .webif.discovery import (
 )
 from .webif_coordinator import Page, polled_pages
 from .webif_sensor import (
-    ENGLISH_TITLES,
     MODELS,
     OPTIONAL_TITLES,
     REQUIRED_TITLES,
+    TITLES_SHOWN_OTHERWISE,
     model_shown,
     shown_in_unknown_units,
 )
@@ -148,7 +148,7 @@ async def _visit(client: Client) -> Visited:
                 found,
                 {},
                 REQUIRED_TITLES[model],
-                ENGLISH_TITLES[model],
+                TITLES_SHOWN_OTHERWISE[model],
                 OPTIONAL_TITLES[model],
             )
         }

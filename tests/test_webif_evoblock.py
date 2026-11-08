@@ -55,6 +55,8 @@ ROWS = json.loads(
     (Path(__file__).parent / "evoblock_titles.json").read_text(encoding="utf-8")
 )
 CONDITIONAL_ROW = "Schaltdifferenz dynamisch"
+SHORT_TITLE = "Wärmetauscher AG Austrit"
+FULL_TITLE = "Wärmetauscher AG Austritt"
 # Past every page's interval.
 ROUND_LATER = 3 * 3600
 # A row that shows a word, not a number.
@@ -238,6 +240,42 @@ async def test_a_doubled_conditional_row_stops_polling_and_says_which(hass, pump
 
     stopped = entry.runtime_data.coordinator.diagnostics()["stopped_by"]
     assert stopped[1] == f"Broken (blank or doubled: {CONDITIONAL_ROW})"
+
+
+def with_title(rows, shown, instead):
+    return [(instead if title == shown else title, text) for title, text in rows]
+
+
+async def test_a_wbb_spelling_the_heat_exchanger_out_is_whole(hass, pump):
+    """Its language reset to German after an outage, 2026-11-08, a WBB wrote
+    "Austritt" in full where on 2026-10-04 it cut it, and all 31 values went."""
+    pump.site.update(SITE)
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = column(
+        "".join(
+            value(title, text)
+            for title, text in with_title(
+                SHOWN[HEAT_PUMP_PAGE].items(), SHORT_TITLE, FULL_TITLE
+            )
+        )
+    )
+
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+    await _start(hass, _entries(hass, pump))
+
+    assert visited.model == WBB
+    assert _state(hass, "waermetauscher_ag_austritt") == "21.5"
+    assert _state(hass, "verdichter_drehzahl") == "2568.0"
+
+
+async def test_an_evoblock_cutting_the_heat_exchanger_title_is_whole(hass, pump):
+    """The same controller wrote both; an Evoblock may as well."""
+    pump.site[PAGES[HEAT_PUMP_PAGE]] = heat_pump_page(
+        with_title(ROWS[HEAT_PUMP_PAGE], FULL_TITLE, SHORT_TITLE)
+    )
+
+    await _evoblock(hass, pump)
+
+    assert _state(hass, "waermetauscher_ag_austritt") == "12.0"
 
 
 async def test_dynamic_switching_is_read_while_the_page_shows_it(hass, pump):

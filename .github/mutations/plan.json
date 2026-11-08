@@ -3649,14 +3649,14 @@
   {
     "label": "webif english: the running entry polls without the English titles",
     "path": "custom_components/weishaupt_modbus/__init__.py",
-    "old": "        ENGLISH_TITLES[model],\n",
+    "old": "        TITLES_SHOWN_OTHERWISE[model],\n",
     "new": "        {key: {} for key in REQUIRED_TITLES[model]},\n",
     "tests": "become_sensors_on_a_device or power_limit_is_set_from_home_assistant"
   },
   {
     "label": "webif english: the dialog reads the pages without the English titles",
     "path": "custom_components/weishaupt_modbus/webif_visit.py",
-    "old": "                ENGLISH_TITLES[model],\n",
+    "old": "                TITLES_SHOWN_OTHERWISE[model],\n",
     "new": "                {key: {} for key in REQUIRED_TITLES[model]},\n",
     "tests": "reads_each_page_it_found_once"
   },
@@ -5199,5 +5199,26 @@
     "old": "        state_class=SensorStateClass.MEASUREMENT,\n        suggested_display_precision=2,\n",
     "new": "        suggested_display_precision=2,\n",
     "tests": "running_total_is_kept"
+  },
+  {
+    "label": "webif spelling: a WBB knows the heat exchanger cut only",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        other_titles=(HEAT_EXCHANGER_IN_FULL,),\n",
+    "new": "",
+    "tests": "spelling_the_heat_exchanger_out"
+  },
+  {
+    "label": "webif spelling: an Evoblock knows the heat exchanger in full only",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "        other_titles=(HEAT_EXCHANGER_CUT,),\n",
+    "new": "",
+    "tests": "cutting_the_heat_exchanger_title"
+  },
+  {
+    "label": "webif spelling: no page takes another spelling",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "                for value in VALUES[model]\n                if value.page == page\n                for other in value.other_titles\n",
+    "new": "                for value in ()\n                for other in value.other_titles\n",
+    "tests": "spelling_the_heat_exchanger_out or cutting_the_heat_exchanger_title"
   }
 ]

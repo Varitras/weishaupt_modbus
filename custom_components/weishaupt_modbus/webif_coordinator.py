@@ -104,8 +104,8 @@ class Page:
     """A page to keep fresh: where it is, what it must show, how often.
 
     A menu page is read for the values its entries show one level down.
-    `english` maps the titles a controller set to English shows to the
-    German ones everything else goes by. `optional` are titles read when the
+    `english` maps the titles a controller shows otherwise, set to English or
+    spelt another way, to the German ones everything else goes by. `optional` are titles read when the
     page shows them, which it need not.
     """
 

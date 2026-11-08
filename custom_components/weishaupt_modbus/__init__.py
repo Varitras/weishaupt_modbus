@@ -50,10 +50,10 @@ from .migrate_helpers import device_postfix, entry_unique_id, unique_id_from_par
 from .webif.client import Client
 from .webif_coordinator import WebifCoordinator, polled_pages
 from .webif_sensor import (
-    ENGLISH_TITLES,
     OPTIONAL_TITLES,
     POWER_LIMIT,
     REQUIRED_TITLES,
+    TITLES_SHOWN_OTHERWISE,
     entry_model,
 )
 from .weishaupt_modbus_api.const import DEFAULT_PORT, MODBUS_UNIT_ID
@@ -275,7 +275,7 @@ async def _async_setup_web_interface(
         entry.data[CONF.PAGES],
         entry.options,
         REQUIRED_TITLES[model],
-        ENGLISH_TITLES[model],
+        TITLES_SHOWN_OTHERWISE[model],
         OPTIONAL_TITLES[model],
     )
     # No warning: the daily limit is the guard for settings written here.

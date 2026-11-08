@@ -60,6 +60,10 @@ MODELS = (WBB, EVOBLOCK)
 ONLY_WBB = frozenset({WBB})
 ONLY_EVOBLOCK = frozenset({EVOBLOCK})
 EVOBLOCK_VERSION_TITLE = "Version WEB CPU"
+# One WBB with one firmware cut this title on 2026-10-04 and spelt it out on
+# 2026-11-08, both in German; an Evoblock spelt it out.
+HEAT_EXCHANGER_CUT = "Wärmetauscher AG Austrit"
+HEAT_EXCHANGER_IN_FULL = "Wärmetauscher AG Austritt"
 # Only a WEB 13/20 set to German was seen, 2026-11-05 and 06: what its own
 # values are called in English is not known.
 NOT_SEEN = ""
@@ -72,6 +76,8 @@ class WebifSensorDescription(SensorEntityDescription):
     `english_title` is the title a controller set to English shows instead,
     as it showed it on 2026-10-10: cut at 25 characters, typing errors kept;
     NOT_SEEN for a value no controller set to English has shown.
+    `other_titles` are titles a controller showed for the same row in its
+    own language, spelt otherwise.
     `shown_unit` is the text after the number; None for a value that is text.
     `topic` is the pump device whose short name the name prefix option puts
     in front, as for the Modbus sensors of the same subject.
@@ -94,6 +100,7 @@ class WebifSensorDescription(SensorEntityDescription):
     topic: str = DEVICES.WP
     models: frozenset[str] = frozenset(MODELS)
     conditional_on: frozenset[str] = frozenset()
+    other_titles: tuple[str, ...] = ()
     off_is_zero: bool = False
     no_value_is_zero: bool = False
 
@@ -289,15 +296,17 @@ HEAT_PUMP_SENSORS = (
     ),
     _temperature(
         "waermetauscher_ag_austritt",
-        "Wärmetauscher AG Austrit",
+        HEAT_EXCHANGER_CUT,
         "OUTLET TEMP",
         models=ONLY_WBB,
+        other_titles=(HEAT_EXCHANGER_IN_FULL,),
     ),
     _temperature(
         "waermetauscher_ag_austritt",
-        "Wärmetauscher AG Austritt",
+        HEAT_EXCHANGER_IN_FULL,
         NOT_SEEN,
         models=ONLY_EVOBLOCK,
+        other_titles=(HEAT_EXCHANGER_CUT,),
     ),
     _temperature(
         "evi_sauggastemperatur",
@@ -492,6 +501,25 @@ ENGLISH_TITLES = {
     }
     for model, values in VALUES.items()
 }
+
+# Every title a page may show for a value but the one it is kept under:
+# its English title, and its other spellings.
+TITLES_SHOWN_OTHERWISE = {
+    model: {
+        page: {
+            **english,
+            **{
+                other: value.title
+                for value in VALUES[model]
+                if value.page == page
+                for other in value.other_titles
+            },
+        }
+        for page, english in pages_of_model.items()
+    }
+    for model, pages_of_model in ENGLISH_TITLES.items()
+}
+
 
 # User wish, 2026-10-03: whether the access gets worse over time shows in
 # Home Assistant's statistics of these.
