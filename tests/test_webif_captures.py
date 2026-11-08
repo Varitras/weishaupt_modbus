@@ -22,9 +22,10 @@ from custom_components.weishaupt_modbus.webif.discovery import (
 )
 from custom_components.weishaupt_modbus.webif_coordinator import polled_pages
 from custom_components.weishaupt_modbus.webif_sensor import (
-    ENGLISH_TITLES,
     OPTIONAL_TITLES,
     REQUIRED_TITLES,
+    TITLES_SHOWN_OTHERWISE,
+    VALUES,
     WBB,
     shown_in_unknown_units,
 )
@@ -76,7 +77,13 @@ def _titles(capture: pathlib.Path, key: str) -> list[str]:
     page = _page(capture, key)
     if "titles" in page:
         return page["titles"]
-    return [title for title, _ in page["entries"]]
+    spelt_otherwise = {
+        other: value.title
+        for value in VALUES[WBB]
+        if value.page == key
+        for other in value.other_titles
+    }
+    return [spelt_otherwise.get(title, title) for title, _ in page["entries"]]
 
 
 def _as_served(key: str, entries: list[list[str]]) -> str:
@@ -105,7 +112,11 @@ def test_the_catalogue_reads_the_captured_page(capture, key):
     page = next(
         page
         for page in polled_pages(
-            PATHS, {}, REQUIRED_TITLES[WBB], ENGLISH_TITLES[WBB], OPTIONAL_TITLES[WBB]
+            PATHS,
+            {},
+            REQUIRED_TITLES[WBB],
+            TITLES_SHOWN_OTHERWISE[WBB],
+            OPTIONAL_TITLES[WBB],
         )
         if page.key == key
     )
