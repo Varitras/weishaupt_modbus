@@ -18,6 +18,7 @@ from .webif.client import Broken, Client, WebifError
 from .webif.discovery import (
     HEAT_PUMP_PAGE,
     HEATING_PAGE,
+    OPTIONAL_PAGES,
     PAGE_MENUS,
     STATISTICS_PAGE,
     DoubledMenuEntries,
@@ -138,7 +139,8 @@ async def _visit(client: Client) -> Visited:
     """The pages found, each read once, and the family they are of.
 
     A page another model shows without a title its sensors need fails here,
-    not in the brake ten minutes after the entry was added.
+    not in the brake ten minutes after the entry was added. An optional page
+    is kept only when its family has sensors on it and it shows them all.
     """
     found = await find_pages(client)
     polled = {
@@ -159,7 +161,17 @@ async def _visit(client: Client) -> Visited:
     model = model_shown(await _read_whole(client, polled, HEAT_PUMP_PAGE, model_shown))
     for key in (STATISTICS_PAGE, HEATING_PAGE):
         await _read_whole(client, polled, key, lambda _: model)
-    return Visited(found, model)
+    kept = {key: path for key, path in found.items() if key not in OPTIONAL_PAGES}
+    for key in OPTIONAL_PAGES:
+        if key not in polled[model]:
+            continue
+        # A page this pump shows otherwise costs its few values, not the entry.
+        try:
+            await _read_whole(client, polled, key, lambda _: model)
+        except MissingTitles, UnknownUnits:
+            continue
+        kept[key] = found[key]
+    return Visited(kept, model)
 
 
 async def _read_whole(

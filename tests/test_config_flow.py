@@ -1261,6 +1261,34 @@ async def test_the_web_interface_interval_is_its_own_option(hass, web_interface)
     }
 
 
+async def test_an_optional_page_found_gets_an_interval_of_its_own(hass, web_interface):
+    """User wish, 2026-11-17: the pages Info shows on some pumps only, each on
+    its own interval, offered only where the entry polls them."""
+    entry = _web_entry(hass, _pump_entry(hass))
+    hass.config_entries.async_update_entry(
+        entry,
+        data={
+            **entry.data,
+            CONF.PAGES: {
+                **FOUND_PAGES,
+                "heating_circuit": FOUND_PAGES["statistics"] + "1",
+                "second_generator": FOUND_PAGES["statistics"] + "2",
+            },
+        },
+    )
+
+    form = await hass.config_entries.options.async_init(entry.entry_id)
+
+    assert [str(field) for field in form["data_schema"].schema] == [
+        CONST.OPTION_WEBIF_HEAT_PUMP_INTERVAL,
+        CONST.OPTION_WEBIF_STATISTICS_INTERVAL,
+        CONST.OPTION_WEBIF_HEATING_INTERVAL,
+        CONST.OPTION_WEBIF_HEATING_CIRCUIT_INTERVAL,
+        CONST.OPTION_WEBIF_SECOND_GENERATOR_INTERVAL,
+        CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY,
+    ]
+
+
 async def test_the_interval_sliders_show_their_minutes(hass, web_interface):
     """Live, 2026-10-03: a plain range from 1 to 60 drew a slider without its
     value; the minutes showed only while the slider was dragged."""

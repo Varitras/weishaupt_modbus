@@ -94,9 +94,25 @@ READ_OVER_MODBUS_OR_CONDITIONAL = {
     "Luftansaugtemperatur",
     "Verdichtersauggastemp.",
     "Verdampfungstemperatur",
+    # Info > Heizkreis 2 of a WEB 13/20, 2026-11-17.
+    "Außentemperatur",
+    "Raumsolltemperatur",
+    "Pumpe",
+    "Vorlaufsolltemperatur",
+    "Version WWP-EM-HK",
+    # Info > 2. WEZ of a WEB 13/20, 2026-11-17.
+    "Status E-Heizung 1",
+    "Status E-Heizung 2",
+    "Betriebsstunden E1",
+    "Betriebsstunden E2",
 }
 UNITS_OF_RUNNING_TOTALS = {"KWh", "h"}
-COUNTS = {"schaltspiele_verdichter", "schaltspiele_abtauen"}
+COUNTS = {
+    "schaltspiele_verdichter",
+    "schaltspiele_abtauen",
+    "schaltspiele_e1",
+    "schaltspiele_e2",
+}
 WHAT_A_UNIT_IS = {
     "°C": (UnitOfTemperature.CELSIUS, SensorDeviceClass.TEMPERATURE),
     "K": (UnitOfTemperature.KELVIN, SensorDeviceClass.TEMPERATURE_DELTA),

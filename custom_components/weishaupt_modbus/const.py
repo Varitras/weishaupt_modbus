@@ -63,6 +63,8 @@ class MainConstants:
     OPTION_WEBIF_HEAT_PUMP_INTERVAL: str = "heat_pump_interval_minutes"
     OPTION_WEBIF_STATISTICS_INTERVAL: str = "statistics_interval_minutes"
     OPTION_WEBIF_HEATING_INTERVAL: str = "heating_interval_minutes"
+    OPTION_WEBIF_HEATING_CIRCUIT_INTERVAL: str = "heating_circuit_interval_minutes"
+    OPTION_WEBIF_SECOND_GENERATOR_INTERVAL: str = "second_generator_interval_minutes"
     WEBIF_INTERVAL_MINUTES: int = 5
     WEBIF_SLOW_INTERVAL_MINUTES: int = 15
     WEBIF_INTERVAL_MIN_MINUTES: int = 1

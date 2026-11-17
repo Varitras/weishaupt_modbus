@@ -54,5 +54,23 @@
   "heating": [
     ["Schaltdifferenz", "K"],
     ["Leistungsbegrenzung", "%"]
+  ],
+  "heating_circuit": [
+    ["Außentemperatur", "°C"],
+    ["AT Mittelwert", "°C"],
+    ["AT Langzeitwert", "°C"],
+    ["Raumsolltemperatur", "°C"],
+    ["Vorlauftemperatur", "°C"],
+    ["Pumpe", null],
+    ["Vorlaufsolltemperatur", "°C"],
+    ["Version WWP-EM-HK", null]
+  ],
+  "second_generator": [
+    ["Status E-Heizung 1", null],
+    ["Status E-Heizung 2", null],
+    ["Betriebsstunden E1", "h"],
+    ["Betriebsstunden E2", "h"],
+    ["Schaltspiele E1", ""],
+    ["Schaltspiele E2", ""]
   ]
 }

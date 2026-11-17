@@ -1892,8 +1892,8 @@
   {
     "label": "config flow: the options offer only the heat pump interval",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "                for option, default in INTERVAL_OPTIONS.values()\n",
-    "new": "                for option, default in list(INTERVAL_OPTIONS.values())[:1]\n",
+    "old": "                    for key, (option, default) in INTERVAL_OPTIONS.items()\n",
+    "new": "                    for key, (option, default) in list(INTERVAL_OPTIONS.items())[:1]\n",
     "tests": "interval_is_its_own_option"
   },
   {
@@ -1976,8 +1976,8 @@
   {
     "label": "config flow: the dialog does not read the pages it found",
     "path": "custom_components/weishaupt_modbus/webif_visit.py",
-    "old": "        await _read_whole(client, polled, key, lambda _: model)\n",
-    "new": "        pass\n",
+    "old": "    for key in (STATISTICS_PAGE, HEATING_PAGE):\n        await _read_whole(client, polled, key, lambda _: model)\n",
+    "new": "    for key in (STATISTICS_PAGE, HEATING_PAGE):\n        pass\n",
     "tests": "reads_each_page_it_found_once or without_a_title_its_sensors_read"
   },
   {
@@ -4965,8 +4965,8 @@
   {
     "label": "webif family: a WBB entry gets the sensors of an Evoblock",
     "path": "custom_components/weishaupt_modbus/sensor.py",
-    "old": "                    if entry_model(config_entry.data) in description.models\n",
-    "new": "",
+    "old": "                    if entry_model(config_entry.data) in description.models\n                    and description.page in polled\n",
+    "new": "                    if description.page in polled\n",
     "tests": "wbb_entry_gets_no_sensor or evoblock_gets_the_sensors"
   },
   {
@@ -4993,8 +4993,8 @@
   {
     "label": "webif family: the visit forgets the family it found",
     "path": "custom_components/weishaupt_modbus/webif_visit.py",
-    "old": "    return Visited(found, model)\n",
-    "new": "    return Visited(found, 'wbb')\n",
+    "old": "    return Visited(kept, model)\n",
+    "new": "    return Visited(kept, 'wbb')\n",
     "tests": "accepts_an_evoblock"
   },
   {
@@ -5189,8 +5189,8 @@
   {
     "label": "webif sensor: a count is kept as a measurement",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "        state_class=SensorStateClass.TOTAL_INCREASING,\n        suggested_display_precision=0,\n    )\n",
-    "new": "        state_class=SensorStateClass.MEASUREMENT,\n        suggested_display_precision=0,\n    )\n",
+    "old": "        state_class=SensorStateClass.TOTAL_INCREASING,\n        suggested_display_precision=0,\n        **attributes,\n    )\n",
+    "new": "        state_class=SensorStateClass.MEASUREMENT,\n        suggested_display_precision=0,\n        **attributes,\n    )\n",
     "tests": "running_total_is_kept"
   },
   {
@@ -5220,5 +5220,40 @@
     "old": "                for value in VALUES[model]\n                if value.page == page\n                for other in value.other_titles\n",
     "new": "                for value in ()\n                for other in value.other_titles\n",
     "tests": "spelling_the_heat_exchanger_out or cutting_the_heat_exchanger_title"
+  },
+  {
+    "label": "webif discovery: a later heating circuit is taken for the first",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        found[HEATING_CIRCUIT_PAGE] = circuits[0][1]\n",
+    "new": "        found[HEATING_CIRCUIT_PAGE] = circuits[-1][1]\n",
+    "tests": "first_circuit_and_the_2nd_wez"
+  },
+  {
+    "label": "webif discovery: an entry shown twice is taken at random",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "    return {title: link for title, link in shown if counts[title] == 1}\n",
+    "new": "    return dict(shown)\n",
+    "tests": "optional_entry_shown_twice_is_left_out"
+  },
+  {
+    "label": "webif visit: an optional page lacking a row fails the dialog",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "old": "        except MissingTitles, UnknownUnits:\n",
+    "new": "        except ():\n",
+    "tests": "optional_page_lacking_a_row_costs_only_itself"
+  },
+  {
+    "label": "webif coordinator: an optional page without sensors is polled",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            if key in paths and required.get(key)\n",
+    "new": "            if key in paths\n",
+    "tests": "polled_only_where_found_and_read"
+  },
+  {
+    "label": "webif sensor: a page the entry does not poll gets sensors",
+    "path": "custom_components/weishaupt_modbus/sensor.py",
+    "old": "                    and description.page in polled\n",
+    "new": "\n",
+    "tests": "entry_made_before_them_reads_as_before"
   }
 ]

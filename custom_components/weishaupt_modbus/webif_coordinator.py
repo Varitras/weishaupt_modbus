@@ -44,7 +44,15 @@ from .webif.client import (
     Unreachable,
     WebifError,
 )
-from .webif.discovery import HEAT_PUMP_PAGE, HEATING_PAGE, PAGE_MENUS, STATISTICS_PAGE
+from .webif.discovery import (
+    HEAT_PUMP_PAGE,
+    HEATING_CIRCUIT_PAGE,
+    HEATING_PAGE,
+    OPTIONAL_PAGES,
+    PAGE_MENUS,
+    SECOND_GENERATOR_PAGE,
+    STATISTICS_PAGE,
+)
 from .webif.setting import (
     FormMismatch,
     FormNotRead,
@@ -92,6 +100,14 @@ INTERVAL_OPTIONS = {
     ),
     HEATING_PAGE: (
         CONST.OPTION_WEBIF_HEATING_INTERVAL,
+        CONST.WEBIF_SLOW_INTERVAL_MINUTES,
+    ),
+    HEATING_CIRCUIT_PAGE: (
+        CONST.OPTION_WEBIF_HEATING_CIRCUIT_INTERVAL,
+        CONST.WEBIF_SLOW_INTERVAL_MINUTES,
+    ),
+    SECOND_GENERATOR_PAGE: (
+        CONST.OPTION_WEBIF_SECOND_GENERATOR_INTERVAL,
         CONST.WEBIF_SLOW_INTERVAL_MINUTES,
     ),
 }
@@ -172,7 +188,8 @@ def polled_pages(
 
     `required` are the titles each page must show; `english` maps each page's
     English titles to them; `optional` are the titles its sensors read that a
-    page may leave out.
+    page may leave out. An optional page is polled only when it was found and
+    its family has sensors on it.
     """
 
     def every(key: str) -> timedelta:
@@ -204,6 +221,18 @@ def polled_pages(
             menu=True,
             english=english[HEATING_PAGE],
             optional=optional[HEATING_PAGE],
+        ),
+        *(
+            Page(
+                key,
+                paths[key],
+                required[key],
+                every(key),
+                english=english.get(key, {}),
+                optional=optional.get(key, frozenset()),
+            )
+            for key in OPTIONAL_PAGES
+            if key in paths and required.get(key)
         ),
     ]
 

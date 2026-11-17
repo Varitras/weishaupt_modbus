@@ -6,7 +6,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .configentry import MyConfigEntry, WebifConfigEntry, is_web_interface
-from .const import TYPES
+from .const import CONF, TYPES
 from .entity_helpers import build_entity_list
 from .webif_sensor import (
     ANSWER_TIME,
@@ -31,12 +31,16 @@ async def async_setup_entry(
     """Set up the sensor platform."""
     if is_web_interface(config_entry):
         web = cast(WebifConfigEntry, config_entry).runtime_data
+        # A page the entry does not poll, one found only by a newer version
+        # among them, would leave its sensors unavailable for good.
+        polled = config_entry.data[CONF.PAGES]
         async_add_entities(
             [
                 *(
                     WebifSensor(web.coordinator, web.pump_data, description)
                     for description in WEBIF_SENSORS
                     if entry_model(config_entry.data) in description.models
+                    and description.page in polled
                 ),
                 *(
                     TrafficSensor(web.coordinator, web.pump_data, description)
