@@ -1320,6 +1320,40 @@ async def test_an_unload_calls_off_a_write_waiting_for_its_turn(
     assert client.saved == [61]
 
 
+async def test_a_write_looks_its_page_up_once_it_has_the_lock(
+    coordinator, client, clock, quick
+):
+    """While the write waited for the lock, the page got a new address: it
+    reads, saves and reads back there, not at the one it had."""
+    await first_round_showing(coordinator, client, clock)
+
+    def moved(text):
+        return text.replace("0A0B", "0C0D")
+
+    await coordinator._asking.acquire()
+    call = asyncio.create_task(coordinator.set_power_limit(61))
+    await asyncio.sleep(2 * QUIET)
+    coordinator._pages = [
+        replace(page, path=moved(page.path)) if page.key == HEATING.key else page
+        for page in coordinator._pages
+    ]
+    client.script[moved(HEATING.path)] = [
+        moved(heating_page(60)),
+        moved(heating_page(61)),
+    ]
+    client.script[moved(leaf(60))] = [moved(limit_leaf(60))]
+    client.asked.clear()
+    coordinator._asking.release()
+    await call
+
+    assert client.asked == [
+        moved(HEATING.path),
+        moved(leaf(60)),
+        SAVE,
+        moved(HEATING.path),
+    ]
+
+
 async def test_every_call_of_a_burst_gets_its_outcome(
     coordinator, client, clock, quick
 ):

@@ -558,7 +558,6 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         """One write, its outcome handed to every caller that asked for it."""
         outcome = burst.outcome
         key = (burst.page, burst.setting.title)
-        page = self._page(burst.page)
         counted = False
         handed_on = False
 
@@ -584,6 +583,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                     # off by the unload while it waited for its turn.
                     return
                 self._refuse_write()
+                # Looked up under the lock: a round before it may have found
+                # the page at a new address.
+                page = self._page(burst.page)
                 text = await write_setting(
                     self._client,
                     page.path,
@@ -594,7 +596,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 )
                 self._publish(page, text)
         except (WebifError, HomeAssistantError) as error:
-            self._after_failed_write(error, page)
+            self._after_failed_write(error, self._page(burst.page))
             outcome.set_exception(error)
         except Exception as error:
             # A fault of this code or of a library, not of the pump.
@@ -605,7 +607,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 )
             if counted:
                 # The save may have gone out: the next round asks.
-                self._readings[page.key].asked_at = None
+                self._readings[burst.page].asked_at = None
             outcome.set_exception(WriteFailed(type(error).__name__))
         else:
             outcome.set_result(None)
