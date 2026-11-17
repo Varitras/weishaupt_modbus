@@ -29,6 +29,7 @@ from custom_components.weishaupt_modbus.entities import SWITCH_SUFFIX
 from custom_components.weishaupt_modbus.items import ModbusItem
 from custom_components.weishaupt_modbus.webif_sensor import (
     ANSWER_TIME,
+    MINIMUM_TEMPERATURES,
     POWER_LIMIT,
     TRAFFIC_SENSORS,
     WEBIF_SENSORS,
@@ -269,6 +270,9 @@ def test_no_translation_outlives_its_item(path):
     }
     # The one setting the web interface writes is a number.
     known.add(("number", POWER_LIMIT.translation_key))
+    known.update(
+        ("number", minimum.translation_key) for minimum in MINIMUM_TEMPERATURES.values()
+    )
     known |= _switch_keys()
     # Every platform the file names, not the ones PLATFORM_OF knows: the
     # switches went unchecked that way.

@@ -34,6 +34,7 @@ from custom_components.weishaupt_modbus.webif.client import (
 from custom_components.weishaupt_modbus.webif.discovery import (
     HEAT_PUMP_PAGE,
     HEATING_PAGE,
+    PAGE_MENUS,
     STATISTICS_PAGE,
 )
 from custom_components.weishaupt_modbus.webif_coordinator import (
@@ -78,6 +79,9 @@ HEATING = Page(
     menu=True,
 )
 TRANSLATIONS = pathlib.Path(webif_coordinator.__file__).parent
+
+# A write's message names the setting as its user finds it in the menus.
+NAMED = {"setting": f"{PAGE_MENUS[HEATING_PAGE]} › Leistungsbegrenzung"}
 
 
 def value(title, text):
@@ -1308,7 +1312,7 @@ async def test_an_unload_calls_off_a_write_waiting_for_its_turn(
     await first
 
     async with asyncio.timeout(HOLD_LIMIT_SECONDS):
-        assert await second == ("webif_write_aborted", None)
+        assert await second == ("webif_write_aborted", NAMED)
     assert client.saved == [61]
 
 
@@ -1323,7 +1327,7 @@ async def test_every_call_of_a_burst_gets_its_outcome(
         refused(coordinator.set_power_limit(62)),
     )
 
-    assert outcomes == [("webif_write_maybe_saved", None)] * 2
+    assert outcomes == [("webif_write_maybe_saved", NAMED)] * 2
     assert client.saved == [62]
     assert coordinator.budget.writes_today == 1
 
@@ -1476,7 +1480,7 @@ async def test_another_value_shown_is_published_and_named(
 
     assert await refused(coordinator.set_power_limit(61)) == (
         "webif_write_other_value",
-        {"shown": "65", "target": "61"},
+        {**NAMED, "shown": "65 %", "target": "61 %"},
     )
     assert coordinator.data["heating"] == {"Leistungsbegrenzung": "65 %"}
 
@@ -1580,7 +1584,7 @@ async def test_an_unload_during_the_quiet_time_aborts_the_waiting_calls(
     await settle()
 
     assert call.done(), "the waiting call outlived the unload"
-    assert await call == ("webif_write_aborted", None)
+    assert await call == ("webif_write_aborted", NAMED)
     freezer.tick(timedelta(seconds=webif_coordinator.DEBOUNCE_SECONDS))
     async_fire_time_changed(hass)
     await settle()
@@ -1598,7 +1602,7 @@ async def test_read_failures_of_a_write_do_not_trip_the_brake(
     for _ in range(3):
         assert await refused(coordinator.set_power_limit(61)) == (
             "webif_write_form_not_read",
-            None,
+            NAMED,
         )
 
     states = coordinator.diagnostics()
@@ -1639,7 +1643,8 @@ async def test_each_failure_of_a_write_has_its_message(
     await first_round_showing(coordinator, client, clock)
     failure(client)
 
-    assert await refused(coordinator.set_power_limit(61)) == (key, None)
+    named = None if key == "webif_write_login_refused" else NAMED
+    assert await refused(coordinator.set_power_limit(61)) == (key, named)
 
 
 async def test_a_login_refused_while_writing_stops_the_polling_too(
@@ -1665,7 +1670,7 @@ async def test_an_unexpected_error_of_a_write_logs_once(
     for _ in range(2):
         assert await refused(coordinator.set_power_limit(61)) == (
             "webif_write_failed",
-            None,
+            NAMED,
         )
 
     tracebacks = [
@@ -1688,7 +1693,7 @@ async def test_a_write_logs_its_unexpected_error_after_a_round_did(
 
     assert await refused(coordinator.set_power_limit(61)) == (
         "webif_write_failed",
-        None,
+        NAMED,
     )
 
     tracebacks = [
@@ -1722,7 +1727,7 @@ async def test_a_write_cancelled_with_its_entry_lets_its_callers_go(
     started[0].cancel()
 
     async with asyncio.timeout(HOLD_LIMIT_SECONDS):
-        assert await call == ("webif_write_maybe_saved", None)
+        assert await call == ("webif_write_maybe_saved", NAMED)
 
 
 async def test_a_write_cancelled_before_its_save_is_called_off(
@@ -1754,7 +1759,7 @@ async def test_a_write_cancelled_before_its_save_is_called_off(
     started[0].cancel()
 
     async with asyncio.timeout(HOLD_LIMIT_SECONDS):
-        assert await call == ("webif_write_aborted", None)
+        assert await call == ("webif_write_aborted", NAMED)
     assert coordinator.budget.writes_today == 0
 
 

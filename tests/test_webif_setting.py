@@ -196,7 +196,7 @@ async def test_a_read_back_showing_another_value_says_which():
     with pytest.raises(setting.OtherValueShown) as raised:
         await write(client)
 
-    assert (raised.value.shown, raised.value.target) == (65, 61)
+    assert (raised.value.shown_text, raised.value.target_text) == ("65 %", "61 %")
     assert raised.value.text == heating_page(65)
 
 

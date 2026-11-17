@@ -36,13 +36,21 @@ from .migrate_helpers import unique_id_from_parts
 from .webif import pages
 from .webif.client import Traffic
 from .webif.discovery import (
+    CIRCUITS,
     HEAT_PUMP_PAGE,
     HEATING_CIRCUIT_PAGE,
     HEATING_PAGE,
+    HOT_WATER_SETTINGS_PAGE,
+    OPTIONAL_PAGES,
     SECOND_GENERATOR_PAGE,
     STATISTICS_PAGE,
+    circuit_settings_page,
 )
-from .webif.setting import POWER_LIMIT_ENGLISH_TITLE, POWER_LIMIT_TITLE
+from .webif.setting import (
+    MINIMUM_TEMPERATURE_TITLE,
+    POWER_LIMIT_ENGLISH_TITLE,
+    POWER_LIMIT_TITLE,
+)
 from .webif_coordinator import WebifCoordinator
 
 # The unit texts the controller shows after a number.
@@ -91,9 +99,10 @@ class WebifSensorDescription(SensorEntityDescription):
     `conditional_on` are the families whose page may leave it out: the page
     is whole without it, and the sensor reads unknown.
     `off_is_zero` marks a power or speed, which the controller shows as "Aus"
-    when idle; set to English, an idle power as "off". On any other number
-    they read unknown, since a 0 on a rising total resets it in Home
-    Assistant's statistics; a text keeps them.
+    when idle; set to English, an idle power as "off"; and a raise set to
+    none, shown as "Aus" too. On any other number they read unknown, since a
+    0 on a rising total resets it in Home Assistant's statistics; a text
+    keeps them.
     `no_value_is_zero` marks the setpoint temperature, which the controller
     shows as "--" while nothing is demanded; unknown left a gap in the
     history. Anywhere else "--" is no value.
@@ -505,12 +514,81 @@ SECOND_GENERATOR_SENSORS = (
     ),
 )
 
+# The pump device each circuit's values belong to, as over Modbus.
+CIRCUIT_TOPICS = {
+    1: DEVICES.HZ,
+    2: DEVICES.HZ2,
+    3: DEVICES.HZ3,
+    4: DEVICES.HZ4,
+    5: DEVICES.HZ5,
+}
+
+
+def _circuit_settings(circuit: int) -> tuple[WebifSensorDescription, ...]:
+    """Heizkreis n › Einstellungen: the maximum flow temperature and its raises.
+
+    The raise of the flow temperature it asks for, and the one in SG Ready
+    state 3. Its minimum is a number, see MINIMUM_TEMPERATURES. Modbus
+    carries none of them. Seen on circuits 2 and 3 of a WEB 13/20 set
+    to German alone (2026-11-17).
+    """
+    page = circuit_settings_page(circuit)
+    attributes: dict[str, Any] = {
+        "topic": CIRCUIT_TOPICS[circuit],
+        "models": ONLY_EVOBLOCK,
+    }
+    return (
+        _temperature(
+            f"hk{circuit}_maximaltemperatur",
+            "Maximaltemperatur",
+            NOT_SEEN,
+            page=page,
+            **attributes,
+        ),
+        _difference(
+            f"hk{circuit}_anforderungsueberhoehung",
+            "Anforderungsüberhöhung",
+            NOT_SEEN,
+            page,
+            **attributes,
+        ),
+        _difference(
+            f"hk{circuit}_sg_ready_anhebung",
+            "SG Ready Anhebung",
+            NOT_SEEN,
+            page,
+            off_is_zero=True,
+            **attributes,
+        ),
+    )
+
+
+CIRCUIT_SETTINGS_SENSORS = tuple(
+    sensor for circuit in CIRCUITS for sensor in _circuit_settings(circuit)
+)
+
+# Warmwasser › Einstellungen: whether the circuits run on while the hot water
+# loads ("Parallel") or wait ("Vorrang"). Seen on a WEB 13/20 set to German
+# alone (2026-11-17).
+HOT_WATER_SETTINGS_SENSORS = (
+    _text(
+        "ww_systembetriebsart",
+        "Systembetriebsart",
+        NOT_SEEN,
+        page=HOT_WATER_SETTINGS_PAGE,
+        topic=DEVICES.WW,
+        models=ONLY_EVOBLOCK,
+    ),
+)
+
 WEBIF_SENSORS = (
     HEAT_PUMP_SENSORS
     + STATISTICS_SENSORS
     + HEATING_SENSORS
     + HEATING_CIRCUIT_SENSORS
     + SECOND_GENERATOR_SENSORS
+    + CIRCUIT_SETTINGS_SENSORS
+    + HOT_WATER_SETTINGS_SENSORS
 )
 # Beside it on the heating page, the power limit: a number (webif_number.py),
 # read from the page by the same rules as the sensors.
@@ -520,18 +598,25 @@ POWER_LIMIT = _percentage(
     POWER_LIMIT_ENGLISH_TITLE,
     HEATING_PAGE,
 )
-READ_VALUES = (*WEBIF_SENSORS, POWER_LIMIT)
+# Beside them on each circuit's settings page, its minimum flow temperature:
+# a number too.
+MINIMUM_TEMPERATURES = {
+    circuit: _temperature(
+        f"hk{circuit}_minimaltemperatur",
+        MINIMUM_TEMPERATURE_TITLE,
+        NOT_SEEN,
+        page=circuit_settings_page(circuit),
+        topic=CIRCUIT_TOPICS[circuit],
+        models=ONLY_EVOBLOCK,
+    )
+    for circuit in CIRCUITS
+}
+READ_VALUES = (*WEBIF_SENSORS, POWER_LIMIT, *MINIMUM_TEMPERATURES.values())
 VALUES = {
     model: tuple(value for value in READ_VALUES if model in value.models)
     for model in MODELS
 }
-POLLED_PAGES = (
-    HEAT_PUMP_PAGE,
-    STATISTICS_PAGE,
-    HEATING_PAGE,
-    HEATING_CIRCUIT_PAGE,
-    SECOND_GENERATOR_PAGE,
-)
+POLLED_PAGES = (HEAT_PUMP_PAGE, STATISTICS_PAGE, HEATING_PAGE, *OPTIONAL_PAGES)
 # The pages a family has sensors on: an optional page without any is not
 # polled on it.
 MODEL_PAGES = {

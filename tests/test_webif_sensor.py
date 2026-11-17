@@ -1,13 +1,12 @@
 """What a web interface value becomes as a sensor: reading, place and name."""
 
-import json
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from custom_components.weishaupt_modbus.const import CONF, CONST, DEVICES
 from custom_components.weishaupt_modbus.webif.discovery import (
+    CIRCUITS,
     HEAT_PUMP_PAGE,
     HEATING_PAGE,
     STATISTICS_PAGE,
@@ -34,6 +33,8 @@ from homeassistant.const import (
     UnitOfTime,
     UnitOfVolumeFlowRate,
 )
+
+from .test_webif_evoblock import ROWS
 
 PUMP_DATA = {
     CONF.PREFIX: CONST.DEF_PREFIX,
@@ -80,6 +81,8 @@ IDLE_SHOWN_AS_AUS = {
     "leistungsabgabe",
     "drehzahl_pumpe_m1",
     "verdichter_drehzahl",
+    # A raise set to none, 2026-11-17.
+    *(f"hk{circuit}_sg_ready_anhebung" for circuit in CIRCUITS),
 }
 NO_DEMAND_SHOWN_AS_DASHES = {"solltemperatur"}
 READ_OVER_MODBUS_OR_CONDITIONAL = {
@@ -105,6 +108,29 @@ READ_OVER_MODBUS_OR_CONDITIONAL = {
     "Status E-Heizung 2",
     "Betriebsstunden E1",
     "Betriebsstunden E2",
+    # Heizkreis n > Einstellungen of a WEB 13/20, 2026-11-17.
+    "Funktion",
+    "Anforderung",
+    "Estrich",
+    "Außenfühlerzuordnung",
+    "Frostschutz",
+    "Frostbetrieb",
+    "Absenkmodus",
+    "Gebäude",
+    "Schwimmbad",
+    "Name",
+}
+# Titles read on one page and shown, unread, on another.
+NOT_READ_ON = {
+    # Warmwasser > Einstellungen of a WEB 13/20, 2026-11-17: Modbus carries
+    # its raise; the rest nobody asked for.
+    "hot_water_settings": {
+        "SG Ready Anhebung",
+        "Schaltdifferenz",
+        "Maximaltemperatur",
+        "Vorlaufüberhöhung",
+        "Ladezeit max",
+    },
 }
 UNITS_OF_RUNNING_TOTALS = {"KWh", "h"}
 COUNTS = {
@@ -183,13 +209,11 @@ def test_every_page_requires_the_titles_of_its_sensors():
 def test_an_evoblock_must_show_every_row_it_reads_but_the_conditional_one():
     """Of the rows a WEB 13/20 showed: one tagged for a WBB alone would drop a
     sensor and a row of the whole-page check, without a word."""
-    rows = json.loads(
-        (Path(__file__).parent / "evoblock_titles.json").read_text(encoding="utf-8")
-    )
-
     assert REQUIRED_TITLES[EVOBLOCK] == {
-        page: {title for title, _ in shown} - READ_OVER_MODBUS_OR_CONDITIONAL
-        for page, shown in rows.items()
+        page: {title for title, _ in shown}
+        - READ_OVER_MODBUS_OR_CONDITIONAL
+        - NOT_READ_ON.get(page, set())
+        for page, shown in ROWS.items()
     }
 
 

@@ -9,7 +9,10 @@ controller set to English shows its own, which stand for them.
 Info also lists a page per heating circuit and one for the second heat
 generator. They are taken when Info shows them, and left out otherwise: a
 pump without them, or set to English, whose titles for them nobody has seen,
-is polled as before.
+is polled as before. So are the settings of each circuit Info lists and of
+the hot water, one menu further down from the overview: Heizkreis n ›
+Einstellungen, Warmwasser › Einstellungen. Their menus, which list Reset as
+well, are the only others asked for.
 """
 
 from collections import Counter
@@ -28,6 +31,10 @@ HEATING = "Heizen"
 # first circuit being the heat pump itself.
 HEATING_CIRCUIT = re.compile(r"Heizkreis (\d)")
 SECOND_GENERATOR = "2. WEZ"
+HOT_WATER = "Warmwasser"
+SETTINGS = "Einstellungen"
+# The circuits a controller numbers, 1 to 5 as over Modbus.
+CIRCUITS = range(1, 6)
 # As a controller set to English showed them, 2026-10-10.
 INFO_ENGLISH = "information"
 HEAT_PUMP_ENGLISH = "heat pump"
@@ -45,8 +52,22 @@ STATISTICS_PAGE = "statistics"
 HEATING_PAGE = "heating"
 HEATING_CIRCUIT_PAGE = "heating_circuit"
 SECOND_GENERATOR_PAGE = "second_generator"
-# The pages Info shows only on some pumps.
-OPTIONAL_PAGES = (HEATING_CIRCUIT_PAGE, SECOND_GENERATOR_PAGE)
+HOT_WATER_SETTINGS_PAGE = "hot_water_settings"
+
+
+def circuit_settings_page(circuit: int) -> str:
+    """The key of a heating circuit's settings page."""
+    return f"circuit_settings_{circuit}"
+
+
+CIRCUIT_SETTINGS_PAGES = tuple(circuit_settings_page(n) for n in CIRCUITS)
+# The pages only some pumps show.
+OPTIONAL_PAGES = (
+    HEATING_CIRCUIT_PAGE,
+    SECOND_GENERATOR_PAGE,
+    *CIRCUIT_SETTINGS_PAGES,
+    HOT_WATER_SETTINGS_PAGE,
+)
 # Where each page sits in the controller's menus, as its user finds it there
 # in German and in English. The optional pages were seen in German only.
 PAGE_MENUS = {
@@ -55,6 +76,8 @@ PAGE_MENUS = {
     HEATING_PAGE: f"{HEAT_PUMP} › {HEATING} ({HEAT_PUMP_ENGLISH} › {HEATING_ENGLISH})",
     HEATING_CIRCUIT_PAGE: f"{INFO} › Heizkreis",
     SECOND_GENERATOR_PAGE: f"{INFO} › {SECOND_GENERATOR}",
+    **{circuit_settings_page(n): f"Heizkreis {n} › {SETTINGS}" for n in CIRCUITS},
+    HOT_WATER_SETTINGS_PAGE: f"{HOT_WATER} › {SETTINGS}",
 }
 
 
@@ -102,7 +125,17 @@ async def find_pages(client: Client) -> dict[str, str]:
         STATISTICS_PAGE: info[STATISTICS],
         HEATING_PAGE: heat_pump[HEATING],
         **_optional_pages(info),
+        **await _settings_pages(client, menus, _circuits(info)),
     }
+
+
+def _circuits(info: dict[str, str]) -> list[tuple[int, str]]:
+    """The heating circuits Info lists, number and link, lowest first."""
+    return sorted(
+        (int(match.group(1)), link)
+        for title, link in info.items()
+        if (match := HEATING_CIRCUIT.fullmatch(title))
+    )
 
 
 def _optional_pages(info: dict[str, str]) -> dict[str, str]:
@@ -112,15 +145,38 @@ def _optional_pages(info: dict[str, str]) -> dict[str, str]:
     every circuit, so one is read.
     """
     found: dict[str, str] = {}
-    circuits = sorted(
-        (int(match.group(1)), link)
-        for title, link in info.items()
-        if (match := HEATING_CIRCUIT.fullmatch(title))
-    )
+    circuits = _circuits(info)
     if circuits:
         found[HEATING_CIRCUIT_PAGE] = circuits[0][1]
     if SECOND_GENERATOR in info:
         found[SECOND_GENERATOR_PAGE] = info[SECOND_GENERATOR]
+    return found
+
+
+async def _settings_pages(
+    client: Client, menus: dict[str, str], circuits: list[tuple[int, str]]
+) -> dict[str, str]:
+    """The settings pages of the circuits Info lists and of the hot water.
+
+    A menu without its settings entry, or with two, leaves its page out.
+    """
+    wanted = {
+        circuit_settings_page(number): f"Heizkreis {number}"
+        for number, _ in circuits
+        if number in CIRCUITS
+    }
+    wanted[HOT_WATER_SETTINGS_PAGE] = HOT_WATER
+    found: dict[str, str] = {}
+    for key, menu in wanted.items():
+        if menu not in menus:
+            continue
+        try:
+            entries = await _entries(
+                client, menus[menu], {SETTINGS}, _links_below(menus[menu])
+            )
+        except MissingMenuEntries, DoubledMenuEntries:
+            continue
+        found[key] = entries[SETTINGS]
     return found
 
 

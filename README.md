@@ -114,16 +114,21 @@ The controller's local web interface, *WEM Lokal*, shows values Modbus does
 not carry: the refrigerant circuit, compressor speed and counters, target and
 actual output, the flow rate, energy statistics to three decimals including
 the yearly totals, and the heating power limit. The integration reads them in
-a second entry beside the heat pump and sets one of them, the heating power
-limit; nothing else is written.
+a second entry beside the heat pump and sets the heating power limit and, on
+an Evoblock, each heating circuit's minimum flow temperature; nothing else is
+written.
 
 On an Evoblock, the entry also reads two pages Info lists there, when it
 finds them: the first heating circuit's, for the outdoor temperature averaged
 as the heating curve follows it (*AT Mittelwert*, *AT Langzeitwert*), and the
 2nd heat generator's, for the switching cycles of each heating rod stage
-(*Schaltspiele E1*, *E2*). Each has an interval of its own, 15 minutes unless
-set otherwise. An entry added before this version reads them after
-**Reconfigure**.
+(*Schaltspiele E1*, *E2*). It also reads the settings of each circuit Info
+lists, *Heizkreis n › Einstellungen*: the minimum flow temperature, as a
+number to set, and the maximum, the demand increase and the SG Ready raise;
+and *Warmwasser › Einstellungen*: the hot water's system operating mode. Each
+page has an interval of its own, the settings pages one between them, 15
+minutes unless set otherwise. An entry added before this version reads them
+after **Reconfigure**.
 
 The controller's web server is slow and now and then answers with an
 incomplete page, so the integration asks little: one request at a time, at

@@ -597,7 +597,8 @@ def test_the_positive_list_has_to_ask_about_the_form_sent():
 
 SAVE = "save"
 # The positive list admits a list setting's form with any id and value; that
-# nothing but the heating power limit is ever written rests on this caller.
+# nothing but the settings webif/setting.py names is ever written rests on
+# this caller.
 SAVE_CALLER = "webif/setting.py"
 
 
@@ -624,7 +625,8 @@ def test_the_save_scan_sees_a_call_and_nothing_else():
 
 
 def test_the_one_save_is_called_by_the_power_limit_write_only():
-    """Spec: nothing but the heating power limit can ever be written."""
+    """Spec: nothing but the heating power limit can ever be written; user
+    wish, 2026-11-17: and each circuit's minimum flow temperature."""
     callers = _in_package(_save_calls)
 
     assert [caller.rsplit(":", 1)[0] for caller in callers] == [SAVE_CALLER], (

@@ -1,12 +1,14 @@
-"""Writing the heating power limit: read its form fresh, save it once, read back.
+"""Writing a setting: read its form fresh, save it once, read back.
 
 When to write, how often and against which daily limit is the caller's. The
-entry is found by its title on the heating page, never by a stored address:
+entry is found by its title on its menu page, never by a stored address:
 the controller writes the value into the entry's address, so every save
-moves it.
+moves it. Two settings are written: the heating power limit and each
+circuit's minimum flow temperature.
 """
 
 from collections.abc import Callable
+from dataclasses import dataclass
 
 from . import pages
 from .client import SETTING_LIST, Broken, Client, Unreachable, WebifError
@@ -15,10 +17,13 @@ POWER_LIMIT_TITLE = "Leistungsbegrenzung"
 # Its title on a controller set to English, as shown there 2026-10-10.
 POWER_LIMIT_ENGLISH_TITLE = "output limit"
 PERCENT = "%"
+# Heizkreis n › Einstellungen; no controller set to English has shown it.
+MINIMUM_TEMPERATURE_TITLE = "Minimaltemperatur"
+CELSIUS = "°C"
 
 
 class FormNotRead(WebifError):
-    """The heating page or the limit's own page did not come whole; nothing was sent."""
+    """The menu page or the setting's own page did not come whole; nothing was sent."""
 
 
 class FormMismatch(WebifError):
@@ -26,18 +31,21 @@ class FormMismatch(WebifError):
 
 
 class OtherValueShown(WebifError):
-    """Saved, and the heating page shows another value than the one sent."""
+    """Saved, and the menu page shows another value than the one sent."""
 
-    def __init__(self, text: str, shown: int, target: int) -> None:
-        """Keep the page read back: it is what the controller holds now."""
-        super().__init__(f"{POWER_LIMIT_TITLE}: {shown} shown, {target} sent")
+    def __init__(self, text: str, shown: str, target: str, title: str) -> None:
+        """Keep the page read back: it is what the controller holds now.
+
+        `shown` and `target` are the values as the page shows them.
+        """
+        super().__init__(f"{title}: {shown} shown, {target} sent")
         self.text = text
-        self.shown = shown
-        self.target = target
+        self.shown_text = shown
+        self.target_text = target
 
 
 class NotReadBack(WebifError):
-    """Saved, and the heating page did not come whole afterwards."""
+    """Saved, and the menu page did not come whole afterwards."""
 
 
 def shown_percent(shown: str) -> int | None:
@@ -48,14 +56,56 @@ def shown_percent(shown: str) -> int | None:
     return int(number)
 
 
-def _limit_entry(page: str, heating_path: str) -> tuple[int, str] | None:
-    """The value the power limit shows and its link; None unless shown once."""
+def shown_tenths(shown: str) -> int | None:
+    """A temperature in tenths of a degree, 335 for "33.5 °C"; None for anything else.
+
+    The form offers a temperature so: "335" for 33.5.
+    """
+    number = pages.number(shown)
+    if pages.unit(shown) != CELSIUS or number is None:
+        return None
+    tenths = round(number * 10)
+    return tenths if abs(number * 10 - tenths) < 1e-6 else None
+
+
+@dataclass(frozen=True)
+class Setting:
+    """A setting written: its titles, and how its values map to the form's options.
+
+    `option` is the option of the form a shown value is; `shown` each option
+    as the page shows it.
+    """
+
+    titles: tuple[str, ...]
+    option: Callable[[str], int | None]
+    shown: Callable[[int], str]
+
+    @property
+    def title(self) -> str:
+        """The German title, which errors name."""
+        return self.titles[0]
+
+
+POWER_LIMIT = Setting(
+    (POWER_LIMIT_TITLE, POWER_LIMIT_ENGLISH_TITLE),
+    shown_percent,
+    lambda option: f"{option} {PERCENT}",
+)
+MINIMUM_TEMPERATURE = Setting(
+    (MINIMUM_TEMPERATURE_TITLE,),
+    shown_tenths,
+    lambda option: f"{option / 10:.1f} {CELSIUS}",
+)
+
+
+def _entry(page: str, menu_path: str, setting: Setting) -> tuple[int, str] | None:
+    """The option the setting shows and its link; None unless shown once."""
     found = [
         (shown, entry.href)
-        for entry in pages.children(page, heating_path)
-        if entry.title in (POWER_LIMIT_TITLE, POWER_LIMIT_ENGLISH_TITLE)
+        for entry in pages.children(page, menu_path)
+        if entry.title in setting.titles
         and entry.href is not None
-        and (shown := shown_percent(entry.text)) is not None
+        and (shown := setting.option(entry.text)) is not None
     ]
     return found[0] if len(found) == 1 else None
 
@@ -85,10 +135,24 @@ async def write_power_limit(
     target: int,
     count_write: Callable[[], object],
 ) -> str:
-    """Set the power limit to `target`; the heating page as read afterwards.
+    """Set the power limit to `target`; the heating page as read afterwards."""
+    return await write_setting(
+        client, heating_path, whole, POWER_LIMIT, target, count_write
+    )
 
-    `whole` is the heating page's own completeness rule. `count_write` runs
-    as the save goes out, see Client.save. A target the controller already
+
+async def write_setting(
+    client: Client,
+    menu_path: str,
+    whole: Callable[[str], bool],
+    setting: Setting,
+    target: int,
+    count_write: Callable[[], object],
+) -> str:
+    """Set `setting` to the option `target`; its menu page as read afterwards.
+
+    `whole` is the menu page's own completeness rule. `count_write` runs as
+    the save goes out, see Client.save. A target the controller already
     shows ends the write after the first read.
 
     Raises FormNotRead or FormMismatch with nothing sent, LoginRefused or
@@ -96,13 +160,13 @@ async def write_power_limit(
     from the save, OtherValueShown or NotReadBack after it.
     """
 
-    def limit_shown(text: str) -> tuple[int, str] | None:
-        return _limit_entry(text, heating_path) if whole(text) else None
+    def setting_shown(text: str) -> tuple[int, str] | None:
+        return _entry(text, menu_path, setting) if whole(text) else None
 
     try:
-        heating, (shown, link) = await _read(client, heating_path, limit_shown)
+        menu, (shown, link) = await _read(client, menu_path, setting_shown)
         if shown == target:
-            return heating
+            return menu
         _, form = await _read(client, link, pages.setting_form)
     except (Broken, Unreachable) as error:
         raise FormNotRead(str(error)) from error
@@ -118,15 +182,20 @@ async def write_power_limit(
     )
     if mismatched:
         raise FormMismatch(
-            f"{POWER_LIMIT_TITLE}: the form is not the one of {shown} or lacks {target}"
+            f"{setting.title}: the form is not the one of {shown} or lacks {target}"
         )
     await client.save(form, target, count_write)
     try:
-        read_back, (now_shown, _) = await _read(client, heating_path, limit_shown)
+        read_back, (now_shown, _) = await _read(client, menu_path, setting_shown)
     except WebifError as error:
         # The save went out: "called off" or "login refused" alone would
         # invite the user to save again a value the controller may hold.
         raise NotReadBack(str(error)) from error
     if now_shown != target:
-        raise OtherValueShown(read_back, now_shown, target)
+        raise OtherValueShown(
+            read_back,
+            setting.shown(now_shown),
+            setting.shown(target),
+            setting.title,
+        )
     return read_back
