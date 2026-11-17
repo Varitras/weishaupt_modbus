@@ -1,4 +1,7 @@
-"""Finding the pages to poll by their titles in the menus, once at setup.
+"""Finding the pages to poll by their titles in the menus.
+
+Once at setup, and again while polling when the controller has given its
+menus new codes and an address holding the old ones brings the overview.
 
 A page's address is made of the controller's own codes, so it is read from
 the menus rather than written down here. Three menu pages are asked for: the
@@ -138,20 +141,55 @@ class Menus:
     heat_pump: dict[str, str]
 
 
-async def find_pages(client: Client) -> dict[str, str]:
+def moved(text: str, path: str) -> bool:
+    """The overview came in place of the page at path: its codes are old.
+
+    The controller gave its menus new codes once (2026-11-17, an Evoblock),
+    and an address of the old ones then brought the overview, whole and with
+    HTTP 200: the main menus alone, linked under the new codes. A page served
+    half shows the main menus too, sometimes nothing beside them, but under
+    the codes its address holds; only those tell the two apart.
+    """
+    menus = _main_menus(text)
+    if INFO not in menus or HEAT_PUMP not in menus:
+        return False
+    first = path.partition(pages.STACK_QUERY)[2].split(",", 1)[0]
+    return all(link.partition(pages.STACK_QUERY)[2] != first for link in menus.values())
+
+
+def _main_menus(text: str) -> dict[str, str]:
+    """The main menus the page shows once each, German title to link."""
+    shown = [
+        (ENGLISH_MENU_TITLES.get(title, title), link)
+        for title, link in pages.main_menus(text)
+    ]
+    counts = Counter(title for title, _ in shown)
+    return {title: link for title, link in shown if counts[title] == 1}
+
+
+async def find_pages(client: Client, overview: str | None = None) -> dict[str, str]:
     """The address of each page to poll but the settings pages, by page key.
+
+    `overview` is an answer `moved` took for the overview: the main menus are
+    read from it rather than asked for again.
 
     Raises WebifError when a menu will not show what it must.
     """
-    return pages_in(await find_menus(client))
+    return pages_in(await find_menus(client, overview))
 
 
-async def find_menus(client: Client) -> Menus:
+async def find_menus(client: Client, overview: str | None = None) -> Menus:
     """The overview, Info and the heat pump menu, as they show their entries.
 
-    Raises WebifError when one of them will not show what it must.
+    `overview` is as for `find_pages`. Raises WebifError when one of them
+    will not show what it must.
     """
-    main = await _entries(client, OVERVIEW, {INFO, HEAT_PUMP}, pages.main_menus)
+    if overview is None:
+        main = await _entries(client, OVERVIEW, {INFO, HEAT_PUMP}, pages.main_menus)
+    else:
+        main = _main_menus(overview)
+        if missing := {INFO, HEAT_PUMP} - set(main):
+            raise MissingMenuEntries(missing)
     info = await _entries(
         client, main[INFO], {HEAT_PUMP, STATISTICS}, _links_below(main[INFO])
     )

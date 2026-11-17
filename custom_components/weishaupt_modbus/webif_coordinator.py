@@ -8,6 +8,10 @@ the second in a row takes them away, and the third stops all polling. Then
 only that page is asked again, at waits growing to two hours, until it comes
 whole or the entry is reloaded.
 
+A page whose address brings the overview instead, the controller having
+given its menus new codes, sets off a search for all pages from that
+overview, at most once a round; the addresses found are kept in the entry.
+
 It also writes the settings the integration sets, the heating power limit
 and each circuit's minimum flow temperature: once the requests for one have
 settled, between two pages of a round, never beside one.
@@ -17,8 +21,9 @@ import asyncio
 from collections import Counter
 from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import asynccontextmanager
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import timedelta
+from functools import partial
 import logging
 import math
 import time
@@ -30,7 +35,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import CONST
+from .const import CONF, CONST
 from .outage import ExpectedOutage, log_expected_outages_at_info
 from .webif import pages
 from .webif.client import (
@@ -55,7 +60,9 @@ from .webif.discovery import (
     PAGE_MENUS,
     SECOND_GENERATOR_PAGE,
     STATISTICS_PAGE,
+    find_pages,
     in_both_languages,
+    moved,
 )
 from .webif.setting import (
     POWER_LIMIT,
@@ -279,6 +286,11 @@ def _retry_due(stopped: _Stopped, now: float) -> list[Page]:
     return [stopped.page]
 
 
+def _whole_or_moved(page: Page, text: str) -> bool:
+    """Whole, or the overview in its place, which asking again cannot mend."""
+    return page.is_whole(text) or moved(text, page.path)
+
+
 def _failure_reason(page: Page, error: WebifError) -> str:
     """The error's summary, with the titles a broken page lacked."""
     if not isinstance(error, Broken) or error.text is None:
@@ -462,6 +474,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         # The slowest answer since the last round that asked anything: a write
         # in between asks through the same client, and its answers count too.
         self.answer_seconds: float | None = None
+        # How often the pages were searched again since the setup.
+        self.searched_again = 0
+        self._searched_in_round = False
         # Reloading the entry resumes polling at once after a stop.
         ir.async_delete_issue(hass, CONST.DOMAIN, self._issue)
 
@@ -657,6 +672,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             "stopped_by": None if stopped is None else self._stopped_by(stopped),
             "retry_minutes": None if stopped is None else stopped.wait / 60,
             "login_refused": self._refused is not None,
+            "searched_again": self.searched_again,
             "page_states": {
                 key: {
                     "failures": reading.failures,
@@ -698,7 +714,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
 
     async def _round(self) -> bool:
         """Ask every due page; False when the round had to end early."""
-        for page in self._due():
+        self._searched_in_round = False
+        # By key: a search in the round gives the pages left new addresses.
+        for key in [page.key for page in self._due()]:
             await self._no_dialog_visit.wait()
             async with self._asking:
                 # A dialog may have begun while the round waited for a write;
@@ -707,7 +725,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                     return True
                 # The write the round waited for may have read the page, or
                 # run into a timeout.
-                if page not in self._due():
+                page = next((page for page in self._due() if page.key == key), None)
+                if page is None:
                     continue
                 fetched = await self._fetch(page)
             if not fetched:
@@ -763,7 +782,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         reading = self._readings[page.key]
         reading.asked_at = self._clock()
         try:
-            text = await self._client.page(page.path, page.is_whole)
+            page, text = await self._read(page)
         except LoginRefused as error:
             # Stops polling at once: no wrong login is repeated.
             self._refused = error
@@ -775,6 +794,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             # and nothing to ask any more.
             return False
         except WebifError as error:
+            # A search before the failure gave the page a new address.
+            page = self._page(page.key)
             _LOGGER.debug("%s: %s", page.key, error)
             if not self._failed(page, _failure_reason(page, error)):
                 return False
@@ -788,13 +809,56 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             if not self._traceback_logged:
                 self._traceback_logged = True
                 _LOGGER.exception("%s failed on an unexpected error", page.key)
-            return self._failed(page, type(error).__name__)
+            return self._failed(self._page(page.key), type(error).__name__)
         self._store(page, text)
         if self._stopped is not None:
             # While stopped, the rounds ask the stopping page alone.
             self._stopped = None
             ir.async_delete_issue(self.hass, CONST.DOMAIN, self._issue)
         return True
+
+    async def _read(self, page: Page) -> tuple[Page, str]:
+        """The page whole, and as it is polled now: moved, at its new address.
+
+        The overview in its place is not asked for twice, and leads to one
+        search a round; one at a new address too is a failure of the page.
+        """
+        text = await self._client.page(page.path, partial(_whole_or_moved, page))
+        if page.is_whole(text):
+            return page, text
+        if self._searched_in_round:
+            raise Broken(f"{page.key}: moved again", "moved again", text=text)
+        self._searched_in_round = True
+        await self._search_again(text)
+        page = self._page(page.key)
+        text = await self._client.page(page.path, partial(_whole_or_moved, page))
+        if not page.is_whole(text):
+            raise Broken(f"{page.key}: moved again", "moved again", text=text)
+        return page, text
+
+    async def _search_again(self, overview: str) -> None:
+        """Every page's new address, from the overview, kept in the entry.
+
+        Only the pages the entry has get one: a page found only now joins
+        after a reconfigure, whose visit checks it.
+        """
+        found = await find_pages(self._client, overview)
+        if lost := sorted(page.key for page in self._pages if page.key not in found):
+            raise Broken(f"not found again: {', '.join(lost)}", "not found again")
+        self._pages = [replace(page, path=found[page.key]) for page in self._pages]
+        self.searched_again += 1
+        # Without the addresses, which carry the controller's own codes.
+        _LOGGER.info("The pages moved to new addresses and were found again")
+        data = self.config_entry.data
+        self.hass.config_entries.async_update_entry(
+            self.config_entry,
+            data={
+                **data,
+                CONF.PAGES: {
+                    key: found.get(key, path) for key, path in data[CONF.PAGES].items()
+                },
+            },
+        )
 
     def _store(self, page: Page, text: str) -> None:
         reading = self._readings[page.key]

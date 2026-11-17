@@ -64,6 +64,7 @@ from .webif_stand_in import (
     SAVE_PATH,
     STACK,
     STATISTICS_INFO,
+    TOKEN,
     USER,
     StandInPump,
     column,
@@ -630,6 +631,36 @@ async def test_the_diagnostics_leave_out_the_login_and_the_page_addresses(hass, 
     assert coordinator["traffic"]["requests"] == len(FIRST_ROUND)
     assert coordinator["page_states"][HEAT_PUMP_PAGE]["failures"] == 0
     assert coordinator["stopped_by"] is None
+
+
+async def test_pages_moved_while_polling_are_found_again_without_a_reload(hass, pump):
+    """The controller gave its menus new codes (2026-11-17), and every value
+    stayed unavailable until the entry was reconfigured. Now the round finds
+    them again; the entry keeps running, and starts from them next time."""
+    pump.site = {**menu_site(), **SITE}
+    entry = await _start(hass, _entries(hass, pump))
+    coordinator = entry.runtime_data.coordinator
+    clock = Clock()
+    coordinator._clock = clock
+    pump.renumber("88B7")
+    moved = {key: path.replace(TOKEN, "88B7") for key, path in PAGES.items()}
+
+    clock.now += 3 * 3600
+    await coordinator.async_refresh()
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.runtime_data.coordinator is coordinator, "the entry reloaded"
+    assert entry.data[CONF.PAGES] == moved
+    assert hass.states.get(_sensor(hass, "hochdruck")).state == "12.0"
+
+    pump.asked.clear()
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert [asked for asked in pump.asked if asked[1].startswith(STACK)] == [
+        ("GET", path) for path in moved.values()
+    ]
 
 
 class Clock:

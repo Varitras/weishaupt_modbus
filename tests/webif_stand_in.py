@@ -9,6 +9,10 @@ controller does not unquote a quoted one.
 The menus are synthetic, shaped like the controller's. A recorded page
 carries a serial number, an access code and addresses and never enters the
 repository; the stack segments here carry a made-up device token (0A0B).
+
+The controller gave its menus new codes once (2026-11-17, an Evoblock: 83ED
+became 88B7), and an address of the old ones then brought the overview, with
+HTTP 200; `renumber` does the same.
 """
 
 import asyncio
@@ -25,6 +29,7 @@ PASSWORD = "testing"
 WHOLE = "<p>whole</p>"
 PAGE_PATH = webif.OVERVIEW
 STACK = PAGE_PATH + "?stack="
+TOKEN = "0A0B"
 INFO = "0C000001000000000080000A0B010002000301"
 PUMP_MENU = "64000001000000000080000A0B010002000301"
 HEAT_PUMP_INFO = "0C000C22000000000000000A0B020003000401"
@@ -182,6 +187,7 @@ class StandInPump:
     held when it arrived. `heating_titles` are the titles `show_power_limit`
     puts on the heating page. `saves_elsewhere`, when set, takes a save of a
     current form other than the power limit's and gives the page it leads to.
+    `token` is the one the menus' codes carry.
     """
 
     def __init__(self):
@@ -208,6 +214,20 @@ class StandInPump:
         self.save_answer = None
         self.heating_titles = GERMAN_HEATING
         self.saves_elsewhere = None
+        self.token = TOKEN
+
+    def renumber(self, token):
+        """Give the menus new codes, as the controller did.
+
+        Every page moves to its address under the new codes, and any other
+        address brings the overview, which `site` must hold.
+        """
+        self.site = {
+            path.replace(self.token, token): text.replace(self.token, token)
+            for path, text in self.site.items()
+        }
+        self.token = token
+        self.pages = [self.site[PAGE_PATH]]
 
     def application(self):
         @web.middleware
