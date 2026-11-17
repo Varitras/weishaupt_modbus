@@ -50,10 +50,12 @@ from .webif.discovery import (
     HEATING_CIRCUIT_PAGE,
     HEATING_PAGE,
     HOT_WATER_SETTINGS_PAGE,
+    MENU_PATHS,
     OPTIONAL_PAGES,
     PAGE_MENUS,
     SECOND_GENERATOR_PAGE,
     STATISTICS_PAGE,
+    in_both_languages,
 )
 from .webif.setting import (
     POWER_LIMIT,
@@ -303,8 +305,19 @@ class _Burst:
 
     @property
     def name(self) -> str:
-        """The setting as its user finds it in the controller's menus."""
-        return f"{PAGE_MENUS[self.page]} › {self.setting.title}"
+        """The setting as its user finds it in the controller's menus.
+
+        Each language's path in full: "Wärmepumpe › Heizen ›
+        Leistungsbegrenzung (heat pump › heating › output limit)".
+        """
+        german, english = MENU_PATHS[self.page]
+        english_title = self.setting.english_title
+        return in_both_languages(
+            f"{german} › {self.setting.title}",
+            None
+            if english is None or english_title is None
+            else f"{english} › {english_title}",
+        )
 
 
 def _cut_off(*, counted: bool) -> WebifError:
@@ -471,10 +484,6 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
 
     def _page(self, key: str) -> Page:
         return next(page for page in self._pages if page.key == key)
-
-    def polls(self, key: str) -> bool:
-        """Whether the page of `key` is among the ones polled."""
-        return any(page.key == key for page in self._pages)
 
     async def async_shutdown(self) -> None:
         """Stop, and take a stop notice along: the entry it names is unloading.

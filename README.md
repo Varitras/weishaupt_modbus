@@ -125,10 +125,13 @@ as the heating curve follows it (*AT Mittelwert*, *AT Langzeitwert*), and the
 (*Schaltspiele E1*, *E2*). It also reads the settings of each circuit Info
 lists, *Heizkreis n › Einstellungen*: the minimum flow temperature, as a
 number to set, and the maximum, the demand increase and the SG Ready raise;
-and *Warmwasser › Einstellungen*: the hot water's system operating mode. Each
-page has an interval of its own, the settings pages one between them, 15
-minutes unless set otherwise. An entry added before this version reads them
-after **Reconfigure**.
+and *Warmwasser › Einstellungen*: the hot water's system operating mode. A
+page that comes half, or with a value blank or twice, also when searched
+again, is left out rather than failing the dialog; so are two circuits whose
+settings sit at one address. Each of the two pages Info lists has an interval
+of its own, and the settings pages share one; all three are 15 minutes unless
+set otherwise. An entry added before this version reads them after
+**Reconfigure**.
 
 The controller's web server is slow and now and then answers with an
 incomplete page, so the integration asks little: one request at a time, at

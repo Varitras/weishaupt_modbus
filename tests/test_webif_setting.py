@@ -70,10 +70,11 @@ def scripted(heating=(heating_page(60), heating_page(61)), leaf=limit_leaf(60)):
 
 
 async def write(client, target=61):
-    return await setting.write_power_limit(
+    return await setting.write_setting(
         client,
         HEATING_PATH,
         whole,
+        setting.POWER_LIMIT,
         target,
         lambda: client.events.append(("count",)),
     )

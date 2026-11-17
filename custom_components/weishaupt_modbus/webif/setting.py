@@ -85,6 +85,11 @@ class Setting:
         """The German title, which errors name."""
         return self.titles[0]
 
+    @property
+    def english_title(self) -> str | None:
+        """The title on a controller set to English; None where never seen."""
+        return self.titles[1] if len(self.titles) > 1 else None
+
 
 POWER_LIMIT = Setting(
     (POWER_LIMIT_TITLE, POWER_LIMIT_ENGLISH_TITLE),
@@ -126,19 +131,6 @@ async def _read[T](
     text = await client.page(path, complete)
     # The client hands back the last text `complete` accepted.
     return text, parsed[-1]
-
-
-async def write_power_limit(
-    client: Client,
-    heating_path: str,
-    whole: Callable[[str], bool],
-    target: int,
-    count_write: Callable[[], object],
-) -> str:
-    """Set the power limit to `target`; the heating page as read afterwards."""
-    return await write_setting(
-        client, heating_path, whole, POWER_LIMIT, target, count_write
-    )
 
 
 async def write_setting(

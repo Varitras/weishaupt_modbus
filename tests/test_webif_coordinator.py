@@ -34,7 +34,6 @@ from custom_components.weishaupt_modbus.webif.client import (
 from custom_components.weishaupt_modbus.webif.discovery import (
     HEAT_PUMP_PAGE,
     HEATING_PAGE,
-    PAGE_MENUS,
     STATISTICS_PAGE,
 )
 from custom_components.weishaupt_modbus.webif_coordinator import (
@@ -81,7 +80,12 @@ HEATING = Page(
 TRANSLATIONS = pathlib.Path(webif_coordinator.__file__).parent
 
 # A write's message names the setting as its user finds it in the menus.
-NAMED = {"setting": f"{PAGE_MENUS[HEATING_PAGE]} › Leistungsbegrenzung"}
+# Each language's path in full, the English one after the German.
+NAMED = {
+    "setting": (
+        "Wärmepumpe › Heizen › Leistungsbegrenzung (heat pump › heating › output limit)"
+    )
+}
 
 
 def value(title, text):

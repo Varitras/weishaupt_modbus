@@ -20,7 +20,9 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     HEAT_PUMP_PAGE,
     HOT_WATER_SETTINGS_PAGE,
     circuit_settings_page,
-    find_pages,
+    find_menus,
+    find_settings_pages,
+    settings_menus,
 )
 from custom_components.weishaupt_modbus.webif.setting import (
     MINIMUM_TEMPERATURE,
@@ -251,10 +253,17 @@ async def client(pump):
         )
 
 
+async def settings_found(client, *, last=True):
+    """The settings pages, searched from the menus as the dialog does."""
+    return await find_settings_pages(
+        client, settings_menus(await find_menus(client)), last=last
+    )
+
+
 async def test_the_settings_of_each_circuit_info_lists_and_of_the_hot_water_are_found(
     client,
 ):
-    assert await find_pages(client) == ALL_PAGES
+    assert await settings_found(client) == SETTINGS
 
 
 async def test_a_menu_without_its_settings_leaves_only_that_page_out(pump, client):
@@ -266,11 +275,22 @@ async def test_a_menu_without_its_settings_leaves_only_that_page_out(pump, clien
         + link([THIRD_MENU], "Heizkreis 3", NAMES[3])
     )
 
-    found = await find_pages(client)
+    found = await settings_found(client)
 
     assert circuit_settings_page(3) not in found
     assert HOT_WATER_SETTINGS_PAGE not in found
     assert found[circuit_settings_page(2)] == SETTINGS[circuit_settings_page(2)]
+
+
+async def test_the_dialog_leaves_out_a_menu_without_its_settings_unsearched(hass, pump):
+    """Another model's menu: a second search would only add load."""
+    pump.site[STACK + THIRD_MENU] = menu_page(THIRD_MENU, "Betriebsart", "Reset")
+
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert circuit_settings_page(3) not in visited.pages
+    assert circuit_settings_page(2) in visited.pages
+    assert pump.asked.count(("GET", STACK + THIRD_MENU)) == 2
 
 
 async def test_a_circuit_info_does_not_list_is_not_looked_for(pump, client):
@@ -278,7 +298,7 @@ async def test_a_circuit_info_does_not_list_is_not_looked_for(pump, client):
     a switch, no settings page."""
     pump.site[STACK + INFO] = info_menu().replace("Heizkreis 3", "Heizkreis 9")
 
-    await find_pages(client)
+    await settings_found(client)
 
     assert ("GET", STACK + THIRD_MENU) not in pump.asked
 
@@ -296,7 +316,9 @@ async def test_a_wbb_neither_keeps_nor_reads_them(hass, pump):
     visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
 
     assert visited.model == WBB
-    for path in SETTINGS.values():
+    # Asked what it was before they were read: not even their menus.
+    menus = [STACK + menu for menu in (*MENUS.values(), HOT_WATER_MENU)]
+    for path in (*SETTINGS.values(), *menus):
         assert ("GET", path) not in pump.asked
 
 
@@ -310,6 +332,107 @@ async def test_a_settings_page_lacking_a_row_costs_only_itself(hass, pump):
 
     assert circuit_settings_page(3) not in visited.pages
     assert circuit_settings_page(2) in visited.pages
+
+
+THIRD_SETTINGS = SETTINGS[circuit_settings_page(3)]
+# The overview, the main menus alone: what a menu or a settings page served
+# with nothing of its own level shows.
+HALF = overview()
+
+
+def kept_but(*keys):
+    """Every page the dialog keeps on this Evoblock but those of `keys`."""
+    return {key: path for key, path in ALL_PAGES.items() if key not in keys}
+
+
+@pytest.mark.parametrize(
+    "unclear",
+    ["served half", "a value blank"],
+)
+async def test_a_settings_page_unclear_in_both_searches_costs_only_itself(
+    hass, pump, unclear
+):
+    """Served half, or with a value blank, also in the second search: the
+    page goes, the dialog does not fail."""
+    if unclear == "served half":
+        pump.site[THIRD_SETTINGS] = HALF
+    else:
+        pump.circuits[3].values["Maximaltemperatur"] = ""
+        pump.circuits[3].show()
+
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert visited.pages == kept_but(circuit_settings_page(3))
+    # Twice in each search.
+    assert pump.asked.count(("GET", THIRD_SETTINGS)) == 4
+
+
+async def test_a_settings_page_the_second_search_brings_whole_is_kept(hass, pump):
+    """A hiccup of the controller costs a second search, not the page."""
+    whole = pump.site.pop(THIRD_SETTINGS)
+    pump.pages = [HALF, HALF, whole]
+
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert visited.pages == ALL_PAGES
+    assert pump.asked.count(("GET", THIRD_SETTINGS)) == 3
+
+
+@pytest.mark.parametrize(
+    "menu",
+    [
+        HALF,
+        menu_page(THIRD_MENU, "Betriebsart", "Einstellungen", "Einstellungen"),
+    ],
+    ids=["served half", "its settings twice"],
+)
+async def test_a_settings_menu_unclear_in_both_searches_costs_only_its_page(
+    hass, pump, menu
+):
+    """As the required menus, an unclear one is searched again; then its
+    page goes, the dialog does not fail."""
+    pump.site[STACK + THIRD_MENU] = menu
+
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert visited.pages == kept_but(circuit_settings_page(3))
+    assert pump.asked.count(("GET", STACK + THIRD_MENU)) == 4
+
+
+async def test_a_settings_menu_shown_twice_once_is_searched_again(hass, pump):
+    """Its settings shown twice in the first search, once in the second."""
+    whole = pump.site.pop(STACK + THIRD_MENU)
+    doubled = menu_page(THIRD_MENU, "Betriebsart", "Einstellungen", "Einstellungen")
+    pump.pages = [doubled, doubled, whole]
+
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert visited.pages == ALL_PAGES
+
+
+# Heizkreis 3 linked to the menu of Heizkreis 2.
+SHARED_OVERVIEW = main_menus() + column(
+    link([SECOND_MENU], "Heizkreis 2", NAMES[2])
+    + link([SECOND_MENU], "Heizkreis 3", NAMES[3])
+    + link([HOT_WATER_MENU], "Warmwasser")
+)
+
+
+async def test_two_circuits_at_one_settings_page_are_both_left_out(pump, client):
+    """Which circuit a value written there reaches cannot be told."""
+    pump.site[webif.OVERVIEW] = SHARED_OVERVIEW
+
+    assert await settings_found(client) == {
+        HOT_WATER_SETTINGS_PAGE: SETTINGS[HOT_WATER_SETTINGS_PAGE]
+    }
+
+
+async def test_the_dialog_leaves_out_two_circuits_at_one_settings_page(hass, pump):
+    pump.site[webif.OVERVIEW] = SHARED_OVERVIEW
+
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert visited.pages == kept_but(circuit_settings_page(2), circuit_settings_page(3))
 
 
 def test_a_settings_page_is_a_menu_on_the_settings_interval():
@@ -437,6 +560,36 @@ async def test_the_minimum_temperature_is_set_from_home_assistant(hass, pump, qu
     assert len(paths) == 4
     assert (paths[0], paths[2], paths[3]) == (page, "/pro_save.html", page)
     assert paths[1].startswith(page + ",")
+
+
+@pytest.mark.e2e
+@pytest.mark.timeout(120)
+async def test_two_circuits_set_within_the_quiet_time_each_get_their_value(
+    hass, pump, quick
+):
+    """Each setting has its own quiet time: the two make two writes, neither
+    the last value of the other."""
+    await _start(hass, _web_entry(hass, pump))
+
+    await asyncio.gather(
+        *(
+            hass.services.async_call(
+                "number",
+                "set_value",
+                {"entity_id": _number(hass, circuit), "value": target},
+                blocking=True,
+            )
+            for circuit, target in ((3, 33.5), (2, 21.0))
+        )
+    )
+
+    assert sorted(
+        (form["stack"].split(",")[0], form["value"]) for form in pump.saved
+    ) == sorted([(THIRD_MENU, "335"), (SECOND_MENU, "210")])
+    assert pump.circuits[3].values["Minimaltemperatur"] == "33.5 °C"
+    assert pump.circuits[2].values["Minimaltemperatur"] == "21.0 °C"
+    assert hass.states.get(_number(hass, 3)).state == "33.5"
+    assert hass.states.get(_number(hass, 2)).state == "21.0"
 
 
 @pytest.mark.e2e

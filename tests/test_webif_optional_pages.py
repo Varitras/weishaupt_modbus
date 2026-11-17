@@ -77,8 +77,21 @@ def info_menu(*extra):
     )
 
 
-def values_page(rows):
-    return column("".join(value(title, shown(unit)) for title, unit in rows))
+def values_page(rows, values=None):
+    """The rows, each with its sample value unless `values` gives another."""
+    values = values or {}
+    return column(
+        "".join(value(title, values.get(title, shown(unit))) for title, unit in rows)
+    )
+
+
+# One value each, so that one read from the wrong row shows.
+DISTINCT = {
+    "AT Mittelwert": "4.5 °C",
+    "AT Langzeitwert": "6.5 °C",
+    "Schaltspiele E1": "1234",
+    "Schaltspiele E2": "567",
+}
 
 
 def without(key, title):
@@ -95,8 +108,12 @@ async def pump(socket_enabled, monkeypatch):
         **SITE,
         STACK + INFO: info_menu(),
         PAGES[HEAT_PUMP_PAGE]: heat_pump_page(ROWS[HEAT_PUMP_PAGE]),
-        OPTIONAL[HEATING_CIRCUIT_PAGE]: values_page(ROWS[HEATING_CIRCUIT_PAGE]),
-        OPTIONAL[SECOND_GENERATOR_PAGE]: values_page(ROWS[SECOND_GENERATOR_PAGE]),
+        OPTIONAL[HEATING_CIRCUIT_PAGE]: values_page(
+            ROWS[HEATING_CIRCUIT_PAGE], DISTINCT
+        ),
+        OPTIONAL[SECOND_GENERATOR_PAGE]: values_page(
+            ROWS[SECOND_GENERATOR_PAGE], DISTINCT
+        ),
     }
     async with serving(stand_in) as served:
         yield served
@@ -177,6 +194,44 @@ async def test_an_optional_page_lacking_a_row_costs_only_itself(hass, pump, key,
     assert visited.pages[HEATING_PAGE] == PAGES[HEATING_PAGE]
 
 
+@pytest.mark.parametrize("key", [HEATING_CIRCUIT_PAGE, SECOND_GENERATOR_PAGE])
+@pytest.mark.parametrize(
+    "answer",
+    [column(""), "blank"],
+    ids=["served half", "a value blank"],
+)
+async def test_an_optional_page_unclear_in_both_searches_costs_only_itself(
+    hass, pump, key, answer
+):
+    """Served half, or with a value blank, also in the second search: the
+    page goes, the dialog does not fail."""
+    title = min(REQUIRED_TITLES[EVOBLOCK][key])
+    pump.site[OPTIONAL[key]] = (
+        values_page(ROWS[key], {title: ""}) if answer == "blank" else answer
+    )
+
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert visited.pages == {
+        **PAGES,
+        **{other: path for other, path in OPTIONAL.items() if other != key},
+    }
+    # Twice in each search.
+    assert pump.asked.count(("GET", OPTIONAL[key])) == 4
+
+
+async def test_an_optional_page_the_second_search_brings_whole_is_kept(hass, pump):
+    """A hiccup of the controller costs a second search, not the page."""
+    path = OPTIONAL[HEATING_CIRCUIT_PAGE]
+    del pump.site[path]
+    pump.pages = [column(""), column(""), values_page(ROWS[HEATING_CIRCUIT_PAGE])]
+
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert visited.pages == {**PAGES, **OPTIONAL}
+    assert pump.asked.count(("GET", path)) == 3
+
+
 def test_only_an_evoblock_has_sensors_on_them():
     assert set(REQUIRED_TITLES[WBB]) == {HEAT_PUMP_PAGE, STATISTICS_PAGE, HEATING_PAGE}
     assert REQUIRED_TITLES[EVOBLOCK][HEATING_CIRCUIT_PAGE] == {
@@ -229,10 +284,10 @@ async def test_an_evoblock_entry_reads_the_averages_and_the_stage_cycles(hass, p
     )
     await _start(hass, web)
 
-    assert _state(hass, "at_mittelwert") == "12.0"
-    assert _state(hass, "at_langzeitwert") == "12.0"
-    assert _state(hass, "schaltspiele_e1") == "12.0"
-    assert _state(hass, "schaltspiele_e2") == "12.0"
+    assert _state(hass, "at_mittelwert") == "4.5"
+    assert _state(hass, "at_langzeitwert") == "6.5"
+    assert _state(hass, "schaltspiele_e1") == "1234.0"
+    assert _state(hass, "schaltspiele_e2") == "567.0"
     for path in OPTIONAL.values():
         assert pump.asked.count(("GET", path)) == 1
 

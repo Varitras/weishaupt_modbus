@@ -3,20 +3,24 @@
 A page's address is made of the controller's own codes, so it is read from
 the menus rather than written down here. Three menu pages are asked for: the
 overview, Info, and the heat pump's main menu. Nothing else is opened on the
-way; the heat pump menu also lists Reset. The titles are German; a
+way to them; the heat pump menu also lists Reset. The titles are German; a
 controller set to English shows its own, which stand for them.
 
 Info also lists a page per heating circuit and one for the second heat
 generator. They are taken when Info shows them, and left out otherwise: a
 pump without them, or set to English, whose titles for them nobody has seen,
-is polled as before. So are the settings of each circuit Info lists and of
-the hot water, one menu further down from the overview: Heizkreis n ›
-Einstellungen, Warmwasser › Einstellungen. Their menus, which list Reset as
-well, are the only others asked for.
+is polled as before.
+
+The settings of each circuit Info lists and of the hot water sit one menu
+further down from the overview: Heizkreis n › Einstellungen, Warmwasser ›
+Einstellungen. They are searched apart, once the caller knows the model has
+values on them, so another model is asked only what it was before: their
+menus, which list Reset as well, are the only others asked for.
 """
 
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 import re
 
 from . import pages
@@ -69,16 +73,33 @@ OPTIONAL_PAGES = (
     HOT_WATER_SETTINGS_PAGE,
 )
 # Where each page sits in the controller's menus, as its user finds it there
-# in German and in English. The optional pages were seen in German only.
-PAGE_MENUS = {
-    HEAT_PUMP_PAGE: f"{INFO} › {HEAT_PUMP} ({INFO_ENGLISH} › {HEAT_PUMP_ENGLISH})",
-    STATISTICS_PAGE: f"{INFO} › {STATISTICS} ({INFO_ENGLISH} › {STATISTICS_ENGLISH})",
-    HEATING_PAGE: f"{HEAT_PUMP} › {HEATING} ({HEAT_PUMP_ENGLISH} › {HEATING_ENGLISH})",
-    HEATING_CIRCUIT_PAGE: f"{INFO} › Heizkreis",
-    SECOND_GENERATOR_PAGE: f"{INFO} › {SECOND_GENERATOR}",
-    **{circuit_settings_page(n): f"Heizkreis {n} › {SETTINGS}" for n in CIRCUITS},
-    HOT_WATER_SETTINGS_PAGE: f"{HOT_WATER} › {SETTINGS}",
+# in German and in English; the optional pages were seen in German only.
+MENU_PATHS: dict[str, tuple[str, str | None]] = {
+    HEAT_PUMP_PAGE: (f"{INFO} › {HEAT_PUMP}", f"{INFO_ENGLISH} › {HEAT_PUMP_ENGLISH}"),
+    STATISTICS_PAGE: (
+        f"{INFO} › {STATISTICS}",
+        f"{INFO_ENGLISH} › {STATISTICS_ENGLISH}",
+    ),
+    HEATING_PAGE: (
+        f"{HEAT_PUMP} › {HEATING}",
+        f"{HEAT_PUMP_ENGLISH} › {HEATING_ENGLISH}",
+    ),
+    HEATING_CIRCUIT_PAGE: (f"{INFO} › Heizkreis", None),
+    SECOND_GENERATOR_PAGE: (f"{INFO} › {SECOND_GENERATOR}", None),
+    **{
+        circuit_settings_page(n): (f"Heizkreis {n} › {SETTINGS}", None)
+        for n in CIRCUITS
+    },
+    HOT_WATER_SETTINGS_PAGE: (f"{HOT_WATER} › {SETTINGS}", None),
 }
+
+
+def in_both_languages(german: str, english: str | None) -> str:
+    """A name in German, and in English after it where one was seen."""
+    return german if english is None else f"{german} ({english})"
+
+
+PAGE_MENUS = {key: in_both_languages(*paths) for key, paths in MENU_PATHS.items()}
 
 
 class MissingMenuEntries(Broken):
@@ -108,25 +129,60 @@ class DoubledMenuEntries(Broken):
         self.titles = titles
 
 
+@dataclass(frozen=True)
+class Menus:
+    """The entries each menu asked for showed once, title to link."""
+
+    main: dict[str, str]
+    info: dict[str, str]
+    heat_pump: dict[str, str]
+
+
 async def find_pages(client: Client) -> dict[str, str]:
-    """The address of each page to poll, by page key.
+    """The address of each page to poll but the settings pages, by page key.
 
     Raises WebifError when a menu will not show what it must.
     """
-    menus = await _entries(client, OVERVIEW, {INFO, HEAT_PUMP}, pages.main_menus)
+    return pages_in(await find_menus(client))
+
+
+async def find_menus(client: Client) -> Menus:
+    """The overview, Info and the heat pump menu, as they show their entries.
+
+    Raises WebifError when one of them will not show what it must.
+    """
+    main = await _entries(client, OVERVIEW, {INFO, HEAT_PUMP}, pages.main_menus)
     info = await _entries(
-        client, menus[INFO], {HEAT_PUMP, STATISTICS}, _links_below(menus[INFO])
+        client, main[INFO], {HEAT_PUMP, STATISTICS}, _links_below(main[INFO])
     )
     heat_pump = await _entries(
-        client, menus[HEAT_PUMP], {HEATING}, _links_below(menus[HEAT_PUMP])
+        client, main[HEAT_PUMP], {HEATING}, _links_below(main[HEAT_PUMP])
     )
+    return Menus(main, info, heat_pump)
+
+
+def pages_in(menus: Menus) -> dict[str, str]:
+    """The address of each page the menus link to, by page key."""
     return {
-        HEAT_PUMP_PAGE: info[HEAT_PUMP],
-        STATISTICS_PAGE: info[STATISTICS],
-        HEATING_PAGE: heat_pump[HEATING],
-        **_optional_pages(info),
-        **await _settings_pages(client, menus, _circuits(info)),
+        HEAT_PUMP_PAGE: menus.info[HEAT_PUMP],
+        STATISTICS_PAGE: menus.info[STATISTICS],
+        HEATING_PAGE: menus.heat_pump[HEATING],
+        **_optional_pages(menus.info),
     }
+
+
+def settings_menus(menus: Menus) -> dict[str, str]:
+    """The menu each settings page would be found in, by page key.
+
+    A circuit's only when Info lists it and the overview shows its menu.
+    """
+    wanted = {
+        circuit_settings_page(number): f"Heizkreis {number}"
+        for number, _ in _circuits(menus.info)
+        if number in CIRCUITS
+    }
+    wanted[HOT_WATER_SETTINGS_PAGE] = HOT_WATER
+    return {key: menus.main[menu] for key, menu in wanted.items() if menu in menus.main}
 
 
 def _circuits(info: dict[str, str]) -> list[tuple[int, str]]:
@@ -153,31 +209,29 @@ def _optional_pages(info: dict[str, str]) -> dict[str, str]:
     return found
 
 
-async def _settings_pages(
-    client: Client, menus: dict[str, str], circuits: list[tuple[int, str]]
+async def find_settings_pages(
+    client: Client, menus: Mapping[str, str], *, last: bool
 ) -> dict[str, str]:
-    """The settings pages of the circuits Info lists and of the hot water.
+    """The settings page in each of `menus`, by page key.
 
-    A menu without its settings entry, or with two, leaves its page out.
+    A menu without its settings entry leaves its page out. One served half
+    or showing the entry twice raises, for a second search, unless this is
+    the `last`: then it leaves its page out too. Pages found at one address
+    are all left out, so a value is never written to another circuit.
     """
-    wanted = {
-        circuit_settings_page(number): f"Heizkreis {number}"
-        for number, _ in circuits
-        if number in CIRCUITS
-    }
-    wanted[HOT_WATER_SETTINGS_PAGE] = HOT_WATER
     found: dict[str, str] = {}
-    for key, menu in wanted.items():
-        if menu not in menus:
-            continue
+    for key, menu in menus.items():
         try:
-            entries = await _entries(
-                client, menus[menu], {SETTINGS}, _links_below(menus[menu])
-            )
-        except MissingMenuEntries, DoubledMenuEntries:
+            entries = await _entries(client, menu, {SETTINGS}, _links_below(menu))
+        except MissingMenuEntries:
+            continue
+        except Broken:
+            if not last:
+                raise
             continue
         found[key] = entries[SETTINGS]
-    return found
+    counts = Counter(found.values())
+    return {key: path for key, path in found.items() if counts[path] == 1}
 
 
 async def _entries(

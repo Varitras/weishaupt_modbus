@@ -1304,8 +1304,8 @@
   {
     "label": "webif discovery: an overview without the heat pump menu passes",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "    menus = await _entries(client, OVERVIEW, {INFO, HEAT_PUMP}, pages.main_menus)\n",
-    "new": "    menus = await _entries(client, OVERVIEW, {INFO}, pages.main_menus)\n",
+    "old": "    main = await _entries(client, OVERVIEW, {INFO, HEAT_PUMP}, pages.main_menus)\n",
+    "new": "    main = await _entries(client, OVERVIEW, {INFO}, pages.main_menus)\n",
     "tests": "overview_without_the_heat_pump_menu"
   },
   {
@@ -1920,8 +1920,8 @@
   {
     "label": "config flow: a menu served half twice ends the dialog's visit",
     "path": "custom_components/weishaupt_modbus/webif_visit.py",
-    "old": "    try:\n        return await _visit(client)\n    except Broken as error:\n        if type(error) not in SEARCHED_AGAIN:\n            raise\n    return await _visit(client)\n",
-    "new": "    return await _visit(client)\n",
+    "old": "    try:\n        return await _visit(client, last=False)\n    except Broken as error:\n        if type(error) not in SEARCHED_AGAIN:\n            raise\n    return await _visit(client, last=True)\n",
+    "new": "    return await _visit(client, last=True)\n",
     "tests": "served_half_twice_is_searched_once_more or served_half_on_every_ask_is_not_called_unsupported"
   },
   {
@@ -3574,7 +3574,7 @@
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
     "old": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiets.pop((burst.page, burst.setting.title), None)\n",
     "new": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiets.pop((burst.page, burst.setting.title), None)\n        if burst is None:\n            self._client.save(None, 0)\n",
-    "tests": "called_by_the_power_limit_write_only"
+    "tests": "called_by_the_setting_write_only"
   },
   {
     "label": "webif coordinator: the next round is planned without the rest a timeout gave",
@@ -3684,8 +3684,8 @@
   {
     "label": "webif english: a page is named by its German menus only",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "    HEAT_PUMP_PAGE: f\"{INFO} › {HEAT_PUMP} ({INFO_ENGLISH} › {HEAT_PUMP_ENGLISH})\",\n",
-    "new": "    HEAT_PUMP_PAGE: f\"{INFO} › {HEAT_PUMP}\",\n",
+    "old": "    HEAT_PUMP_PAGE: (f\"{INFO} › {HEAT_PUMP}\", f\"{INFO_ENGLISH} › {HEAT_PUMP_ENGLISH}\"),\n",
+    "new": "    HEAT_PUMP_PAGE: (f\"{INFO} › {HEAT_PUMP}\", None),\n",
     "tests": "without_a_title_its_sensors_read or third_failure_in_a_row"
   },
   {
@@ -5259,14 +5259,14 @@
   {
     "label": "webif discovery: a menu without its settings fails the dialog",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        except MissingMenuEntries, DoubledMenuEntries:\n            continue\n",
-    "new": "        except ():\n            continue\n",
-    "tests": "menu_without_its_settings_leaves_only_that_page_out"
+    "old": "        except MissingMenuEntries:\n            continue\n        except Broken:\n",
+    "new": "        except Broken:\n",
+    "tests": "menu_without_its_settings_leaves_only_that_page_out or menu_without_its_settings_unsearched"
   },
   {
     "label": "webif discovery: every circuit's menu is opened, listed in Info or not",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        for number, _ in circuits\n        if number in CIRCUITS\n",
+    "old": "        for number, _ in _circuits(menus.info)\n        if number in CIRCUITS\n",
     "new": "        for number in CIRCUITS\n",
     "tests": "circuit_info_does_not_list_is_not_looked_for"
   },
@@ -5311,5 +5311,68 @@
     "old": "                    if circuit_settings_page(circuit) in polled\n                    and model in MINIMUM_TEMPERATURES[circuit].models\n",
     "new": "                    if model in MINIMUM_TEMPERATURES[circuit].models\n",
     "tests": "entry_made_before_them_gets_no_settings_entities"
+  },
+  {
+    "label": "config flow: a WBB is asked for the settings menus",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "old": "        if key in REQUIRED_TITLES[model]\n",
+    "new": "",
+    "tests": "wbb_neither_keeps_nor_reads_them"
+  },
+  {
+    "label": "config flow: the settings pages found are not read",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "old": "        found |= await find_settings_pages(client, wanted, last=last)\n        polled = _polled(found)\n",
+    "new": "        found |= await find_settings_pages(client, wanted, last=last)\n",
+    "tests": "keeps_the_settings_pages_of_an_evoblock"
+  },
+  {
+    "label": "config flow: an optional page served half fails the dialog",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "old": "        except Broken:\n            # Served half, or its values blank or twice.\n            if not last:\n                raise\n            continue\n",
+    "new": "",
+    "tests": "unclear_in_both_searches_costs_only_itself"
+  },
+  {
+    "label": "config flow: an optional page served half gets no second search",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "old": "            # Served half, or its values blank or twice.\n            if not last:\n                raise\n",
+    "new": "            # Served half, or its values blank or twice.\n",
+    "tests": "second_search_brings_whole_is_kept or unclear_in_both_searches_costs_only_itself"
+  },
+  {
+    "label": "webif discovery: a settings menu served half fails the dialog",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        except Broken:\n            if not last:\n                raise\n            continue\n        found[key] = entries[SETTINGS]\n",
+    "new": "        found[key] = entries[SETTINGS]\n",
+    "tests": "settings_menu_unclear_in_both_searches_costs_only_its_page"
+  },
+  {
+    "label": "webif discovery: a settings entry shown twice gets no second search",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        except Broken:\n            if not last:\n                raise\n            continue\n",
+    "new": "        except Broken:\n            continue\n",
+    "tests": "settings_menu_shown_twice_once_is_searched_again or settings_menu_unclear_in_both_searches_costs_only_its_page"
+  },
+  {
+    "label": "webif discovery: two circuits at one settings page are kept",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "    return {key: path for key, path in found.items() if counts[path] == 1}\n",
+    "new": "    return found\n",
+    "tests": "two_circuits_at_one_settings_page"
+  },
+  {
+    "label": "webif coordinator: a setting is named by half its English path",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            else f\"{english} › {english_title}\",\n",
+    "new": "            else english,\n",
+    "tests": "each_failure_of_a_write_has_its_message or another_value_shown_is_published_and_named"
+  },
+  {
+    "label": "webif setting: a setting has no English title",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        return self.titles[1] if len(self.titles) > 1 else None\n",
+    "new": "        return None\n",
+    "tests": "each_failure_of_a_write_has_its_message or another_value_shown_is_published_and_named"
   }
 ]

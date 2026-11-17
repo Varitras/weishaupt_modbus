@@ -268,7 +268,7 @@ def test_no_translation_outlives_its_item(path):
         ("sensor", description.translation_key)
         for description in (*WEBIF_SENSORS, *TRAFFIC_SENSORS, ANSWER_TIME)
     }
-    # The one setting the web interface writes is a number.
+    # The settings the web interface writes are numbers.
     known.add(("number", POWER_LIMIT.translation_key))
     known.update(
         ("number", minimum.translation_key) for minimum in MINIMUM_TEMPERATURES.values()

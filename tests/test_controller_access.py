@@ -306,7 +306,7 @@ def test_every_request_to_the_controller_holds_the_host_lock():
 
 
 def test_every_web_request_asks_the_positive_list_first():
-    """GET, the login POST and one setting's save, nothing else, and asked
+    """GET, the login POST and a setting's save, nothing else, and asked
     where the request goes out: a check further up lets a second way out
     pass it by."""
     unlisted = _in_package(_unlisted_web_requests)
@@ -624,7 +624,7 @@ def test_the_save_scan_sees_a_call_and_nothing_else():
     assert _save_calls(source) == [4]
 
 
-def test_the_one_save_is_called_by_the_power_limit_write_only():
+def test_the_one_save_is_called_by_the_setting_write_only():
     """Spec: nothing but the heating power limit can ever be written; user
     wish, 2026-11-17: and each circuit's minimum flow temperature."""
     callers = _in_package(_save_calls)
