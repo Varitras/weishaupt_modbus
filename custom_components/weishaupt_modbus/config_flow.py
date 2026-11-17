@@ -816,11 +816,14 @@ class WebifOptionsFlow(config_entries.OptionsFlowWithReload):
             vol.Coerce(int),
         )
         limit = CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY
+        polled = self.config_entry.data[CONF.PAGES]
         schema = vol.Schema(
             {
+                # Only the pages this pump's entry polls.
                 **{
                     vol.Required(option, default=options.get(option, default)): minutes
-                    for option, default in INTERVAL_OPTIONS.values()
+                    for key, (option, default) in INTERVAL_OPTIONS.items()
+                    if key in polled
                 },
                 vol.Required(
                     limit, default=options.get(limit, CONST.WEBIF_WRITE_LIMIT_PER_DAY)

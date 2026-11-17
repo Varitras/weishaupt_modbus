@@ -35,7 +35,13 @@ from .entities import device_info, name_prefix
 from .migrate_helpers import unique_id_from_parts
 from .webif import pages
 from .webif.client import Traffic
-from .webif.discovery import HEAT_PUMP_PAGE, HEATING_PAGE, STATISTICS_PAGE
+from .webif.discovery import (
+    HEAT_PUMP_PAGE,
+    HEATING_CIRCUIT_PAGE,
+    HEATING_PAGE,
+    SECOND_GENERATOR_PAGE,
+    STATISTICS_PAGE,
+)
 from .webif.setting import POWER_LIMIT_ENGLISH_TITLE, POWER_LIMIT_TITLE
 from .webif_coordinator import WebifCoordinator
 
@@ -214,14 +220,22 @@ def _power(
     )
 
 
-def _count(key: str, title: str, english_title: str) -> WebifSensorDescription:
+def _count(
+    key: str,
+    title: str,
+    english_title: str,
+    page: str = HEAT_PUMP_PAGE,
+    **attributes: Any,
+) -> WebifSensorDescription:
     return _sensor(
         key,
         title,
         english_title,
         NO_UNIT,
+        page,
         state_class=SensorStateClass.TOTAL_INCREASING,
         suggested_display_precision=0,
+        **attributes,
     )
 
 
@@ -448,7 +462,56 @@ HEATING_SENSORS = (
     ),
 )
 
-WEBIF_SENSORS = HEAT_PUMP_SENSORS + STATISTICS_SENSORS + HEATING_SENSORS
+# Info > Heizkreis n: the outdoor temperature as the controller averages it
+# for the heating curve; Modbus carries the current one only. Seen on a WEB
+# 13/20 set to German alone (2026-11-17), the same on its circuits 2 and 3.
+HEATING_CIRCUIT_SENSORS = (
+    _temperature(
+        "at_mittelwert",
+        "AT Mittelwert",
+        NOT_SEEN,
+        page=HEATING_CIRCUIT_PAGE,
+        topic=DEVICES.SYS,
+        models=ONLY_EVOBLOCK,
+    ),
+    _temperature(
+        "at_langzeitwert",
+        "AT Langzeitwert",
+        NOT_SEEN,
+        page=HEATING_CIRCUIT_PAGE,
+        topic=DEVICES.SYS,
+        models=ONLY_EVOBLOCK,
+    ),
+)
+
+# Info > 2. WEZ: the switchings of each heating rod stage; Modbus carries only
+# their sum. Seen on a WEB 13/20 set to German alone (2026-11-17).
+SECOND_GENERATOR_SENSORS = (
+    _count(
+        "schaltspiele_e1",
+        "Schaltspiele E1",
+        NOT_SEEN,
+        SECOND_GENERATOR_PAGE,
+        topic=DEVICES.W2,
+        models=ONLY_EVOBLOCK,
+    ),
+    _count(
+        "schaltspiele_e2",
+        "Schaltspiele E2",
+        NOT_SEEN,
+        SECOND_GENERATOR_PAGE,
+        topic=DEVICES.W2,
+        models=ONLY_EVOBLOCK,
+    ),
+)
+
+WEBIF_SENSORS = (
+    HEAT_PUMP_SENSORS
+    + STATISTICS_SENSORS
+    + HEATING_SENSORS
+    + HEATING_CIRCUIT_SENSORS
+    + SECOND_GENERATOR_SENSORS
+)
 # Beside it on the heating page, the power limit: a number (webif_number.py),
 # read from the page by the same rules as the sensors.
 POWER_LIMIT = _percentage(
@@ -462,7 +525,21 @@ VALUES = {
     model: tuple(value for value in READ_VALUES if model in value.models)
     for model in MODELS
 }
-POLLED_PAGES = (HEAT_PUMP_PAGE, STATISTICS_PAGE, HEATING_PAGE)
+POLLED_PAGES = (
+    HEAT_PUMP_PAGE,
+    STATISTICS_PAGE,
+    HEATING_PAGE,
+    HEATING_CIRCUIT_PAGE,
+    SECOND_GENERATOR_PAGE,
+)
+# The pages a family has sensors on: an optional page without any is not
+# polled on it.
+MODEL_PAGES = {
+    model: tuple(
+        page for page in POLLED_PAGES if any(value.page == page for value in values)
+    )
+    for model, values in VALUES.items()
+}
 
 # A page counts as whole only with the title of every value its family must
 # show on it: that is what tells a page served half from a whole one.
@@ -473,7 +550,7 @@ REQUIRED_TITLES = {
             for value in values
             if value.page == page and model not in value.conditional_on
         )
-        for page in POLLED_PAGES
+        for page in MODEL_PAGES[model]
     }
     for model, values in VALUES.items()
 }
@@ -485,7 +562,7 @@ OPTIONAL_TITLES = {
             for value in values
             if value.page == page and model in value.conditional_on
         )
-        for page in POLLED_PAGES
+        for page in MODEL_PAGES[model]
     }
     for model, values in VALUES.items()
 }
@@ -497,7 +574,7 @@ ENGLISH_TITLES = {
             for value in values
             if value.page == page and value.english_title != NOT_SEEN
         }
-        for page in POLLED_PAGES
+        for page in MODEL_PAGES[model]
     }
     for model, values in VALUES.items()
 }

@@ -5,10 +5,16 @@ the menus rather than written down here. Three menu pages are asked for: the
 overview, Info, and the heat pump's main menu. Nothing else is opened on the
 way; the heat pump menu also lists Reset. The titles are German; a
 controller set to English shows its own, which stand for them.
+
+Info also lists a page per heating circuit and one for the second heat
+generator. They are taken when Info shows them, and left out otherwise: a
+pump without them, or set to English, whose titles for them nobody has seen,
+is polled as before.
 """
 
 from collections import Counter
 from collections.abc import Callable
+import re
 
 from . import pages
 from .client import OVERVIEW, Broken, Client
@@ -17,6 +23,11 @@ INFO = "Info"
 HEAT_PUMP = "Wärmepumpe"
 STATISTICS = "Statistik"
 HEATING = "Heizen"
+# Info lists "Heizkreis 2", "Heizkreis 3", ... with the circuit's own name
+# after the title; an Evoblock showed no Heizkreis 1 there (2026-11-17), its
+# first circuit being the heat pump itself.
+HEATING_CIRCUIT = re.compile(r"Heizkreis (\d)")
+SECOND_GENERATOR = "2. WEZ"
 # As a controller set to English showed them, 2026-10-10.
 INFO_ENGLISH = "information"
 HEAT_PUMP_ENGLISH = "heat pump"
@@ -32,12 +43,18 @@ ENGLISH_MENU_TITLES = {
 HEAT_PUMP_PAGE = "heat_pump"
 STATISTICS_PAGE = "statistics"
 HEATING_PAGE = "heating"
+HEATING_CIRCUIT_PAGE = "heating_circuit"
+SECOND_GENERATOR_PAGE = "second_generator"
+# The pages Info shows only on some pumps.
+OPTIONAL_PAGES = (HEATING_CIRCUIT_PAGE, SECOND_GENERATOR_PAGE)
 # Where each page sits in the controller's menus, as its user finds it there
-# in German and in English.
+# in German and in English. The optional pages were seen in German only.
 PAGE_MENUS = {
     HEAT_PUMP_PAGE: f"{INFO} › {HEAT_PUMP} ({INFO_ENGLISH} › {HEAT_PUMP_ENGLISH})",
     STATISTICS_PAGE: f"{INFO} › {STATISTICS} ({INFO_ENGLISH} › {STATISTICS_ENGLISH})",
     HEATING_PAGE: f"{HEAT_PUMP} › {HEATING} ({HEAT_PUMP_ENGLISH} › {HEATING_ENGLISH})",
+    HEATING_CIRCUIT_PAGE: f"{INFO} › Heizkreis",
+    SECOND_GENERATOR_PAGE: f"{INFO} › {SECOND_GENERATOR}",
 }
 
 
@@ -84,7 +101,27 @@ async def find_pages(client: Client) -> dict[str, str]:
         HEAT_PUMP_PAGE: info[HEAT_PUMP],
         STATISTICS_PAGE: info[STATISTICS],
         HEATING_PAGE: heat_pump[HEATING],
+        **_optional_pages(info),
     }
+
+
+def _optional_pages(info: dict[str, str]) -> dict[str, str]:
+    """The optional pages among Info's entries; the first heating circuit's.
+
+    The outdoor temperature averages a circuit's page shows are the same on
+    every circuit, so one is read.
+    """
+    found: dict[str, str] = {}
+    circuits = sorted(
+        (int(match.group(1)), link)
+        for title, link in info.items()
+        if (match := HEATING_CIRCUIT.fullmatch(title))
+    )
+    if circuits:
+        found[HEATING_CIRCUIT_PAGE] = circuits[0][1]
+    if SECOND_GENERATOR in info:
+        found[SECOND_GENERATOR_PAGE] = info[SECOND_GENERATOR]
+    return found
 
 
 async def _entries(
@@ -93,7 +130,10 @@ async def _entries(
     wanted: set[str],
     read: Callable[[str], list[tuple[str, str]]],
 ) -> dict[str, str]:
-    """The entries the page at path shows, title to link, `wanted` among them."""
+    """The entries the page at path shows once, title to link, `wanted` among them.
+
+    An entry shown twice leaves two links to pick from; it is left out.
+    """
     shown: list[tuple[str, str]] = []
 
     def complete(text: str) -> bool:
@@ -118,7 +158,8 @@ async def _entries(
             raise MissingMenuEntries(missing) from error
         doubled = {title for title in wanted if counts[title] > 1}
         raise DoubledMenuEntries(doubled) from error
-    return dict(shown)
+    counts = Counter(title for title, _ in shown)
+    return {title: link for title, link in shown if counts[title] == 1}
 
 
 def _links_below(path: str) -> Callable[[str], list[tuple[str, str]]]:
