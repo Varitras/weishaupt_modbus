@@ -742,6 +742,34 @@
     "tests": "digital_inputs_all_read"
   },
   {
+    "label": "table: an input configuration must read the input functions",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "name=\"Konf. Ausgang  H1.3\", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.IO, resultlist=IO_KONFIG_IN,",
+    "new": "name=\"Konf. Ausgang  H1.3\", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.IO, resultlist=W2_STATUS,",
+    "tests": "every_input_configuration_reads_the_input_functions"
+  },
+  {
+    "label": "translations: the input functions must read as the controller names them",
+    "path": "custom_components/weishaupt_modbus/translations/de.json",
+    "old": "\"name\": \"{prefix}Konf. Eingang H1.2\",\n                \"state\": {\n                    \"io_konf_in_0\": \"SG Ready 1.0\",\n                    \"io_konf_in_1\": \"EVU-Sperre\",\n                    \"io_konf_in_10\": \"Erzeugersperre HZ und WW\",\n                    \"io_konf_in_11\": \"Warmwasser Standby\",\n                    \"io_konf_in_12\": \"Warmwasser Absenk\",\n                    \"io_konf_in_13\": \"Warmwasser Normal\",\n                    \"io_konf_in_14\": \"Warmwasser PUSH\",\n                    \"io_konf_in_15\": \"Taupunktwächter\",\n                    \"io_konf_in_16\": \"Heizkreis … Standby\",\n                    \"io_konf_in_17\": \"Heizkreis … Absenk\",\n                    \"io_konf_in_18\": \"Heizkreis … Normal\",\n                    \"io_konf_in_19\": \"Heizkreis … Komfort\",\n                    \"io_konf_in_2\": \"Erhöhter Betrieb\",\n                    \"io_konf_in_20\": \"2.WEZ\",\n                    \"io_konf_in_21\": \"Sperre Verdichter\",\n                    \"io_konf_in_3\": \"HK-Sperre\",",
+    "new": "\"name\": \"{prefix}Konf. Eingang H1.2\",\n                \"state\": {\n                    \"io_konf_in_0\": \"SG Ready 1.0\",\n                    \"io_konf_in_1\": \"EVU-Sperre\",\n                    \"io_konf_in_10\": \"Erzeugersperre HZ und WW\",\n                    \"io_konf_in_11\": \"Warmwasser Standby\",\n                    \"io_konf_in_12\": \"Warmwasser Absenk\",\n                    \"io_konf_in_13\": \"Warmwasser Normal\",\n                    \"io_konf_in_14\": \"Warmwasser PUSH\",\n                    \"io_konf_in_15\": \"Taupunktwächter\",\n                    \"io_konf_in_16\": \"Heizkreis … Standby\",\n                    \"io_konf_in_17\": \"Heizkreis … Absenk\",\n                    \"io_konf_in_18\": \"Heizkreis … Normal\",\n                    \"io_konf_in_19\": \"Heizkreis … Komfort\",\n                    \"io_konf_in_2\": \"Erhöhter Betrieb\",\n                    \"io_konf_in_20\": \"2.WEZ\",\n                    \"io_konf_in_21\": \"Sperre Verdichter\",\n                    \"io_konf_in_3\": \"3\",",
+    "tests": "input_functions_read_as_the_web_interface_names_them"
+  },
+  {
+    "label": "translations: an input configuration must be named an input",
+    "path": "custom_components/weishaupt_modbus/translations/de.json",
+    "old": "\"name\": \"{prefix}Konf. Eingang H1.3\",",
+    "new": "\"name\": \"{prefix}Konf. Ausgang H1.3\",",
+    "tests": "input_configuration_is_named_like_the_other_inputs"
+  },
+  {
+    "label": "translations: SG Ready must carry its version in every language",
+    "path": "custom_components/weishaupt_modbus/translations/nl.json",
+    "old": "\"name\" : \"{prefix}Configuratie ingang SGR2\",\n        \"state\" : {\n          \"io_konf_in_0\" : \"SG Ready 1.0\",",
+    "new": "\"name\" : \"{prefix}Configuratie ingang SGR2\",\n        \"state\" : {\n          \"io_konf_in_0\" : \"SG Klaar\",",
+    "tests": "sg_ready_carries_the_version_the_controller_shows"
+  },
+  {
     "label": "entities: a register the firmware does not serve gets no entity",
     "path": "custom_components/weishaupt_modbus/entity_helpers.py",
     "old": "        if item.params.get(\"only_if_served\") and not coordinator.device.serves(item):\n            continue\n",

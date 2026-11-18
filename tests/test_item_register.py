@@ -612,6 +612,60 @@ def test_the_digital_inputs_all_read_as_on_or_off():
     )
 
 
+def test_every_input_configuration_reads_the_input_functions():
+    """The register list files 45101-45108 under the inputs: SGR1, SGR2,
+    H1.2-H1.5, DE1, DE2. H1.2-H1.5 read a list of bare numbers meant for
+    outputs; a WEB 13/20 answered 3 and 4 where its web interface shows
+    "HK-Sperre" and "Umschaltung Hz/Kü"."""
+    rows = {item.address: item for item in _items(hpconst)}
+    configurations = [rows[address] for address in range(45101, 45109)]
+
+    assert all(item.resultlist is hpconst.IO_KONFIG_IN for item in configurations), (
+        "one function list for every input, not a copy each"
+    )
+    assert rows[45103].get_translation_key_from_number(3) == "io_konf_in_3"
+    assert rows[45104].get_translation_key_from_number(4) == "io_konf_in_4"
+
+
+def test_the_input_functions_read_as_the_web_interface_names_them():
+    """Seen on a WEB 13/20: the function menu of an input names its entries
+    in the order of the code list."""
+    states = _entity_translations(PACKAGE / "translations" / "de.json")["sensor"][
+        "konf_ausg_h12"
+    ]["state"]
+
+    assert states["io_konf_in_3"] == "HK-Sperre"
+    assert states["io_konf_in_4"] == "Umschaltung Hz/Kü"
+
+
+@pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
+def test_an_input_configuration_is_named_like_the_other_inputs(path):
+    """45103-45106 were named configurations of outputs H1.2-H1.5 while
+    35103-35106, the same terminals, were named inputs."""
+    sensors = _entity_translations(path)["sensor"]
+    pattern = sensors["konf_eing_sgr1"]["name"].replace("SGR1", "{terminal}")
+
+    for terminal in ("2", "3", "4", "5"):
+        name = sensors[f"konf_ausg_h1{terminal}"]["name"]
+        assert name == pattern.format(prefix="{prefix}", terminal=f"H1.{terminal}")
+
+
+@pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
+def test_sg_ready_carries_the_version_the_controller_shows(path):
+    """The function menu shows code 0 as "SG Ready 1.0", beside a later
+    "Leistungsbegr. SGR 1.1"; Dutch had translated the label itself."""
+    sensors = _entity_translations(path)["sensor"]
+    configurations = [
+        key
+        for key, entity in sensors.items()
+        if "io_konf_in_0" in entity.get("state", {})
+    ]
+
+    assert len(configurations) == 8
+    for key in configurations:
+        assert sensors[key]["state"]["io_konf_in_0"] == "SG Ready 1.0", key
+
+
 @pytest.mark.parametrize("circuit", [2, 3, 4, 5])
 def test_every_circuit_copy_sits_on_its_own_device_switch_and_bounds(circuit):
     """Each copy repeats its offset, device, switch and bound keys as
