@@ -187,7 +187,8 @@ class StandInPump:
     held when it arrived. `heating_titles` are the titles `show_power_limit`
     puts on the heating page. `saves_elsewhere`, when set, takes a save of a
     current form other than the power limit's and gives the page it leads to.
-    `token` is the one the menus' codes carry.
+    `token` is the one the menus' codes carry; the power limit's pages and
+    the page a save leads to carry it too.
     """
 
     def __init__(self):
@@ -273,12 +274,21 @@ class StandInPump:
         self.sessions.discard(session_cookie(request))
         return see_other("/index.html#loggedout")
 
+    def current(self, text):
+        """A path or page of the made-up codes, under the ones the menus carry."""
+        return text.replace(TOKEN, self.token)
+
     def show_power_limit(self, limit):
         """The heating page and the power limit's own page, for a limit."""
-        for path in [path for path in self.site if path.startswith(HEATING_PATH + ",")]:
+        heating = self.current(HEATING_PATH)
+        for path in [path for path in self.site if path.startswith(heating + ",")]:
             del self.site[path]
-        self.site[HEATING_PATH] = heating_page(limit, titles=self.heating_titles)
-        self.site[f"{HEATING_PATH},{limit_segment(limit)}"] = limit_leaf(limit)
+        self.site[heating] = self.current(
+            heating_page(limit, titles=self.heating_titles)
+        )
+        self.site[self.current(f"{HEATING_PATH},{limit_segment(limit)}")] = (
+            self.current(limit_leaf(limit))
+        )
 
     async def save(self, request):
         """Set the posted value as the controller does: the links move with it.
@@ -300,7 +310,7 @@ class StandInPump:
             return see_other(self.saves_elsewhere(form))
         if current and form.get("value", "").isdigit():
             self.show_power_limit(int(form["value"]))
-        return see_other(HEATING_PATH)
+        return see_other(self.current(HEATING_PATH))
 
     async def page(self, request):
         if session_cookie(request) not in self.sessions:

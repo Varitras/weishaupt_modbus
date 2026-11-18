@@ -19,6 +19,7 @@ from custom_components.weishaupt_modbus.webif import client as webif
 from custom_components.weishaupt_modbus.webif.discovery import (
     HEAT_PUMP_PAGE,
     HEATING_CIRCUIT_PAGE,
+    HEATING_PAGE,
 )
 from custom_components.weishaupt_modbus.webif_coordinator import (
     FAILURES_TO_STOP,
@@ -37,6 +38,7 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.write_budget import
 )
 from homeassistant.exceptions import HomeAssistantError
 
+from .locking import until
 from .test_webif_setup import PAGES, SHOWN, SITE
 from .webif_stand_in import (
     HEATING,
@@ -50,6 +52,7 @@ from .webif_stand_in import (
     USER,
     StandInPump,
     column,
+    limit_segment,
     link,
     main_menus,
     menu_site,
@@ -353,3 +356,33 @@ async def test_heizen_and_kuehlen_at_one_link_send_no_save(
 
     assert pump.saved == []
     assert coordinator.diagnostics()["searched_again"] == 0
+
+
+async def test_a_write_asked_for_during_a_search_reads_and_saves_at_the_new_address(
+    coordinator, pump, clock, monkeypatch
+):
+    """The write waits for the round's page and its search, then reads the
+    heating page, its limit and the page the save leads to under the new
+    codes; nothing goes to an old address after the overview came."""
+    monkeypatch.setattr(webif_coordinator, "DEBOUNCE_SECONDS", 0.05)
+    pump.show_power_limit(50)
+    await next_round(coordinator, pump, clock)
+    pump.renumber(NEW)
+    info = renumbered(STACK + INFO)
+    pump.delays[info] = 0.2
+    pump.asked.clear()
+    clock.now += DAY
+    polling = asyncio.create_task(coordinator.async_refresh())
+    await until(lambda: ("GET", info) in pump.asked)
+
+    await coordinator.set_power_limit(60)
+    await polling
+
+    assert [form["stack"] for form in pump.saved] == [
+        pump.current(f"{PUMP_MENU},{HEATING},{limit_segment(50)}")
+    ]
+    asked = [path for _, path in pump.asked]
+    assert asked[0] == PAGES[HEAT_PUMP_PAGE]
+    assert not [path for path in asked[1:] if TOKEN in path]
+    assert NEW_PAGES[HEATING_PAGE] in asked
+    assert coordinator.data[HEATING_PAGE]["Leistungsbegrenzung"] == "60 %"

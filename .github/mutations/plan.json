@@ -5390,6 +5390,27 @@
     "tests": "looks_its_page_up_once_it_has_the_lock"
   },
   {
+    "label": "webif coordinator: a write asked for during a search looks its page up before it",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        key = (burst.page, burst.setting.title)\n        counted = False\n        handed_on = False\n\n        def count_write() -> None:\n            nonlocal counted\n            counted = True\n            self.budget.record_write()\n\n        try:\n            async with self._asking:\n                # Live a write takes 20 to 60 s: the requests made while\n                # another ran joined this one, and from here on they wait\n                # for a write of their own.\n                if self._bursts.get(key) is burst and key in self._quiets:\n                    # A change since this write was started restarted the\n                    # quiet time; the write that quiet time starts takes it.\n                    handed_on = True\n                    return\n                if self._bursts.get(key) is burst:\n                    del self._bursts[key]\n                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n                self._refuse_write()\n                # Looked up under the lock: a round before it may have found\n                # the page at a new address.\n                page = self._page(burst.page)\n",
+    "new": "        key = (burst.page, burst.setting.title)\n        counted = False\n        page = self._page(burst.page)\n        handed_on = False\n\n        def count_write() -> None:\n            nonlocal counted\n            counted = True\n            self.budget.record_write()\n\n        try:\n            async with self._asking:\n                # Live a write takes 20 to 60 s: the requests made while\n                # another ran joined this one, and from here on they wait\n                # for a write of their own.\n                if self._bursts.get(key) is burst and key in self._quiets:\n                    # A change since this write was started restarted the\n                    # quiet time; the write that quiet time starts takes it.\n                    handed_on = True\n                    return\n                if self._bursts.get(key) is burst:\n                    del self._bursts[key]\n                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n                self._refuse_write()\n",
+    "tests": "write_asked_for_during_a_search"
+  },
+  {
+    "label": "stand-in: a save leads to the heating page under the old codes",
+    "path": "tests/webif_stand_in.py",
+    "old": "        return see_other(self.current(HEATING_PATH))\n",
+    "new": "        return see_other(HEATING_PATH)\n",
+    "tests": "write_asked_for_during_a_search"
+  },
+  {
+    "label": "stand-in: a saved power limit shows under the old codes",
+    "path": "tests/webif_stand_in.py",
+    "old": "        heating = self.current(HEATING_PATH)\n",
+    "new": "        heating = HEATING_PATH\n",
+    "tests": "write_asked_for_during_a_search"
+  },
+  {
     "label": "webif discovery: every overview is taken for a moved page",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
     "old": "    return all(link.partition(pages.STACK_QUERY)[2] != first for link in menus.values())\n",
