@@ -4564,10 +4564,10 @@
     "tests": "bound_beside_the_step"
   },
   {
-    "label": "power limit write: only an unread form gives the controller a rest",
+    "label": "power limit write: only a value not read back gives the controller a rest",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
     "old": "        if isinstance(error.__cause__, Unreachable):\n            self._rest()\n",
-    "new": "        if isinstance(error, FormNotRead) and isinstance(error.__cause__, Unreachable):\n            self._rest()\n",
+    "new": "        if isinstance(error, NotReadBack) and isinstance(error.__cause__, Unreachable):\n            self._rest()\n",
     "tests": "timeout_under_a_write_gives_the_controller_a_rest"
   },
   {

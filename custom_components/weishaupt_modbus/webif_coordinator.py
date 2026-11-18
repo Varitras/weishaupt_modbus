@@ -27,7 +27,7 @@ from functools import partial
 import logging
 import math
 import time
-from typing import Any, NoReturn
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
@@ -44,7 +44,6 @@ from .webif.client import (
     Closed,
     LoginRefused,
     MaybeSaved,
-    NotSaved,
     Traffic,
     Unreachable,
     WebifError,
@@ -66,13 +65,12 @@ from .webif.discovery import (
 )
 from .webif.setting import (
     POWER_LIMIT,
-    FormMismatch,
-    FormNotRead,
     NotReadBack,
     OtherValueShown,
     Setting,
     write_setting,
 )
+from .webif_write_messages import raise_translated
 from .weishaupt_modbus_api.write_budget import WriteBudget
 
 _LOGGER = logging.getLogger(__name__)
@@ -347,69 +345,6 @@ def _retrieved(outcome: asyncio.Future[None]) -> None:
         outcome.exception()
 
 
-def _raise_translated(error: Exception, setting: str) -> NoReturn:
-    """The way a write of `setting` ended, as its callers are told it."""
-    match error:
-        case HomeAssistantError():
-            raise error
-        case FormNotRead():
-            raise HomeAssistantError(
-                translation_domain=CONST.DOMAIN,
-                translation_key="webif_write_form_not_read",
-                translation_placeholders={"setting": setting},
-            ) from error
-        case FormMismatch():
-            raise HomeAssistantError(
-                translation_domain=CONST.DOMAIN,
-                translation_key="webif_write_form_mismatch",
-                translation_placeholders={"setting": setting},
-            ) from error
-        case NotSaved():
-            raise HomeAssistantError(
-                translation_domain=CONST.DOMAIN,
-                translation_key="webif_write_not_saved",
-                translation_placeholders={"setting": setting},
-            ) from error
-        case MaybeSaved():
-            raise HomeAssistantError(
-                translation_domain=CONST.DOMAIN,
-                translation_key="webif_write_maybe_saved",
-                translation_placeholders={"setting": setting},
-            ) from error
-        case OtherValueShown():
-            raise HomeAssistantError(
-                translation_domain=CONST.DOMAIN,
-                translation_key="webif_write_other_value",
-                translation_placeholders={
-                    "setting": setting,
-                    "shown": error.shown_text,
-                    "target": error.target_text,
-                },
-            ) from error
-        case NotReadBack():
-            raise HomeAssistantError(
-                translation_domain=CONST.DOMAIN,
-                translation_key="webif_write_not_read_back",
-                translation_placeholders={"setting": setting},
-            ) from error
-        case LoginRefused():
-            raise HomeAssistantError(
-                translation_domain=CONST.DOMAIN,
-                translation_key="webif_write_login_refused",
-            ) from error
-        case Closed():
-            raise HomeAssistantError(
-                translation_domain=CONST.DOMAIN,
-                translation_key="webif_write_aborted",
-                translation_placeholders={"setting": setting},
-            ) from error
-    raise HomeAssistantError(
-        translation_domain=CONST.DOMAIN,
-        translation_key="webif_write_failed",
-        translation_placeholders={"setting": setting},
-    ) from error
-
-
 def _seconds_since(read_at: float | None, now: float) -> int | None:
     if read_at is None:
         return None
@@ -542,7 +477,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         try:
             await asyncio.shield(burst.outcome)
         except (WebifError, HomeAssistantError) as error:
-            _raise_translated(error, burst.name)
+            raise_translated(error, burst.name)
 
     def _refuse_write(self) -> None:
         """Refuse a write that cannot go out, before any request."""
