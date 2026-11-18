@@ -240,7 +240,7 @@ def setting_form(page: str) -> SettingForm | None:
         and all(fields.values())
         and parser.selects == 1
         and len(selected) == 1
-        and all(option.isascii() and option.isdecimal() for option, _ in parser.options)
+        and all(_is_option(option) for option, _ in parser.options)
     )
     if not whole:
         return None
@@ -251,6 +251,16 @@ def setting_form(page: str) -> SettingForm | None:
         offered=tuple(int(option) for option, _ in parser.options),
         selected=int(selected[0]),
     )
+
+
+def _is_option(option: str) -> bool:
+    """A whole number in ASCII digits, one minus before it at most.
+
+    An Evoblock offers "-1" for Automatik beside 50 to 100 (Wärmepumpe ›
+    Modulation, 2026-11-18).
+    """
+    digits = option.removeprefix("-")
+    return digits.isascii() and digits.isdecimal()
 
 
 def is_complete(

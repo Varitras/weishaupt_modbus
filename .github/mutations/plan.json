@@ -4020,8 +4020,29 @@
   {
     "label": "webif pages: an option in digits other than ASCII is read",
     "path": "custom_components/weishaupt_modbus/webif/pages.py",
-    "old": "        and all(option.isascii() and option.isdecimal() for option, _ in parser.options)\n",
-    "new": "        and all(option.isdecimal() for option, _ in parser.options)\n",
+    "old": "    return digits.isascii() and digits.isdecimal()\n",
+    "new": "    return digits.isdecimal()\n",
+    "tests": "form_missing_a_part_is_not_read"
+  },
+  {
+    "label": "webif pages: Automatik's minus one is refused",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "    digits = option.removeprefix(\"-\")\n",
+    "new": "    digits = option\n",
+    "tests": "automatik_is_read_as_the_option_minus_one"
+  },
+  {
+    "label": "webif pages: an option with two minus signs is read",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "    digits = option.removeprefix(\"-\")\n",
+    "new": "    digits = option.lstrip(\"-\")\n",
+    "tests": "form_missing_a_part_is_not_read"
+  },
+  {
+    "label": "webif pages: a minus inside an option is read",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "    digits = option.removeprefix(\"-\")\n",
+    "new": "    digits = option.replace(\"-\", \"\", 1)\n",
     "tests": "form_missing_a_part_is_not_read"
   },
   {
