@@ -9,6 +9,10 @@ controller does not unquote a quoted one.
 The menus are synthetic, shaped like the controller's. A recorded page
 carries a serial number, an access code and addresses and never enters the
 repository; the stack segments here carry a made-up device token (0A0B).
+
+The controller gave its menus new codes once (2026-11-17, an Evoblock: 83ED
+became 88B7), and an address of the old ones then brought the overview, with
+HTTP 200; `renumber` does the same.
 """
 
 import asyncio
@@ -25,6 +29,7 @@ PASSWORD = "testing"
 WHOLE = "<p>whole</p>"
 PAGE_PATH = webif.OVERVIEW
 STACK = PAGE_PATH + "?stack="
+TOKEN = "0A0B"
 INFO = "0C000001000000000080000A0B010002000301"
 PUMP_MENU = "64000001000000000080000A0B010002000301"
 HEAT_PUMP_INFO = "0C000C22000000000000000A0B020003000401"
@@ -182,6 +187,8 @@ class StandInPump:
     held when it arrived. `heating_titles` are the titles `show_power_limit`
     puts on the heating page. `saves_elsewhere`, when set, takes a save of a
     current form other than the power limit's and gives the page it leads to.
+    `token` is the one the menus' codes carry; the power limit's pages and
+    the page a save leads to carry it too.
     """
 
     def __init__(self):
@@ -208,6 +215,20 @@ class StandInPump:
         self.save_answer = None
         self.heating_titles = GERMAN_HEATING
         self.saves_elsewhere = None
+        self.token = TOKEN
+
+    def renumber(self, token):
+        """Give the menus new codes, as the controller did.
+
+        Every page moves to its address under the new codes, and any other
+        address brings the overview, which `site` must hold.
+        """
+        self.site = {
+            path.replace(self.token, token): text.replace(self.token, token)
+            for path, text in self.site.items()
+        }
+        self.token = token
+        self.pages = [self.site[PAGE_PATH]]
 
     def application(self):
         @web.middleware
@@ -253,12 +274,21 @@ class StandInPump:
         self.sessions.discard(session_cookie(request))
         return see_other("/index.html#loggedout")
 
+    def current(self, text):
+        """A path or page of the made-up codes, under the ones the menus carry."""
+        return text.replace(TOKEN, self.token)
+
     def show_power_limit(self, limit):
         """The heating page and the power limit's own page, for a limit."""
-        for path in [path for path in self.site if path.startswith(HEATING_PATH + ",")]:
+        heating = self.current(HEATING_PATH)
+        for path in [path for path in self.site if path.startswith(heating + ",")]:
             del self.site[path]
-        self.site[HEATING_PATH] = heating_page(limit, titles=self.heating_titles)
-        self.site[f"{HEATING_PATH},{limit_segment(limit)}"] = limit_leaf(limit)
+        self.site[heating] = self.current(
+            heating_page(limit, titles=self.heating_titles)
+        )
+        self.site[self.current(f"{HEATING_PATH},{limit_segment(limit)}")] = (
+            self.current(limit_leaf(limit))
+        )
 
     async def save(self, request):
         """Set the posted value as the controller does: the links move with it.
@@ -280,7 +310,7 @@ class StandInPump:
             return see_other(self.saves_elsewhere(form))
         if current and form.get("value", "").isdigit():
             self.show_power_limit(int(form["value"]))
-        return see_other(HEATING_PATH)
+        return see_other(self.current(HEATING_PATH))
 
     async def page(self, request):
         if session_cookie(request) not in self.sessions:

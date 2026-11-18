@@ -5,7 +5,7 @@ out: a login the controller refuses, or a page another model shows, fails in
 the dialog rather than in the brake minutes after the entry was added.
 """
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass
 
 import aiohttp
@@ -22,10 +22,7 @@ from .webif.discovery import (
     PAGE_MENUS,
     STATISTICS_PAGE,
     DoubledMenuEntries,
-    find_menus,
-    find_settings_pages,
-    pages_in,
-    settings_menus,
+    find_pages,
 )
 from .webif_coordinator import Page, polled_pages
 from .webif_sensor import (
@@ -147,23 +144,24 @@ async def _visit(client: Client, *, last: bool) -> Visited:
     it fails no visit, as `last` says: what a second search may mend gets
     one, as on the required pages, and then costs only that page.
     """
-    menus = await find_menus(client)
-    found = pages_in(menus)
-    polled = _polled(found)
-    # An answer served half may lack the row that tells the family, so each
-    # answer is judged by what it says itself.
-    model = model_shown(await _read_whole(client, polled, HEAT_PUMP_PAGE, model_shown))
-    for key in (STATISTICS_PAGE, HEATING_PAGE):
-        await _read_whole(client, polled, key, lambda _: model)
-    # Searched only where the family has values on them: another is asked
-    # what it was before they were read.
-    if wanted := {
-        key: menu
-        for key, menu in settings_menus(menus).items()
-        if key in REQUIRED_TITLES[model]
-    }:
-        found |= await find_settings_pages(client, wanted, last=last)
+    model = ""
+
+    async def reads(found: dict[str, str]) -> Collection[str]:
+        nonlocal model
         polled = _polled(found)
+        # An answer served half may lack the row that tells the family, so
+        # each answer is judged by what it says itself.
+        model = model_shown(
+            await _read_whole(client, polled, HEAT_PUMP_PAGE, model_shown)
+        )
+        for key in (STATISTICS_PAGE, HEATING_PAGE):
+            await _read_whole(client, polled, key, lambda _: model)
+        # The settings are searched only where the family has values on
+        # them: another is asked what it was before they were read.
+        return REQUIRED_TITLES[model].keys()
+
+    found = await find_pages(client, reads=reads, last=last)
+    polled = _polled(found)
     kept = {key: path for key, path in found.items() if key not in OPTIONAL_PAGES}
     for key in OPTIONAL_PAGES:
         if key not in polled[model]:

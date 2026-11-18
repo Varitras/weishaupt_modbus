@@ -1,4 +1,7 @@
-"""Finding the pages to poll by their titles in the menus, once at setup.
+"""Finding the pages to poll by their titles in the menus.
+
+Once at setup, and again while polling when the controller has given its
+menus new codes and an address holding the old ones brings the overview.
 
 A page's address is made of the controller's own codes, so it is read from
 the menus rather than written down here. Three menu pages are asked for: the
@@ -19,7 +22,7 @@ menus, which list Reset as well, are the only others asked for.
 """
 
 from collections import Counter
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Collection, Mapping
 from dataclasses import dataclass
 import re
 
@@ -118,8 +121,9 @@ class MissingMenuEntries(Broken):
 class DoubledMenuEntries(Broken):
     """A menu showed an entry the pages are found by twice, also when asked again.
 
-    `titles` are the doubled ones: which of two links leads to the page cannot
-    be told. Now and then a hiccup, which asking again mends; on a model that
+    `titles` are the doubled ones, or the ones sharing their link with
+    another title: which of two links, or which of two pages, is the one
+    asked for cannot be told. Now and then a hiccup, which asking again mends; on a model that
     shows the menu so, never.
     """
 
@@ -138,20 +142,87 @@ class Menus:
     heat_pump: dict[str, str]
 
 
-async def find_pages(client: Client) -> dict[str, str]:
-    """The address of each page to poll but the settings pages, by page key.
+def moved(text: str, path: str) -> bool:
+    """The overview came in place of the page at path: its codes are old.
+
+    The controller gave its menus new codes once (2026-11-17, an Evoblock),
+    and an address of the old ones then brought the overview, whole and with
+    HTTP 200: the main menus alone, linked under the new codes. A page served
+    half shows the main menus too, sometimes nothing beside them, but under
+    the codes its address holds; only those tell the two apart.
+    """
+    menus = _main_menus(text)
+    if INFO not in menus or HEAT_PUMP not in menus:
+        return False
+    first = path.partition(pages.STACK_QUERY)[2].split(",", 1)[0]
+    return all(link.partition(pages.STACK_QUERY)[2] != first for link in menus.values())
+
+
+def _main_menus(text: str) -> dict[str, str]:
+    """The main menus the page shows clearly, German title to link."""
+    return _clear(
+        [
+            (ENGLISH_MENU_TITLES.get(title, title), link)
+            for title, link in pages.main_menus(text)
+        ]
+    )
+
+
+def _clear(shown: list[tuple[str, str]]) -> dict[str, str]:
+    """The entries shown once, under a link no other title shares, title to link.
+
+    A title shown twice leaves two links to pick from; a link two titles
+    share may lead to either page, the cooling one for Heizen, another
+    circuit's settings for a circuit.
+    """
+    titles = Counter(title for title, _ in shown)
+    links = Counter(link for _, link in shown)
+    return {
+        title: link for title, link in shown if titles[title] == 1 and links[link] == 1
+    }
+
+
+async def find_pages(
+    client: Client,
+    overview: str | None = None,
+    *,
+    reads: Callable[[dict[str, str]], Awaitable[Collection[str]]] | None = None,
+    last: bool = True,
+) -> dict[str, str]:
+    """The address of each page to poll, by page key; the setup's and a round's.
+
+    `overview` is an answer `moved` took for the overview: the main menus are
+    read from it rather than asked for again. `reads` gets the other pages
+    found and gives the keys of those its model has values on, reading them
+    first if it must; only the settings pages among those are searched, as
+    `find_settings_pages` does with `last`. Without it, none are.
 
     Raises WebifError when a menu will not show what it must.
     """
-    return pages_in(await find_menus(client))
+    menus = await find_menus(client, overview)
+    found = pages_in(menus)
+    if reads is None:
+        return found
+    keys = await reads(found)
+    if wanted := {
+        key: menu for key, menu in settings_menus(menus).items() if key in keys
+    }:
+        found |= await find_settings_pages(client, wanted, last=last)
+    return found
 
 
-async def find_menus(client: Client) -> Menus:
+async def find_menus(client: Client, overview: str | None = None) -> Menus:
     """The overview, Info and the heat pump menu, as they show their entries.
 
-    Raises WebifError when one of them will not show what it must.
+    `overview` is as for `find_pages`. Raises WebifError when one of them
+    will not show what it must.
     """
-    main = await _entries(client, OVERVIEW, {INFO, HEAT_PUMP}, pages.main_menus)
+    if overview is None:
+        main = await _entries(client, OVERVIEW, {INFO, HEAT_PUMP}, pages.main_menus)
+    else:
+        main = _main_menus(overview)
+        if missing := {INFO, HEAT_PUMP} - set(main):
+            raise MissingMenuEntries(missing)
     info = await _entries(
         client, main[INFO], {HEAT_PUMP, STATISTICS}, _links_below(main[INFO])
     )
@@ -216,8 +287,7 @@ async def find_settings_pages(
 
     A menu without its settings entry leaves its page out. One served half
     or showing the entry twice raises, for a second search, unless this is
-    the `last`: then it leaves its page out too. Pages found at one address
-    are all left out, so a value is never written to another circuit.
+    the `last`: then it leaves its page out too.
     """
     found: dict[str, str] = {}
     for key, menu in menus.items():
@@ -230,8 +300,7 @@ async def find_settings_pages(
                 raise
             continue
         found[key] = entries[SETTINGS]
-    counts = Counter(found.values())
-    return {key: path for key, path in found.items() if counts[path] == 1}
+    return found
 
 
 async def _entries(
@@ -240,9 +309,10 @@ async def _entries(
     wanted: set[str],
     read: Callable[[str], list[tuple[str, str]]],
 ) -> dict[str, str]:
-    """The entries the page at path shows once, title to link, `wanted` among them.
+    """The entries the page at path shows clearly, title to link, `wanted` among them.
 
-    An entry shown twice leaves two links to pick from; it is left out.
+    An entry shown unclearly, twice or under a link another title shares, is
+    left out; a wanted one fails the menu.
     """
     shown: list[tuple[str, str]] = []
 
@@ -250,15 +320,12 @@ async def _entries(
         shown[:] = [
             (ENGLISH_MENU_TITLES.get(title, title), link) for title, link in read(text)
         ]
-        counts = Counter(title for title, _ in shown)
-        # A wanted title shown twice leaves two links to pick from.
-        return all(counts[title] == 1 for title in wanted)
+        return wanted <= set(_clear(shown))
 
     try:
         await client.page(path, complete)
     except Broken as error:
-        counts = Counter(title for title, _ in shown)
-        missing = wanted - set(counts)
+        missing = wanted - {title for title, _ in shown}
         # A menu showing nothing of its own level came half: asking again a
         # little later may mend it. One showing other entries is in another
         # language or of another model.
@@ -266,10 +333,8 @@ async def _entries(
             raise
         if missing:
             raise MissingMenuEntries(missing) from error
-        doubled = {title for title in wanted if counts[title] > 1}
-        raise DoubledMenuEntries(doubled) from error
-    counts = Counter(title for title, _ in shown)
-    return {title: link for title, link in shown if counts[title] == 1}
+        raise DoubledMenuEntries(wanted - set(_clear(shown))) from error
+    return _clear(shown)
 
 
 def _links_below(path: str) -> Callable[[str], list[tuple[str, str]]]:

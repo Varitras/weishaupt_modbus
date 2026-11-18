@@ -8,6 +8,11 @@ the second in a row takes them away, and the third stops all polling. Then
 only that page is asked again, at waits growing to two hours, until it comes
 whole or the entry is reloaded.
 
+A page whose address brings the overview instead, the controller having
+given its menus new codes, sets off a search for all pages from that
+overview, at most once a round; the addresses found are kept in the entry.
+A page not found fails on its own, and a stop by it asks for a reconfigure.
+
 It also writes the settings the integration sets, the heating power limit
 and each circuit's minimum flow temperature: once the requests for one have
 settled, between two pages of a round, never beside one.
@@ -17,12 +22,13 @@ import asyncio
 from collections import Counter
 from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import asynccontextmanager
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import timedelta
+from functools import partial
 import logging
 import math
 import time
-from typing import Any, NoReturn
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
@@ -30,7 +36,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import CONST
+from .const import CONF, CONST
 from .outage import ExpectedOutage, log_expected_outages_at_info
 from .webif import pages
 from .webif.client import (
@@ -39,7 +45,6 @@ from .webif.client import (
     Closed,
     LoginRefused,
     MaybeSaved,
-    NotSaved,
     Traffic,
     Unreachable,
     WebifError,
@@ -55,17 +60,18 @@ from .webif.discovery import (
     PAGE_MENUS,
     SECOND_GENERATOR_PAGE,
     STATISTICS_PAGE,
+    find_pages,
     in_both_languages,
+    moved,
 )
 from .webif.setting import (
     POWER_LIMIT,
-    FormMismatch,
-    FormNotRead,
     NotReadBack,
     OtherValueShown,
     Setting,
     write_setting,
 )
+from .webif_write_messages import raise_translated
 from .weishaupt_modbus_api.write_budget import WriteBudget
 
 _LOGGER = logging.getLogger(__name__)
@@ -88,6 +94,9 @@ DUE_SLACK_SECONDS = 5.0
 # second later instead.
 SHORTEST_WAIT_SECONDS = 1.0
 STOPPED_ISSUE = "webif_stopped"
+# The same stop, by a page the search after new codes did not find: only a
+# reconfigure, whose visit searches every page, brings it back for sure.
+NOT_FOUND_AGAIN_ISSUE = "webif_stopped_not_found_again"
 # A wrong page in place of the asked one lacks every title: more than these
 # are counted, not listed, in the notice and the log.
 TITLES_NAMED = 5
@@ -279,6 +288,11 @@ def _retry_due(stopped: _Stopped, now: float) -> list[Page]:
     return [stopped.page]
 
 
+def _whole_or_moved(page: Page, text: str) -> bool:
+    """Whole, or the overview in its place, which asking again cannot mend."""
+    return page.is_whole(text) or moved(text, page.path)
+
+
 def _failure_reason(page: Page, error: WebifError) -> str:
     """The error's summary, with the titles a broken page lacked."""
     if not isinstance(error, Broken) or error.text is None:
@@ -333,69 +347,6 @@ def _retrieved(outcome: asyncio.Future[None]) -> None:
     # would log it as an error nobody handled.
     if not outcome.cancelled():
         outcome.exception()
-
-
-def _raise_translated(error: Exception, setting: str) -> NoReturn:
-    """The way a write of `setting` ended, as its callers are told it."""
-    match error:
-        case HomeAssistantError():
-            raise error
-        case FormNotRead():
-            raise HomeAssistantError(
-                translation_domain=CONST.DOMAIN,
-                translation_key="webif_write_form_not_read",
-                translation_placeholders={"setting": setting},
-            ) from error
-        case FormMismatch():
-            raise HomeAssistantError(
-                translation_domain=CONST.DOMAIN,
-                translation_key="webif_write_form_mismatch",
-                translation_placeholders={"setting": setting},
-            ) from error
-        case NotSaved():
-            raise HomeAssistantError(
-                translation_domain=CONST.DOMAIN,
-                translation_key="webif_write_not_saved",
-                translation_placeholders={"setting": setting},
-            ) from error
-        case MaybeSaved():
-            raise HomeAssistantError(
-                translation_domain=CONST.DOMAIN,
-                translation_key="webif_write_maybe_saved",
-                translation_placeholders={"setting": setting},
-            ) from error
-        case OtherValueShown():
-            raise HomeAssistantError(
-                translation_domain=CONST.DOMAIN,
-                translation_key="webif_write_other_value",
-                translation_placeholders={
-                    "setting": setting,
-                    "shown": error.shown_text,
-                    "target": error.target_text,
-                },
-            ) from error
-        case NotReadBack():
-            raise HomeAssistantError(
-                translation_domain=CONST.DOMAIN,
-                translation_key="webif_write_not_read_back",
-                translation_placeholders={"setting": setting},
-            ) from error
-        case LoginRefused():
-            raise HomeAssistantError(
-                translation_domain=CONST.DOMAIN,
-                translation_key="webif_write_login_refused",
-            ) from error
-        case Closed():
-            raise HomeAssistantError(
-                translation_domain=CONST.DOMAIN,
-                translation_key="webif_write_aborted",
-                translation_placeholders={"setting": setting},
-            ) from error
-    raise HomeAssistantError(
-        translation_domain=CONST.DOMAIN,
-        translation_key="webif_write_failed",
-        translation_placeholders={"setting": setting},
-    ) from error
 
 
 def _seconds_since(read_at: float | None, now: float) -> int | None:
@@ -462,6 +413,11 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         # The slowest answer since the last round that asked anything: a write
         # in between asks through the same client, and its answers count too.
         self.answer_seconds: float | None = None
+        # How often the pages were searched again since the setup.
+        self.searched_again = 0
+        self._searched_in_round = False
+        # The pages the last search did not find, kept at their old address.
+        self._lost: set[str] = set()
         # Reloading the entry resumes polling at once after a stop.
         ir.async_delete_issue(hass, CONST.DOMAIN, self._issue)
 
@@ -527,7 +483,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         try:
             await asyncio.shield(burst.outcome)
         except (WebifError, HomeAssistantError) as error:
-            _raise_translated(error, burst.name)
+            raise_translated(error, burst.name)
 
     def _refuse_write(self) -> None:
         """Refuse a write that cannot go out, before any request."""
@@ -657,6 +613,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             "stopped_by": None if stopped is None else self._stopped_by(stopped),
             "retry_minutes": None if stopped is None else stopped.wait / 60,
             "login_refused": self._refused is not None,
+            "searched_again": self.searched_again,
             "page_states": {
                 key: {
                     "failures": reading.failures,
@@ -698,7 +655,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
 
     async def _round(self) -> bool:
         """Ask every due page; False when the round had to end early."""
-        for page in self._due():
+        self._searched_in_round = False
+        # By key: a search in the round gives the pages left new addresses.
+        for key in [page.key for page in self._due()]:
             await self._no_dialog_visit.wait()
             async with self._asking:
                 # A dialog may have begun while the round waited for a write;
@@ -707,7 +666,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                     return True
                 # The write the round waited for may have read the page, or
                 # run into a timeout.
-                if page not in self._due():
+                page = next((page for page in self._due() if page.key == key), None)
+                if page is None:
                     continue
                 fetched = await self._fetch(page)
             if not fetched:
@@ -763,7 +723,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         reading = self._readings[page.key]
         reading.asked_at = self._clock()
         try:
-            text = await self._client.page(page.path, page.is_whole)
+            page, text = await self._read(page)
         except LoginRefused as error:
             # Stops polling at once: no wrong login is repeated.
             self._refused = error
@@ -775,6 +735,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             # and nothing to ask any more.
             return False
         except WebifError as error:
+            # A search before the failure gave the page a new address.
+            page = self._page(page.key)
             _LOGGER.debug("%s: %s", page.key, error)
             if not self._failed(page, _failure_reason(page, error)):
                 return False
@@ -788,13 +750,70 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             if not self._traceback_logged:
                 self._traceback_logged = True
                 _LOGGER.exception("%s failed on an unexpected error", page.key)
-            return self._failed(page, type(error).__name__)
+            return self._failed(self._page(page.key), type(error).__name__)
         self._store(page, text)
         if self._stopped is not None:
             # While stopped, the rounds ask the stopping page alone.
             self._stopped = None
             ir.async_delete_issue(self.hass, CONST.DOMAIN, self._issue)
         return True
+
+    async def _read(self, page: Page) -> tuple[Page, str]:
+        """The page whole, and as it is polled now: moved, at its new address.
+
+        The overview in its place is not asked for twice, and leads to one
+        search a round. One at a new address too is a failure of the page, as
+        is a page the search did not find again, under its own name.
+        """
+        text = await self._client.page(page.path, partial(_whole_or_moved, page))
+        if page.is_whole(text):
+            return page, text
+        if not self._searched_in_round:
+            self._searched_in_round = True
+            await self._search_again(text)
+            page = self._page(page.key)
+            if page.key not in self._lost:
+                text = await self._client.page(
+                    page.path, partial(_whole_or_moved, page)
+                )
+                if page.is_whole(text):
+                    return page, text
+        if page.key in self._lost:
+            raise Broken(f"{page.key}: not found again", "not found again")
+        raise Broken(f"{page.key}: moved again", "moved again", text=text)
+
+    async def _search_again(self, overview: str) -> None:
+        """Each page's new address, from the overview, kept in the entry.
+
+        Only the pages the entry has get one: a page found only now joins
+        after a reconfigure, whose visit checks it. A page not found keeps
+        its old address, and the ones found are polled at theirs.
+        """
+        found = await find_pages(self._client, overview, reads=self._polled_keys)
+        self._lost = {page.key for page in self._pages if page.key not in found}
+        self._pages = [
+            replace(page, path=found.get(page.key, page.path)) for page in self._pages
+        ]
+        self.searched_again += 1
+        # By key, without the addresses, which carry the controller's codes.
+        _LOGGER.info(
+            "The pages moved to new addresses and were found again%s",
+            f", but not {', '.join(sorted(self._lost))}" if self._lost else "",
+        )
+        data = self.config_entry.data
+        self.hass.config_entries.async_update_entry(
+            self.config_entry,
+            data={
+                **data,
+                CONF.PAGES: {
+                    key: found.get(key, path) for key, path in data[CONF.PAGES].items()
+                },
+            },
+        )
+
+    async def _polled_keys(self, _: dict[str, str]) -> set[str]:
+        """The pages polled: a settings menu is opened only for one of them."""
+        return {page.key for page in self._pages}
 
     def _store(self, page: Page, text: str) -> None:
         reading = self._readings[page.key]
@@ -842,7 +861,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             is_fixable=False,
             # It goes by itself once the page comes whole again.
             severity=ir.IssueSeverity.WARNING,
-            translation_key=STOPPED_ISSUE,
+            translation_key=NOT_FOUND_AGAIN_ISSUE
+            if page.key in self._lost
+            else STOPPED_ISSUE,
             translation_placeholders={
                 "page": PAGE_MENUS[page.key],
                 "error": reason,

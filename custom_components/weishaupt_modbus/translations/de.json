@@ -2161,6 +2161,10 @@
             "title": "Abruf der Weboberfläche pausiert",
             "description": "Die Seite {page} schlug mehrmals in Folge fehl ({error}). Um den Regler zu schonen, pausiert der Abruf der Weboberfläche. Modbus ist davon nicht betroffen. Nur diese Seite wird erneut abgerufen, nach 15 Minuten oder nach dem kürzesten Seitentakt, falls der länger ist, danach in Abständen, die sich bis 2 Stunden verdoppeln; kommt sie vollständig, läuft der Abruf weiter und dieser Hinweis verschwindet von selbst. Neuladen des Eintrags der Weboberfläche versucht es sofort."
         },
+        "webif_stopped_not_found_again": {
+            "title": "Seite der Weboberfläche nicht wiedergefunden",
+            "description": "Der Regler hat seinen Menüs neue Codes gegeben, und die Seite {page} wurde unter ihnen nicht wiedergefunden ({error}). Sie schlug mehrmals in Folge fehl; um den Regler zu schonen, pausiert der Abruf der Weboberfläche. Modbus ist davon nicht betroffen. Wählen Sie **Neu konfigurieren** am Eintrag der Weboberfläche: Dabei werden alle Seiten neu gesucht. Bis dahin wird nur diese Seite erneut abgerufen, in Abständen, die sich bis 2 Stunden verdoppeln; kommt sie vollständig, läuft der Abruf von selbst weiter."
+        },
         "circuit_not_enabled": {
             "title": "Heizkreis {circuit} wird nicht gelesen",
             "description": "Die Wärmepumpe meldet Heizkreis {circuit} als eingerichtet, dieser Eintrag liest ihn aber nicht. Damit seine Werte erscheinen, schalten Sie ihn unter **Neu konfigurieren** des Wärmepumpen-Eintrags ein. Wird der Kreis nicht gebraucht, ignorieren Sie diesen Hinweis; er bleibt dann ignoriert."

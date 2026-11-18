@@ -2161,6 +2161,10 @@
       "title": "Web interface polling paused",
       "description": "The page {page} failed several times in a row ({error}), so polling of the heat pump's web interface paused to spare the controller. Modbus is not affected. Only this page is asked again, after 15 minutes, or the shortest page interval if that is longer, and then at waits doubling from there up to 2 hours; once it comes whole, polling resumes and this notice goes by itself. Reloading the web interface entry tries at once."
     },
+    "webif_stopped_not_found_again": {
+      "title": "Web interface page not found again",
+      "description": "The controller gave its menus new codes, and the page {page} was not found again under them ({error}). It failed several times in a row, so polling of the heat pump's web interface paused to spare the controller. Modbus is not affected. Use **Reconfigure** on the web interface entry: it searches every page anew. Until then only this page is asked again, at waits doubling up to 2 hours, and polling resumes by itself should it come whole."
+    },
     "circuit_not_enabled": {
       "title": "Heating circuit {circuit} not read",
       "description": "The heat pump reports heating circuit {circuit} as set up, but this entry does not read it. To get its values, enable it under **Reconfigure** of the heat pump entry. If the circuit is not wanted, ignore this notice; it stays ignored."

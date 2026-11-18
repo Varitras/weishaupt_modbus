@@ -127,8 +127,8 @@ settings of each circuit Info lists, *Heizkreis n › Einstellungen*: the
 minimum flow temperature, as a number to set, and the maximum, the demand increase and the SG Ready raise;
 and *Warmwasser › Einstellungen*: the hot water's system operating mode. A
 page that comes half, or with a value blank or twice, also when searched
-again, is left out rather than failing the dialog; so are two circuits whose
-settings sit at one address. Each of the two pages Info lists has an interval
+again, is left out rather than failing the dialog; so are two circuits the
+overview links to one address. Each of the two pages Info lists has an interval
 of its own, and the settings pages share one; all three are 15 minutes unless
 set otherwise. An entry added before this version reads them after
 **Reconfigure**.
@@ -138,7 +138,12 @@ incomplete page, so the integration asks little: one request at a time, at
 least 5 seconds apart, never at the same moment as its Modbus requests. After
 three failures in a row it pauses, asks that page again after 15 minutes (or
 the shortest page interval, if longer), then at waits doubling up to 2 hours,
-and resumes by itself when the page comes whole. Switching the web server on,
+and resumes by itself when the page comes whole. A controller may give its
+menus new codes, and then answers the addresses of the old ones with its
+overview; the entry searches its pages again from that overview, the
+settings pages it reads among them, at most once a round, and keeps the new
+addresses. A page not found again fails on its own, and should it pause the
+polling, the notice asks for **Reconfigure**. Switching the web server on,
 adding the entry and everything it reads are described under
 [Web Interface](https://github.com/Varitras/weishaupt_modbus/wiki/Web-Interface).
 It needs the web interface's language set to Auto, German or English.

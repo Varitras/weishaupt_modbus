@@ -1311,7 +1311,7 @@
   {
     "label": "webif discovery: a menu without the entry wanted passes",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        return all(counts[title] == 1 for title in wanted)\n",
+    "old": "        return wanted <= set(_clear(shown))\n",
     "new": "        return True\n",
     "tests": "menu_without_the_entry_wanted"
   },
@@ -1976,8 +1976,8 @@
   {
     "label": "config flow: the dialog does not read the pages it found",
     "path": "custom_components/weishaupt_modbus/webif_visit.py",
-    "old": "    for key in (STATISTICS_PAGE, HEATING_PAGE):\n        await _read_whole(client, polled, key, lambda _: model)\n",
-    "new": "    for key in (STATISTICS_PAGE, HEATING_PAGE):\n        pass\n",
+    "old": "        for key in (STATISTICS_PAGE, HEATING_PAGE):\n            await _read_whole(client, polled, key, lambda _: model)\n",
+    "new": "        for key in (STATISTICS_PAGE, HEATING_PAGE):\n            pass\n",
     "tests": "reads_each_page_it_found_once or without_a_title_its_sensors_read"
   },
   {
@@ -2424,14 +2424,14 @@
   {
     "label": "webif discovery: a wanted entry shown twice passes",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        return all(counts[title] == 1 for title in wanted)\n",
-    "new": "        return all(counts[title] >= 1 for title in wanted)\n",
-    "tests": "menu_entry_shown_twice_is_not_taken_at_random"
+    "old": "        return wanted <= set(_clear(shown))\n",
+    "new": "        return wanted <= {title for title, _ in shown}\n",
+    "tests": "menu_entry_shown_twice_is_not_taken_at_random or two_titles_at_one_link"
   },
   {
     "label": "webif discovery: a wanted entry shown twice reads as another language",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        doubled = {title for title in wanted if counts[title] > 1}\n        raise DoubledMenuEntries(doubled) from error\n",
+    "old": "        raise DoubledMenuEntries(wanted - set(_clear(shown))) from error\n",
     "new": "        raise MissingMenuEntries(wanted) from error\n",
     "tests": "menu_entry_shown_twice_is_not_taken_at_random"
   },
@@ -2634,15 +2634,15 @@
   {
     "label": "webif coordinator: an unexpected error passes the count",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        except Exception as error:\n            # A fault of this code or of a library, not of the pump. Counted\n            # all the same: uncounted, it passed the brake, and Home Assistant\n            # logged its traceback every round. The stop names its kind only,\n            # as its text may hold the pump's address.\n            if not self._traceback_logged:\n                self._traceback_logged = True\n                _LOGGER.exception(\"%s failed on an unexpected error\", page.key)\n            return self._failed(page, type(error).__name__)\n",
+    "old": "        except Exception as error:\n            # A fault of this code or of a library, not of the pump. Counted\n            # all the same: uncounted, it passed the brake, and Home Assistant\n            # logged its traceback every round. The stop names its kind only,\n            # as its text may hold the pump's address.\n            if not self._traceback_logged:\n                self._traceback_logged = True\n                _LOGGER.exception(\"%s failed on an unexpected error\", page.key)\n            return self._failed(self._page(page.key), type(error).__name__)\n",
     "new": "",
     "tests": "unexpected_error_counts_toward_the_brake"
   },
   {
     "label": "webif coordinator: an unexpected error ends the round",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            return self._failed(page, type(error).__name__)\n",
-    "new": "            self._failed(page, type(error).__name__)\n            return False\n",
+    "old": "            return self._failed(self._page(page.key), type(error).__name__)\n",
+    "new": "            self._failed(self._page(page.key), type(error).__name__)\n            return False\n",
     "tests": "unexpected_error_does_not_end_the_round"
   },
   {
@@ -2662,8 +2662,8 @@
   {
     "label": "webif coordinator: the stop names an unexpected error by its text",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            return self._failed(page, type(error).__name__)\n",
-    "new": "            return self._failed(page, str(error))\n",
+    "old": "            return self._failed(self._page(page.key), type(error).__name__)\n",
+    "new": "            return self._failed(self._page(page.key), str(error))\n",
     "tests": "unexpected_error_by_its_kind_only"
   },
   {
@@ -2837,15 +2837,15 @@
   {
     "label": "webif discovery: a menu entry shown twice goes unnamed",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        raise DoubledMenuEntries(doubled) from error\n",
+    "old": "        raise DoubledMenuEntries(wanted - set(_clear(shown))) from error\n",
     "new": "        raise\n",
     "tests": "menu_entry_shown_twice_on_every_visit_is_named"
   },
   {
     "label": "webif discovery: every wanted entry reads as doubled",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        doubled = {title for title in wanted if counts[title] > 1}\n",
-    "new": "        doubled = {title for title in wanted if counts[title] >= 1}\n",
+    "old": "        raise DoubledMenuEntries(wanted - set(_clear(shown))) from error\n",
+    "new": "        raise DoubledMenuEntries(wanted) from error\n",
     "tests": "menu_entry_shown_twice_is_not_taken_at_random"
   },
   {
@@ -3124,8 +3124,8 @@
   {
     "label": "webif coordinator: a running round waits between its pages",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        for page in self._due():\n            await self._no_dialog_visit.wait()\n",
-    "new": "        await self._no_dialog_visit.wait()\n        for page in self._due():\n",
+    "old": "        for key in [page.key for page in self._due()]:\n            await self._no_dialog_visit.wait()\n",
+    "new": "        await self._no_dialog_visit.wait()\n        for key in [page.key for page in self._due()]:\n",
     "tests": "running_round_waits_between_its_pages"
   },
   {
@@ -3929,8 +3929,8 @@
   {
     "label": "webif coordinator: a round that waited for a write asks what it read",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "                if page not in self._due():\n                    continue\n",
-    "new": "",
+    "old": "                if page is None:\n                    continue\n",
+    "new": "                page = page or self._page(key)\n",
     "tests": "skips_the_page_the_write_read"
   },
   {
@@ -4564,10 +4564,10 @@
     "tests": "bound_beside_the_step"
   },
   {
-    "label": "power limit write: only an unread form gives the controller a rest",
+    "label": "power limit write: only a value not read back gives the controller a rest",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
     "old": "        if isinstance(error.__cause__, Unreachable):\n            self._rest()\n",
-    "new": "        if isinstance(error, FormNotRead) and isinstance(error.__cause__, Unreachable):\n            self._rest()\n",
+    "new": "        if isinstance(error, NotReadBack) and isinstance(error.__cause__, Unreachable):\n            self._rest()\n",
     "tests": "timeout_under_a_write_gives_the_controller_a_rest"
   },
   {
@@ -5231,9 +5231,23 @@
   {
     "label": "webif discovery: an entry shown twice is taken at random",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "    return {title: link for title, link in shown if counts[title] == 1}\n",
-    "new": "    return dict(shown)\n",
-    "tests": "optional_entry_shown_twice_is_left_out"
+    "old": "        raise DoubledMenuEntries(wanted - set(_clear(shown))) from error\n    return _clear(shown)\n",
+    "new": "        raise DoubledMenuEntries(wanted - set(_clear(shown))) from error\n    return dict(shown)\n",
+    "tests": "optional_entry_shown_twice_is_left_out or another_ones_link"
+  },
+  {
+    "label": "webif discovery: a link two titles share is taken",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        title: link for title, link in shown if titles[title] == 1 and links[link] == 1\n",
+    "new": "        title: link for title, link in shown if titles[title] == 1\n",
+    "tests": "two_titles_at_one_link or heizen_and_kuehlen or at_one_settings_page or another_ones_link or no_page_moved"
+  },
+  {
+    "label": "webif discovery: a title shown twice is taken",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        title: link for title, link in shown if titles[title] == 1 and links[link] == 1\n",
+    "new": "        title: link for title, link in shown if links[link] == 1\n",
+    "tests": "menu_entry_shown_twice_is_not_taken_at_random or optional_entry_shown_twice_is_left_out"
   },
   {
     "label": "webif visit: an optional page lacking a row fails the dialog",
@@ -5315,16 +5329,37 @@
   {
     "label": "config flow: a WBB is asked for the settings menus",
     "path": "custom_components/weishaupt_modbus/webif_visit.py",
-    "old": "        if key in REQUIRED_TITLES[model]\n",
-    "new": "",
+    "old": "        return REQUIRED_TITLES[model].keys()\n",
+    "new": "        return OPTIONAL_PAGES\n",
     "tests": "wbb_neither_keeps_nor_reads_them"
   },
   {
-    "label": "config flow: the settings pages found are not read",
-    "path": "custom_components/weishaupt_modbus/webif_visit.py",
-    "old": "        found |= await find_settings_pages(client, wanted, last=last)\n        polled = _polled(found)\n",
-    "new": "        found |= await find_settings_pages(client, wanted, last=last)\n",
-    "tests": "keeps_the_settings_pages_of_an_evoblock"
+    "label": "webif discovery: the settings pages searched are dropped",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        found |= await find_settings_pages(client, wanted, last=last)\n",
+    "new": "        await find_settings_pages(client, wanted, last=last)\n",
+    "tests": "keeps_the_settings_pages_of_an_evoblock or evoblocks_settings_pages_are_found_again"
+  },
+  {
+    "label": "webif discovery: every settings menu is opened, whatever the model reads",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        key: menu for key, menu in settings_menus(menus).items() if key in keys\n",
+    "new": "        key: menu for key, menu in settings_menus(menus).items()\n",
+    "tests": "wbb_entry_opens_no_settings_menu or wbb_neither_keeps_nor_reads_them"
+  },
+  {
+    "label": "webif discovery: an unclear settings menu fails the dialog's last search",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        found |= await find_settings_pages(client, wanted, last=last)\n",
+    "new": "        found |= await find_settings_pages(client, wanted, last=False)\n",
+    "tests": "settings_menu_unclear_in_both_searches"
+  },
+  {
+    "label": "webif coordinator: a search finds no settings page",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        found = await find_pages(self._client, overview, reads=self._polled_keys)\n",
+    "new": "        found = await find_pages(self._client, overview)\n",
+    "tests": "evoblocks_settings_pages_are_found_again"
   },
   {
     "label": "config flow: an optional page served half fails the dialog",
@@ -5355,13 +5390,6 @@
     "tests": "settings_menu_shown_twice_once_is_searched_again or settings_menu_unclear_in_both_searches_costs_only_its_page"
   },
   {
-    "label": "webif discovery: two circuits at one settings page are kept",
-    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "    return {key: path for key, path in found.items() if counts[path] == 1}\n",
-    "new": "    return found\n",
-    "tests": "two_circuits_at_one_settings_page"
-  },
-  {
     "label": "webif coordinator: a setting is named by half its English path",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
     "old": "            else f\"{english} › {english_title}\",\n",
@@ -5381,5 +5409,173 @@
     "old": "        key = (burst.page, burst.setting.title)\n        counted = False\n        handed_on = False\n\n        def count_write() -> None:\n            nonlocal counted\n            counted = True\n            self.budget.record_write()\n\n        try:\n            async with self._asking:\n                # Live a write takes 20 to 60 s: the requests made while\n                # another ran joined this one, and from here on they wait\n                # for a write of their own.\n                if self._bursts.get(key) is burst and key in self._quiets:\n                    # A change since this write was started restarted the\n                    # quiet time; the write that quiet time starts takes it.\n                    handed_on = True\n                    return\n                if self._bursts.get(key) is burst:\n                    del self._bursts[key]\n                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n                self._refuse_write()\n                # Looked up under the lock: a round before it may have found\n                # the page at a new address.\n                page = self._page(burst.page)\n",
     "new": "        key = (burst.page, burst.setting.title)\n        counted = False\n        page = self._page(burst.page)\n        handed_on = False\n\n        def count_write() -> None:\n            nonlocal counted\n            counted = True\n            self.budget.record_write()\n\n        try:\n            async with self._asking:\n                # Live a write takes 20 to 60 s: the requests made while\n                # another ran joined this one, and from here on they wait\n                # for a write of their own.\n                if self._bursts.get(key) is burst and key in self._quiets:\n                    # A change since this write was started restarted the\n                    # quiet time; the write that quiet time starts takes it.\n                    handed_on = True\n                    return\n                if self._bursts.get(key) is burst:\n                    del self._bursts[key]\n                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n                self._refuse_write()\n",
     "tests": "looks_its_page_up_once_it_has_the_lock"
+  },
+  {
+    "label": "webif coordinator: a write asked for during a search looks its page up before it",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        key = (burst.page, burst.setting.title)\n        counted = False\n        handed_on = False\n\n        def count_write() -> None:\n            nonlocal counted\n            counted = True\n            self.budget.record_write()\n\n        try:\n            async with self._asking:\n                # Live a write takes 20 to 60 s: the requests made while\n                # another ran joined this one, and from here on they wait\n                # for a write of their own.\n                if self._bursts.get(key) is burst and key in self._quiets:\n                    # A change since this write was started restarted the\n                    # quiet time; the write that quiet time starts takes it.\n                    handed_on = True\n                    return\n                if self._bursts.get(key) is burst:\n                    del self._bursts[key]\n                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n                self._refuse_write()\n                # Looked up under the lock: a round before it may have found\n                # the page at a new address.\n                page = self._page(burst.page)\n",
+    "new": "        key = (burst.page, burst.setting.title)\n        counted = False\n        page = self._page(burst.page)\n        handed_on = False\n\n        def count_write() -> None:\n            nonlocal counted\n            counted = True\n            self.budget.record_write()\n\n        try:\n            async with self._asking:\n                # Live a write takes 20 to 60 s: the requests made while\n                # another ran joined this one, and from here on they wait\n                # for a write of their own.\n                if self._bursts.get(key) is burst and key in self._quiets:\n                    # A change since this write was started restarted the\n                    # quiet time; the write that quiet time starts takes it.\n                    handed_on = True\n                    return\n                if self._bursts.get(key) is burst:\n                    del self._bursts[key]\n                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n                self._refuse_write()\n",
+    "tests": "write_asked_for_during_a_search"
+  },
+  {
+    "label": "stand-in: a save leads to the heating page under the old codes",
+    "path": "tests/webif_stand_in.py",
+    "old": "        return see_other(self.current(HEATING_PATH))\n",
+    "new": "        return see_other(HEATING_PATH)\n",
+    "tests": "write_asked_for_during_a_search"
+  },
+  {
+    "label": "stand-in: a saved power limit shows under the old codes",
+    "path": "tests/webif_stand_in.py",
+    "old": "        heating = self.current(HEATING_PATH)\n",
+    "new": "        heating = HEATING_PATH\n",
+    "tests": "write_asked_for_during_a_search"
+  },
+  {
+    "label": "webif discovery: every overview is taken for a moved page",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "    return all(link.partition(pages.STACK_QUERY)[2] != first for link in menus.values())\n",
+    "new": "    return True\n",
+    "tests": "served_half_or_whole_says_no_page_moved or old_codes_is_asked_again_not_searched"
+  },
+  {
+    "label": "webif discovery: a moved page needs no Info and heat pump menu",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "    if INFO not in menus or HEAT_PUMP not in menus:\n        return False\n    first",
+    "new": "    first",
+    "tests": "served_half_or_whole_says_no_page_moved"
+  },
+  {
+    "label": "webif discovery: a main menu shown twice is taken at random",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "    return _clear(\n        [\n            (ENGLISH_MENU_TITLES.get(title, title), link)\n",
+    "new": "    return dict(\n        [\n            (ENGLISH_MENU_TITLES.get(title, title), link)\n",
+    "tests": "served_half_or_whole_says_no_page_moved"
+  },
+  {
+    "label": "webif discovery: an overview in English is no moved page",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "            (ENGLISH_MENU_TITLES.get(title, title), link)\n            for title, link in pages.main_menus(text)\n",
+    "new": "            (title, link)\n            for title, link in pages.main_menus(text)\n",
+    "tests": "overview_under_new_codes_says_the_page_moved"
+  },
+  {
+    "label": "webif discovery: a search from an overview asks for it again",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "    if overview is None:\n",
+    "new": "    if True:\n",
+    "tests": "search_from_an_overview_does_not_ask_for_it or moved_pages_are_found_again_from_the_overview"
+  },
+  {
+    "label": "webif discovery: an overview without its menus fails on a missing key",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        if missing := {INFO, HEAT_PUMP} - set(main):\n            raise MissingMenuEntries(missing)\n",
+    "new": "",
+    "tests": "search_from_an_overview_without_its_menus_asks_nothing"
+  },
+  {
+    "label": "webif coordinator: the overview in place of a page is asked for twice",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "    return page.is_whole(text) or moved(text, page.path)\n",
+    "new": "    return page.is_whole(text)\n",
+    "tests": "moved_pages_are_found_again_from_the_overview or moved_again_at_their_new_addresses"
+  },
+  {
+    "label": "webif coordinator: a round searches more than once",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if not self._searched_in_round:\n            self._searched_in_round = True\n",
+    "new": "        if True:\n            self._searched_in_round = True\n",
+    "tests": "moved_again_at_their_new_addresses_are_not_searched_twice"
+  },
+  {
+    "label": "webif coordinator: one search for good, not one a round",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self._searched_in_round = False\n        # By key",
+    "new": "        # By key",
+    "tests": "codes_changed_twice_are_found_twice"
+  },
+  {
+    "label": "webif coordinator: the pages found again are not polled",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self._pages = [\n            replace(page, path=found.get(page.key, page.path)) for page in self._pages\n        ]\n",
+    "new": "",
+    "tests": "moved_pages_are_found_again_from_the_overview"
+  },
+  {
+    "label": "webif coordinator: the pages found again are not kept in the entry",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                    key: found.get(key, path) for key, path in data[CONF.PAGES].items()\n",
+    "new": "                    key: path for key, path in data[CONF.PAGES].items()\n",
+    "tests": "addresses_found_again_are_kept_in_the_entry or moved_while_polling_are_found_again"
+  },
+  {
+    "label": "webif coordinator: a page not found again fails on a missing key",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            replace(page, path=found.get(page.key, page.path)) for page in self._pages\n",
+    "new": "            replace(page, path=found[page.key]) for page in self._pages\n",
+    "tests": "does_not_find_again_fails_alone"
+  },
+  {
+    "label": "webif coordinator: a page not found again fails the whole search",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self._lost = {page.key for page in self._pages if page.key not in found}\n",
+    "new": "        self._lost = {page.key for page in self._pages if page.key not in found}\n        if self._lost:\n            raise Broken(\"not found again\", \"not found again\")\n",
+    "tests": "does_not_find_again_fails_alone"
+  },
+  {
+    "label": "webif coordinator: a page not found again is asked at its old address once more",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            if page.key not in self._lost:\n",
+    "new": "            if True:\n",
+    "tests": "does_not_find_again_fails_alone"
+  },
+  {
+    "label": "webif coordinator: a page not found again reads as moved again",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if page.key in self._lost:\n            raise Broken(f\"{page.key}: not found again\", \"not found again\")\n",
+    "new": "",
+    "tests": "not_found_again_asks_for_a_reconfigure"
+  },
+  {
+    "label": "webif coordinator: a stop by a page not found again gives the usual notice",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            translation_key=NOT_FOUND_AGAIN_ISSUE\n            if page.key in self._lost\n            else STOPPED_ISSUE,\n",
+    "new": "            translation_key=STOPPED_ISSUE,\n",
+    "tests": "not_found_again_asks_for_a_reconfigure"
+  },
+  {
+    "label": "webif coordinator: every stop asks for a reconfigure",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            translation_key=NOT_FOUND_AGAIN_ISSUE\n            if page.key in self._lost\n            else STOPPED_ISSUE,\n",
+    "new": "            translation_key=NOT_FOUND_AGAIN_ISSUE,\n",
+    "tests": "stops_with_the_usual_notice"
+  },
+  {
+    "label": "webif coordinator: the log does not name the pages not found again",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            f\", but not {', '.join(sorted(self._lost))}\" if self._lost else \"\",\n",
+    "new": "            \"\",\n",
+    "tests": "does_not_find_again_fails_alone"
+  },
+  {
+    "label": "webif coordinator: a search goes uncounted",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self.searched_again += 1\n",
+    "new": "",
+    "tests": "moved_pages_are_found_again_from_the_overview"
+  },
+  {
+    "label": "webif coordinator: a search leaves no line in the log",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        _LOGGER.info(\n            \"The pages moved to new addresses and were found again%s\",\n",
+    "new": "        _LOGGER.debug(\n            \"The pages moved to new addresses and were found again%s\",\n",
+    "tests": "moved_pages_are_found_again_from_the_overview"
+  },
+  {
+    "label": "webif coordinator: a stop in the search's round keeps the old address",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            # A search before the failure gave the page a new address.\n            page = self._page(page.key)\n",
+    "new": "",
+    "tests": "stopped_right_after_the_search_is_asked_at_its_new_address"
   }
 ]

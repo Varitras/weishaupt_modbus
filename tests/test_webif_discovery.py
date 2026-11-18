@@ -15,6 +15,7 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     DoubledMenuEntries,
     MissingMenuEntries,
     find_pages,
+    moved,
 )
 from custom_components.weishaupt_modbus.webif_visit import (
     MissingTitles,
@@ -35,12 +36,15 @@ from .webif_stand_in import (
     PAGE_PATH,
     PASSWORD,
     PUMP_MENU,
+    RESET,
     STACK,
     STATISTICS_INFO,
+    TOKEN,
     USER,
     StandInPump,
     column,
     link,
+    main_menus,
     menu_site,
     serving,
     value,
@@ -118,6 +122,7 @@ async def test_an_overview_without_the_heat_pump_menu_is_broken(pump, client):
         await find_pages(client)
 
 
+SECOND_GENERATOR_INFO = "0C000C30000000000000000A0B020003000401"
 INFO_WITH_A_DOUBLE = MAIN_MENUS + column(
     link([INFO, HEAT_PUMP_INFO], "Wärmepumpe")
     + link([INFO, STATISTICS_INFO], "Statistik")
@@ -134,6 +139,41 @@ async def test_a_menu_entry_shown_twice_is_not_taken_at_random(pump, client):
         await find_pages(client)
 
     assert raised.value.titles == {"Wärmepumpe"}
+
+
+async def test_two_titles_at_one_link_are_not_taken(pump, client):
+    """The link may lead to either page: Heizen's to the cooling one, whose
+    power limit a write would then set."""
+    pump.site[STACK + PUMP_MENU] = MAIN_MENUS + column(
+        link([PUMP_MENU, HEATING], "Heizen")
+        + link([PUMP_MENU, HEATING], "Kühlen")
+        + link([PUMP_MENU, RESET], "Reset")
+    )
+
+    with pytest.raises(DoubledMenuEntries) as raised:
+        await find_pages(client)
+
+    assert raised.value.titles == {"Heizen"}
+    assert pump.asked.count(("GET", STACK + PUMP_MENU)) == 2
+
+
+async def test_an_entry_not_wanted_at_another_ones_link_is_left_out(pump, client):
+    """Neither of the two is taken, and the menu does not fail."""
+    pump.site[STACK + INFO] = MAIN_MENUS + column(
+        link([INFO, HEAT_PUMP_INFO], "Wärmepumpe")
+        + link([INFO, STATISTICS_INFO], "Statistik")
+        + link([INFO, SECOND_GENERATOR_INFO], "2. WEZ")
+        + link([INFO, SECOND_GENERATOR_INFO], "Heizkreis 2")
+    )
+
+    found = await find_pages(client)
+
+    assert found == {
+        HEAT_PUMP_PAGE: STACK + f"{INFO},{HEAT_PUMP_INFO}",
+        STATISTICS_PAGE: STACK + f"{INFO},{STATISTICS_INFO}",
+        HEATING_PAGE: STACK + f"{PUMP_MENU},{HEATING}",
+    }
+    assert pump.asked.count(("GET", STACK + INFO)) == 1
 
 
 async def test_a_menu_served_half_once_is_read_from_its_second_answer(pump, client):
@@ -160,6 +200,82 @@ async def test_the_menu_entries_not_found_are_named(pump, client):
         await find_pages(client)
 
     assert raised.value.titles == {"Statistik"}
+
+
+def renumbered(text, token="88B7"):
+    """The text with the codes a controller gave its menus anew."""
+    return text.replace(TOKEN, token)
+
+
+HEAT_PUMP_PATH = PAGES[HEAT_PUMP_PAGE]
+HEATING_PATH = PAGES[HEATING_PAGE]
+
+
+@pytest.mark.parametrize(
+    ("path", "overview"),
+    [
+        (HEAT_PUMP_PATH, renumbered(MAIN_MENUS)),
+        (HEATING_PATH, renumbered(MAIN_MENUS)),
+        (HEAT_PUMP_PATH, renumbered(main_menus(ENGLISH_MENUS))),
+    ],
+    ids=["below Info", "below the heat pump menu", "in English"],
+)
+def test_the_overview_under_new_codes_says_the_page_moved(path, overview):
+    """As the controller answered an address of its old codes, 2026-11-17."""
+    assert moved(overview, path)
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        MAIN_MENUS,
+        MAIN_MENUS + column(""),
+        MAIN_MENUS + column(link([INFO, PUMP_MENU], "Wärmepumpe")),
+        column(link([INFO, INFO], "Info") + link([INFO, PUMP_MENU], "Wärmepumpe")),
+        SITE[HEAT_PUMP_PATH],
+        renumbered(column(link([INFO], "Info"))),
+        renumbered(MAIN_MENUS + column(link([INFO], "Info"))),
+        renumbered(column(link([INFO], "Info") + link([INFO], "Wärmepumpe"))),
+        "",
+    ],
+    ids=[
+        "the overview under the old codes",
+        "an empty column",
+        "the main menus nested below",
+        "the main menus nested alone",
+        "the page itself",
+        "no heat pump menu",
+        "Info twice",
+        "Info and the heat pump menu at one link",
+        "nothing",
+    ],
+)
+def test_an_answer_served_half_or_whole_says_no_page_moved(answer):
+    """A page served half shows the main menus too, under its own codes:
+    taken for a moved one, it would cost a search instead of one more ask."""
+    assert not moved(answer, HEAT_PUMP_PATH)
+
+
+async def test_a_search_from_an_overview_does_not_ask_for_it(pump, client):
+    """The overview in place of a page is the one the search starts from."""
+    pump.renumber("88B7")
+
+    found = await find_pages(client, pump.site[PAGE_PATH])
+
+    assert found == {key: renumbered(path) for key, path in PAGES.items()}
+    assert pump.asked == [
+        *LOGIN,
+        ("GET", renumbered(STACK + INFO)),
+        ("GET", renumbered(STACK + PUMP_MENU)),
+    ]
+
+
+async def test_a_search_from_an_overview_without_its_menus_asks_nothing(pump, client):
+    with pytest.raises(MissingMenuEntries) as raised:
+        await find_pages(client, column(link([INFO], "Info")))
+
+    assert raised.value.titles == {"Wärmepumpe"}
+    assert pump.asked == []
 
 
 async def test_the_dialog_finds_the_pages_and_logs_out_again(hass, pump, monkeypatch):
