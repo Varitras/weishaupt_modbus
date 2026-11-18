@@ -180,7 +180,8 @@ class StandInPump:
     `trickles` sends one character every that many seconds. With
     `watched_lock` set, `held` notes for every request whether that lock was
     held when it arrived. `heating_titles` are the titles `show_power_limit`
-    puts on the heating page.
+    puts on the heating page. `saves_elsewhere`, when set, takes a save of a
+    current form other than the power limit's and gives the page it leads to.
     """
 
     def __init__(self):
@@ -206,6 +207,7 @@ class StandInPump:
         self.save_headers = []
         self.save_answer = None
         self.heating_titles = GERMAN_HEATING
+        self.saves_elsewhere = None
 
     def application(self):
         @web.middleware
@@ -274,6 +276,8 @@ class StandInPump:
         if session_cookie(request) not in self.sessions:
             return see_other(webif.INDEX)
         current = STACK + form.get("stack", "") in self.site
+        if current and self.saves_elsewhere is not None:
+            return see_other(self.saves_elsewhere(form))
         if current and form.get("value", "").isdigit():
             self.show_power_limit(int(form["value"]))
         return see_other(HEATING_PATH)

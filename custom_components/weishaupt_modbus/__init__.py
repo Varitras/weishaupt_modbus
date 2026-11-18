@@ -141,7 +141,7 @@ PLATFORMS: list[str] = [
     "sensor",
     "switch",
 ]
-# The web interface's values are sensors; the one setting it writes is a number.
+# The web interface's values are sensors; the settings it writes are numbers.
 WEBIF_PLATFORMS: list[str] = ["number", "sensor"]
 
 

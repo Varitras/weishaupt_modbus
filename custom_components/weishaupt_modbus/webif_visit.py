@@ -22,7 +22,10 @@ from .webif.discovery import (
     PAGE_MENUS,
     STATISTICS_PAGE,
     DoubledMenuEntries,
-    find_pages,
+    find_menus,
+    find_settings_pages,
+    pages_in,
+    settings_menus,
 )
 from .webif_coordinator import Page, polled_pages
 from .webif_sensor import (
@@ -128,22 +131,60 @@ async def _visit_twice(client: Client) -> Visited:
     any failure not named in SEARCHED_AGAIN.
     """
     try:
-        return await _visit(client)
+        return await _visit(client, last=False)
     except Broken as error:
         if type(error) not in SEARCHED_AGAIN:
             raise
-    return await _visit(client)
+    return await _visit(client, last=True)
 
 
-async def _visit(client: Client) -> Visited:
+async def _visit(client: Client, *, last: bool) -> Visited:
     """The pages found, each read once, and the family they are of.
 
     A page another model shows without a title its sensors need fails here,
     not in the brake ten minutes after the entry was added. An optional page
-    is kept only when its family has sensors on it and it shows them all.
+    is kept only when its family has sensors on it and it shows them all;
+    it fails no visit, as `last` says: what a second search may mend gets
+    one, as on the required pages, and then costs only that page.
     """
-    found = await find_pages(client)
-    polled = {
+    menus = await find_menus(client)
+    found = pages_in(menus)
+    polled = _polled(found)
+    # An answer served half may lack the row that tells the family, so each
+    # answer is judged by what it says itself.
+    model = model_shown(await _read_whole(client, polled, HEAT_PUMP_PAGE, model_shown))
+    for key in (STATISTICS_PAGE, HEATING_PAGE):
+        await _read_whole(client, polled, key, lambda _: model)
+    # Searched only where the family has values on them: another is asked
+    # what it was before they were read.
+    if wanted := {
+        key: menu
+        for key, menu in settings_menus(menus).items()
+        if key in REQUIRED_TITLES[model]
+    }:
+        found |= await find_settings_pages(client, wanted, last=last)
+        polled = _polled(found)
+    kept = {key: path for key, path in found.items() if key not in OPTIONAL_PAGES}
+    for key in OPTIONAL_PAGES:
+        if key not in polled[model]:
+            continue
+        # A page this pump shows otherwise costs its few values, not the entry.
+        try:
+            await _read_whole(client, polled, key, lambda _: model)
+        except MissingTitles, UnknownUnits:
+            continue
+        except Broken:
+            # Served half, or its values blank or twice.
+            if not last:
+                raise
+            continue
+        kept[key] = found[key]
+    return Visited(kept, model)
+
+
+def _polled(found: Mapping[str, str]) -> dict[str, dict[str, Page]]:
+    """Each family's pages to poll among the ones found, by key."""
+    return {
         model: {
             page.key: page
             for page in polled_pages(
@@ -156,22 +197,6 @@ async def _visit(client: Client) -> Visited:
         }
         for model in MODELS
     }
-    # An answer served half may lack the row that tells the family, so each
-    # answer is judged by what it says itself.
-    model = model_shown(await _read_whole(client, polled, HEAT_PUMP_PAGE, model_shown))
-    for key in (STATISTICS_PAGE, HEATING_PAGE):
-        await _read_whole(client, polled, key, lambda _: model)
-    kept = {key: path for key, path in found.items() if key not in OPTIONAL_PAGES}
-    for key in OPTIONAL_PAGES:
-        if key not in polled[model]:
-            continue
-        # A page this pump shows otherwise costs its few values, not the entry.
-        try:
-            await _read_whole(client, polled, key, lambda _: model)
-        except MissingTitles, UnknownUnits:
-            continue
-        kept[key] = found[key]
-    return Visited(kept, model)
 
 
 async def _read_whole(

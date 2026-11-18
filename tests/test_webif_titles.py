@@ -26,12 +26,12 @@ from custom_components.weishaupt_modbus.webif_sensor import (
     WBB,
 )
 
+from .test_webif_evoblock import ROWS
+
 TITLES = json.loads(
     (Path(__file__).parent / "webif_titles.json").read_text(encoding="utf-8")
 )
-EVOBLOCK_TITLES = json.loads(
-    (Path(__file__).parent / "evoblock_titles.json").read_text(encoding="utf-8")
-)
+EVOBLOCK_TITLES = ROWS
 
 
 @pytest.mark.parametrize("sensor", VALUES[WBB], ids=lambda sensor: sensor.key)

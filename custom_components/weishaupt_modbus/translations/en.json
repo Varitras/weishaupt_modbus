@@ -309,6 +309,21 @@
       },
       "webif_leistungsbegrenzung_heizen": {
         "name": "{prefix}Heating power limit"
+      },
+      "webif_hk1_minimaltemperatur": {
+        "name": "{prefix}Heating circuit 1 minimum temperature"
+      },
+      "webif_hk2_minimaltemperatur": {
+        "name": "{prefix}Heating circuit 2 minimum temperature"
+      },
+      "webif_hk3_minimaltemperatur": {
+        "name": "{prefix}Heating circuit 3 minimum temperature"
+      },
+      "webif_hk4_minimaltemperatur": {
+        "name": "{prefix}Heating circuit 4 minimum temperature"
+      },
+      "webif_hk5_minimaltemperatur": {
+        "name": "{prefix}Heating circuit 5 minimum temperature"
       }
     },
     "switch": {
@@ -1909,6 +1924,54 @@
       "webif_schaltspiele_e2": {
         "name": "{prefix}Switching cycles E2"
       },
+      "webif_hk1_maximaltemperatur": {
+        "name": "{prefix}Heating circuit 1 maximum temperature"
+      },
+      "webif_hk2_maximaltemperatur": {
+        "name": "{prefix}Heating circuit 2 maximum temperature"
+      },
+      "webif_hk3_maximaltemperatur": {
+        "name": "{prefix}Heating circuit 3 maximum temperature"
+      },
+      "webif_hk4_maximaltemperatur": {
+        "name": "{prefix}Heating circuit 4 maximum temperature"
+      },
+      "webif_hk5_maximaltemperatur": {
+        "name": "{prefix}Heating circuit 5 maximum temperature"
+      },
+      "webif_hk1_anforderungsueberhoehung": {
+        "name": "{prefix}Heating circuit 1 demand increase"
+      },
+      "webif_hk2_anforderungsueberhoehung": {
+        "name": "{prefix}Heating circuit 2 demand increase"
+      },
+      "webif_hk3_anforderungsueberhoehung": {
+        "name": "{prefix}Heating circuit 3 demand increase"
+      },
+      "webif_hk4_anforderungsueberhoehung": {
+        "name": "{prefix}Heating circuit 4 demand increase"
+      },
+      "webif_hk5_anforderungsueberhoehung": {
+        "name": "{prefix}Heating circuit 5 demand increase"
+      },
+      "webif_hk1_sg_ready_anhebung": {
+        "name": "{prefix}Heating circuit 1 SG Ready raise"
+      },
+      "webif_hk2_sg_ready_anhebung": {
+        "name": "{prefix}Heating circuit 2 SG Ready raise"
+      },
+      "webif_hk3_sg_ready_anhebung": {
+        "name": "{prefix}Heating circuit 3 SG Ready raise"
+      },
+      "webif_hk4_sg_ready_anhebung": {
+        "name": "{prefix}Heating circuit 4 SG Ready raise"
+      },
+      "webif_hk5_sg_ready_anhebung": {
+        "name": "{prefix}Heating circuit 5 SG Ready raise"
+      },
+      "webif_ww_systembetriebsart": {
+        "name": "{prefix}Hot water system operating mode"
+      },
       "webif_version_wwp_sg": {
         "name": "{prefix}WWP-SG version"
       },
@@ -2010,6 +2073,7 @@
           "heating_interval_minutes": "Interval of the heating settings (minutes)",
           "heating_circuit_interval_minutes": "Interval of the heating circuit page (minutes)",
           "second_generator_interval_minutes": "Interval of the 2nd heat source page (minutes)",
+          "settings_interval_minutes": "Interval of the settings pages (minutes)",
           "settings_written_per_day": "Settings written per day"
         },
         "data_description": {
@@ -2018,6 +2082,7 @@
           "heating_interval_minutes": "How often the heating power limit and switching difference are read, 1 to 60 minutes.",
           "heating_circuit_interval_minutes": "How often the averaged outside temperatures are read, 1 to 60 minutes.",
           "second_generator_interval_minutes": "How often the switching cycles of the heating rod stages are read, 1 to 60 minutes.",
+          "settings_interval_minutes": "How often the settings of the heating circuits and the hot water are read, 1 to 60 minutes.",
           "settings_written_per_day": "At most this many settings, such as the heating power limit, are written a day; 0 switches the limit off. The controller stores each one in its EEPROM, which is rated for a limited number of writes."
         }
       }
@@ -2061,31 +2126,34 @@
       "message": "Today's limit of {limit} settings written is reached. It is set in the options of the web interface entry."
     },
     "webif_write_form_not_read": {
-      "message": "The heating power limit's form could not be read from the web interface. Nothing was sent."
+      "message": "The form of {setting} could not be read from the web interface. Nothing was sent."
     },
     "webif_write_form_mismatch": {
-      "message": "The heating power limit's form does not match the value shown or does not offer this value. Nothing was sent."
+      "message": "The form of {setting} does not match the value shown or does not offer this value. Nothing was sent."
     },
     "webif_write_not_saved": {
-      "message": "The controller did not save the heating power limit: its session had ended. Try again."
+      "message": "The controller did not save {setting}: its session had ended. Try again."
     },
     "webif_write_maybe_saved": {
-      "message": "The controller gave no clear answer, so it is unknown whether the heating power limit was saved. The next reading shows the value."
+      "message": "The controller gave no clear answer, so it is unknown whether {setting} was saved. The next reading shows the value."
     },
     "webif_write_other_value": {
-      "message": "The controller shows {shown} % instead of {target} %."
+      "message": "The controller shows {shown} instead of {target} for {setting}."
     },
     "webif_write_not_read_back": {
-      "message": "The heating power limit was saved but could not be read back. The next reading shows the value."
+      "message": "{setting} was saved but could not be read back. The next reading shows the value."
     },
     "webif_write_aborted": {
-      "message": "Setting the heating power limit was called off: the web interface entry is unloading."
+      "message": "Setting {setting} was called off: the web interface entry is unloading."
     },
     "webif_write_failed": {
-      "message": "Setting the heating power limit failed on an unexpected error; the log has the details."
+      "message": "Setting {setting} failed on an unexpected error; the log has the details."
     },
     "webif_power_limit_whole_percent": {
       "message": "{value} is no whole percentage. The heating power limit is set in steps of 1 %."
+    },
+    "webif_minimum_temperature_step": {
+      "message": "{value} °C is not offered. The minimum temperature is set in steps of 0.5 °C."
     }
   },
   "issues": {

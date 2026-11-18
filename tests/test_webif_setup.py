@@ -101,7 +101,7 @@ SAMPLE = {
 # The values, and the sensors about the polling itself.
 WBB_SENSORS = [sensor for sensor in WEBIF_SENSORS if WBB in sensor.models]
 EVERY_SENSOR = (*WBB_SENSORS, *TRAFFIC_SENSORS, ANSWER_TIME)
-# And the one setting it writes, a number, with the counts of its writes.
+# And the setting a WBB has written, a number, with the counts of its writes.
 EVERY_ENTITY = (*EVERY_SENSOR, POWER_LIMIT, *WEBIF_WRITE_COUNTER_DESCRIPTIONS)
 SHOWN: dict = {}
 for sensor in VALUES[WBB]:

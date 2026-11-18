@@ -72,5 +72,29 @@
     ["Betriebsstunden E2", "h"],
     ["Schaltspiele E1", ""],
     ["Schaltspiele E2", ""]
+  ],
+  "circuit_settings": [
+    ["Funktion", null],
+    ["Anforderung", null],
+    ["Estrich", null],
+    ["Außenfühlerzuordnung", null],
+    ["Frostschutz", "°C"],
+    ["Frostbetrieb", null],
+    ["SG Ready Anhebung", "K"],
+    ["Absenkmodus", null],
+    ["Gebäude", null],
+    ["Minimaltemperatur", "°C"],
+    ["Maximaltemperatur", "°C"],
+    ["Anforderungsüberhöhung", "K"],
+    ["Schwimmbad", null],
+    ["Name", null]
+  ],
+  "hot_water_settings": [
+    ["Systembetriebsart", null],
+    ["SG Ready Anhebung", null],
+    ["Schaltdifferenz", "K"],
+    ["Maximaltemperatur", "°C"],
+    ["Vorlaufüberhöhung", "K"],
+    ["Ladezeit max", null]
   ]
 }

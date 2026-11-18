@@ -309,6 +309,21 @@
             },
             "webif_leistungsbegrenzung_heizen": {
                 "name": "{prefix}Leistungsbegrenzung Heizen"
+            },
+            "webif_hk1_minimaltemperatur": {
+                "name": "{prefix}Heizkreis 1 Minimaltemperatur"
+            },
+            "webif_hk2_minimaltemperatur": {
+                "name": "{prefix}Heizkreis 2 Minimaltemperatur"
+            },
+            "webif_hk3_minimaltemperatur": {
+                "name": "{prefix}Heizkreis 3 Minimaltemperatur"
+            },
+            "webif_hk4_minimaltemperatur": {
+                "name": "{prefix}Heizkreis 4 Minimaltemperatur"
+            },
+            "webif_hk5_minimaltemperatur": {
+                "name": "{prefix}Heizkreis 5 Minimaltemperatur"
             }
         },
         "switch": {
@@ -1909,6 +1924,54 @@
             "webif_schaltspiele_e2": {
                 "name": "{prefix}Schaltspiele E2"
             },
+            "webif_hk1_maximaltemperatur": {
+                "name": "{prefix}Heizkreis 1 Maximaltemperatur"
+            },
+            "webif_hk2_maximaltemperatur": {
+                "name": "{prefix}Heizkreis 2 Maximaltemperatur"
+            },
+            "webif_hk3_maximaltemperatur": {
+                "name": "{prefix}Heizkreis 3 Maximaltemperatur"
+            },
+            "webif_hk4_maximaltemperatur": {
+                "name": "{prefix}Heizkreis 4 Maximaltemperatur"
+            },
+            "webif_hk5_maximaltemperatur": {
+                "name": "{prefix}Heizkreis 5 Maximaltemperatur"
+            },
+            "webif_hk1_anforderungsueberhoehung": {
+                "name": "{prefix}Heizkreis 1 Anforderungsüberhöhung"
+            },
+            "webif_hk2_anforderungsueberhoehung": {
+                "name": "{prefix}Heizkreis 2 Anforderungsüberhöhung"
+            },
+            "webif_hk3_anforderungsueberhoehung": {
+                "name": "{prefix}Heizkreis 3 Anforderungsüberhöhung"
+            },
+            "webif_hk4_anforderungsueberhoehung": {
+                "name": "{prefix}Heizkreis 4 Anforderungsüberhöhung"
+            },
+            "webif_hk5_anforderungsueberhoehung": {
+                "name": "{prefix}Heizkreis 5 Anforderungsüberhöhung"
+            },
+            "webif_hk1_sg_ready_anhebung": {
+                "name": "{prefix}Heizkreis 1 SG-Ready-Anhebung"
+            },
+            "webif_hk2_sg_ready_anhebung": {
+                "name": "{prefix}Heizkreis 2 SG-Ready-Anhebung"
+            },
+            "webif_hk3_sg_ready_anhebung": {
+                "name": "{prefix}Heizkreis 3 SG-Ready-Anhebung"
+            },
+            "webif_hk4_sg_ready_anhebung": {
+                "name": "{prefix}Heizkreis 4 SG-Ready-Anhebung"
+            },
+            "webif_hk5_sg_ready_anhebung": {
+                "name": "{prefix}Heizkreis 5 SG-Ready-Anhebung"
+            },
+            "webif_ww_systembetriebsart": {
+                "name": "{prefix}Warmwasser Systembetriebsart"
+            },
             "webif_version_wwp_sg": {
                 "name": "{prefix}Version WWP-SG"
             },
@@ -2010,6 +2073,7 @@
                     "heating_interval_minutes": "Intervall der Heiz-Einstellungen (Minuten)",
                     "heating_circuit_interval_minutes": "Intervall der Heizkreis-Seite (Minuten)",
                     "second_generator_interval_minutes": "Intervall der 2.-WEZ-Seite (Minuten)",
+                    "settings_interval_minutes": "Intervall der Einstellungsseiten (Minuten)",
                     "settings_written_per_day": "Geschriebene Einstellungen pro Tag"
                 },
                 "data_description": {
@@ -2018,6 +2082,7 @@
                     "heating_interval_minutes": "Wie oft Leistungsbegrenzung und Schaltdifferenz Heizen gelesen werden, 1 bis 60 Minuten.",
                     "heating_circuit_interval_minutes": "Wie oft die gemittelten Außentemperaturen gelesen werden, 1 bis 60 Minuten.",
                     "second_generator_interval_minutes": "Wie oft die Schaltspiele der Heizstab-Stufen gelesen werden, 1 bis 60 Minuten.",
+                    "settings_interval_minutes": "Wie oft die Einstellungen der Heizkreise und des Warmwassers gelesen werden, 1 bis 60 Minuten.",
                     "settings_written_per_day": "Höchstens so viele Einstellungen, etwa die Leistungsbegrenzung Heizen, werden pro Tag geschrieben; 0 schaltet die Grenze ab. Der Regler speichert jede im EEPROM, das nur eine begrenzte Zahl von Schreibvorgängen verträgt."
                 }
             }
@@ -2061,31 +2126,34 @@
             "message": "Die heutige Grenze von {limit} geschriebenen Einstellungen ist erreicht. Sie wird in den Optionen des Eintrags der Weboberfläche eingestellt."
         },
         "webif_write_form_not_read": {
-            "message": "Das Formular der Leistungsbegrenzung Heizen ließ sich nicht von der Weboberfläche lesen. Es wurde nichts gesendet."
+            "message": "Das Formular von {setting} ließ sich nicht von der Weboberfläche lesen. Es wurde nichts gesendet."
         },
         "webif_write_form_mismatch": {
-            "message": "Das Formular der Leistungsbegrenzung Heizen passt nicht zum angezeigten Wert oder bietet diesen Wert nicht an. Es wurde nichts gesendet."
+            "message": "Das Formular von {setting} passt nicht zum angezeigten Wert oder bietet diesen Wert nicht an. Es wurde nichts gesendet."
         },
         "webif_write_not_saved": {
-            "message": "Der Regler hat die Leistungsbegrenzung Heizen nicht gespeichert: Seine Sitzung war beendet. Versuchen Sie es erneut."
+            "message": "Der Regler hat {setting} nicht gespeichert: Seine Sitzung war beendet. Versuchen Sie es erneut."
         },
         "webif_write_maybe_saved": {
-            "message": "Der Regler hat nicht eindeutig geantwortet; ob die Leistungsbegrenzung Heizen gespeichert wurde, ist unbekannt. Die nächste Abfrage zeigt den Wert."
+            "message": "Der Regler hat nicht eindeutig geantwortet; ob {setting} gespeichert wurde, ist unbekannt. Die nächste Abfrage zeigt den Wert."
         },
         "webif_write_other_value": {
-            "message": "Der Regler zeigt {shown} % statt {target} %."
+            "message": "Der Regler zeigt für {setting} {shown} statt {target}."
         },
         "webif_write_not_read_back": {
-            "message": "Die Leistungsbegrenzung Heizen wurde gespeichert, ließ sich aber nicht zurücklesen. Die nächste Abfrage zeigt den Wert."
+            "message": "{setting} wurde gespeichert, ließ sich aber nicht zurücklesen. Die nächste Abfrage zeigt den Wert."
         },
         "webif_write_aborted": {
-            "message": "Das Setzen der Leistungsbegrenzung Heizen wurde abgebrochen: Der Eintrag der Weboberfläche wird entladen."
+            "message": "Das Setzen von {setting} wurde abgebrochen: Der Eintrag der Weboberfläche wird entladen."
         },
         "webif_write_failed": {
-            "message": "Das Setzen der Leistungsbegrenzung Heizen ist an einem unerwarteten Fehler gescheitert; Einzelheiten stehen im Log."
+            "message": "Das Setzen von {setting} ist an einem unerwarteten Fehler gescheitert; Einzelheiten stehen im Log."
         },
         "webif_power_limit_whole_percent": {
             "message": "{value} ist kein ganzer Prozentwert. Die Leistungsbegrenzung Heizen wird in Schritten von 1 % eingestellt."
+        },
+        "webif_minimum_temperature_step": {
+            "message": "{value} °C wird nicht angeboten. Die Minimaltemperatur wird in Schritten von 0,5 °C eingestellt."
         }
     },
     "issues": {

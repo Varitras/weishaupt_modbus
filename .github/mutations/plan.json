@@ -1024,8 +1024,8 @@
   {
     "label": "webif coordinator: the stop notice outlives its entry",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            self._burst = None\n        ir.async_delete_issue(self.hass, CONST.DOMAIN, self._issue)\n",
-    "new": "            self._burst = None\n",
+    "old": "        self._bursts.clear()\n        ir.async_delete_issue(self.hass, CONST.DOMAIN, self._issue)\n",
+    "new": "        self._bursts.clear()\n",
     "tests": "takes_the_stop_notice_along"
   },
   {
@@ -1304,8 +1304,8 @@
   {
     "label": "webif discovery: an overview without the heat pump menu passes",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "    menus = await _entries(client, OVERVIEW, {INFO, HEAT_PUMP}, pages.main_menus)\n",
-    "new": "    menus = await _entries(client, OVERVIEW, {INFO}, pages.main_menus)\n",
+    "old": "    main = await _entries(client, OVERVIEW, {INFO, HEAT_PUMP}, pages.main_menus)\n",
+    "new": "    main = await _entries(client, OVERVIEW, {INFO}, pages.main_menus)\n",
     "tests": "overview_without_the_heat_pump_menu"
   },
   {
@@ -1920,8 +1920,8 @@
   {
     "label": "config flow: a menu served half twice ends the dialog's visit",
     "path": "custom_components/weishaupt_modbus/webif_visit.py",
-    "old": "    try:\n        return await _visit(client)\n    except Broken as error:\n        if type(error) not in SEARCHED_AGAIN:\n            raise\n    return await _visit(client)\n",
-    "new": "    return await _visit(client)\n",
+    "old": "    try:\n        return await _visit(client, last=False)\n    except Broken as error:\n        if type(error) not in SEARCHED_AGAIN:\n            raise\n    return await _visit(client, last=True)\n",
+    "new": "    return await _visit(client, last=True)\n",
     "tests": "served_half_twice_is_searched_once_more or served_half_on_every_ask_is_not_called_unsupported"
   },
   {
@@ -3397,7 +3397,7 @@
   {
     "label": "power limit write: a target already shown is written again",
     "path": "custom_components/weishaupt_modbus/webif/setting.py",
-    "old": "        if shown == target:\n            return heating\n",
+    "old": "        if shown == target:\n            return menu\n",
     "new": "",
     "tests": "already_shows_is_not_written"
   },
@@ -3411,8 +3411,8 @@
   {
     "label": "power limit debounce: a further request does not restart the quiet time",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        if self._quiet is not None:\n            self._quiet.cancel()\n        self._quiet = self.hass.loop.call_later(\n            DEBOUNCE_SECONDS, self._start_write, burst\n        )\n",
-    "new": "        if self._quiet is None:\n            self._quiet = self.hass.loop.call_later(\n                DEBOUNCE_SECONDS, self._start_write, burst\n            )\n",
+    "old": "        if (quiet := self._quiets.get(key)) is not None:\n            quiet.cancel()\n        self._quiets[key] = self.hass.loop.call_later(\n            DEBOUNCE_SECONDS, self._start_write, burst\n        )\n",
+    "new": "        if key not in self._quiets:\n            self._quiets[key] = self.hass.loop.call_later(\n                DEBOUNCE_SECONDS, self._start_write, burst\n            )\n",
     "tests": "burst_of_changes_writes_the_last_value_once"
   },
   {
@@ -3439,7 +3439,7 @@
   {
     "label": "power limit write: after an unclear save the heating page waits its interval",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            # Unknown what the controller holds: the next round asks.\n            self._readings[HEATING_PAGE].asked_at = None\n",
+    "old": "            # Unknown what the controller holds: the next round asks.\n            self._readings[page.key].asked_at = None\n",
     "new": "            # Unknown what the controller holds: the next round asks.\n            pass\n",
     "tests": "heating_page_is_due_at_once"
   },
@@ -3453,15 +3453,15 @@
   {
     "label": "power limit write: another value read back is not shown",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            self._publish(self._heating, error.text)\n",
+    "old": "            self._publish(page, error.text)\n",
     "new": "            pass\n",
     "tests": "another_value_shown_is_published"
   },
   {
     "label": "power limit write: every unexpected error of a write logs its traceback",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "                self._write_traceback_logged = True\n                _LOGGER.exception(\n                    \"Writing the power limit failed on an unexpected error\"\n",
-    "new": "                pass\n                _LOGGER.exception(\n                    \"Writing the power limit failed on an unexpected error\"\n",
+    "old": "                self._write_traceback_logged = True\n                _LOGGER.exception(\n                    \"Writing %s failed on an unexpected error\", burst.name\n",
+    "new": "                pass\n                _LOGGER.exception(\n                    \"Writing %s failed on an unexpected error\", burst.name\n",
     "tests": "unexpected_error_of_a_write_logs_once"
   },
   {
@@ -3481,8 +3481,8 @@
   {
     "label": "power limit number: the heating page no longer requires its title",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "READ_VALUES = (*WEBIF_SENSORS, POWER_LIMIT)\n",
-    "new": "READ_VALUES = WEBIF_SENSORS\n",
+    "old": "READ_VALUES = (*WEBIF_SENSORS, POWER_LIMIT, *MINIMUM_TEMPERATURES.values())\n",
+    "new": "READ_VALUES = (*WEBIF_SENSORS, *MINIMUM_TEMPERATURES.values())\n",
     "tests": "heating_page_still_requires_the_power_limit"
   },
   {
@@ -3516,22 +3516,22 @@
   {
     "label": "power limit write: an unload in the quiet time leaves the callers waiting",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        if self._burst is not None:\n            self._burst.outcome.set_exception(Closed(\"the entry unloads\"))\n            self._burst = None\n",
+    "old": "        for burst in self._bursts.values():\n            burst.outcome.set_exception(Closed(\"the entry unloads\"))\n",
     "new": "",
     "tests": "unload_during_the_quiet_time_aborts_the_waiting_calls"
   },
   {
     "label": "power limit number: unavailable without a reading, calls dropped",
     "path": "custom_components/weishaupt_modbus/webif_number.py",
-    "old": "        return True\n",
-    "new": "        return super().available and self._values() is not None\n",
+    "old": "        the write would neither run nor say why it was refused.\n        \"\"\"\n        return True\n",
+    "new": "        the write would neither run nor say why it was refused.\n        \"\"\"\n        return super().available and self._values() is not None\n",
     "tests": "stays_available_without_a_reading"
   },
   {
     "label": "power limit debounce: a burst closes when its quiet time ends",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiet = None\n",
-    "new": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiet = self._burst = None\n",
+    "old": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiets.pop((burst.page, burst.setting.title), None)\n",
+    "new": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiets.pop((burst.page, burst.setting.title), None)\n        self._bursts.pop((burst.page, burst.setting.title), None)\n",
     "tests": "changes_while_a_write_runs_are_one_write_after_it"
   },
   {
@@ -3572,9 +3572,9 @@
   {
     "label": "controller access: a second caller of the web interface's save",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiet = None\n",
-    "new": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiet = None\n        if burst is None:\n            self._client.save(None, 0)\n",
-    "tests": "called_by_the_power_limit_write_only"
+    "old": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiets.pop((burst.page, burst.setting.title), None)\n",
+    "new": "    def _start_write(self, burst: _Burst) -> None:\n        self._quiets.pop((burst.page, burst.setting.title), None)\n        if burst is None:\n            self._client.save(None, 0)\n",
+    "tests": "called_by_the_setting_write_only"
   },
   {
     "label": "webif coordinator: the next round is planned without the rest a timeout gave",
@@ -3593,15 +3593,15 @@
   {
     "label": "power limit write: after an unexpected error once counted the heating page waits",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            if counted:\n                # The save may have gone out: the next round asks.\n                self._readings[HEATING_PAGE].asked_at = None\n",
+    "old": "            if counted:\n                # The save may have gone out: the next round asks.\n                self._readings[burst.page].asked_at = None\n",
     "new": "",
     "tests": "unexpected_error_on_the_read_back_the_heating_page_is_due"
   },
   {
     "label": "power limit number: a stopped polling leaves the last value shown",
     "path": "custom_components/weishaupt_modbus/webif_number.py",
-    "old": "        if not self.coordinator.last_update_success:\n            return None\n",
-    "new": "",
+    "old": "        coordinator, while the controller may long since hold another value.\n        \"\"\"\n        if not self.coordinator.last_update_success:\n            return None\n",
+    "new": "        coordinator, while the controller may long since hold another value.\n        \"\"\"\n",
     "tests": "stopped_polling_shows_no_frozen_value"
   },
   {
@@ -3614,8 +3614,8 @@
   {
     "label": "webif english: the power limit is found under its German title only",
     "path": "custom_components/weishaupt_modbus/webif/setting.py",
-    "old": "        if entry.title in (POWER_LIMIT_TITLE, POWER_LIMIT_ENGLISH_TITLE)\n",
-    "new": "        if entry.title == POWER_LIMIT_TITLE\n",
+    "old": "        if entry.title in setting.titles\n",
+    "new": "        if entry.title == setting.title\n",
     "tests": "reads_the_form_saves_once"
   },
   {
@@ -3684,8 +3684,8 @@
   {
     "label": "webif english: a page is named by its German menus only",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "    HEAT_PUMP_PAGE: f\"{INFO} › {HEAT_PUMP} ({INFO_ENGLISH} › {HEAT_PUMP_ENGLISH})\",\n",
-    "new": "    HEAT_PUMP_PAGE: f\"{INFO} › {HEAT_PUMP}\",\n",
+    "old": "    HEAT_PUMP_PAGE: (f\"{INFO} › {HEAT_PUMP}\", f\"{INFO_ENGLISH} › {HEAT_PUMP_ENGLISH}\"),\n",
+    "new": "    HEAT_PUMP_PAGE: (f\"{INFO} › {HEAT_PUMP}\", None),\n",
     "tests": "without_a_title_its_sensors_read or third_failure_in_a_row"
   },
   {
@@ -4475,7 +4475,7 @@
   {
     "label": "power limit write: a waiting write takes changes whose quiet time restarted",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "                if self._burst is burst and self._quiet is not None:\n",
+    "old": "                if self._bursts.get(key) is burst and key in self._quiets:\n",
     "new": "                if False:\n",
     "tests": "as_a_write_ends_still_waits_its_quiet_time"
   },
@@ -5255,5 +5255,131 @@
     "old": "                    and description.page in polled\n",
     "new": "\n",
     "tests": "entry_made_before_them_reads_as_before"
+  },
+  {
+    "label": "webif discovery: a menu without its settings fails the dialog",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        except MissingMenuEntries:\n            continue\n        except Broken:\n",
+    "new": "        except Broken:\n",
+    "tests": "menu_without_its_settings_leaves_only_that_page_out or menu_without_its_settings_unsearched"
+  },
+  {
+    "label": "webif discovery: every circuit's menu is opened, listed in Info or not",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        for number, _ in _circuits(menus.info)\n        if number in CIRCUITS\n",
+    "new": "        for number in CIRCUITS\n",
+    "tests": "circuit_info_does_not_list_is_not_looked_for"
+  },
+  {
+    "label": "webif coordinator: a settings page is read as a page of values",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                menu=key in (*CIRCUIT_SETTINGS_PAGES, HOT_WATER_SETTINGS_PAGE),\n",
+    "new": "                menu=False,\n",
+    "tests": "settings_page_is_a_menu_on_the_settings_interval"
+  },
+  {
+    "label": "minimum temperature number: a value off the half degrees is sent",
+    "path": "custom_components/weishaupt_modbus/webif_number.py",
+    "old": "        if abs(value * 10 - tenths) > 1e-6 or tenths % 5:\n",
+    "new": "        if False:\n",
+    "tests": "minimum_off_the_half_degree_steps_is_refused_unsent"
+  },
+  {
+    "label": "minimum temperature number: the circuit's maximum is not its upper bound",
+    "path": "custom_components/weishaupt_modbus/webif_number.py",
+    "old": "        return MINIMUM_TEMPERATURE_MAX if tenths is None else tenths / 10\n",
+    "new": "        return MINIMUM_TEMPERATURE_MAX\n",
+    "tests": "evoblock_entry_reads_each_circuits_settings"
+  },
+  {
+    "label": "webif setting: a temperature between tenths is taken for an option",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    return tenths if abs(number * 10 - tenths) < 1e-6 else None\n",
+    "new": "    return tenths\n",
+    "tests": "temperature_is_the_option_of_its_tenths"
+  },
+  {
+    "label": "webif sensor: an SG Ready raise set to none reads unknown",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "            \"SG Ready Anhebung\",\n            NOT_SEEN,\n            page,\n            off_is_zero=True,\n",
+    "new": "            \"SG Ready Anhebung\",\n            NOT_SEEN,\n            page,\n",
+    "tests": "evoblock_entry_reads_each_circuits_settings or aus_reads_0_only"
+  },
+  {
+    "label": "webif sensor: a settings page's sensors are made for an entry that does not poll it",
+    "path": "custom_components/weishaupt_modbus/number.py",
+    "old": "                    if circuit_settings_page(circuit) in polled\n                    and model in MINIMUM_TEMPERATURES[circuit].models\n",
+    "new": "                    if model in MINIMUM_TEMPERATURES[circuit].models\n",
+    "tests": "entry_made_before_them_gets_no_settings_entities"
+  },
+  {
+    "label": "config flow: a WBB is asked for the settings menus",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "old": "        if key in REQUIRED_TITLES[model]\n",
+    "new": "",
+    "tests": "wbb_neither_keeps_nor_reads_them"
+  },
+  {
+    "label": "config flow: the settings pages found are not read",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "old": "        found |= await find_settings_pages(client, wanted, last=last)\n        polled = _polled(found)\n",
+    "new": "        found |= await find_settings_pages(client, wanted, last=last)\n",
+    "tests": "keeps_the_settings_pages_of_an_evoblock"
+  },
+  {
+    "label": "config flow: an optional page served half fails the dialog",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "old": "        except Broken:\n            # Served half, or its values blank or twice.\n            if not last:\n                raise\n            continue\n",
+    "new": "",
+    "tests": "unclear_in_both_searches_costs_only_itself"
+  },
+  {
+    "label": "config flow: an optional page served half gets no second search",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "old": "            # Served half, or its values blank or twice.\n            if not last:\n                raise\n",
+    "new": "            # Served half, or its values blank or twice.\n",
+    "tests": "second_search_brings_whole_is_kept or unclear_in_both_searches_costs_only_itself"
+  },
+  {
+    "label": "webif discovery: a settings menu served half fails the dialog",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        except Broken:\n            if not last:\n                raise\n            continue\n        found[key] = entries[SETTINGS]\n",
+    "new": "        found[key] = entries[SETTINGS]\n",
+    "tests": "settings_menu_unclear_in_both_searches_costs_only_its_page"
+  },
+  {
+    "label": "webif discovery: a settings entry shown twice gets no second search",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        except Broken:\n            if not last:\n                raise\n            continue\n",
+    "new": "        except Broken:\n            continue\n",
+    "tests": "settings_menu_shown_twice_once_is_searched_again or settings_menu_unclear_in_both_searches_costs_only_its_page"
+  },
+  {
+    "label": "webif discovery: two circuits at one settings page are kept",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "    return {key: path for key, path in found.items() if counts[path] == 1}\n",
+    "new": "    return found\n",
+    "tests": "two_circuits_at_one_settings_page"
+  },
+  {
+    "label": "webif coordinator: a setting is named by half its English path",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            else f\"{english} › {english_title}\",\n",
+    "new": "            else english,\n",
+    "tests": "each_failure_of_a_write_has_its_message or another_value_shown_is_published_and_named"
+  },
+  {
+    "label": "webif setting: a setting has no English title",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        return self.titles[1] if len(self.titles) > 1 else None\n",
+    "new": "        return None\n",
+    "tests": "each_failure_of_a_write_has_its_message or another_value_shown_is_published_and_named"
+  },
+  {
+    "label": "webif coordinator: a write looks its page up before the lock",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        key = (burst.page, burst.setting.title)\n        counted = False\n        handed_on = False\n\n        def count_write() -> None:\n            nonlocal counted\n            counted = True\n            self.budget.record_write()\n\n        try:\n            async with self._asking:\n                # Live a write takes 20 to 60 s: the requests made while\n                # another ran joined this one, and from here on they wait\n                # for a write of their own.\n                if self._bursts.get(key) is burst and key in self._quiets:\n                    # A change since this write was started restarted the\n                    # quiet time; the write that quiet time starts takes it.\n                    handed_on = True\n                    return\n                if self._bursts.get(key) is burst:\n                    del self._bursts[key]\n                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n                self._refuse_write()\n                # Looked up under the lock: a round before it may have found\n                # the page at a new address.\n                page = self._page(burst.page)\n",
+    "new": "        key = (burst.page, burst.setting.title)\n        counted = False\n        page = self._page(burst.page)\n        handed_on = False\n\n        def count_write() -> None:\n            nonlocal counted\n            counted = True\n            self.budget.record_write()\n\n        try:\n            async with self._asking:\n                # Live a write takes 20 to 60 s: the requests made while\n                # another ran joined this one, and from here on they wait\n                # for a write of their own.\n                if self._bursts.get(key) is burst and key in self._quiets:\n                    # A change since this write was started restarted the\n                    # quiet time; the write that quiet time starts takes it.\n                    handed_on = True\n                    return\n                if self._bursts.get(key) is burst:\n                    del self._bursts[key]\n                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n                self._refuse_write()\n",
+    "tests": "looks_its_page_up_once_it_has_the_lock"
   }
 ]

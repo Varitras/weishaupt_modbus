@@ -8,6 +8,7 @@ import pytest
 from custom_components.weishaupt_modbus.const import CONF, CONST
 from custom_components.weishaupt_modbus.webif import client as webif
 from custom_components.weishaupt_modbus.webif.discovery import (
+    CIRCUIT_SETTINGS_PAGES,
     HEAT_PUMP_PAGE,
     HEATING_PAGE,
     STATISTICS_PAGE,
@@ -51,9 +52,15 @@ from .webif_stand_in import (
     value,
 )
 
-ROWS = json.loads(
+# One circuit's settings page stands for each circuit's: circuits 2 and 3
+# showed the same rows, but for the name only circuit 3 had.
+_SEEN = json.loads(
     (Path(__file__).parent / "evoblock_titles.json").read_text(encoding="utf-8")
 )
+ROWS = {
+    **{page: rows for page, rows in _SEEN.items() if page != "circuit_settings"},
+    **dict.fromkeys(CIRCUIT_SETTINGS_PAGES, _SEEN["circuit_settings"]),
+}
 CONDITIONAL_ROW = "Schaltdifferenz dynamisch"
 SHORT_TITLE = "Wärmetauscher AG Austrit"
 FULL_TITLE = "Wärmetauscher AG Austritt"
