@@ -1976,8 +1976,8 @@
   {
     "label": "config flow: the dialog does not read the pages it found",
     "path": "custom_components/weishaupt_modbus/webif_visit.py",
-    "old": "    for key in (STATISTICS_PAGE, HEATING_PAGE):\n        await _read_whole(client, polled, key, lambda _: model)\n",
-    "new": "    for key in (STATISTICS_PAGE, HEATING_PAGE):\n        pass\n",
+    "old": "        for key in (STATISTICS_PAGE, HEATING_PAGE):\n            await _read_whole(client, polled, key, lambda _: model)\n",
+    "new": "        for key in (STATISTICS_PAGE, HEATING_PAGE):\n            pass\n",
     "tests": "reads_each_page_it_found_once or without_a_title_its_sensors_read"
   },
   {
@@ -5329,16 +5329,37 @@
   {
     "label": "config flow: a WBB is asked for the settings menus",
     "path": "custom_components/weishaupt_modbus/webif_visit.py",
-    "old": "        if key in REQUIRED_TITLES[model]\n",
-    "new": "",
+    "old": "        return REQUIRED_TITLES[model].keys()\n",
+    "new": "        return OPTIONAL_PAGES\n",
     "tests": "wbb_neither_keeps_nor_reads_them"
   },
   {
-    "label": "config flow: the settings pages found are not read",
-    "path": "custom_components/weishaupt_modbus/webif_visit.py",
-    "old": "        found |= await find_settings_pages(client, wanted, last=last)\n        polled = _polled(found)\n",
-    "new": "        found |= await find_settings_pages(client, wanted, last=last)\n",
-    "tests": "keeps_the_settings_pages_of_an_evoblock"
+    "label": "webif discovery: the settings pages searched are dropped",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        found |= await find_settings_pages(client, wanted, last=last)\n",
+    "new": "        await find_settings_pages(client, wanted, last=last)\n",
+    "tests": "keeps_the_settings_pages_of_an_evoblock or evoblocks_settings_pages_are_found_again"
+  },
+  {
+    "label": "webif discovery: every settings menu is opened, whatever the model reads",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        key: menu for key, menu in settings_menus(menus).items() if key in keys\n",
+    "new": "        key: menu for key, menu in settings_menus(menus).items()\n",
+    "tests": "wbb_entry_opens_no_settings_menu or wbb_neither_keeps_nor_reads_them"
+  },
+  {
+    "label": "webif discovery: an unclear settings menu fails the dialog's last search",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        found |= await find_settings_pages(client, wanted, last=last)\n",
+    "new": "        found |= await find_settings_pages(client, wanted, last=False)\n",
+    "tests": "settings_menu_unclear_in_both_searches"
+  },
+  {
+    "label": "webif coordinator: a search finds no settings page",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        found = await find_pages(self._client, overview, reads=self._polled_keys)\n",
+    "new": "        found = await find_pages(self._client, overview)\n",
+    "tests": "evoblocks_settings_pages_are_found_again"
   },
   {
     "label": "config flow: an optional page served half fails the dialog",

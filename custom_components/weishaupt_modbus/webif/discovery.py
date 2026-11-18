@@ -22,7 +22,7 @@ menus, which list Reset as well, are the only others asked for.
 """
 
 from collections import Counter
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Collection, Mapping
 from dataclasses import dataclass
 import re
 
@@ -182,15 +182,33 @@ def _clear(shown: list[tuple[str, str]]) -> dict[str, str]:
     }
 
 
-async def find_pages(client: Client, overview: str | None = None) -> dict[str, str]:
-    """The address of each page to poll but the settings pages, by page key.
+async def find_pages(
+    client: Client,
+    overview: str | None = None,
+    *,
+    reads: Callable[[dict[str, str]], Awaitable[Collection[str]]] | None = None,
+    last: bool = True,
+) -> dict[str, str]:
+    """The address of each page to poll, by page key; the setup's and a round's.
 
     `overview` is an answer `moved` took for the overview: the main menus are
-    read from it rather than asked for again.
+    read from it rather than asked for again. `reads` gets the other pages
+    found and gives the keys of those its model has values on, reading them
+    first if it must; only the settings pages among those are searched, as
+    `find_settings_pages` does with `last`. Without it, none are.
 
     Raises WebifError when a menu will not show what it must.
     """
-    return pages_in(await find_menus(client, overview))
+    menus = await find_menus(client, overview)
+    found = pages_in(menus)
+    if reads is None:
+        return found
+    keys = await reads(found)
+    if wanted := {
+        key: menu for key, menu in settings_menus(menus).items() if key in keys
+    }:
+        found |= await find_settings_pages(client, wanted, last=last)
+    return found
 
 
 async def find_menus(client: Client, overview: str | None = None) -> Menus:

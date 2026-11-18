@@ -777,7 +777,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         Only the pages the entry has get one: a page found only now joins
         after a reconfigure, whose visit checks it.
         """
-        found = await find_pages(self._client, overview)
+        found = await find_pages(self._client, overview, reads=self._polled_keys)
         if lost := sorted(page.key for page in self._pages if page.key not in found):
             raise Broken(f"not found again: {', '.join(lost)}", "not found again")
         self._pages = [replace(page, path=found[page.key]) for page in self._pages]
@@ -794,6 +794,10 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 },
             },
         )
+
+    async def _polled_keys(self, _: dict[str, str]) -> set[str]:
+        """The pages polled: a settings menu is opened only for one of them."""
+        return {page.key for page in self._pages}
 
     def _store(self, page: Page, text: str) -> None:
         reading = self._readings[page.key]

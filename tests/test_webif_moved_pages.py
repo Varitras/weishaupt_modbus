@@ -28,6 +28,7 @@ from custom_components.weishaupt_modbus.webif_coordinator import (
     polled_pages,
 )
 from custom_components.weishaupt_modbus.webif_sensor import (
+    EVOBLOCK,
     OPTIONAL_TITLES,
     REQUIRED_TITLES,
     TITLES_SHOWN_OTHERWISE,
@@ -39,6 +40,7 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.write_budget import
 from homeassistant.exceptions import HomeAssistantError
 
 from .locking import until
+from .test_webif_settings_pages import ALL_PAGES, HOT_WATER_MENU, MENUS, evoblock_site
 from .test_webif_setup import PAGES, SHOWN, SITE
 from .webif_stand_in import (
     HEATING,
@@ -119,6 +121,34 @@ async def coordinator(hass, entry, pump, clock):
             REQUIRED_TITLES[WBB],
             TITLES_SHOWN_OTHERWISE[WBB],
             OPTIONAL_TITLES[WBB],
+        )
+        yield WebifCoordinator(
+            hass, entry, client, polled, budget=WriteBudget(0, 10), clock=clock
+        )
+
+
+@pytest.fixture
+async def evoblock(hass, pump, clock):
+    """An Evoblock's entry polling its circuits' and hot water's settings."""
+    evoblock_site(pump)
+    entry = MockConfigEntry(domain=CONST.DOMAIN, data={CONF.PAGES: dict(ALL_PAGES)})
+    entry.add_to_hass(hass)
+    async with aiohttp.ClientSession(cookie_jar=aiohttp.DummyCookieJar()) as session:
+        client = webif.Client(
+            session,
+            pump.host,
+            USER,
+            PASSWORD,
+            host_lock=asyncio.Lock(),
+            pacing=webif.Pacing(),
+            gap=0,
+        )
+        polled = polled_pages(
+            ALL_PAGES,
+            {},
+            REQUIRED_TITLES[EVOBLOCK],
+            TITLES_SHOWN_OTHERWISE[EVOBLOCK],
+            OPTIONAL_TITLES[EVOBLOCK],
         )
         yield WebifCoordinator(
             hass, entry, client, polled, budget=WriteBudget(0, 10), clock=clock
@@ -386,3 +416,36 @@ async def test_a_write_asked_for_during_a_search_reads_and_saves_at_the_new_addr
     assert not [path for path in asked[1:] if TOKEN in path]
     assert NEW_PAGES[HEATING_PAGE] in asked
     assert coordinator.data[HEATING_PAGE]["Leistungsbegrenzung"] == "60 %"
+
+
+async def test_an_evoblocks_settings_pages_are_found_again(evoblock, pump, clock):
+    """Each circuit's and the hot water's settings menu is opened in the
+    search, and every page is read at its new address in the same round."""
+    pump.renumber(NEW)
+
+    asked = await next_round(evoblock, pump, clock)
+
+    found = {key: renumbered(path) for key, path in ALL_PAGES.items()}
+    assert evoblock.config_entry.data[CONF.PAGES] == found
+    assert set(failures(evoblock).values()) == {0}
+    menus = [
+        ("GET", renumbered(STACK + menu)) for menu in (*MENUS.values(), HOT_WATER_MENU)
+    ]
+    assert asked[1:6] == [*SEARCH, *menus]
+    assert sorted(asked[6:]) == sorted(("GET", path) for path in found.values())
+
+
+async def test_a_wbb_entry_opens_no_settings_menu_in_the_search(
+    coordinator, pump, clock
+):
+    """Only the settings pages an entry polls are searched: a WBB polls none."""
+    evoblock_site(pump)
+    pump.site.update(SITE)
+    pump.renumber(NEW)
+
+    asked = await next_round(coordinator, pump, clock)
+
+    assert asked[1:3] == SEARCH
+    for menu in (*MENUS.values(), HOT_WATER_MENU):
+        assert ("GET", renumbered(STACK + menu)) not in asked
+    assert set(failures(coordinator).values()) == {0}
