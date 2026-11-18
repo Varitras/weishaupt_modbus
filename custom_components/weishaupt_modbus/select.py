@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .configentry import MyConfigEntry
-from .const import TYPES
+from .configentry import MyConfigEntry, WebifConfigEntry, is_web_interface
+from .const import CONF, TYPES
 from .entity_helpers import build_entity_list
+from .webif.discovery import MODULATION_PAGE
+from .webif_select import ModulationSelect
+from .webif_sensor import MODULATION, entry_model
 
 # Per platform; the device's write lock is what serialises writes across
 # all of them.
@@ -20,6 +25,14 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Select entry setup."""
+    if is_web_interface(config_entry):
+        web = cast(WebifConfigEntry, config_entry).runtime_data
+        if (
+            MODULATION_PAGE in config_entry.data[CONF.PAGES]
+            and entry_model(config_entry.data) in MODULATION.models
+        ):
+            async_add_entities([ModulationSelect(web.coordinator, web.pump_data)])
+        return
     coordinator = config_entry.runtime_data.coordinator
 
     entries = build_entity_list(

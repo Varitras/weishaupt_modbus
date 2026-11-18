@@ -3,11 +3,15 @@
 When to write, how often and against which daily limit is the caller's. The
 entry is found by its title on its menu page, never by a stored address:
 the controller writes the value into the entry's address, so every save
-moves it. Two settings are written: the heating power limit and each
-circuit's minimum flow temperature.
+moves it. Three settings are written: the heating power limit, each
+circuit's minimum flow temperature and an Evoblock's modulation.
+
+The modulation's entry leads straight to its form, with no page of values
+before it: that form is the page polled, found by its title in the heat
+pump menu, and the one read before and after its save.
 """
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 from . import pages
@@ -20,6 +24,10 @@ PERCENT = "%"
 # Heizkreis n › Einstellungen; no controller set to English has shown it.
 MINIMUM_TEMPERATURE_TITLE = "Minimaltemperatur"
 CELSIUS = "°C"
+# Wärmepumpe › Modulation; its form offers -1 for Automatik.
+MODULATION_TITLE = "Modulation"
+AUTOMATIC = -1
+AUTOMATIC_SHOWN = "Automatik"
 
 
 class FormNotRead(WebifError):
@@ -68,17 +76,27 @@ def shown_tenths(shown: str) -> int | None:
     return tenths if abs(number * 10 - tenths) < 1e-6 else None
 
 
+def shown_option(shown: str) -> int | None:
+    """The form's option a form page's reading is, -1 for "-1"; None for anything else."""
+    digits = shown.removeprefix("-")
+    if not (digits.isascii() and digits.isdecimal()):
+        return None
+    return int(shown)
+
+
 @dataclass(frozen=True)
 class Setting:
     """A setting written: its titles, and how its values map to the form's options.
 
     `option` is the option of the form a shown value is; `shown` each option
-    as the page shows it.
+    as the page shows it. `form_page` marks a setting whose page polled is
+    its own form.
     """
 
     titles: tuple[str, ...]
     option: Callable[[str], int | None]
     shown: Callable[[int], str]
+    form_page: bool = False
 
     @property
     def title(self) -> str:
@@ -100,6 +118,12 @@ MINIMUM_TEMPERATURE = Setting(
     (MINIMUM_TEMPERATURE_TITLE,),
     shown_tenths,
     lambda option: f"{option / 10:.1f} {CELSIUS}",
+)
+MODULATION = Setting(
+    (MODULATION_TITLE,),
+    shown_option,
+    lambda option: AUTOMATIC_SHOWN if option == AUTOMATIC else f"{option} {PERCENT}",
+    form_page=True,
 )
 
 
@@ -143,14 +167,17 @@ async def write_setting(
 ) -> str:
     """Set `setting` to the option `target`; its menu page as read afterwards.
 
-    `whole` is the menu page's own completeness rule. `count_write` runs as
-    the save goes out, see Client.save. A target the controller already
-    shows ends the write after the first read.
+    `whole` is the menu page's own completeness rule. For a setting on a
+    form page, `menu_path` is that page, and the form tells it whole.
+    `count_write` runs as the save goes out, see Client.save. A target the
+    controller already shows ends the write after the first read.
 
     Raises FormNotRead or FormMismatch with nothing sent, LoginRefused or
     Closed from the reads before the save, NotSaved, MaybeSaved or Closed
     from the save, OtherValueShown or NotReadBack after it.
     """
+    if setting.form_page:
+        return await _write_form(client, menu_path, setting, target, count_write)
 
     def setting_shown(text: str) -> tuple[int, str] | None:
         return _entry(text, menu_path, setting) if whole(text) else None
@@ -176,9 +203,62 @@ async def write_setting(
         raise FormMismatch(
             f"{setting.title}: the form is not the one of {shown} or lacks {target}"
         )
+
+    async def shown_now() -> tuple[str, int]:
+        read_back, (now_shown, _) = await _read(client, menu_path, setting_shown)
+        return read_back, now_shown
+
+    return await _save(client, form, setting, target, count_write, shown_now)
+
+
+async def _write_form(
+    client: Client,
+    path: str,
+    setting: Setting,
+    target: int,
+    count_write: Callable[[], object],
+) -> str:
+    """Set the setting whose own form is the page at path; that page afterwards.
+
+    Its form counts only with the page's own stack: another setting's form
+    served in its place is never sent.
+    """
+
+    def own_form(text: str) -> pages.SettingForm | None:
+        form = pages.setting_form(text)
+        return form if form is not None and form.path == path else None
+
+    try:
+        page, form = await _read(client, path, own_form)
+    except (Broken, Unreachable) as error:
+        raise FormNotRead(str(error)) from error
+    if form.selected == target:
+        return page
+    if form.type != SETTING_LIST or target not in form.offered:
+        raise FormMismatch(f"{setting.title}: the form lacks {target}")
+
+    async def selected_now() -> tuple[str, int]:
+        read_back, now = await _read(client, path, own_form)
+        return read_back, now.selected
+
+    return await _save(client, form, setting, target, count_write, selected_now)
+
+
+async def _save(
+    client: Client,
+    form: pages.SettingForm,
+    setting: Setting,
+    target: int,
+    count_write: Callable[[], object],
+    shown_now: Callable[[], Awaitable[tuple[str, int]]],
+) -> str:
+    """Send the form with `target` once, and read back what the controller holds.
+
+    The one save of every setting: nothing else sends a form.
+    """
     await client.save(form, target, count_write)
     try:
-        read_back, (now_shown, _) = await _read(client, menu_path, setting_shown)
+        read_back, now_shown = await shown_now()
     except WebifError as error:
         # The save went out: "called off" or "login refused" alone would
         # invite the user to save again a value the controller may hold.

@@ -26,6 +26,7 @@ from custom_components.weishaupt_modbus.webif.discovery import (
 )
 from custom_components.weishaupt_modbus.webif.setting import (
     MINIMUM_TEMPERATURE,
+    MODULATION,
     POWER_LIMIT,
     Setting,
     shown_tenths,
@@ -480,18 +481,25 @@ def test_a_temperature_is_the_option_of_its_tenths(shown_value, tenths):
     assert shown_tenths(shown_value) == tenths
 
 
-def test_only_the_power_limit_and_the_minimum_temperature_can_be_written():
+def test_only_the_power_limit_the_minimum_temperature_and_the_modulation_are_written():
     """Spec: nothing else can be written. A Setting is what write_setting
-    takes; the module defines these two and no other."""
+    takes; the module defines these three and no other. The modulation, an
+    Evoblock's, user wish 2026-11-18."""
     defined = {
         name
         for name, value in inspect.getmembers(setting)
         if isinstance(value, Setting)
     }
 
-    assert defined == {"POWER_LIMIT", "MINIMUM_TEMPERATURE"}
+    assert defined == {"POWER_LIMIT", "MINIMUM_TEMPERATURE", "MODULATION"}
     assert POWER_LIMIT.titles[0] == "Leistungsbegrenzung"
     assert MINIMUM_TEMPERATURE.titles == ("Minimaltemperatur",)
+    assert MODULATION.titles == ("Modulation",)
+    assert [s.form_page for s in (POWER_LIMIT, MINIMUM_TEMPERATURE, MODULATION)] == [
+        False,
+        False,
+        True,
+    ]
 
 
 def _web_entry(hass, pump):

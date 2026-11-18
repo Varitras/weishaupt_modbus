@@ -141,8 +141,9 @@ PLATFORMS: list[str] = [
     "sensor",
     "switch",
 ]
-# The web interface's values are sensors; the settings it writes are numbers.
-WEBIF_PLATFORMS: list[str] = ["number", "sensor"]
+# The web interface's values are sensors; the settings it writes are numbers
+# and, for the modulation, a choice.
+WEBIF_PLATFORMS: list[str] = ["number", "select", "sensor"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:

@@ -9,6 +9,10 @@ overview, Info, and the heat pump's main menu. Nothing else is opened on the
 way to them; the heat pump menu also lists Reset. The titles are German; a
 controller set to English shows its own, which stand for them.
 
+An Evoblock's heat pump menu also lists Modulation, the heat pump's output
+while the hot water loads, whose entry leads straight to its form: taken
+when shown, as the pages below are.
+
 Info also lists a page per heating circuit and one for the second heat
 generator. They are taken when Info shows them, and left out otherwise: a
 pump without them, or set to English, whose titles for them nobody has seen,
@@ -28,6 +32,7 @@ import re
 
 from . import pages
 from .client import OVERVIEW, Broken, Client
+from .setting import MODULATION_TITLE
 
 INFO = "Info"
 HEAT_PUMP = "Wärmepumpe"
@@ -60,6 +65,7 @@ HEATING_PAGE = "heating"
 HEATING_CIRCUIT_PAGE = "heating_circuit"
 SECOND_GENERATOR_PAGE = "second_generator"
 HOT_WATER_SETTINGS_PAGE = "hot_water_settings"
+MODULATION_PAGE = "modulation"
 
 
 def circuit_settings_page(circuit: int) -> str:
@@ -74,6 +80,7 @@ OPTIONAL_PAGES = (
     SECOND_GENERATOR_PAGE,
     *CIRCUIT_SETTINGS_PAGES,
     HOT_WATER_SETTINGS_PAGE,
+    MODULATION_PAGE,
 )
 # Where each page sits in the controller's menus, as its user finds it there
 # in German and in English; the optional pages were seen in German only.
@@ -94,6 +101,7 @@ MENU_PATHS: dict[str, tuple[str, str | None]] = {
         for n in CIRCUITS
     },
     HOT_WATER_SETTINGS_PAGE: (f"{HOT_WATER} › {SETTINGS}", None),
+    MODULATION_PAGE: (f"{HEAT_PUMP} › {MODULATION_TITLE}", None),
 }
 
 
@@ -239,6 +247,7 @@ def pages_in(menus: Menus) -> dict[str, str]:
         STATISTICS_PAGE: menus.info[STATISTICS],
         HEATING_PAGE: menus.heat_pump[HEATING],
         **_optional_pages(menus.info),
+        **_modulation(menus.heat_pump),
     }
 
 
@@ -278,6 +287,15 @@ def _optional_pages(info: dict[str, str]) -> dict[str, str]:
     if SECOND_GENERATOR in info:
         found[SECOND_GENERATOR_PAGE] = info[SECOND_GENERATOR]
     return found
+
+
+def _modulation(heat_pump: dict[str, str]) -> dict[str, str]:
+    """The modulation's form among the heat pump menu's entries."""
+    return (
+        {MODULATION_PAGE: heat_pump[MODULATION_TITLE]}
+        if MODULATION_TITLE in heat_pump
+        else {}
+    )
 
 
 async def find_settings_pages(

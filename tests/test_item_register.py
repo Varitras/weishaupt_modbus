@@ -30,6 +30,7 @@ from custom_components.weishaupt_modbus.items import ModbusItem
 from custom_components.weishaupt_modbus.webif_sensor import (
     ANSWER_TIME,
     MINIMUM_TEMPERATURES,
+    MODULATION,
     POWER_LIMIT,
     TRAFFIC_SENSORS,
     WEBIF_SENSORS,
@@ -273,6 +274,8 @@ def test_no_translation_outlives_its_item(path):
     known.update(
         ("number", minimum.translation_key) for minimum in MINIMUM_TEMPERATURES.values()
     )
+    # An Evoblock's modulation is a choice.
+    known.add(("select", MODULATION.translation_key))
     known |= _switch_keys()
     # Every platform the file names, not the ones PLATFORM_OF knows: the
     # switches went unchecked that way.

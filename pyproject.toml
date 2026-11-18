@@ -292,6 +292,7 @@ files = [
   "custom_components/weishaupt_modbus/webif_number.py",
   "custom_components/weishaupt_modbus/webif_sensor.py",
   "custom_components/weishaupt_modbus/webif_visit.py",
+  "custom_components/weishaupt_modbus/webif_select.py",
   "custom_components/weishaupt_modbus/webif_write_messages.py",
   "custom_components/weishaupt_modbus/webif/pages.py",
   "custom_components/weishaupt_modbus/webif/setting.py",

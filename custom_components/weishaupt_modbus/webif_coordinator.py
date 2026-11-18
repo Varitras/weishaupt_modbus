@@ -13,9 +13,10 @@ given its menus new codes, sets off a search for all pages from that
 overview, at most once a round; the addresses found are kept in the entry.
 A page not found fails on its own, and a stop by it asks for a reconfigure.
 
-It also writes the settings the integration sets, the heating power limit
-and each circuit's minimum flow temperature: once the requests for one have
-settled, between two pages of a round, never beside one.
+It also writes the settings the integration sets, the heating power limit,
+each circuit's minimum flow temperature and an Evoblock's modulation: once
+the requests for one have settled, between two pages of a round, never
+beside one.
 """
 
 import asyncio
@@ -56,6 +57,7 @@ from .webif.discovery import (
     HEATING_PAGE,
     HOT_WATER_SETTINGS_PAGE,
     MENU_PATHS,
+    MODULATION_PAGE,
     OPTIONAL_PAGES,
     PAGE_MENUS,
     SECOND_GENERATOR_PAGE,
@@ -65,6 +67,7 @@ from .webif.discovery import (
     moved,
 )
 from .webif.setting import (
+    MODULATION_TITLE,
     POWER_LIMIT,
     NotReadBack,
     OtherValueShown,
@@ -127,7 +130,7 @@ INTERVAL_OPTIONS = {
     ),
     # The settings pages share one: they change only when someone sets them.
     **dict.fromkeys(
-        (*CIRCUIT_SETTINGS_PAGES, HOT_WATER_SETTINGS_PAGE),
+        (*CIRCUIT_SETTINGS_PAGES, HOT_WATER_SETTINGS_PAGE, MODULATION_PAGE),
         (CONST.OPTION_WEBIF_SETTINGS_INTERVAL, CONST.WEBIF_SLOW_INTERVAL_MINUTES),
     ),
 }
@@ -139,7 +142,9 @@ Values = dict[str, str]
 class Page:
     """A page to keep fresh: where it is, what it must show, how often.
 
-    A menu page is read for the values its entries show one level down.
+    A menu page is read for the values its entries show one level down; a
+    form page, a setting's own, for the option its form has selected, under
+    the title `form`.
     `english` maps the titles a controller shows otherwise, set to English or
     spelt another way, to the German ones everything else goes by. `optional` are titles read when the
     page shows them, which it need not.
@@ -150,19 +155,28 @@ class Page:
     required: frozenset[str]
     interval: timedelta
     menu: bool = False
+    form: str | None = None
     # Left out of the hash: a dict has none, and every page lost its own.
     english: Mapping[str, str] = field(default_factory=dict, hash=False)
     optional: frozenset[str] = frozenset()
 
     def read(self, text: str) -> list[tuple[str, str]]:
         """The titles and values the page shows, English titles made German."""
-        if self.menu:
+        if self.form is not None:
+            found = self._selected(text, self.form)
+        elif self.menu:
             found = [
                 (entry.title, entry.text) for entry in pages.children(text, self.path)
             ]
         else:
             found = pages.values(text)
         return [(self.english.get(title, title), shown) for title, shown in found]
+
+    def _selected(self, text: str, title: str) -> list[tuple[str, str]]:
+        form = pages.setting_form(text)
+        if form is None or form.path != self.path:
+            return []
+        return [(title, str(form.selected))]
 
     def is_whole(self, text: str) -> bool:
         """Every required title is there once, none read twice, no value blank."""
@@ -250,6 +264,7 @@ def polled_pages(
                 every(key),
                 # A settings page shows its values one level down, as entries.
                 menu=key in (*CIRCUIT_SETTINGS_PAGES, HOT_WATER_SETTINGS_PAGE),
+                form=MODULATION_TITLE if key == MODULATION_PAGE else None,
                 english=english.get(key, {}),
                 optional=optional.get(key, frozenset()),
             )
@@ -325,6 +340,9 @@ class _Burst:
         Leistungsbegrenzung (heat pump › heating › output limit)".
         """
         german, english = MENU_PATHS[self.page]
+        if self.setting.form_page:
+            # The page is the setting's own: its path ends in its title.
+            return in_both_languages(german, english)
         english_title = self.setting.english_title
         return in_both_languages(
             f"{german} › {self.setting.title}",

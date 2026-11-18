@@ -96,5 +96,8 @@
     ["Maximaltemperatur", "°C"],
     ["Vorlaufüberhöhung", "K"],
     ["Ladezeit max", null]
+  ],
+  "modulation": [
+    ["Modulation", null]
   ]
 }

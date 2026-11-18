@@ -392,6 +392,23 @@
       }
     },
     "select" : {
+      "webif_modulation" : {
+        "name" : "{prefix}Modulatie warm water",
+        "state" : {
+          "auto" : "Automatisch",
+          "50" : "50 %",
+          "55" : "55 %",
+          "60" : "60 %",
+          "65" : "65 %",
+          "70" : "70 %",
+          "75" : "75 %",
+          "80" : "80 %",
+          "85" : "85 %",
+          "90" : "90 %",
+          "95" : "95 %",
+          "100" : "100 %"
+        }
+      },
       "hz_operationmode" : {
         "name" : "{prefix}Bedrijfsmodus",
         "state" : {

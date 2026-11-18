@@ -41,6 +41,7 @@ from .webif.discovery import (
     HEATING_CIRCUIT_PAGE,
     HEATING_PAGE,
     HOT_WATER_SETTINGS_PAGE,
+    MODULATION_PAGE,
     OPTIONAL_PAGES,
     SECOND_GENERATOR_PAGE,
     STATISTICS_PAGE,
@@ -48,6 +49,7 @@ from .webif.discovery import (
 )
 from .webif.setting import (
     MINIMUM_TEMPERATURE_TITLE,
+    MODULATION_TITLE,
     POWER_LIMIT_ENGLISH_TITLE,
     POWER_LIMIT_TITLE,
 )
@@ -611,7 +613,22 @@ MINIMUM_TEMPERATURES = {
     )
     for circuit in CIRCUITS
 }
-READ_VALUES = (*WEBIF_SENSORS, POWER_LIMIT, *MINIMUM_TEMPERATURES.values())
+# On an Evoblock, Wärmepumpe › Modulation: the heat pump's output while the
+# hot water loads, the option its own form has selected, "-1" for Automatik.
+# A select (webif_select.py). Seen in German alone (2026-11-18).
+MODULATION = _text(
+    "modulation",
+    MODULATION_TITLE,
+    NOT_SEEN,
+    page=MODULATION_PAGE,
+    models=ONLY_EVOBLOCK,
+)
+READ_VALUES = (
+    *WEBIF_SENSORS,
+    POWER_LIMIT,
+    *MINIMUM_TEMPERATURES.values(),
+    MODULATION,
+)
 VALUES = {
     model: tuple(value for value in READ_VALUES if model in value.models)
     for model in MODELS

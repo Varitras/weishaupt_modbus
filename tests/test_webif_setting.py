@@ -21,10 +21,12 @@ from .webif_stand_in import (
     GERMAN_HEATING,
     HEATING,
     HEATING_PATH,
+    MODULATION_PATH,
     PUMP_MENU,
     heating_page,
     limit_leaf,
     limit_segment,
+    modulation_form,
 )
 
 LEAF = f"{HEATING_PATH},{limit_segment(60)}"
@@ -235,3 +237,24 @@ async def test_a_refused_login_is_no_unreadable_form():
 )
 def test_the_power_limit_is_read_as_a_whole_percentage(shown, expected):
     assert setting.shown_percent(shown) == expected
+
+
+async def test_a_modulation_form_of_another_type_is_not_sent():
+    """Its form is its page: what holds for the power limit's own page holds
+    for it."""
+    client, events = scripted()
+    client.answers = {
+        MODULATION_PATH: [modulation_form(50).replace('"para_list"', '"para_text"')]
+    }
+
+    with pytest.raises(setting.FormMismatch):
+        await setting.write_setting(
+            client,
+            MODULATION_PATH,
+            whole,
+            setting.MODULATION,
+            85,
+            lambda: events.append(("count",)),
+        )
+
+    assert events == [("page", MODULATION_PATH)]

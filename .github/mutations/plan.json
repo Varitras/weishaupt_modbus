@@ -3509,8 +3509,8 @@
   {
     "label": "power limit number: the heating page no longer requires its title",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "READ_VALUES = (*WEBIF_SENSORS, POWER_LIMIT, *MINIMUM_TEMPERATURES.values())\n",
-    "new": "READ_VALUES = (*WEBIF_SENSORS, *MINIMUM_TEMPERATURES.values())\n",
+    "old": "READ_VALUES = (\n    *WEBIF_SENSORS,\n    POWER_LIMIT,\n",
+    "new": "READ_VALUES = (\n    *WEBIF_SENSORS,\n",
     "tests": "heating_page_still_requires_the_power_limit"
   },
   {
@@ -5626,5 +5626,124 @@
     "old": "            # A search before the failure gave the page a new address.\n            page = self._page(page.key)\n",
     "new": "",
     "tests": "stopped_right_after_the_search_is_asked_at_its_new_address"
+  },
+  {
+    "label": "modulation: not taken from the heat pump menu",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        **_modulation(menus.heat_pump),\n",
+    "new": "",
+    "tests": "found_by_its_title_in_the_heat_pump_menu or dialog_keeps_it_on_an_evoblock or found_again_under_new_codes"
+  },
+  {
+    "label": "modulation: a heat pump menu without it fails on a missing key",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        if MODULATION_TITLE in heat_pump\n",
+    "new": "        if True\n",
+    "tests": "heat_pump_menu_without_it_leaves_it_out"
+  },
+  {
+    "label": "modulation: another setting's form passes for its value",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if form is None or form.path != self.path:\n",
+    "new": "        if form is None:\n",
+    "tests": "without_its_own_form_is_not_whole"
+  },
+  {
+    "label": "modulation: its page is read as a page of values",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                form=MODULATION_TITLE if key == MODULATION_PAGE else None,\n",
+    "new": "                form=None,\n",
+    "tests": "dialog_keeps_it_on_an_evoblock or polled_on_the_settings_interval"
+  },
+  {
+    "label": "modulation: its write is named with its title twice",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if self.setting.form_page:\n",
+    "new": "        if False:\n",
+    "tests": "form_does_not_offer_is_not_sent or another_option_read_back_is_named"
+  },
+  {
+    "label": "modulation: its write looks for a page of values before its form",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    if setting.form_page:\n",
+    "new": "    if False:\n",
+    "tests": "it_is_set_from_home_assistant"
+  },
+  {
+    "label": "modulation: another setting's form in its place is sent",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        return form if form is not None and form.path == path else None\n",
+    "new": "        return form\n",
+    "tests": "form_not_its_own_is_not_sent"
+  },
+  {
+    "label": "modulation: the option shown already is saved again",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    if form.selected == target:\n        return page\n",
+    "new": "",
+    "tests": "option_shown_already_sends_nothing"
+  },
+  {
+    "label": "modulation: an option the form does not offer is sent",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    if form.type != SETTING_LIST or target not in form.offered:\n",
+    "new": "    if form.type != SETTING_LIST:\n",
+    "tests": "form_does_not_offer_is_not_sent"
+  },
+  {
+    "label": "modulation: a form of another type is sent",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    if form.type != SETTING_LIST or target not in form.offered:\n",
+    "new": "    if target not in form.offered:\n",
+    "tests": "modulation_form_of_another_type_is_not_sent"
+  },
+  {
+    "label": "modulation: what its save left is not read back",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        return read_back, now.selected\n",
+    "new": "        return read_back, target\n",
+    "tests": "another_option_read_back_is_named"
+  },
+  {
+    "label": "modulation: Automatik reads as no option",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    digits = shown.removeprefix(\"-\")\n",
+    "new": "    digits = shown\n",
+    "tests": "it_is_set_from_home_assistant"
+  },
+  {
+    "label": "modulation: Automatik is named as minus one",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    lambda option: AUTOMATIC_SHOWN if option == AUTOMATIC else f\"{option} {PERCENT}\",\n",
+    "new": "    lambda option: f\"{option} {PERCENT}\",\n",
+    "tests": "another_option_read_back_is_named"
+  },
+  {
+    "label": "modulation: an entry that does not poll it gets the choice",
+    "path": "custom_components/weishaupt_modbus/select.py",
+    "old": "            MODULATION_PAGE in config_entry.data[CONF.PAGES]\n            and ",
+    "new": "            ",
+    "tests": "entry_without_it_gets_no_choice"
+  },
+  {
+    "label": "modulation: a WBB entry gets the choice",
+    "path": "custom_components/weishaupt_modbus/select.py",
+    "old": "            and entry_model(config_entry.data) in MODULATION.models\n",
+    "new": "",
+    "tests": "wbb_entry_gets_no_choice"
+  },
+  {
+    "label": "modulation: the web entry sets up no choices",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "WEBIF_PLATFORMS: list[str] = [\"number\", \"select\", \"sensor\"]\n",
+    "new": "WEBIF_PLATFORMS: list[str] = [\"number\", \"sensor\"]\n",
+    "tests": "shows_it_as_a_choice"
+  },
+  {
+    "label": "modulation: an Evoblock does not read it",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    *MINIMUM_TEMPERATURES.values(),\n    MODULATION,\n)\n",
+    "new": "    *MINIMUM_TEMPERATURES.values(),\n)\n",
+    "tests": "dialog_keeps_it_on_an_evoblock"
   }
 ]
