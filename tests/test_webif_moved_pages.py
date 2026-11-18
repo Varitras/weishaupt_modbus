@@ -21,7 +21,9 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     HEATING_CIRCUIT_PAGE,
     HEATING_PAGE,
     PAGE_MENUS,
+    circuit_settings_page,
 )
+from custom_components.weishaupt_modbus.webif.setting import MINIMUM_TEMPERATURE
 from custom_components.weishaupt_modbus.webif_coordinator import (
     FAILURES_TO_STOP,
     NOT_FOUND_AGAIN_ISSUE,
@@ -37,6 +39,7 @@ from custom_components.weishaupt_modbus.webif_sensor import (
     TITLES_SHOWN_OTHERWISE,
     WBB,
 )
+from custom_components.weishaupt_modbus.webif_shared import SHARED_ISSUE
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.write_budget import (
     WriteBudget,
 )
@@ -44,6 +47,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 
 from .locking import until
+from .test_webif_optional_pages import info_menu
 from .test_webif_settings_pages import ALL_PAGES, HOT_WATER_MENU, MENUS, evoblock_site
 from .test_webif_setup import PAGES, SHOWN, SITE
 from .webif_stand_in import (
@@ -510,3 +514,155 @@ async def test_a_wbb_entry_opens_no_settings_menu_in_the_search(
     for menu in (*MENUS.values(), HOT_WATER_MENU):
         assert ("GET", renumbered(STACK + menu)) not in asked
     assert set(failures(coordinator).values()) == {0}
+
+
+@pytest.fixture
+def reloads(hass, monkeypatch):
+    """The entries a reload was asked for."""
+    asked = []
+    monkeypatch.setattr(hass.config_entries, "async_schedule_reload", asked.append)
+    return asked
+
+
+@pytest.fixture
+async def lost_at_a_found_address(hass, pump, clock):
+    """A heating circuit's page stored at the address the heat pump page has
+    under the new codes, and not listed by Info under them."""
+    lost = NEW_PAGES[HEAT_PUMP_PAGE]
+    entry = MockConfigEntry(
+        domain=CONST.DOMAIN, data={CONF.PAGES: {**PAGES, HEATING_CIRCUIT_PAGE: lost}}
+    )
+    entry.add_to_hass(hass)
+    async with aiohttp.ClientSession(cookie_jar=aiohttp.DummyCookieJar()) as session:
+        client = webif.Client(
+            session,
+            pump.host,
+            USER,
+            PASSWORD,
+            host_lock=asyncio.Lock(),
+            pacing=webif.Pacing(),
+            gap=0,
+        )
+        polled = polled_pages(
+            PAGES,
+            {},
+            REQUIRED_TITLES[WBB],
+            TITLES_SHOWN_OTHERWISE[WBB],
+            OPTIONAL_TITLES[WBB],
+        )
+        polled.append(
+            Page(
+                HEATING_CIRCUIT_PAGE,
+                lost,
+                frozenset({"AT Mittelwert"}),
+                polled[0].interval,
+            )
+        )
+        yield WebifCoordinator(
+            hass, entry, client, polled, budget=WriteBudget(0, 10), clock=clock
+        )
+
+
+async def test_a_lost_page_at_a_found_pages_address_is_left_out_and_reloads(
+    hass, lost_at_a_found_address, pump, clock, reloads, caplog
+):
+    """The page found keeps its address; the lost one, which would read the
+    found page as its own, is dropped from the entry, a notice asks for
+    Reconfigure, and the entry reloads to poll the rest. No page fails."""
+    caplog.set_level(logging.INFO)
+    coordinator = lost_at_a_found_address
+    entry = coordinator.config_entry
+    pump.renumber(NEW)
+
+    await next_round(coordinator, pump, clock)
+
+    assert entry.data[CONF.PAGES] == NEW_PAGES
+    assert reloads == [entry.entry_id]
+    issue = ir.async_get(hass).async_get_issue(
+        CONST.DOMAIN, f"{SHARED_ISSUE}_{entry.entry_id}"
+    )
+    assert issue is not None
+    assert issue.translation_placeholders == {"pages": PAGE_MENUS[HEATING_CIRCUIT_PAGE]}
+    assert set(failures(coordinator).values()) == {0}
+    assert not [
+        record
+        for record in caplog.records
+        if record.name.startswith("custom_components") and STACK in record.getMessage()
+    ]
+
+
+async def test_no_write_goes_out_once_a_lost_page_shared_an_address(
+    lost_at_a_found_address, pump, clock, reloads, monkeypatch
+):
+    """Until the reload a write is refused before any request, also one
+    asked for while the search ran."""
+    monkeypatch.setattr(webif_coordinator, "DEBOUNCE_SECONDS", 0.05)
+    coordinator = lost_at_a_found_address
+    pump.show_power_limit(50)
+    pump.renumber(NEW)
+    info = renumbered(STACK + INFO)
+    pump.delays[info] = 0.2
+    pump.asked.clear()
+    clock.now += DAY
+    polling = asyncio.create_task(coordinator.async_refresh())
+    await until(lambda: ("GET", info) in pump.asked)
+
+    with pytest.raises(HomeAssistantError):
+        await coordinator.set_power_limit(60)
+    await polling
+    with pytest.raises(HomeAssistantError):
+        await coordinator.set_power_limit(70)
+
+    assert pump.saved == []
+
+
+@pytest.fixture
+async def circuit_lost_at_another_circuits_address(hass, pump, clock):
+    """An Evoblock whose Info lists no Heizkreis 3 under the new codes, with
+    circuit 3's settings stored at the address circuit 2's get under them."""
+    evoblock_site(pump)
+    pump.site[STACK + INFO] = info_menu().replace("Heizkreis 3", "Heizkreis 9")
+    second, third = circuit_settings_page(2), circuit_settings_page(3)
+    pages = {**ALL_PAGES, third: renumbered(ALL_PAGES[second])}
+    entry = MockConfigEntry(domain=CONST.DOMAIN, data={CONF.PAGES: pages})
+    entry.add_to_hass(hass)
+    async with aiohttp.ClientSession(cookie_jar=aiohttp.DummyCookieJar()) as session:
+        client = webif.Client(
+            session,
+            pump.host,
+            USER,
+            PASSWORD,
+            host_lock=asyncio.Lock(),
+            pacing=webif.Pacing(),
+            gap=0,
+        )
+        polled = polled_pages(
+            pages,
+            {},
+            REQUIRED_TITLES[EVOBLOCK],
+            TITLES_SHOWN_OTHERWISE[EVOBLOCK],
+            OPTIONAL_TITLES[EVOBLOCK],
+        )
+        yield WebifCoordinator(
+            hass, entry, client, polled, budget=WriteBudget(0, 10), clock=clock
+        )
+
+
+async def test_a_lost_circuit_sends_nothing_to_the_circuit_at_its_address(
+    circuit_lost_at_another_circuits_address, pump, clock, reloads
+):
+    """Circuit 3's old address is circuit 2's new one: its minimum asks the
+    controller nothing, rather than circuit 2's page."""
+    coordinator = circuit_lost_at_another_circuits_address
+    pump.renumber(NEW)
+    await next_round(coordinator, pump, clock)
+    assert circuit_settings_page(3) not in coordinator.config_entry.data[CONF.PAGES]
+    pump.asked.clear()
+
+    with pytest.raises(HomeAssistantError):
+        await coordinator.set_setting(
+            circuit_settings_page(3), MINIMUM_TEMPERATURE, 345
+        )
+
+    assert pump.asked == []
+    assert pump.saved == []

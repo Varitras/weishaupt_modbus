@@ -2210,6 +2210,12 @@
     },
     "webif_minimum_temperature_step": {
       "message": "{value} °C is not offered. The minimum temperature is set in steps of 0.5 °C."
+    },
+    "webif_pages_shared": {
+      "message": "Two of the web interface's pages are stored at one address, one it must read among them. Use **Reconfigure** on this entry: it searches every page anew."
+    },
+    "webif_write_reloading": {
+      "message": "The web interface entry is reloading, as two of its pages had one address. Nothing was sent; try again once it has loaded."
     }
   },
   "issues": {
@@ -2228,6 +2234,10 @@
     "circuit_off_at_controller": {
       "title": "Heating circuit {circuit} switched off at the heat pump",
       "description": "This entry reads heating circuit {circuit}, but the heat pump reports it as switched off. Its values belong to no circuit in use. Disable it under **Reconfigure** of the heat pump entry, or ignore this notice if the circuit is about to be set up."
+    },
+    "webif_pages_shared": {
+      "title": "Web interface pages left out",
+      "description": "{pages} had the same address as another page, so a value read or written there could belong to either. The web interface entry no longer reads or writes them; its other pages and Modbus are not affected. Use **Reconfigure** on the web interface entry: it searches every page anew, and this notice goes."
     }
   }
 }

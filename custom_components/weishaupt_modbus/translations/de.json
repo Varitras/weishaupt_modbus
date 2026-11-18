@@ -2210,12 +2210,22 @@
         },
         "webif_minimum_temperature_step": {
             "message": "{value} °C wird nicht angeboten. Die Minimaltemperatur wird in Schritten von 0,5 °C eingestellt."
+        },
+        "webif_pages_shared": {
+            "message": "Zwei Seiten der Weboberfläche sind unter einer Adresse gespeichert, darunter eine, die sie lesen muss. Wählen Sie **Neu konfigurieren** an diesem Eintrag: Dabei werden alle Seiten neu gesucht."
+        },
+        "webif_write_reloading": {
+            "message": "Der Eintrag der Weboberfläche wird neu geladen, weil zwei seiner Seiten eine Adresse hatten. Es wurde nichts gesendet; versuchen Sie es erneut, sobald er geladen ist."
         }
     },
     "issues": {
         "webif_stopped": {
             "title": "Abruf der Weboberfläche pausiert",
             "description": "Die Seite {page} schlug mehrmals in Folge fehl ({error}). Um den Regler zu schonen, pausiert der Abruf der Weboberfläche. Modbus ist davon nicht betroffen. Nur diese Seite wird erneut abgerufen, nach 15 Minuten oder nach dem kürzesten Seitentakt, falls der länger ist, danach in Abständen, die sich bis 2 Stunden verdoppeln; kommt sie vollständig, läuft der Abruf weiter und dieser Hinweis verschwindet von selbst. Neuladen des Eintrags der Weboberfläche versucht es sofort."
+        },
+        "webif_pages_shared": {
+            "title": "Seiten der Weboberfläche ausgelassen",
+            "description": "{pages} hatte dieselbe Adresse wie eine andere Seite; ein dort gelesener oder geschriebener Wert könnte zu beiden gehören. Der Eintrag der Weboberfläche liest und schreibt sie darum nicht mehr; seine übrigen Seiten und Modbus sind nicht betroffen. Wählen Sie **Neu konfigurieren** am Eintrag der Weboberfläche: Dabei werden alle Seiten neu gesucht, und dieser Hinweis verschwindet."
         },
         "webif_stopped_not_found_again": {
             "title": "Seite der Weboberfläche nicht wiedergefunden",
