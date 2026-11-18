@@ -20,9 +20,12 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     HEAT_PUMP_PAGE,
     HEATING_CIRCUIT_PAGE,
     HEATING_PAGE,
+    PAGE_MENUS,
 )
 from custom_components.weishaupt_modbus.webif_coordinator import (
     FAILURES_TO_STOP,
+    NOT_FOUND_AGAIN_ISSUE,
+    STOPPED_ISSUE,
     Page,
     WebifCoordinator,
     polled_pages,
@@ -38,6 +41,7 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.write_budget import
     WriteBudget,
 )
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import issue_registry as ir
 
 from .locking import until
 from .test_webif_settings_pages import ALL_PAGES, HOT_WATER_MENU, MENUS, evoblock_site
@@ -302,13 +306,14 @@ async def test_codes_changed_twice_are_found_twice(coordinator, pump, clock, ent
     assert coordinator.diagnostics()["searched_again"] == 2
 
 
-async def test_a_page_the_search_does_not_find_again_is_a_failure(
-    hass, entry, pump, clock, caplog
-):
-    """An optional page Info no longer lists: the page that set the search
-    off fails, not the code on a missing key."""
-    circuit = STACK + f"{INFO},0C000C40000000000000000A0B020003000401"
-    pump.site[circuit] = column(value("AT Mittelwert", "4.5 °C"))
+CIRCUIT = STACK + f"{INFO},0C000C40000000000000000A0B020003000401"
+
+
+@pytest.fixture
+async def circuit_polled(hass, entry, pump, clock):
+    """A heating circuit's page polled before the three, one Info does not
+    list under the new codes."""
+    pump.site[CIRCUIT] = column(value("AT Mittelwert", "4.5 °C"))
     async with aiohttp.ClientSession(cookie_jar=aiohttp.DummyCookieJar()) as session:
         client = webif.Client(
             session,
@@ -320,30 +325,86 @@ async def test_a_page_the_search_does_not_find_again_is_a_failure(
             gap=0,
         )
         polled = polled_pages(
-            {**PAGES, HEATING_CIRCUIT_PAGE: circuit},
+            PAGES,
             {},
             REQUIRED_TITLES[WBB],
             TITLES_SHOWN_OTHERWISE[WBB],
             OPTIONAL_TITLES[WBB],
         )
-        polled.append(
+        # First in the round: the page that sets the search off.
+        polled.insert(
+            0,
             Page(
                 HEATING_CIRCUIT_PAGE,
-                circuit,
+                CIRCUIT,
                 frozenset({"AT Mittelwert"}),
                 polled[0].interval,
-            )
+            ),
         )
-        coordinator = WebifCoordinator(
+        yield WebifCoordinator(
             hass, entry, client, polled, budget=WriteBudget(0, 10), clock=clock
         )
-        pump.renumber(NEW)
 
+
+async def test_a_page_the_search_does_not_find_again_fails_alone(
+    circuit_polled, pump, clock, entry, caplog
+):
+    """The page that set the search off is not found: the others are read
+    at their new addresses and kept, and it fails under its own name, with
+    one request at its old address."""
+    caplog.set_level(logging.INFO)
+    pump.renumber(NEW)
+
+    asked = await next_round(circuit_polled, pump, clock)
+
+    assert failures(circuit_polled) == {
+        **dict.fromkeys(PAGES, 0),
+        HEATING_CIRCUIT_PAGE: 1,
+    }
+    assert entry.data[CONF.PAGES] == NEW_PAGES
+    assert asked.count(("GET", CIRCUIT)) == 1
+    assert {key: circuit_polled.data[key] for key in PAGES} == SHOWN
+    assert not [record for record in caplog.records if record.levelno >= logging.ERROR]
+    assert (
+        "The pages moved to new addresses and were found again, but not "
+        f"{HEATING_CIRCUIT_PAGE}"
+    ) in caplog.messages
+
+
+async def test_a_stop_by_a_page_not_found_again_asks_for_a_reconfigure(
+    hass, circuit_polled, pump, clock, entry
+):
+    """Its notice names the page, and only a reconfigure, which searches
+    every page, brings a page Info no longer lists back."""
+    pump.renumber(NEW)
+    for _ in range(FAILURES_TO_STOP):
+        await next_round(circuit_polled, pump, clock)
+
+    issues = ir.async_get(hass)
+    assert (
+        issues.async_get_issue(CONST.DOMAIN, f"{STOPPED_ISSUE}_{entry.entry_id}")
+    ).translation_key == NOT_FOUND_AGAIN_ISSUE
+    assert circuit_polled.diagnostics()["stopped_by"] == (
+        PAGE_MENUS[HEATING_CIRCUIT_PAGE],
+        "Broken (not found again)",
+    )
+
+
+async def test_a_page_moved_again_stops_with_the_usual_notice(
+    hass, coordinator, pump, clock, entry
+):
+    """Found, but bringing the overview at its new address too: asking
+    again may mend that, a reconfigure is not called for."""
+    pump.renumber(NEW)
+    for path in NEW_PAGES.values():
+        pump.site[path] = pump.site[PAGE_PATH].replace(NEW, NEWER)
+    for _ in range(FAILURES_TO_STOP):
         await next_round(coordinator, pump, clock)
 
-    assert failures(coordinator)[HEAT_PUMP_PAGE] == 1
-    assert not [record for record in caplog.records if record.levelno >= logging.ERROR]
-    assert entry.data[CONF.PAGES] == PAGES
+    issue = ir.async_get(hass).async_get_issue(
+        CONST.DOMAIN, f"{STOPPED_ISSUE}_{entry.entry_id}"
+    )
+    assert issue.translation_key == STOPPED_ISSUE
 
 
 async def test_a_page_stopped_right_after_the_search_is_asked_at_its_new_address(

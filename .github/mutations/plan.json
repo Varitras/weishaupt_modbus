@@ -5483,8 +5483,8 @@
   {
     "label": "webif coordinator: a round searches more than once",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        if self._searched_in_round:\n            raise Broken(f\"{page.key}: moved again\", \"moved again\", text=text)\n        self._searched_in_round = True\n",
-    "new": "",
+    "old": "        if not self._searched_in_round:\n            self._searched_in_round = True\n",
+    "new": "        if True:\n            self._searched_in_round = True\n",
     "tests": "moved_again_at_their_new_addresses_are_not_searched_twice"
   },
   {
@@ -5497,7 +5497,7 @@
   {
     "label": "webif coordinator: the pages found again are not polled",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        self._pages = [replace(page, path=found[page.key]) for page in self._pages]\n",
+    "old": "        self._pages = [\n            replace(page, path=found.get(page.key, page.path)) for page in self._pages\n        ]\n",
     "new": "",
     "tests": "moved_pages_are_found_again_from_the_overview"
   },
@@ -5511,9 +5511,51 @@
   {
     "label": "webif coordinator: a page not found again fails on a missing key",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        if lost := sorted(page.key for page in self._pages if page.key not in found):\n            raise Broken(f\"not found again: {', '.join(lost)}\", \"not found again\")\n",
+    "old": "            replace(page, path=found.get(page.key, page.path)) for page in self._pages\n",
+    "new": "            replace(page, path=found[page.key]) for page in self._pages\n",
+    "tests": "does_not_find_again_fails_alone"
+  },
+  {
+    "label": "webif coordinator: a page not found again fails the whole search",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self._lost = {page.key for page in self._pages if page.key not in found}\n",
+    "new": "        self._lost = {page.key for page in self._pages if page.key not in found}\n        if self._lost:\n            raise Broken(\"not found again\", \"not found again\")\n",
+    "tests": "does_not_find_again_fails_alone"
+  },
+  {
+    "label": "webif coordinator: a page not found again is asked at its old address once more",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            if page.key not in self._lost:\n",
+    "new": "            if True:\n",
+    "tests": "does_not_find_again_fails_alone"
+  },
+  {
+    "label": "webif coordinator: a page not found again reads as moved again",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if page.key in self._lost:\n            raise Broken(f\"{page.key}: not found again\", \"not found again\")\n",
     "new": "",
-    "tests": "search_does_not_find_again_is_a_failure"
+    "tests": "not_found_again_asks_for_a_reconfigure"
+  },
+  {
+    "label": "webif coordinator: a stop by a page not found again gives the usual notice",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            translation_key=NOT_FOUND_AGAIN_ISSUE\n            if page.key in self._lost\n            else STOPPED_ISSUE,\n",
+    "new": "            translation_key=STOPPED_ISSUE,\n",
+    "tests": "not_found_again_asks_for_a_reconfigure"
+  },
+  {
+    "label": "webif coordinator: every stop asks for a reconfigure",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            translation_key=NOT_FOUND_AGAIN_ISSUE\n            if page.key in self._lost\n            else STOPPED_ISSUE,\n",
+    "new": "            translation_key=NOT_FOUND_AGAIN_ISSUE,\n",
+    "tests": "stops_with_the_usual_notice"
+  },
+  {
+    "label": "webif coordinator: the log does not name the pages not found again",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            f\", but not {', '.join(sorted(self._lost))}\" if self._lost else \"\",\n",
+    "new": "            \"\",\n",
+    "tests": "does_not_find_again_fails_alone"
   },
   {
     "label": "webif coordinator: a search goes uncounted",
@@ -5525,8 +5567,8 @@
   {
     "label": "webif coordinator: a search leaves no line in the log",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        _LOGGER.info(\"The pages moved to new addresses and were found again\")\n",
-    "new": "        _LOGGER.debug(\"The pages moved to new addresses and were found again\")\n",
+    "old": "        _LOGGER.info(\n            \"The pages moved to new addresses and were found again%s\",\n",
+    "new": "        _LOGGER.debug(\n            \"The pages moved to new addresses and were found again%s\",\n",
     "tests": "moved_pages_are_found_again_from_the_overview"
   },
   {

@@ -142,7 +142,8 @@ and resumes by itself when the page comes whole. A controller may give its
 menus new codes, and then answers the addresses of the old ones with its
 overview; the entry searches its pages again from that overview, the
 settings pages it reads among them, at most once a round, and keeps the new
-addresses. Switching the web server on,
+addresses. A page not found again fails on its own, and should it pause the
+polling, the notice asks for **Reconfigure**. Switching the web server on,
 adding the entry and everything it reads are described under
 [Web Interface](https://github.com/Varitras/weishaupt_modbus/wiki/Web-Interface).
 It needs the web interface's language set to Auto, German or English.

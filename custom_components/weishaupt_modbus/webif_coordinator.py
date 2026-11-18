@@ -11,6 +11,7 @@ whole or the entry is reloaded.
 A page whose address brings the overview instead, the controller having
 given its menus new codes, sets off a search for all pages from that
 overview, at most once a round; the addresses found are kept in the entry.
+A page not found fails on its own, and a stop by it asks for a reconfigure.
 
 It also writes the settings the integration sets, the heating power limit
 and each circuit's minimum flow temperature: once the requests for one have
@@ -93,6 +94,9 @@ DUE_SLACK_SECONDS = 5.0
 # second later instead.
 SHORTEST_WAIT_SECONDS = 1.0
 STOPPED_ISSUE = "webif_stopped"
+# The same stop, by a page the search after new codes did not find: only a
+# reconfigure, whose visit searches every page, brings it back for sure.
+NOT_FOUND_AGAIN_ISSUE = "webif_stopped_not_found_again"
 # A wrong page in place of the asked one lacks every title: more than these
 # are counted, not listed, in the notice and the log.
 TITLES_NAMED = 5
@@ -412,6 +416,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         # How often the pages were searched again since the setup.
         self.searched_again = 0
         self._searched_in_round = False
+        # The pages the last search did not find, kept at their old address.
+        self._lost: set[str] = set()
         # Reloading the entry resumes polling at once after a stop.
         ir.async_delete_issue(hass, CONST.DOMAIN, self._issue)
 
@@ -756,34 +762,44 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         """The page whole, and as it is polled now: moved, at its new address.
 
         The overview in its place is not asked for twice, and leads to one
-        search a round; one at a new address too is a failure of the page.
+        search a round. One at a new address too is a failure of the page, as
+        is a page the search did not find again, under its own name.
         """
         text = await self._client.page(page.path, partial(_whole_or_moved, page))
         if page.is_whole(text):
             return page, text
-        if self._searched_in_round:
-            raise Broken(f"{page.key}: moved again", "moved again", text=text)
-        self._searched_in_round = True
-        await self._search_again(text)
-        page = self._page(page.key)
-        text = await self._client.page(page.path, partial(_whole_or_moved, page))
-        if not page.is_whole(text):
-            raise Broken(f"{page.key}: moved again", "moved again", text=text)
-        return page, text
+        if not self._searched_in_round:
+            self._searched_in_round = True
+            await self._search_again(text)
+            page = self._page(page.key)
+            if page.key not in self._lost:
+                text = await self._client.page(
+                    page.path, partial(_whole_or_moved, page)
+                )
+                if page.is_whole(text):
+                    return page, text
+        if page.key in self._lost:
+            raise Broken(f"{page.key}: not found again", "not found again")
+        raise Broken(f"{page.key}: moved again", "moved again", text=text)
 
     async def _search_again(self, overview: str) -> None:
-        """Every page's new address, from the overview, kept in the entry.
+        """Each page's new address, from the overview, kept in the entry.
 
         Only the pages the entry has get one: a page found only now joins
-        after a reconfigure, whose visit checks it.
+        after a reconfigure, whose visit checks it. A page not found keeps
+        its old address, and the ones found are polled at theirs.
         """
         found = await find_pages(self._client, overview, reads=self._polled_keys)
-        if lost := sorted(page.key for page in self._pages if page.key not in found):
-            raise Broken(f"not found again: {', '.join(lost)}", "not found again")
-        self._pages = [replace(page, path=found[page.key]) for page in self._pages]
+        self._lost = {page.key for page in self._pages if page.key not in found}
+        self._pages = [
+            replace(page, path=found.get(page.key, page.path)) for page in self._pages
+        ]
         self.searched_again += 1
-        # Without the addresses, which carry the controller's own codes.
-        _LOGGER.info("The pages moved to new addresses and were found again")
+        # By key, without the addresses, which carry the controller's codes.
+        _LOGGER.info(
+            "The pages moved to new addresses and were found again%s",
+            f", but not {', '.join(sorted(self._lost))}" if self._lost else "",
+        )
         data = self.config_entry.data
         self.hass.config_entries.async_update_entry(
             self.config_entry,
@@ -845,7 +861,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             is_fixable=False,
             # It goes by itself once the page comes whole again.
             severity=ir.IssueSeverity.WARNING,
-            translation_key=STOPPED_ISSUE,
+            translation_key=NOT_FOUND_AGAIN_ISSUE
+            if page.key in self._lost
+            else STOPPED_ISSUE,
             translation_placeholders={
                 "page": PAGE_MENUS[page.key],
                 "error": reason,
