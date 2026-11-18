@@ -2212,7 +2212,7 @@
       "message": "{value} °C is not offered. The minimum temperature is set in steps of 0.5 °C."
     },
     "webif_pages_shared": {
-      "message": "Two of the web interface's pages are stored at one address, one it must read among them. Use **Reconfigure** on this entry: it searches every page anew."
+      "message": "Some of the web interface's pages are stored at one address, a page this entry must read among them. Use **Reconfigure** on this entry to search every page anew."
     },
     "webif_write_reloading": {
       "message": "The web interface entry is reloading, as two of its pages had one address. Nothing was sent; try again once it has loaded."
@@ -2237,7 +2237,7 @@
     },
     "webif_pages_shared": {
       "title": "Web interface pages left out",
-      "description": "{pages} had the same address as another page, so a value read or written there could belong to either. The web interface entry no longer reads or writes them; its other pages and Modbus are not affected. Use **Reconfigure** on the web interface entry: it searches every page anew, and this notice goes."
+      "description": "Left out: {pages}. Each had the same address as another page, so a value read or written there could belong to either. The web interface entry no longer reads or writes them; its other pages and Modbus are not affected. Use **Reconfigure** on the web interface entry: it searches every page anew, and this notice goes away."
     }
   }
 }

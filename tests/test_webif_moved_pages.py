@@ -592,27 +592,26 @@ async def test_a_lost_page_at_a_found_pages_address_is_left_out_and_reloads(
 
 
 async def test_no_write_goes_out_once_a_lost_page_shared_an_address(
-    lost_at_a_found_address, pump, clock, reloads, monkeypatch
+    circuit_lost_at_another_circuits_address, pump, clock, reloads, monkeypatch
 ):
-    """Until the reload a write is refused before any request, also one
-    asked for while the search ran."""
+    """A minimum for circuit 3 asked for while the search ran waits for it,
+    and is then refused: its old address is circuit 2's new one."""
     monkeypatch.setattr(webif_coordinator, "DEBOUNCE_SECONDS", 0.05)
-    coordinator = lost_at_a_found_address
-    pump.show_power_limit(50)
+    coordinator = circuit_lost_at_another_circuits_address
     pump.renumber(NEW)
     info = renumbered(STACK + INFO)
-    pump.delays[info] = 0.2
-    pump.asked.clear()
+    pump.delays[info] = 0.3
     clock.now += DAY
     polling = asyncio.create_task(coordinator.async_refresh())
     await until(lambda: ("GET", info) in pump.asked)
 
-    with pytest.raises(HomeAssistantError):
-        await coordinator.set_power_limit(60)
+    with pytest.raises(HomeAssistantError) as refused:
+        await coordinator.set_setting(
+            circuit_settings_page(3), MINIMUM_TEMPERATURE, 345
+        )
     await polling
-    with pytest.raises(HomeAssistantError):
-        await coordinator.set_power_limit(70)
 
+    assert refused.value.translation_key == "webif_write_reloading"
     assert pump.saved == []
 
 

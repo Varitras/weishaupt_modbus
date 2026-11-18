@@ -95,6 +95,35 @@ async def test_two_optional_pages_stored_at_one_address_are_left_out(
 
 @pytest.mark.e2e
 @pytest.mark.timeout(120)
+async def test_the_notice_of_pages_left_out_outlasts_a_restart_and_goes_with_the_entry(
+    hass,
+    pump,  # noqa: F811
+):
+    """The pages stay out of the entry after a restart, and so does the
+    notice saying why; deleting the entry takes it along."""
+    web = _entries(hass, pump)
+    hass.config_entries.async_update_entry(
+        web,
+        data={
+            **web.data,
+            CONF.PAGES: {
+                **PAGES,
+                HEATING_CIRCUIT_PAGE: SHARED,
+                SECOND_GENERATOR_PAGE: SHARED,
+            },
+        },
+    )
+    await _start(hass, web)
+
+    assert _issue(hass, web).is_persistent
+
+    await hass.config_entries.async_remove(web.entry_id)
+
+    assert _issue(hass, web) is None
+
+
+@pytest.mark.e2e
+@pytest.mark.timeout(120)
 async def test_a_required_page_stored_at_a_shared_address_does_not_start(
     hass,
     pump,  # noqa: F811

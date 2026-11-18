@@ -5654,5 +5654,19 @@
     "old": "            clear_shared_notice(self.hass, entry.entry_id)\n",
     "new": "",
     "tests": "takes_the_notice_of_pages_left_out_away"
+  },
+  {
+    "label": "webif shared: the notice must outlast a restart",
+    "path": "custom_components/weishaupt_modbus/webif_shared.py",
+    "old": "        is_persistent=True,\n",
+    "new": "        is_persistent=False,\n",
+    "tests": "notice_of_pages_left_out_outlasts_a_restart"
+  },
+  {
+    "label": "setup: removing the entry must take the notice of pages left out along",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    clear_shared_notice(hass, entry.entry_id)\n",
+    "new": "",
+    "tests": "notice_of_pages_left_out_outlasts_a_restart"
   }
 ]
