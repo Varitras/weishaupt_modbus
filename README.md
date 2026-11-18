@@ -158,9 +158,12 @@ and what the file holds:
   the web interface.
 - The performance factors over Modbus are shown only from 5 kWh of
   electricity on, since both energies count whole kWh.
-- The heat output is calculated from the power map, not measured. The
-  electrical power is measured by the heat pump, but undocumented and checked
-  on one model only.
+- The heat output is calculated from the power map, not measured. At part
+  load it reads too low: the map gives the maximum output, and a modulating
+  pump delivers more than its share of it. Where the web interface is set up,
+  its *Ist Leistung* is the value to use (on an Evoblock also
+  *Leistungsabgabe*, flow rate × spread). The electrical power is measured by
+  the heat pump, but undocumented and checked on one model only.
 - The web interface's values are those of a WBB and, with its titles in German,
   of an Evoblock (seen on a WEB 13/20); another model may show other rows, and
   the dialog then says it is not supported yet.
