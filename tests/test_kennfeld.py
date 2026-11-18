@@ -16,6 +16,9 @@ import pytest
 from custom_components.weishaupt_modbus import config_flow, kennfeld
 from custom_components.weishaupt_modbus.const import CONF, CONST
 from custom_components.weishaupt_modbus.kennfeld import PowerMap, get_filepath
+from custom_components.weishaupt_modbus.weishaupt_modbus_api.calculations import (
+    heat_output,
+)
 
 PACKAGE = (
     pathlib.Path(__file__).resolve().parents[1]
@@ -1027,3 +1030,200 @@ async def test_a_grid_that_cannot_be_loaded_removes_the_previous_preview(
     await _initialize(hass, tmp_path, "second.json", monkeypatch)
 
     assert not destination.exists(), why
+
+
+# The minimum curves (issue #38): optional per map, and only where checked.
+
+
+def _maps_with_minimum_curves():
+    return sorted(
+        path.name
+        for path in KENNFELD.glob("*.json")
+        if "compiled_min_grid" in json.loads(path.read_text(encoding="utf-8"))
+    )
+
+
+def test_only_the_web13_map_has_minimum_curves():
+    """On a WBB the formula with a minimum read 40 to 60 % high at low
+    request: a map gets minimum curves only once they are checked on it."""
+    assert _maps_with_minimum_curves() == ["weishaupt_web13_kennfeld.json"]
+
+
+async def _loaded_map(hass, folder, name, monkeypatch):
+    entry = SimpleNamespace(data={CONF.KENNFELD_FILE: name, CONF.DEVICE_POSTFIX: ""})
+    monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: folder)
+    power_map = PowerMap(entry, hass)
+    await power_map.initialize()
+    return power_map
+
+
+async def test_a_map_without_minimum_curves_gives_exactly_todays_heat_output(
+    hass, tmp_path, monkeypatch
+):
+    """Every shipped map but the one with minimum curves: the request times
+    the maximum, to the last bit, at every request, flow and air temperature."""
+    hass.config.config_dir = str(tmp_path)
+    changed = {}
+    for path in sorted(KENNFELD.glob("*.json")):
+        if path.name in _maps_with_minimum_curves():
+            continue
+        power_map = await _loaded_map(hass, KENNFELD, path.name, monkeypatch)
+        assert power_map.map_min(0, 350) is None, path.name
+        for air in range(-300, 451, 25):
+            for flow in range(250, 801, 25):
+                rated = power_map.map(air, flow)
+                for request in (0, 1, 14, 37.5, 50, 99, 100):
+                    today = request / 100 * rated
+                    if heat_output(request, air, flow, power_map) != today:
+                        changed.setdefault(path.name, (request, air, flow))
+
+    assert changed == {}
+
+
+def _min_and_max_map(minimum, maximum):
+    power_map = _power_map()
+    power_map._air_range_raw = [0, 0]
+    power_map._compiled_grid = {"0": [maximum, maximum]}
+    power_map._compiled_min_grid = {"0": [minimum, minimum]}
+    return power_map
+
+
+@pytest.mark.parametrize(
+    ("request_percent", "watts"),
+    [(100, 10000.0), (50, 7000.0), (14, 4840.0), (0, 0.0)],
+    ids=["full", "half", "lowest seen", "off"],
+)
+def test_minimum_curves_lift_the_heat_output_at_part_load(request_percent, watts):
+    """Minimum + request x (maximum - minimum); and 0 % is the compressor
+    off, not running at its minimum - on a WEB 13/20 the request and the
+    delivered output fall to 0 together."""
+    power_map = _min_and_max_map(4000.0, 10000.0)
+
+    assert heat_output(request_percent, 0, 350, power_map) == pytest.approx(watts)
+
+
+def test_the_web13_minimum_curves_meet_their_points():
+    data = json.loads(
+        (KENNFELD / "weishaupt_web13_kennfeld.json").read_text(encoding="utf-8")
+    )
+    grid = data["compiled_min_grid"]
+    missed = [
+        (x, data["known_t"][index])
+        for index, curve in enumerate(data["min_known_y"])
+        for x, y in zip(data["min_known_x"], curve, strict=True)
+        if abs(grid[str(round(x * 10))][index] - y) > 0.1
+    ]
+
+    assert missed == []
+    assert kennfeld._fits_the_grid(grid, data["compiled_grid"], data["known_t"])
+
+
+def _grid_with_minimum(min_grid):
+    return {
+        "known_t": [35, 55],
+        "known_x": [0, 0.1],
+        "compiled_grid": {"0": [8000.0, 7000.0], "1": [8000.0, 7000.0]},
+        "compiled_min_grid": min_grid,
+    }
+
+
+async def test_fitting_minimum_curves_are_loaded(hass, tmp_path, monkeypatch):
+    grid = _grid_with_minimum({"0": [3000.0, 3500.0], "1": [3000.0, 3500.0]})
+    (tmp_path / "own_kennfeld.json").write_text(json.dumps(grid), encoding="utf-8")
+    hass.config.config_dir = str(tmp_path)
+
+    power_map = await _loaded_map(hass, tmp_path, "own_kennfeld.json", monkeypatch)
+
+    assert power_map.map_min(0, 450) == pytest.approx(3250.0)
+
+
+@pytest.mark.parametrize(
+    ("min_grid", "why"),
+    [
+        ({"0": [3000.0, 3500.0]}, "a key of the grid missing"),
+        ({"0": [3000.0], "1": [3000.0]}, "one value short per row"),
+        ({"0": [3000.0, "x"], "1": [3000.0, 3500.0]}, "a value not a number"),
+        ({"0": [9000.0, 3500.0], "1": [3000.0, 3500.0]}, "above the maximum"),
+        ([3000.0, 3500.0], "not a grid at all"),
+    ],
+)
+async def test_minimum_curves_that_do_not_fit_cost_only_the_correction(
+    hass, caplog, tmp_path, monkeypatch, min_grid, why
+):
+    """The minimum curves are optional: a broken set leaves the heat output
+    as it was without them, not unknown."""
+    grid = _grid_with_minimum(min_grid)
+    (tmp_path / "own_kennfeld.json").write_text(json.dumps(grid), encoding="utf-8")
+    hass.config.config_dir = str(tmp_path)
+
+    with caplog.at_level(logging.ERROR, logger=kennfeld.__name__):
+        power_map = await _loaded_map(hass, tmp_path, "own_kennfeld.json", monkeypatch)
+
+    assert power_map.map(0, 350) == 8000.0, why
+    assert power_map.map_min(0, 350) is None, why
+    assert "minimum curves that do not fit" in caplog.text
+
+
+def test_the_compile_script_holds_minimum_curves_flat_beyond_their_points():
+    """Lines between the points read off the diagram, the end value past
+    them: a spline ran away beyond the last point."""
+    data = {
+        "known_x": [-25, 40],
+        "known_t": [35],
+        "min_known_x": [-20, 0, 20],
+        "min_known_y": [[4000, 3000, 7000]],
+    }
+
+    grid = _compile_script().compile_min_grid(data)
+
+    assert grid["-250"] == [4000.0]
+    assert grid["-100"] == [3500.0]
+    assert grid["100"] == [5000.0]
+    assert grid["400"] == [7000.0]
+    assert len(grid) == 651
+
+
+def test_the_compile_script_compiles_no_minimum_without_minimum_curves():
+    data = {"known_x": [-25, 40], "known_t": [35], "known_y": [[1, 2]]}
+
+    assert _compile_script().compile_min_grid(data) is None
+
+
+@pytest.mark.parametrize(
+    ("min_x", "min_y"),
+    [([0, -20], [[1, 2], [3, 4]]), ([-20, 0], [[1, 2]]), ([-20, 0], [[1], [3]])],
+    ids=["out of order", "a curve missing", "a point missing"],
+)
+def test_the_compile_script_refuses_minimum_curves_that_do_not_fit(min_x, min_y):
+    data = {
+        "known_x": [-25, 40],
+        "known_t": [35, 55],
+        "min_known_x": min_x,
+        "min_known_y": min_y,
+    }
+
+    with pytest.raises(ValueError, match="min_known"):
+        _compile_script().compile_min_grid(data)
+
+
+def test_the_compile_script_keeps_each_minimum_curve_with_its_flow_temperature(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setitem(sys.modules, "scipy.interpolate", None)
+    script = _compile_script()
+    monkeypatch.setattr(script, "draw_preview", lambda data, svg: False)
+    path = tmp_path / "own_kennfeld.json"
+    raw = {
+        "known_x": [0, 1],
+        "known_t": [55, 35],
+        "known_y": [[7000, 7000], [8000, 8000]],
+        "min_known_x": [0, 1],
+        "min_known_y": [[3500, 3500], [3000, 3000]],
+    }
+    path.write_text(json.dumps(raw), encoding="utf-8")
+
+    assert script.main(["compile_kennfeld.py", str(path)]) == 0
+
+    compiled = json.loads(path.read_text(encoding="utf-8"))
+    assert compiled["compiled_min_grid"]["0"] == [3000.0, 3500.0]
+    assert compiled["compiled_grid"]["0"] == [8000.0, 7000.0]

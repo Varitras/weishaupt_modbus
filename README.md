@@ -172,11 +172,19 @@ and what the file holds:
 - The performance factors over Modbus are shown only from 5 kWh of
   electricity on, since both energies count whole kWh.
 - The heat output is calculated from the power map, not measured. At part
-  load it reads too low: the map gives the maximum output, and a modulating
-  pump delivers more than its share of it. Where the web interface is set up,
+  load it reads too low where the map gives only the maximum output: a
+  modulating pump delivers more than its share of it. Where the web interface is set up,
   its *Ist Leistung* is the value to use (on an Evoblock also
   *Leistungsabgabe*, flow rate × spread). The electrical power is measured by
   the heat pump, but undocumented and checked on one model only.
+- The power map of the WEB 13/20 also carries minimum curves, and for it the
+  heat output is minimum + request × (maximum − minimum), 0 W at 0 %. The
+  curves were read from the diagram in the datasheet (Weishaupt Fachinformation
+  83603813), with W75 held at its −7 °C value below that, where the heat pump
+  does not reach 75 °C; the formula was checked on one WEB 13/20 only, against
+  flow rate × spread over a week (+6 % instead of −22 %). On a WBB the same
+  formula read 40 to 60 % high at low request, so every other map keeps the
+  request × maximum.
 - The web interface's values are those of a WBB and, with its titles in German,
   of an Evoblock (seen on a WEB 13/20); another model may show other rows, and
   the dialog then says it is not supported yet.

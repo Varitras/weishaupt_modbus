@@ -303,8 +303,8 @@
   {
     "label": "power map: an empty grid must read as None, not 0 W",
     "path": "custom_components/weishaupt_modbus/kennfeld.py",
-    "old": "        if not self._compiled_grid:\n            return None\n",
-    "new": "        if not self._compiled_grid:\n            return 0.0\n",
+    "old": "        if not grid:\n            return None\n",
+    "new": "        if not grid:\n            return 0.0\n",
     "tests": "empty_grid_reads_as_none"
   },
   {
@@ -6172,5 +6172,68 @@
     "old": "    elif not clear or wanted_shared:\n",
     "new": "    elif not clear:\n",
     "tests": "wanted_entry_on_a_shared_link_stops_the_attempt"
+  },
+  {
+    "label": "calculation: a map without minimum curves gets no minimum of its own",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/calculations.py",
+    "old": "    if minimum is None:\n        return power_request_percent / 100 * rated\n",
+    "new": "    if minimum is None:\n        minimum = rated / 4\n",
+    "tests": "without_minimum_curves_gives_exactly_todays"
+  },
+  {
+    "label": "calculation: with minimum curves, 0 % request is the compressor off",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/calculations.py",
+    "old": "    if power_request_percent <= 0:\n        return 0.0\n",
+    "new": "    if False:\n        return 0.0\n",
+    "tests": "minimum_curves_lift_the_heat_output"
+  },
+  {
+    "label": "calculation: the request scales only the span above the minimum",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/calculations.py",
+    "old": "    return minimum + power_request_percent / 100 * (rated - minimum)\n",
+    "new": "    return max(minimum, power_request_percent / 100 * rated)\n",
+    "tests": "minimum_curves_lift_the_heat_output or takes_the_minimum_curves"
+  },
+  {
+    "label": "kennfeld: minimum curves above the maximum must be refused",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "        low <= high\n",
+    "new": "        True\n",
+    "tests": "minimum_curves_that_do_not_fit"
+  },
+  {
+    "label": "kennfeld: minimum curves keyed otherwise than the grid must be refused",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "    if not isinstance(min_grid, dict) or min_grid.keys() != grid.keys():\n",
+    "new": "    if not isinstance(min_grid, dict):\n",
+    "tests": "minimum_curves_that_do_not_fit"
+  },
+  {
+    "label": "kennfeld: minimum curves that do not fit leave the maximum alone",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "            return {}\n        return min_grid\n",
+    "new": "            return min_grid\n        return min_grid\n",
+    "tests": "minimum_curves_that_do_not_fit"
+  },
+  {
+    "label": "kennfeld: the minimum is looked up in its own grid",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "        return self._interpolate(self._compiled_min_grid, air_intake_raw, flow_temp_raw)\n",
+    "new": "        return self._interpolate(self._compiled_grid, air_intake_raw, flow_temp_raw)\n",
+    "tests": "fitting_minimum_curves_are_loaded"
+  },
+  {
+    "label": "compiler: minimum curves are held flat beyond their points",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "        str(raw): [round(float(np.interp(raw / 10.0, min_x, ys)), 1) for ys in min_y]\n",
+    "new": "        str(raw): [round(float(np.interp(raw / 10.0, min_x, ys, left=0, right=0)), 1) for ys in min_y]\n",
+    "tests": "holds_minimum_curves_flat"
+  },
+  {
+    "label": "compiler: a minimum curve stays with its flow temperature",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "        _, data[\"min_known_y\"] = sorted_curves(data[\"known_t\"], data[\"min_known_y\"])\n",
+    "new": "        pass\n",
+    "tests": "keeps_each_minimum_curve_with_its_flow_temperature"
   }
 ]
