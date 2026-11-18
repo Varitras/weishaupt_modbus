@@ -121,8 +121,9 @@ class MissingMenuEntries(Broken):
 class DoubledMenuEntries(Broken):
     """A menu showed an entry the pages are found by twice, also when asked again.
 
-    `titles` are the doubled ones: which of two links leads to the page cannot
-    be told. Now and then a hiccup, which asking again mends; on a model that
+    `titles` are the doubled ones, or the ones sharing their link with
+    another title: which of two links, or which of two pages, is the one
+    asked for cannot be told. Now and then a hiccup, which asking again mends; on a model that
     shows the menu so, never.
     """
 
@@ -158,13 +159,27 @@ def moved(text: str, path: str) -> bool:
 
 
 def _main_menus(text: str) -> dict[str, str]:
-    """The main menus the page shows once each, German title to link."""
-    shown = [
-        (ENGLISH_MENU_TITLES.get(title, title), link)
-        for title, link in pages.main_menus(text)
-    ]
-    counts = Counter(title for title, _ in shown)
-    return {title: link for title, link in shown if counts[title] == 1}
+    """The main menus the page shows clearly, German title to link."""
+    return _clear(
+        [
+            (ENGLISH_MENU_TITLES.get(title, title), link)
+            for title, link in pages.main_menus(text)
+        ]
+    )
+
+
+def _clear(shown: list[tuple[str, str]]) -> dict[str, str]:
+    """The entries shown once, under a link no other title shares, title to link.
+
+    A title shown twice leaves two links to pick from; a link two titles
+    share may lead to either page, the cooling one for Heizen, another
+    circuit's settings for a circuit.
+    """
+    titles = Counter(title for title, _ in shown)
+    links = Counter(link for _, link in shown)
+    return {
+        title: link for title, link in shown if titles[title] == 1 and links[link] == 1
+    }
 
 
 async def find_pages(client: Client, overview: str | None = None) -> dict[str, str]:
@@ -254,8 +269,7 @@ async def find_settings_pages(
 
     A menu without its settings entry leaves its page out. One served half
     or showing the entry twice raises, for a second search, unless this is
-    the `last`: then it leaves its page out too. Pages found at one address
-    are all left out, so a value is never written to another circuit.
+    the `last`: then it leaves its page out too.
     """
     found: dict[str, str] = {}
     for key, menu in menus.items():
@@ -268,8 +282,7 @@ async def find_settings_pages(
                 raise
             continue
         found[key] = entries[SETTINGS]
-    counts = Counter(found.values())
-    return {key: path for key, path in found.items() if counts[path] == 1}
+    return found
 
 
 async def _entries(
@@ -278,9 +291,10 @@ async def _entries(
     wanted: set[str],
     read: Callable[[str], list[tuple[str, str]]],
 ) -> dict[str, str]:
-    """The entries the page at path shows once, title to link, `wanted` among them.
+    """The entries the page at path shows clearly, title to link, `wanted` among them.
 
-    An entry shown twice leaves two links to pick from; it is left out.
+    An entry shown unclearly, twice or under a link another title shares, is
+    left out; a wanted one fails the menu.
     """
     shown: list[tuple[str, str]] = []
 
@@ -288,15 +302,12 @@ async def _entries(
         shown[:] = [
             (ENGLISH_MENU_TITLES.get(title, title), link) for title, link in read(text)
         ]
-        counts = Counter(title for title, _ in shown)
-        # A wanted title shown twice leaves two links to pick from.
-        return all(counts[title] == 1 for title in wanted)
+        return wanted <= set(_clear(shown))
 
     try:
         await client.page(path, complete)
     except Broken as error:
-        counts = Counter(title for title, _ in shown)
-        missing = wanted - set(counts)
+        missing = wanted - {title for title, _ in shown}
         # A menu showing nothing of its own level came half: asking again a
         # little later may mend it. One showing other entries is in another
         # language or of another model.
@@ -304,10 +315,8 @@ async def _entries(
             raise
         if missing:
             raise MissingMenuEntries(missing) from error
-        doubled = {title for title in wanted if counts[title] > 1}
-        raise DoubledMenuEntries(doubled) from error
-    counts = Counter(title for title, _ in shown)
-    return {title: link for title, link in shown if counts[title] == 1}
+        raise DoubledMenuEntries(wanted - set(_clear(shown))) from error
+    return _clear(shown)
 
 
 def _links_below(path: str) -> Callable[[str], list[tuple[str, str]]]:

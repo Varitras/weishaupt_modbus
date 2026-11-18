@@ -35,18 +35,23 @@ from custom_components.weishaupt_modbus.webif_sensor import (
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.write_budget import (
     WriteBudget,
 )
+from homeassistant.exceptions import HomeAssistantError
 
 from .test_webif_setup import PAGES, SHOWN, SITE
 from .webif_stand_in import (
+    HEATING,
     INFO,
     PAGE_PATH,
     PASSWORD,
     PUMP_MENU,
+    RESET,
     STACK,
     TOKEN,
     USER,
     StandInPump,
     column,
+    link,
+    main_menus,
     menu_site,
     serving,
     value,
@@ -325,3 +330,26 @@ async def test_a_page_stopped_right_after_the_search_is_asked_at_its_new_address
     assert (await next_round(coordinator, pump, clock)) == [
         ("GET", NEW_PAGES[HEAT_PUMP_PAGE])
     ]
+
+
+async def test_heizen_and_kuehlen_at_one_link_send_no_save(
+    coordinator, pump, clock, monkeypatch
+):
+    """Under the new codes the heat pump menu links both to one page, which
+    may be the cooling one: the search fails rather than take it, and the
+    power limit is not saved there."""
+    monkeypatch.setattr(webif_coordinator, "DEBOUNCE_SECONDS", 0.05)
+    pump.show_power_limit(50)
+    pump.site[STACK + PUMP_MENU] = main_menus() + column(
+        link([PUMP_MENU, HEATING], "Heizen")
+        + link([PUMP_MENU, HEATING], "Kühlen")
+        + link([PUMP_MENU, RESET], "Reset")
+    )
+    pump.renumber(NEW)
+    await next_round(coordinator, pump, clock)
+
+    with pytest.raises(HomeAssistantError):
+        await coordinator.set_power_limit(60)
+
+    assert pump.saved == []
+    assert coordinator.diagnostics()["searched_again"] == 0

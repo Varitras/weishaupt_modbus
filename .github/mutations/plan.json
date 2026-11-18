@@ -1311,7 +1311,7 @@
   {
     "label": "webif discovery: a menu without the entry wanted passes",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        return all(counts[title] == 1 for title in wanted)\n",
+    "old": "        return wanted <= set(_clear(shown))\n",
     "new": "        return True\n",
     "tests": "menu_without_the_entry_wanted"
   },
@@ -2424,14 +2424,14 @@
   {
     "label": "webif discovery: a wanted entry shown twice passes",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        return all(counts[title] == 1 for title in wanted)\n",
-    "new": "        return all(counts[title] >= 1 for title in wanted)\n",
-    "tests": "menu_entry_shown_twice_is_not_taken_at_random"
+    "old": "        return wanted <= set(_clear(shown))\n",
+    "new": "        return wanted <= {title for title, _ in shown}\n",
+    "tests": "menu_entry_shown_twice_is_not_taken_at_random or two_titles_at_one_link"
   },
   {
     "label": "webif discovery: a wanted entry shown twice reads as another language",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        doubled = {title for title in wanted if counts[title] > 1}\n        raise DoubledMenuEntries(doubled) from error\n",
+    "old": "        raise DoubledMenuEntries(wanted - set(_clear(shown))) from error\n",
     "new": "        raise MissingMenuEntries(wanted) from error\n",
     "tests": "menu_entry_shown_twice_is_not_taken_at_random"
   },
@@ -2837,15 +2837,15 @@
   {
     "label": "webif discovery: a menu entry shown twice goes unnamed",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        raise DoubledMenuEntries(doubled) from error\n",
+    "old": "        raise DoubledMenuEntries(wanted - set(_clear(shown))) from error\n",
     "new": "        raise\n",
     "tests": "menu_entry_shown_twice_on_every_visit_is_named"
   },
   {
     "label": "webif discovery: every wanted entry reads as doubled",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        doubled = {title for title in wanted if counts[title] > 1}\n",
-    "new": "        doubled = {title for title in wanted if counts[title] >= 1}\n",
+    "old": "        raise DoubledMenuEntries(wanted - set(_clear(shown))) from error\n",
+    "new": "        raise DoubledMenuEntries(wanted) from error\n",
     "tests": "menu_entry_shown_twice_is_not_taken_at_random"
   },
   {
@@ -5231,9 +5231,23 @@
   {
     "label": "webif discovery: an entry shown twice is taken at random",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        raise DoubledMenuEntries(doubled) from error\n    counts = Counter(title for title, _ in shown)\n    return {title: link for title, link in shown if counts[title] == 1}\n",
-    "new": "        raise DoubledMenuEntries(doubled) from error\n    return dict(shown)\n",
-    "tests": "optional_entry_shown_twice_is_left_out"
+    "old": "        raise DoubledMenuEntries(wanted - set(_clear(shown))) from error\n    return _clear(shown)\n",
+    "new": "        raise DoubledMenuEntries(wanted - set(_clear(shown))) from error\n    return dict(shown)\n",
+    "tests": "optional_entry_shown_twice_is_left_out or another_ones_link"
+  },
+  {
+    "label": "webif discovery: a link two titles share is taken",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        title: link for title, link in shown if titles[title] == 1 and links[link] == 1\n",
+    "new": "        title: link for title, link in shown if titles[title] == 1\n",
+    "tests": "two_titles_at_one_link or heizen_and_kuehlen or at_one_settings_page or another_ones_link or no_page_moved"
+  },
+  {
+    "label": "webif discovery: a title shown twice is taken",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        title: link for title, link in shown if titles[title] == 1 and links[link] == 1\n",
+    "new": "        title: link for title, link in shown if links[link] == 1\n",
+    "tests": "menu_entry_shown_twice_is_not_taken_at_random or optional_entry_shown_twice_is_left_out"
   },
   {
     "label": "webif visit: an optional page lacking a row fails the dialog",
@@ -5355,13 +5369,6 @@
     "tests": "settings_menu_shown_twice_once_is_searched_again or settings_menu_unclear_in_both_searches_costs_only_its_page"
   },
   {
-    "label": "webif discovery: two circuits at one settings page are kept",
-    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "    return {key: path for key, path in found.items() if counts[path] == 1}\n",
-    "new": "    return found\n",
-    "tests": "two_circuits_at_one_settings_page"
-  },
-  {
     "label": "webif coordinator: a setting is named by half its English path",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
     "old": "            else f\"{english} › {english_title}\",\n",
@@ -5399,15 +5406,15 @@
   {
     "label": "webif discovery: a main menu shown twice is taken at random",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        for title, link in pages.main_menus(text)\n    ]\n    counts = Counter(title for title, _ in shown)\n    return {title: link for title, link in shown if counts[title] == 1}\n",
-    "new": "        for title, link in pages.main_menus(text)\n    ]\n    return dict(shown)\n",
+    "old": "    return _clear(\n        [\n            (ENGLISH_MENU_TITLES.get(title, title), link)\n",
+    "new": "    return dict(\n        [\n            (ENGLISH_MENU_TITLES.get(title, title), link)\n",
     "tests": "served_half_or_whole_says_no_page_moved"
   },
   {
     "label": "webif discovery: an overview in English is no moved page",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "        (ENGLISH_MENU_TITLES.get(title, title), link)\n        for title, link in pages.main_menus(text)\n",
-    "new": "        (title, link)\n        for title, link in pages.main_menus(text)\n",
+    "old": "            (ENGLISH_MENU_TITLES.get(title, title), link)\n            for title, link in pages.main_menus(text)\n",
+    "new": "            (title, link)\n            for title, link in pages.main_menus(text)\n",
     "tests": "overview_under_new_codes_says_the_page_moved"
   },
   {

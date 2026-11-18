@@ -36,6 +36,7 @@ from .webif_stand_in import (
     PAGE_PATH,
     PASSWORD,
     PUMP_MENU,
+    RESET,
     STACK,
     STATISTICS_INFO,
     TOKEN,
@@ -121,6 +122,7 @@ async def test_an_overview_without_the_heat_pump_menu_is_broken(pump, client):
         await find_pages(client)
 
 
+SECOND_GENERATOR_INFO = "0C000C30000000000000000A0B020003000401"
 INFO_WITH_A_DOUBLE = MAIN_MENUS + column(
     link([INFO, HEAT_PUMP_INFO], "Wärmepumpe")
     + link([INFO, STATISTICS_INFO], "Statistik")
@@ -137,6 +139,41 @@ async def test_a_menu_entry_shown_twice_is_not_taken_at_random(pump, client):
         await find_pages(client)
 
     assert raised.value.titles == {"Wärmepumpe"}
+
+
+async def test_two_titles_at_one_link_are_not_taken(pump, client):
+    """The link may lead to either page: Heizen's to the cooling one, whose
+    power limit a write would then set."""
+    pump.site[STACK + PUMP_MENU] = MAIN_MENUS + column(
+        link([PUMP_MENU, HEATING], "Heizen")
+        + link([PUMP_MENU, HEATING], "Kühlen")
+        + link([PUMP_MENU, RESET], "Reset")
+    )
+
+    with pytest.raises(DoubledMenuEntries) as raised:
+        await find_pages(client)
+
+    assert raised.value.titles == {"Heizen"}
+    assert pump.asked.count(("GET", STACK + PUMP_MENU)) == 2
+
+
+async def test_an_entry_not_wanted_at_another_ones_link_is_left_out(pump, client):
+    """Neither of the two is taken, and the menu does not fail."""
+    pump.site[STACK + INFO] = MAIN_MENUS + column(
+        link([INFO, HEAT_PUMP_INFO], "Wärmepumpe")
+        + link([INFO, STATISTICS_INFO], "Statistik")
+        + link([INFO, SECOND_GENERATOR_INFO], "2. WEZ")
+        + link([INFO, SECOND_GENERATOR_INFO], "Heizkreis 2")
+    )
+
+    found = await find_pages(client)
+
+    assert found == {
+        HEAT_PUMP_PAGE: STACK + f"{INFO},{HEAT_PUMP_INFO}",
+        STATISTICS_PAGE: STACK + f"{INFO},{STATISTICS_INFO}",
+        HEATING_PAGE: STACK + f"{PUMP_MENU},{HEATING}",
+    }
+    assert pump.asked.count(("GET", STACK + INFO)) == 1
 
 
 async def test_a_menu_served_half_once_is_read_from_its_second_answer(pump, client):
@@ -198,6 +235,7 @@ def test_the_overview_under_new_codes_says_the_page_moved(path, overview):
         SITE[HEAT_PUMP_PATH],
         renumbered(column(link([INFO], "Info"))),
         renumbered(MAIN_MENUS + column(link([INFO], "Info"))),
+        renumbered(column(link([INFO], "Info") + link([INFO], "Wärmepumpe"))),
         "",
     ],
     ids=[
@@ -208,6 +246,7 @@ def test_the_overview_under_new_codes_says_the_page_moved(path, overview):
         "the page itself",
         "no heat pump menu",
         "Info twice",
+        "Info and the heat pump menu at one link",
         "nothing",
     ],
 )
