@@ -420,18 +420,6 @@ EP2_KONFIG: list[StatusItem] = [
 ]
 
 
-IO_KONFIG: list[StatusItem] = [
-    StatusItem(number=0, translation_key="io_konf_0"),
-    StatusItem(number=1, translation_key="io_konf_1"),
-    StatusItem(number=2, translation_key="io_konf_2"),
-    StatusItem(number=3, translation_key="io_konf_3"),
-    StatusItem(number=4, translation_key="io_konf_4"),
-    StatusItem(number=5, translation_key="io_konf_5"),
-    StatusItem(number=6, translation_key="io_konf_6"),
-    StatusItem(number=7, translation_key="io_konf_7"),
-    StatusItem(number=65535, translation_key="io_konf_65535"),
-]
-
 IO_KONFIG_IN: list[StatusItem] = [
     StatusItem(number=0, translation_key="io_konf_in_0"),
     StatusItem(number=1, translation_key="io_konf_in_1"),
@@ -1070,10 +1058,12 @@ MODBUS_IO_ITEMS: list[ModbusItem] = [
 
     ModbusItem(address=45101, name="Konf. Eingang SGR1", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.IO, resultlist=IO_KONFIG_IN, translation_key="konf_eing_sgr1"),
     ModbusItem(address=45102, name="Konf. Eingang SGR2", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.IO, resultlist=IO_KONFIG_IN, translation_key="konf_eing_sgr2"),
-    ModbusItem(address=45103, name="Konf. Ausgang H1.2", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.IO, resultlist=IO_KONFIG, translation_key="konf_ausg_h12"),
-    ModbusItem(address=45104, name="Konf. Ausgang  H1.3", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.IO, resultlist=IO_KONFIG, translation_key="konf_ausg_h13"),
-    ModbusItem(address=45105, name="Konf. Ausgang  H1.4", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.IO, resultlist=IO_KONFIG, translation_key="konf_ausg_h14"),
-    ModbusItem(address=45106, name="Konf. Ausgang  H1.5", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.IO, resultlist=IO_KONFIG, translation_key="konf_ausg_h15"),
+    # The register list files 45103-45106 under the inputs; "Ausgang" stays
+    # in the names because the unique ids are built from them.
+    ModbusItem(address=45103, name="Konf. Ausgang H1.2", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.IO, resultlist=IO_KONFIG_IN, translation_key="konf_ausg_h12"),
+    ModbusItem(address=45104, name="Konf. Ausgang  H1.3", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.IO, resultlist=IO_KONFIG_IN, translation_key="konf_ausg_h13"),
+    ModbusItem(address=45105, name="Konf. Ausgang  H1.4", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.IO, resultlist=IO_KONFIG_IN, translation_key="konf_ausg_h14"),
+    ModbusItem(address=45106, name="Konf. Ausgang  H1.5", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.IO, resultlist=IO_KONFIG_IN, translation_key="konf_ausg_h15"),
     ModbusItem(address=45107, name="Konf. Eingang DE1", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.IO, resultlist=IO_KONFIG_IN, translation_key="konf_eing_de1"),
     ModbusItem(address=45108, name="Konf. Eingang DE2", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.IO, resultlist=IO_KONFIG_IN, translation_key="konf_eing_de2"),
 ]
