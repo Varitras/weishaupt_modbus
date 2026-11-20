@@ -621,7 +621,14 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         search a round. One at a new address too is a failure of the page, as
         is a page the search did not find again, under its own name.
         """
-        text = await self._client.page(page.path, partial(_whole_or_moved, page))
+        try:
+            text = await self._client.page(page.path, partial(_whole_or_moved, page))
+        except Broken as error:
+            # Its address leads to another circuit's page: no search finds it
+            # there again, and a restart forgets one that did not.
+            if error.text is not None and page.under_another(error.text):
+                self._lost.add(page.key)
+            raise
         if page.is_whole(text):
             return page, text
         if not self._searched_in_round:

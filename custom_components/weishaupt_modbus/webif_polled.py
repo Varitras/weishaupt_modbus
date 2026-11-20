@@ -27,6 +27,7 @@ from .webif.discovery import (
     circuit_menu,
     circuit_settings_page,
     leads_from,
+    menu_owners,
 )
 from .webif.setting import MODULATION_TITLE, own_form
 
@@ -130,6 +131,15 @@ class Page:
     def owned(self, text: str) -> bool:
         """Under its owner's main menu, or without one to be under."""
         return self.owner is None or leads_from(text, self.path, self.owner)
+
+    def under_another(self, text: str) -> bool:
+        """Shown under another main menu than its owner's.
+
+        Not a page served half, which shows none, but another circuit's at
+        its address.
+        """
+        owners = menu_owners(text, self.path)
+        return self.owner is not None and bool(owners) and self.owner not in owners
 
     def missing(self, text: str) -> frozenset[str]:
         """The required titles the page does not show."""

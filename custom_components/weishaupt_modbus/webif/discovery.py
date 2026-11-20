@@ -192,13 +192,17 @@ def leads_from(text: str, path: str, title: str) -> bool:
     same rows: when the controller gave a retired circuit's address to
     another one, only this told them apart.
     """
+    return menu_owners(text, path) == [title]
+
+
+def menu_owners(text: str, path: str) -> list[str]:
+    """The main menus the page shows under its address's first segment."""
     first = path.partition(pages.STACK_QUERY)[2].split(",", 1)[0]
-    owners = [
+    return [
         ENGLISH_MENU_TITLES.get(shown, shown)
         for shown, link in pages.main_menus(text)
         if link.partition(pages.STACK_QUERY)[2] == first
     ]
-    return owners == [title]
 
 
 def _main_menus(text: str) -> dict[str, str]:

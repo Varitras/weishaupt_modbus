@@ -9,7 +9,14 @@ to. Synthetic loopback stand-in only.
 
 import pytest
 
+from custom_components.weishaupt_modbus.const import CONST
+from custom_components.weishaupt_modbus.webif_coordinator import (
+    FAILURES_TO_STOP,
+    NOT_FOUND_AGAIN_ISSUE,
+    STOPPED_ISSUE,
+)
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import issue_registry as ir
 
 from . import test_webif_settings_pages
 from .test_webif_settings_pages import (
@@ -146,3 +153,53 @@ async def test_a_retired_circuit_neither_shows_nor_sets_the_circuit_now_at_its_a
 
     assert pump.saved == []
     assert pump.circuits[2].values["Minimaltemperatur"] == "20.0 °C"
+
+
+async def test_a_retired_circuits_pause_asks_for_reconfigure_after_a_restart(
+    hass, pump, quick
+):
+    """Restarted, the entry knew nothing of the search: the page failed for
+    good under the notice that says it goes by itself, Reconfigure unnamed."""
+    entry = await _entry_after_the_move(hass, pump, second_seen_at_setup=False)
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    coordinator = entry.runtime_data.coordinator
+    clock = Clock()
+    coordinator._clock = clock
+
+    for _ in range(FAILURES_TO_STOP):
+        clock.now += A_ROUND_LATER
+        await coordinator.async_refresh()
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    issue = ir.async_get(hass).async_get_issue(
+        CONST.DOMAIN, f"{STOPPED_ISSUE}_{entry.entry_id}"
+    )
+    assert issue is not None
+    assert issue.translation_key == NOT_FOUND_AGAIN_ISSUE
+
+
+async def test_a_circuit_page_served_half_pauses_as_it_ever_did(hass, pump, quick):
+    """A page served half shows no main menu at all: no other circuit's, so
+    no Reconfigure is asked for what asking again later mends."""
+    found = await read_web_interface(hass, pump.host, USER, PASSWORD)
+    entry = _web_entry(hass, pump)
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, CONF.PAGES: found.pages}
+    )
+    await _start(hass, entry)
+    coordinator = entry.runtime_data.coordinator
+    clock = Clock()
+    coordinator._clock = clock
+    pump.site[SETTINGS[THIRD]] = column("")
+
+    for _ in range(FAILURES_TO_STOP):
+        clock.now += A_ROUND_LATER
+        await coordinator.async_refresh()
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    issue = ir.async_get(hass).async_get_issue(
+        CONST.DOMAIN, f"{STOPPED_ISSUE}_{entry.entry_id}"
+    )
+    assert issue is not None
+    assert issue.translation_key == STOPPED_ISSUE

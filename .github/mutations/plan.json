@@ -5931,8 +5931,8 @@
   {
     "label": "webif circuit owner: the menu at the address must be the circuit's",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "    return owners == [title]\n",
-    "new": "    return bool(owners)\n",
+    "old": "    return menu_owners(text, path) == [title]\n",
+    "new": "    return bool(menu_owners(text, path))\n",
     "tests": "retired_circuit_neither_shows_nor_sets"
   },
   {
@@ -6018,5 +6018,19 @@
     "old": "    clear = [entry for entry in offered if links[entry.href] == 1]\n",
     "new": "    clear = offered\n",
     "tests": "optional_entry_sharing_its_link_is_not_taken"
+  },
+  {
+    "label": "webif circuit owner: a page under another circuit's menu must count as not found again",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                self._lost.add(page.key)\n",
+    "new": "                pass\n",
+    "tests": "pause_asks_for_reconfigure_after_a_restart"
+  },
+  {
+    "label": "webif circuit owner: a half page must not count as another circuit's",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "        return self.owner is not None and bool(owners) and self.owner not in owners\n",
+    "new": "        return self.owner is not None and self.owner not in owners\n",
+    "tests": "served_half_pauses_as_it_ever_did"
   }
 ]
