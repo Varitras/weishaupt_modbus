@@ -5231,8 +5231,8 @@
   {
     "label": "webif family: polling lets a doubled conditional row pass",
     "path": "custom_components/weishaupt_modbus/webif_polled.py",
-    "old": "        return pages.is_complete(self.read(text), self.required, self.optional)\n",
-    "new": "        return pages.is_complete(self.read(text), self.required)\n",
+    "old": "        complete = pages.is_complete(self.read(text), self.required, self.optional)\n",
+    "new": "        complete = pages.is_complete(self.read(text), self.required)\n",
     "tests": "doubled_conditional_row_stops_polling"
   },
   {
@@ -5913,5 +5913,26 @@
     "old": "        step.optional or not step.shows_values or all(entry.text for entry in entries)\n",
     "new": "        not step.shows_values or all(entry.text for entry in entries)\n",
     "tests": "only_some_pumps_show_are_read_where_shown"
+  },
+  {
+    "label": "webif circuit owner: a page under another circuit's menu must not count",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "        return self.owner is None or leads_from(text, self.path, self.owner)\n",
+    "new": "        return True\n",
+    "tests": "retired_circuit_neither_shows_nor_sets"
+  },
+  {
+    "label": "webif circuit owner: each circuit's settings page must have its owner",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "                owner=CIRCUIT_OWNERS.get(key),\n",
+    "new": "                owner=None,\n",
+    "tests": "retired_circuit_neither_shows_nor_sets"
+  },
+  {
+    "label": "webif circuit owner: the menu at the address must be the circuit's",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "    return owners == [title]\n",
+    "new": "    return bool(owners)\n",
+    "tests": "retired_circuit_neither_shows_nor_sets"
   }
 ]

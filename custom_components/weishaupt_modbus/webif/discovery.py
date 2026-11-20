@@ -75,6 +75,11 @@ def circuit_settings_page(circuit: int) -> str:
     return f"circuit_settings_{circuit}"
 
 
+def circuit_menu(circuit: int) -> str:
+    """The title of a heating circuit's main menu."""
+    return f"Heizkreis {circuit}"
+
+
 CIRCUIT_SETTINGS_PAGES = tuple(circuit_settings_page(n) for n in CIRCUITS)
 # The pages only some pumps show.
 OPTIONAL_PAGES = (
@@ -101,7 +106,7 @@ MENU_PATHS: dict[str, tuple[str, str | None]] = {
     HEATING_CIRCUIT_PAGE: (f"{INFO} › Heizkreis", None),
     SECOND_GENERATOR_PAGE: (f"{INFO} › {SECOND_GENERATOR}", None),
     **{
-        circuit_settings_page(n): (f"Heizkreis {n} › {SETTINGS}", None)
+        circuit_settings_page(n): (f"{circuit_menu(n)} › {SETTINGS}", None)
         for n in CIRCUITS
     },
     HOT_WATER_SETTINGS_PAGE: (f"{HOT_WATER} › {SETTINGS}", None),
@@ -176,6 +181,23 @@ def moved(text: str, path: str) -> bool:
         link.partition(pages.STACK_QUERY)[2] != first
         for _, link in pages.main_menus(text)
     )
+
+
+def leads_from(text: str, path: str, title: str) -> bool:
+    """The page at path sits under the main menu `title`, as the page shows it.
+
+    Every page lists the main menus; the one linked by the address's first
+    segment is the page's own. The settings pages of two circuits show the
+    same rows: when the controller gave a retired circuit's address to
+    another one, only this told them apart.
+    """
+    first = path.partition(pages.STACK_QUERY)[2].split(",", 1)[0]
+    owners = [
+        ENGLISH_MENU_TITLES.get(shown, shown)
+        for shown, link in pages.main_menus(text)
+        if link.partition(pages.STACK_QUERY)[2] == first
+    ]
+    return owners == [title]
 
 
 def _main_menus(text: str) -> dict[str, str]:
@@ -275,7 +297,7 @@ def settings_menus(menus: Menus) -> dict[str, str]:
     A circuit's only when Info lists it and the overview shows its menu.
     """
     wanted = {
-        circuit_settings_page(number): f"Heizkreis {number}"
+        circuit_settings_page(number): circuit_menu(number)
         for number, _ in _circuits(menus.info)
         if number in CIRCUITS
     }

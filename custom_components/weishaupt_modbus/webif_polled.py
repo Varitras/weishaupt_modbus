@@ -15,6 +15,7 @@ from .const import CONST
 from .webif import pages
 from .webif.discovery import (
     CIRCUIT_SETTINGS_PAGES,
+    CIRCUITS,
     HEAT_PUMP_PAGE,
     HEATING_CIRCUIT_PAGE,
     HEATING_PAGE,
@@ -23,6 +24,9 @@ from .webif.discovery import (
     OPTIONAL_PAGES,
     SECOND_GENERATOR_PAGE,
     STATISTICS_PAGE,
+    circuit_menu,
+    circuit_settings_page,
+    leads_from,
 )
 from .webif.setting import MODULATION_TITLE, own_form
 
@@ -58,6 +62,10 @@ INTERVAL_OPTIONS = {
     ),
 }
 
+# The main menu each circuit's settings page must sit under: their rows are
+# the same on every circuit.
+CIRCUIT_OWNERS = {circuit_settings_page(n): circuit_menu(n) for n in CIRCUITS}
+
 # The modulation changes only when someone sets it, and a write reads it
 # back at once: an hour spares the controller a page every round.
 MODULATION_INTERVAL = timedelta(hours=1)
@@ -72,7 +80,8 @@ class Page:
     the title `form`.
     `english` maps the titles a controller shows otherwise, set to English or
     spelt another way, to the German ones everything else goes by. `optional` are titles read when the
-    page shows them, which it need not.
+    page shows them, which it need not. `owner` is the main menu the page must
+    show itself under, where its titles alone cannot tell it from another's.
     """
 
     key: str
@@ -84,6 +93,7 @@ class Page:
     # Left out of the hash: a dict has none, and every page lost its own.
     english: Mapping[str, str] = field(default_factory=dict, hash=False)
     optional: frozenset[str] = frozenset()
+    owner: str | None = None
 
     def read(self, text: str) -> list[tuple[str, str]]:
         """The titles and values the page shows, English titles made German."""
@@ -102,8 +112,13 @@ class Page:
         return [] if form is None else [(title, str(form.selected))]
 
     def is_whole(self, text: str) -> bool:
-        """Every required title is there once, none read twice, no value blank."""
-        return pages.is_complete(self.read(text), self.required, self.optional)
+        """Every required title once, none read twice, none blank, under its owner."""
+        complete = pages.is_complete(self.read(text), self.required, self.optional)
+        return complete and self.owned(text)
+
+    def owned(self, text: str) -> bool:
+        """Under its owner's main menu, or without one to be under."""
+        return self.owner is None or leads_from(text, self.path, self.owner)
 
     def missing(self, text: str) -> frozenset[str]:
         """The required titles the page does not show."""
@@ -123,9 +138,10 @@ class Page:
             ("missing", self.missing(text)),
             ("blank or doubled", self.unclear(text)),
         )
-        return "; ".join(
-            f"{kind}: {_titles(titles)}" for kind, titles in named if titles
-        )
+        flaws = [f"{kind}: {_titles(titles)}" for kind, titles in named if titles]
+        if not self.owned(text):
+            flaws.append(f"not under {self.owner}")
+        return "; ".join(flaws)
 
 
 def _titles(titles: frozenset[str]) -> str:
@@ -198,6 +214,7 @@ def polled_pages(
                 form=MODULATION_TITLE if key == MODULATION_PAGE else None,
                 english=english.get(key, {}),
                 optional=optional.get(key, frozenset()),
+                owner=CIRCUIT_OWNERS.get(key),
             )
             for key in OPTIONAL_PAGES
             if key in paths and required.get(key) and asked_for(key)
