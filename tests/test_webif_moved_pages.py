@@ -480,6 +480,43 @@ async def test_the_pages_after_a_failed_search_fail_for_it_not_as_moved_again(
     assert [reason for reason in reasons if "search failed" in reason]
 
 
+async def test_a_failed_search_blames_no_page_in_a_later_round(
+    coordinator, pump, clock, caplog
+):
+    """The search failing once must not name every later failure for it:
+    a round whose search finds the pages again blames a page that is still
+    moved again at its new address on that."""
+    caplog.set_level(logging.DEBUG, logger=webif_coordinator.__name__)
+    pump.site[STACK + PUMP_MENU] = main_menus() + column(
+        link([PUMP_MENU, HEATING], "Heizen")
+        + link([PUMP_MENU, HEATING], "Kühlen")
+        + link([PUMP_MENU, RESET], "Reset")
+    )
+    pump.renumber(NEW)
+    await next_round(coordinator, pump, clock)
+    pump.site[pump.current(STACK + PUMP_MENU)] = pump.current(
+        main_menus()
+        + column(
+            link([PUMP_MENU, HEATING], "Heizen") + link([PUMP_MENU, RESET], "Reset")
+        )
+    )
+    # At its new address the overview again, under codes newer still.
+    pump.site[pump.current(STACK + f"{PUMP_MENU},{HEATING}")] = main_menus().replace(
+        TOKEN, "CAFE"
+    )
+    caplog.clear()
+
+    await next_round(coordinator, pump, clock)
+
+    reasons = [message for message in caplog.messages if " in a row: " in message]
+    assert [
+        reason
+        for reason in reasons
+        if reason.startswith("heating failed") and "moved again" in reason
+    ]
+    assert not [reason for reason in reasons if "search failed" in reason]
+
+
 async def test_a_write_asked_for_during_a_search_reads_and_saves_at_the_new_address(
     coordinator, pump, clock, monkeypatch
 ):
@@ -699,11 +736,24 @@ async def modulation_lost(hass, pump, clock):
     """An Evoblock reading its modulation, whose heat pump menu lists it no
     more under the new codes; another setting's list form answers at its old
     address."""
+    async for coordinator in _losing_modulation(
+        hass, pump, clock, {CONST.OPTION_WEBIF_MODULATION: True}
+    ):
+        yield coordinator
+
+
+@pytest.fixture
+async def unread_modulation_lost(hass, pump, clock):
+    """The same with the modulation switched off: found at setup, never read."""
+    async for coordinator in _losing_modulation(hass, pump, clock, {}):
+        yield coordinator
+
+
+async def _losing_modulation(hass, pump, clock, options):
     evoblock_site(pump)
     with_modulation(pump)
     pump.site[STACK + PUMP_MENU] = menu_site()[STACK + PUMP_MENU]
     pages = {**ALL_PAGES, MODULATION_PAGE: MODULATION_PATH}
-    options = {CONST.OPTION_WEBIF_MODULATION: True}
     entry = MockConfigEntry(
         domain=CONST.DOMAIN, data={CONF.PAGES: pages}, options=options
     )
@@ -728,6 +778,28 @@ async def modulation_lost(hass, pump, clock):
         yield WebifCoordinator(
             hass, entry, client, polled, budget=WriteBudget(0, 10), clock=clock
         )
+
+
+async def test_a_lost_modulation_never_read_is_dropped_without_a_reload(
+    hass, unread_modulation_lost, pump, clock, reloads
+):
+    """Switched off, it is neither read nor written: a reload and a notice
+    for it only alarmed. Its old address goes, so switching it on asks for
+    Reconfigure, whose visit checks it."""
+    coordinator = unread_modulation_lost
+    pump.renumber(NEW)
+
+    await next_round(coordinator, pump, clock)
+
+    assert reloads == []
+    assert (
+        ir.async_get(hass).async_get_issue(
+            CONST.DOMAIN, f"{SHARED_ISSUE}_{coordinator.config_entry.entry_id}"
+        )
+        is None
+    )
+    assert MODULATION_PAGE not in coordinator.config_entry.data[CONF.PAGES]
+    assert coordinator.last_update_success
 
 
 async def test_a_lost_modulation_is_left_out_rather_than_read_at_its_old_address(

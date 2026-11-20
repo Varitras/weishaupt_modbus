@@ -434,10 +434,18 @@ def test_it_is_not_polled_unless_switched_on():
     assert MODULATION_PAGE not in _polled({})
 
 
-async def test_the_options_offer_its_switch_off_by_default(hass):
+@pytest.mark.parametrize(
+    ("saved", "shown"),
+    [({}, False), ({CONST.OPTION_WEBIF_MODULATION: True}, True)],
+    ids=["off by default", "on as saved"],
+)
+async def test_the_options_offer_its_switch_as_saved(hass, saved, shown):
+    """Shown off once switched on, saving the options for an interval would
+    have switched it off unasked."""
     entry = MockConfigEntry(
         domain=CONST.DOMAIN,
         data={CONF.KIND: CONST.WEB_INTERFACE, CONF.PAGES: WITH_MODULATION},
+        options=saved,
     )
     entry.add_to_hass(hass)
 
@@ -448,7 +456,7 @@ async def test_the_options_offer_its_switch_off_by_default(hass):
         for field in form["data_schema"].schema
         if str(field) == CONST.OPTION_WEBIF_MODULATION
     )
-    assert switch.default() is False
+    assert switch.default() is shown
 
 
 async def test_the_options_offer_no_switch_where_it_was_not_found(hass):

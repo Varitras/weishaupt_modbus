@@ -2234,7 +2234,7 @@
             "message": "Mehrere Seiten der Weboberfläche sind unter einer Adresse gespeichert, darunter eine, die dieser Eintrag lesen muss. Wählen Sie **Neu konfigurieren** an diesem Eintrag, um alle Seiten neu zu suchen."
         },
         "webif_write_reloading": {
-            "message": "Der Eintrag der Weboberfläche wird neu geladen, weil zwei seiner Seiten eine Adresse hatten. Es wurde nichts gesendet; versuchen Sie es erneut, sobald er geladen ist."
+            "message": "Der Eintrag der Weboberfläche wird neu geladen, weil sich nicht alle seiner Seiten an ihren neuen Adressen sicher zuordnen ließen. Es wurde nichts gesendet; versuchen Sie es erneut, sobald er geladen ist."
         }
     },
     "issues": {

@@ -2234,7 +2234,7 @@
       "message" : "Meerdere pagina's van de webinterface zijn onder één adres opgeslagen, waaronder een die deze vermelding moet lezen. Kies **Opnieuw configureren** bij deze vermelding om alle pagina's opnieuw te zoeken."
     },
     "webif_write_reloading" : {
-      "message" : "De webinterface-vermelding wordt opnieuw geladen, omdat twee van haar pagina's één adres hadden. Er is niets verzonden; probeer het opnieuw zodra ze geladen is."
+      "message" : "De webinterface-vermelding wordt opnieuw geladen, omdat niet al haar pagina's op hun nieuwe adressen zeker konden worden toegewezen. Er is niets verzonden; probeer het opnieuw zodra ze geladen is."
     }
   },
   "issues" : {

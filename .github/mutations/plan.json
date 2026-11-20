@@ -5835,7 +5835,7 @@
     "path": "custom_components/weishaupt_modbus/config_flow.py",
     "old": "                    if MODULATION_PAGE in polled\n",
     "new": "                    if False\n",
-    "tests": "offer_its_switch_off_by_default"
+    "tests": "offer_its_switch_as_saved"
   },
   {
     "label": "modulation: the dialog must check it although it is off",
@@ -5854,7 +5854,7 @@
   {
     "label": "webif coordinator: a lost form page must be left out",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        gone |= {key for key in FORM_PAGES if key in pages and key not in found}\n",
+    "old": "        gone |= {key for key in FORM_PAGES if key in polled and key not in found}\n",
     "new": "",
     "tests": "lost_modulation_is_left_out_rather_than_read_at_its_old_address"
   },
@@ -5948,5 +5948,26 @@
     "old": "                strict=key not in SETTINGS_PAGES,\n",
     "new": "                strict=True,\n",
     "tests": "unread_row_is_blank or blank_unread_row_keeps"
+  },
+  {
+    "label": "modulation: the options must show its switch as saved",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                            modulation, default=options.get(modulation, False)\n",
+    "new": "                            modulation, default=False\n",
+    "tests": "offer_its_switch_as_saved"
+  },
+  {
+    "label": "webif coordinator: a failed search must not blame a later round's pages",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self._searched_in_round = False\n        self._search_failed = False\n        # By key",
+    "new": "        self._searched_in_round = False\n        # By key",
+    "tests": "failed_search_blames_no_page_in_a_later_round"
+  },
+  {
+    "label": "webif coordinator: a lost form never read must lose its old address",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            if key not in unread\n",
+    "new": "            if True\n",
+    "tests": "lost_modulation_never_read_is_dropped_without_a_reload"
   }
 ]

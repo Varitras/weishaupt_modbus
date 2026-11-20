@@ -656,11 +656,21 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         """
         found = await find_pages(self._client, overview, reads=self._polled_keys)
         data = self.config_entry.data
-        pages = {key: found.get(key, path) for key, path in data[CONF.PAGES].items()}
+        polled = {page.key for page in self._pages}
+        # A form found at setup but switched off is neither read nor written:
+        # its old address goes quietly, and switching it on asks for a
+        # reconfigure, whose visit checks it.
+        unread = {key for key in FORM_PAGES if key not in found.keys() | polled}
+        pages = {
+            key: found.get(key, path)
+            for key, path in data[CONF.PAGES].items()
+            if key not in unread
+        }
         gone = {key for key in shared_addresses(pages) if key not in found}
-        # A form has no title to tell it by: at its old address another
-        # setting's form would pass for it.
-        gone |= {key for key in FORM_PAGES if key in pages and key not in found}
+        # A form's generic fields cannot tell which setting owns an address
+        # given to another: at its old address another setting's form would
+        # pass for it.
+        gone |= {key for key in FORM_PAGES if key in polled and key not in found}
         if gone:
             # Kept at its old address, a page not found again would read the
             # page found there as its own, and a write to it would land there.
