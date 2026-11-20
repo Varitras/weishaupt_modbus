@@ -89,7 +89,8 @@ OPTIONAL_PAGES = (
     HOT_WATER_SETTINGS_PAGE,
     MODULATION_PAGE,
 )
-# The pages that are a setting's own form: no title on them tells them apart.
+# The pages that are a setting's own form: its generic fields cannot tell
+# which setting owns an address the controller gave to another.
 FORM_PAGES = (MODULATION_PAGE,)
 # Where each page sits in the controller's menus, as its user finds it there
 # in German and in English; the optional pages were seen in German only.

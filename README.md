@@ -137,7 +137,9 @@ unless set otherwise. An entry added before this version reads them after
 On a WBB and an Evoblock, *Wärmepumpe › Modulation* sets the heat pump's
 output while the hot water loads: Automatik, or a fixed 50 to 100 %. It is
 off unless switched on in the web interface entry's options, as it costs a
-page more; then it is read once an hour and offered as a choice to set.
+page more; then it is read once an hour and offered as a choice to set. An
+entry added before this version shows the switch after **Reconfigure** once,
+where the controller offers the page.
 
 The controller's web server is slow and now and then answers with an
 incomplete page, so the integration asks little: one request at a time, at
@@ -177,7 +179,7 @@ and what the file holds:
   of an Evoblock (seen on a WEB 13/20); another model may show other rows, and
   the dialog then says it is not supported yet.
 
-More under [How Data Updates](https://github.com/Varitras/weishaupt_modbus/wiki/How-Data-Updates#known-limits-of-the-values).
+More on the energies and performance factors under [How Data Updates](https://github.com/Varitras/weishaupt_modbus/wiki/How-Data-Updates#known-limits-of-the-values).
 
 ## Troubleshooting
 
