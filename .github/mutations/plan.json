@@ -6032,5 +6032,26 @@
     "old": "        return self.owner is not None and bool(owners) and self.owner not in owners\n",
     "new": "        return self.owner is not None and self.owner not in owners\n",
     "tests": "served_half_pauses_as_it_ever_did"
+  },
+  {
+    "label": "capture: an optional page showing another's values must go absent",
+    "path": "tools/webif_capture.py",
+    "old": "        if twin is not None and _gives_up(step, walk):\n",
+    "new": "        if False:\n",
+    "tests": "optional_page_showing_another_pages_values_is_absent"
+  },
+  {
+    "label": "capture: a required page read whole must stay beside an optional twin",
+    "path": "tools/webif_capture.py",
+    "old": "        if twin is not None and step.optional:\n",
+    "new": "        if False:\n",
+    "tests": "optional_page_showing_another_pages_values_is_absent"
+  },
+  {
+    "label": "capture: the units the integration reads must be kept",
+    "path": "tools/webif_capture.py",
+    "old": "SHOWN_UNITS = (\"°C\", \"K\", \"BAR\", \"KW\", \"KWh\", \"m3/h\", \"rpm\", \"Hz\", \"h\", \"%\")\n",
+    "new": "SHOWN_UNITS = (\"°C\", \"K\", \"%\")\n",
+    "tests": "units_kept_are_those_the_integration_reads or number_with_its_unit_is_kept"
   }
 ]

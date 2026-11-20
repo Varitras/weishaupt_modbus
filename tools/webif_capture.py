@@ -26,12 +26,12 @@ It only reads.
 
 The file holds the titles of each page, the values of the pages the
 integration reads, the options the modulation offers, and which of the seven
-the controller did not show. On those seven a value is kept only as a number
-with its unit; any other text, such as a name given to a circuit, is written
-as "(text)". The tool adds no address, user name, password,
-session or page address; the values are what those pages show, so read the
-file and check it for a serial number, an access code or a network address
-before you attach it.
+it left out: not shown, or shown in a shape it could not read. On those seven
+a value is kept only as a number with its unit; any other text, such as a name
+given to a circuit, is written as "(text)". The tool adds no address, user
+name, password, session or page address; the values are what those pages show,
+so read the file and check it for a serial number, an access code or a network
+address before you attach it.
 
 The controller now and then serves a page half or not at all. That does not
 end the run: after a minute's rest the tool logs in again and asks only for
@@ -121,9 +121,15 @@ MODULATION_TITLE = "Modulation"
 ANY_CIRCUIT = "Heizkreis n"
 # The kind of form the integration reads and sets.
 SETTING_LIST = "para_list"
-# A value of an optional page kept only as a number with a unit seen on
-# these pages: any other text, a circuit's name among it, is the user's.
-SHOWN_NUMBER = re.compile(r"-?\d+(?:\.\d+)? ?(?:°C|K|%|h|kWh|KWh|kW|bar|BAR|Hz)?")
+# A value of an optional page kept only as a number with a unit the
+# integration reads, a percentage too: any other text, a circuit's name among
+# it, is the user's. A test holds the units equal to the integration's.
+SHOWN_UNITS = ("°C", "K", "BAR", "KW", "KWh", "m3/h", "rpm", "Hz", "h", "%")
+SHOWN_NUMBER = re.compile(
+    r"-?\d+(?:\.\d+)?(?: ?(?:"
+    + "|".join(re.escape(unit) for unit in sorted(SHOWN_UNITS, key=len, reverse=True))
+    + "))?"
+)
 TEXT_SHOWN = "(text)"
 # An optional page that does not fit this often is taken as not shown:
 # another model may show it in a shape nobody here has seen.
@@ -692,6 +698,13 @@ def _read_missing(session: Session, walk: _Walk, ask: Callable[[str], str]) -> N
             _drop_pick(walk, step.key)
             raise Half(f"{step.what} came half")
         twin = _twin(step, entries, walk)
+        if twin is not None and _gives_up(step, walk):
+            walk.absent.add(step.key)
+            continue
+        if twin is not None and step.optional:
+            # Which of the two came right cannot be told, but only the
+            # optional one may go: a page read whole stays.
+            raise Half(f"{step.what} showed the values of another page")
         if twin is not None:
             del walk.read[twin]
             _drop_pick(walk, step.key)

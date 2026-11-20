@@ -20,6 +20,7 @@ import time
 
 import pytest
 
+from custom_components.weishaupt_modbus import webif_sensor
 from custom_components.weishaupt_modbus.webif import client as webif, discovery, setting
 
 from .webif_stand_in import (
@@ -580,6 +581,42 @@ async def test_an_optional_page_that_never_fits_is_absent_after_two_tries(
     assert "Info › 2. WEZ" in report["absent"]
     assert rests.count(A_MINUTE) == 1
     assert len(report["pages"]) == 12
+
+
+async def test_an_optional_page_showing_another_pages_values_is_absent_after_two_tries(
+    socket_enabled,
+):
+    """A circuit's page served as the heat pump's on every try: the run
+    gave up after its last attempt, the six pages read whole lost with it."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.site[OPTIONAL_WALK[0]] = pump.site[HEAT_PUMP_PAGE]
+        report, _, _ = await run_capture(pump, attempts=3)
+
+    assert report is not None
+    assert "Info › Heizkreis n" in report["absent"]
+    assert "heat_pump" in by_page(report)
+    # Read whole once, the heat pump page is not asked for again.
+    assert pump.asked.count(("GET", HEAT_PUMP_PAGE)) == 1
+
+
+def test_the_units_kept_are_those_the_integration_reads():
+    assert {
+        webif_sensor.CELSIUS,
+        webif_sensor.KELVIN,
+        webif_sensor.BAR,
+        webif_sensor.KILOWATT,
+        webif_sensor.KILOWATT_HOURS,
+        webif_sensor.CUBIC_METRES_PER_HOUR,
+        webif_sensor.RPM,
+        webif_sensor.HERTZ,
+        webif_sensor.HOURS,
+    } <= set(capture_tool.SHOWN_UNITS)
+
+
+@pytest.mark.parametrize("shown", ["3.0 KW", "1.1 m3/h", "2400 rpm", "-5.5 °C", "60 %"])
+def test_a_number_with_its_unit_is_kept(shown):
+    assert capture_tool._neutral(shown) == shown
 
 
 def test_an_optional_entry_sharing_its_link_is_not_taken():
