@@ -31,7 +31,7 @@ from custom_components.weishaupt_modbus.webif.setting import (
     Setting,
     shown_tenths,
 )
-from custom_components.weishaupt_modbus.webif_coordinator import polled_pages
+from custom_components.weishaupt_modbus.webif_polled import polled_pages
 from custom_components.weishaupt_modbus.webif_sensor import (
     ENGLISH_TITLES,
     EVOBLOCK,

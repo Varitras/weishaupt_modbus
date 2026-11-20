@@ -7,9 +7,11 @@ no page of values before it. Seen on a WEB 13/20 set to German alone.
 """
 
 import asyncio
+from types import SimpleNamespace
 
 import aiohttp
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.weishaupt_modbus import webif_coordinator
 from custom_components.weishaupt_modbus.const import CONF, CONST
@@ -19,7 +21,8 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     PAGE_MENUS,
     find_pages,
 )
-from custom_components.weishaupt_modbus.webif_coordinator import Page, polled_pages
+from custom_components.weishaupt_modbus.webif_polled import Page, polled_pages
+from custom_components.weishaupt_modbus.webif_select import ModulationSelect
 from custom_components.weishaupt_modbus.webif_sensor import (
     ENGLISH_TITLES,
     EVOBLOCK,
@@ -31,6 +34,7 @@ from custom_components.weishaupt_modbus.webif_visit import read_web_interface
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 
+from .test_webif_number import PUMP_DATA
 from .test_webif_settings_pages import ALL_PAGES, evoblock_site
 from .test_webif_setup import (
     SITE,
@@ -40,6 +44,7 @@ from .test_webif_setup import (
 )
 from .webif_stand_in import (
     AUTOMATIC,
+    ENGLISH_MENUS,
     HEATING,
     MODULATION,
     MODULATION_PATH,
@@ -54,6 +59,7 @@ from .webif_stand_in import (
     limit_leaf,
     link,
     main_menus,
+    menu_site,
     modulation_form,
     serving,
 )
@@ -147,13 +153,14 @@ async def test_the_dialog_keeps_it_on_an_evoblock(hass, pump):
     assert visited.pages == WITH_MODULATION
 
 
-async def test_a_wbb_neither_keeps_nor_reads_it(hass, pump):
+async def test_a_wbb_keeps_it_too(hass, pump):
+    """Its heat pump menu lists the same entry, read the same way."""
     pump.site.update(SITE)
 
     visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
 
-    assert MODULATION_PAGE not in visited.pages
-    assert ("GET", MODULATION_PATH) not in pump.asked
+    assert visited.model == WBB
+    assert visited.pages[MODULATION_PAGE] == MODULATION_PATH
 
 
 def form_page(path=MODULATION_PATH):
@@ -180,8 +187,14 @@ def test_its_reading_is_the_option_selected(selected, read):
         main_menus(),
         modulation_form(50).replace('name="type"', 'name="other"'),
         limit_leaf(60),
+        modulation_form(50).replace('"para_list"', '"para_text"'),
     ],
-    ids=["served half", "its form lacking a field", "another setting's form"],
+    ids=[
+        "served half",
+        "its form lacking a field",
+        "another setting's form",
+        "a form of another type",
+    ],
 )
 def test_a_page_without_its_own_form_is_not_whole(text):
     """Another setting's form in its place must not pass for its value."""
@@ -190,11 +203,14 @@ def test_a_page_without_its_own_form_is_not_whole(text):
 
 
 def test_its_page_is_named_by_its_menu():
-    assert PAGE_MENUS[MODULATION_PAGE] == "Wärmepumpe › Modulation"
+    assert (
+        PAGE_MENUS[MODULATION_PAGE]
+        == "Wärmepumpe › Modulation (heat pump › modulation)"
+    )
 
 
-def _web_entry(hass, pump, pages=WITH_MODULATION):
-    web = _entries(hass, pump)
+def _web_entry(hass, pump, pages=WITH_MODULATION, *, switched_on=True):
+    web = _entries(hass, pump, options={CONST.OPTION_WEBIF_MODULATION: switched_on})
     hass.config_entries.async_update_entry(
         web, data={**web.data, CONF.MODEL: EVOBLOCK, CONF.PAGES: pages}
     )
@@ -283,7 +299,7 @@ async def test_an_option_the_form_does_not_offer_is_not_sent(hass, pump, quick):
 
     assert raised.value.translation_key == "webif_write_form_mismatch"
     assert raised.value.translation_placeholders["setting"] == (
-        "Wärmepumpe › Modulation"
+        "Wärmepumpe › Modulation (heat pump › modulation)"
     )
     assert pump.saved == []
 
@@ -321,7 +337,7 @@ async def test_another_option_read_back_is_named(hass, pump, quick, option, targ
 
     assert raised.value.translation_key == "webif_write_other_value"
     assert raised.value.translation_placeholders == {
-        "setting": "Wärmepumpe › Modulation",
+        "setting": "Wärmepumpe › Modulation (heat pump › modulation)",
         "shown": "50 %",
         "target": target,
     }
@@ -330,27 +346,148 @@ async def test_another_option_read_back_is_named(hass, pump, quick, option, targ
 
 @pytest.mark.e2e
 @pytest.mark.timeout(120)
-async def test_a_wbb_entry_gets_no_choice(hass, pump):
-    """Its pages never hold the modulation; should they, it is not offered."""
+async def test_a_wbb_entry_gets_the_choice_too(hass, pump):
     web = _web_entry(hass, pump)
     hass.config_entries.async_update_entry(web, data={**web.data, CONF.MODEL: WBB})
     pump.site.update(SITE)
     await _start(hass, web)
 
+    assert hass.states.get(_select(hass)).state == "50"
+
+
+@pytest.mark.e2e
+@pytest.mark.timeout(120)
+async def test_it_is_neither_read_nor_offered_until_switched_on(hass, pump):
+    """User decision, 2026-11-20: a page more for a value seldom changed, so
+    off unless asked for."""
+    await _start(hass, _web_entry(hass, pump, switched_on=False))
+
     assert _select(hass) is None
+    assert ("GET", MODULATION_PATH) not in pump.asked
 
 
-def test_it_is_polled_on_the_settings_interval():
-    polled = {
+@pytest.mark.e2e
+@pytest.mark.timeout(120)
+async def test_two_choices_within_the_quiet_time_save_the_last_once(hass, pump, quick):
+    """Home Assistant queued each call behind the last, and the quiet time
+    never saw both: two saves, or the first value held by the daily limit."""
+    await _start(hass, _web_entry(hass, pump))
+    pump.asked.clear()
+
+    await asyncio.gather(_choose(hass, "55"), _choose(hass, "85"))
+
+    assert [form["value"] for form in pump.saved] == ["85"]
+    assert hass.states.get(_select(hass)).state == "85"
+
+
+@pytest.mark.e2e
+@pytest.mark.timeout(120)
+@pytest.mark.parametrize(
+    "answer",
+    [modulation_form(85).replace('"para_list"', '"para_text"'), limit_leaf(85)],
+    ids=["a form of another type", "another setting's form"],
+)
+async def test_a_read_back_not_of_its_own_form_is_no_confirmation(
+    hass, pump, quick, answer
+):
+    """Saved, then another form in its place: unknown what it holds, not
+    reported as set."""
+    await _start(hass, _web_entry(hass, pump))
+
+    def saves(form):
+        pump.site[MODULATION_PATH] = answer
+        return pump.current(PUMP_MENU_PATH)
+
+    pump.saves_elsewhere = saves
+
+    with pytest.raises(HomeAssistantError) as raised:
+        await _choose(hass, "85")
+
+    assert raised.value.translation_key == "webif_write_not_read_back"
+    assert len(pump.saved) == 1
+
+
+def _polled(options):
+    return {
         page.key: page
         for page in polled_pages(
             WITH_MODULATION,
-            {CONST.OPTION_WEBIF_SETTINGS_INTERVAL: 30},
+            options,
             REQUIRED_TITLES[EVOBLOCK],
             ENGLISH_TITLES[EVOBLOCK],
             OPTIONAL_TITLES[EVOBLOCK],
         )
     }
 
+
+def test_it_is_polled_hourly_once_switched_on():
+    """It changes only when set, and a write reads it back at once."""
+    polled = _polled(
+        {CONST.OPTION_WEBIF_MODULATION: True, CONST.OPTION_WEBIF_SETTINGS_INTERVAL: 5}
+    )
+
     assert polled[MODULATION_PAGE].form == "Modulation"
-    assert polled[MODULATION_PAGE].interval.total_seconds() == 30 * 60
+    assert polled[MODULATION_PAGE].interval.total_seconds() == 3600
+
+
+def test_it_is_not_polled_unless_switched_on():
+    assert MODULATION_PAGE not in _polled({})
+
+
+async def test_the_options_offer_its_switch_off_by_default(hass):
+    entry = MockConfigEntry(
+        domain=CONST.DOMAIN,
+        data={CONF.KIND: CONST.WEB_INTERFACE, CONF.PAGES: WITH_MODULATION},
+    )
+    entry.add_to_hass(hass)
+
+    form = await hass.config_entries.options.async_init(entry.entry_id)
+
+    switch = next(
+        field
+        for field in form["data_schema"].schema
+        if str(field) == CONST.OPTION_WEBIF_MODULATION
+    )
+    assert switch.default() is False
+
+
+async def test_the_options_offer_no_switch_where_it_was_not_found(hass):
+    entry = MockConfigEntry(
+        domain=CONST.DOMAIN,
+        data={CONF.KIND: CONST.WEB_INTERFACE, CONF.PAGES: ALL_PAGES},
+    )
+    entry.add_to_hass(hass)
+
+    form = await hass.config_entries.options.async_init(entry.entry_id)
+
+    fields = [str(field) for field in form["data_schema"].schema]
+    assert CONST.OPTION_WEBIF_MODULATION not in fields
+
+
+def test_a_stopped_polling_shows_no_frozen_choice():
+    """Polling stopped or the login refused: the last reading stays in the
+    coordinator, and the choice must not show it as current."""
+    coordinator = SimpleNamespace(
+        data={MODULATION_PAGE: {"Modulation": "50"}}, last_update_success=True
+    )
+    choice = ModulationSelect(coordinator, PUMP_DATA)
+    assert choice.current_option == "50"
+
+    coordinator.last_update_success = False
+
+    assert choice.available
+    assert choice.current_option is None
+
+
+async def test_an_english_heat_pump_menu_lists_it_as_modulation(pump, client):
+    """As a WBB set to English showed it, 2026-10-10."""
+    pump.site.update(menu_site(ENGLISH_MENUS))
+    pump.site[PUMP_MENU_PATH] = main_menus(ENGLISH_MENUS) + column(
+        link([PUMP_MENU, HEATING], "heating")
+        + link([PUMP_MENU, MODULATION], "modulation")
+        + link([PUMP_MENU, RESET], "reset")
+    )
+
+    found = await find_pages(client)
+
+    assert found[MODULATION_PAGE] == MODULATION_PATH

@@ -114,9 +114,9 @@ The controller's local web interface, *WEM Lokal*, shows values Modbus does
 not carry: the refrigerant circuit, compressor speed and counters, target and
 actual output, the flow rate, energy statistics to three decimals including
 the yearly totals, and the heating power limit. The integration reads them in
-a second entry beside the heat pump and sets the heating power limit and, on
-an Evoblock, each heating circuit's minimum flow temperature and the heat
-pump's modulation; nothing else is written.
+a second entry beside the heat pump and sets the heating power limit, on an
+Evoblock each heating circuit's minimum flow temperature, and, once switched
+on, the hot water modulation; nothing else is written.
 
 On an Evoblock, the entry also reads two pages Info lists there, when it
 finds them: the lowest-numbered heating circuit's, for the outdoor
@@ -124,16 +124,20 @@ temperature averaged as the heating curve follows it (*AT Mittelwert*,
 *AT Langzeitwert*), and the 2nd heat generator's, for the switching cycles
 of each heating rod stage (*Schaltspiele E1*, *E2*). It also reads the
 settings of each circuit Info lists, *Heizkreis n › Einstellungen*: the
-minimum flow temperature, as a number to set, and the maximum, the demand increase and the SG Ready raise;
-and *Warmwasser › Einstellungen*: the hot water's system operating mode; and
-*Wärmepumpe › Modulation*, the heat pump's output while the hot water loads,
-as a choice to set: Automatik or 50 to 100 %. A
-page that comes half, or with a value blank or twice, also when searched
-again, is left out rather than failing the dialog; so are two circuits the
-overview links to one address. Each of the two pages Info lists has an interval
-of its own, and the settings pages and the modulation share one; all three
-are 15 minutes unless set otherwise. An entry added before this version
-reads them after **Reconfigure**.
+minimum flow temperature, as a number to set, and the maximum, the demand
+increase and the SG Ready raise; and *Warmwasser › Einstellungen*: the hot
+water's system operating mode. One of these pages that comes half, or with a
+value blank or twice, also when searched again, is left out rather than
+failing the dialog; so are two circuits the overview links to one address.
+Each of the two pages Info lists has an interval of its own, and the settings
+pages share one; all three are 15 minutes
+unless set otherwise. An entry added before this version reads them after
+**Reconfigure**.
+
+On a WBB and an Evoblock, *Wärmepumpe › Modulation* sets the heat pump's
+output while the hot water loads: Automatik, or a fixed 50 to 100 %. It is
+off unless switched on in the web interface entry's options, as it costs a
+page more; then it is read once an hour and offered as a choice to set.
 
 The controller's web server is slow and now and then answers with an
 incomplete page, so the integration asks little: one request at a time, at

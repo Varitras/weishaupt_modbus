@@ -20,10 +20,9 @@ beside one.
 """
 
 import asyncio
-from collections import Counter
-from collections.abc import AsyncIterator, Callable, Mapping
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
-from dataclasses import asdict, dataclass, field, replace
+from dataclasses import asdict, dataclass, replace
 from datetime import timedelta
 from functools import partial
 import logging
@@ -39,7 +38,6 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import CONF, CONST
 from .outage import ExpectedOutage, log_expected_outages_at_info
-from .webif import pages
 from .webif.client import (
     Broken,
     Client,
@@ -51,30 +49,23 @@ from .webif.client import (
     WebifError,
 )
 from .webif.discovery import (
-    CIRCUIT_SETTINGS_PAGES,
-    HEAT_PUMP_PAGE,
-    HEATING_CIRCUIT_PAGE,
+    FORM_PAGES,
     HEATING_PAGE,
-    HOT_WATER_SETTINGS_PAGE,
     MENU_PATHS,
-    MODULATION_PAGE,
-    OPTIONAL_PAGES,
     PAGE_MENUS,
-    SECOND_GENERATOR_PAGE,
-    STATISTICS_PAGE,
     find_pages,
     in_both_languages,
     moved,
     shared_addresses,
 )
 from .webif.setting import (
-    MODULATION_TITLE,
     POWER_LIMIT,
     NotReadBack,
     OtherValueShown,
     Setting,
     write_setting,
 )
+from .webif_polled import Page
 from .webif_shared import leave_out
 from .webif_write_messages import raise_translated
 from .weishaupt_modbus_api.write_budget import WriteBudget
@@ -102,178 +93,10 @@ STOPPED_ISSUE = "webif_stopped"
 # The same stop, by a page the search after new codes did not find: only a
 # reconfigure, whose visit searches every page, brings it back for sure.
 NOT_FOUND_AGAIN_ISSUE = "webif_stopped_not_found_again"
-# A wrong page in place of the asked one lacks every title: more than these
-# are counted, not listed, in the notice and the log.
-TITLES_NAMED = 5
 # Spec decision, 2026-10-09: a write starts after this long without a further
 # request, so arrow clicks and second thoughts make one write, of the last.
 DEBOUNCE_SECONDS = 5.0
-# Page key: the option holding its interval, and the default in minutes.
-INTERVAL_OPTIONS = {
-    HEAT_PUMP_PAGE: (
-        CONST.OPTION_WEBIF_HEAT_PUMP_INTERVAL,
-        CONST.WEBIF_INTERVAL_MINUTES,
-    ),
-    STATISTICS_PAGE: (
-        CONST.OPTION_WEBIF_STATISTICS_INTERVAL,
-        CONST.WEBIF_SLOW_INTERVAL_MINUTES,
-    ),
-    HEATING_PAGE: (
-        CONST.OPTION_WEBIF_HEATING_INTERVAL,
-        CONST.WEBIF_SLOW_INTERVAL_MINUTES,
-    ),
-    HEATING_CIRCUIT_PAGE: (
-        CONST.OPTION_WEBIF_HEATING_CIRCUIT_INTERVAL,
-        CONST.WEBIF_SLOW_INTERVAL_MINUTES,
-    ),
-    SECOND_GENERATOR_PAGE: (
-        CONST.OPTION_WEBIF_SECOND_GENERATOR_INTERVAL,
-        CONST.WEBIF_SLOW_INTERVAL_MINUTES,
-    ),
-    # The settings pages share one: they change only when someone sets them.
-    **dict.fromkeys(
-        (*CIRCUIT_SETTINGS_PAGES, HOT_WATER_SETTINGS_PAGE, MODULATION_PAGE),
-        (CONST.OPTION_WEBIF_SETTINGS_INTERVAL, CONST.WEBIF_SLOW_INTERVAL_MINUTES),
-    ),
-}
-
 Values = dict[str, str]
-
-
-@dataclass(frozen=True)
-class Page:
-    """A page to keep fresh: where it is, what it must show, how often.
-
-    A menu page is read for the values its entries show one level down; a
-    form page, a setting's own, for the option its form has selected, under
-    the title `form`.
-    `english` maps the titles a controller shows otherwise, set to English or
-    spelt another way, to the German ones everything else goes by. `optional` are titles read when the
-    page shows them, which it need not.
-    """
-
-    key: str
-    path: str
-    required: frozenset[str]
-    interval: timedelta
-    menu: bool = False
-    form: str | None = None
-    # Left out of the hash: a dict has none, and every page lost its own.
-    english: Mapping[str, str] = field(default_factory=dict, hash=False)
-    optional: frozenset[str] = frozenset()
-
-    def read(self, text: str) -> list[tuple[str, str]]:
-        """The titles and values the page shows, English titles made German."""
-        if self.form is not None:
-            found = self._selected(text, self.form)
-        elif self.menu:
-            found = [
-                (entry.title, entry.text) for entry in pages.children(text, self.path)
-            ]
-        else:
-            found = pages.values(text)
-        return [(self.english.get(title, title), shown) for title, shown in found]
-
-    def _selected(self, text: str, title: str) -> list[tuple[str, str]]:
-        form = pages.setting_form(text)
-        if form is None or form.path != self.path:
-            return []
-        return [(title, str(form.selected))]
-
-    def is_whole(self, text: str) -> bool:
-        """Every required title is there once, none read twice, no value blank."""
-        return pages.is_complete(self.read(text), self.required, self.optional)
-
-    def missing(self, text: str) -> frozenset[str]:
-        """The required titles the page does not show."""
-        return self.required - {title for title, _ in self.read(text)}
-
-    def unclear(self, text: str) -> frozenset[str]:
-        """The titles shown without a value, and the ones read shown twice."""
-        found = self.read(text)
-        counts = Counter(title for title, _ in found)
-        empty = {title for title, shown in found if not shown}
-        twice = {title for title in self.required | self.optional if counts[title] > 1}
-        return frozenset(empty | twice)
-
-    def flaws(self, text: str) -> str:
-        """What keeps the page from being whole, by its titles, never a value."""
-        named = (
-            ("missing", self.missing(text)),
-            ("blank or doubled", self.unclear(text)),
-        )
-        return "; ".join(
-            f"{kind}: {_titles(titles)}" for kind, titles in named if titles
-        )
-
-
-def _titles(titles: frozenset[str]) -> str:
-    if len(titles) > TITLES_NAMED:
-        return f"{len(titles)} titles"
-    return ", ".join(sorted(title or "untitled" for title in titles))
-
-
-def polled_pages(
-    paths: Mapping[str, str],
-    options: Mapping[str, Any],
-    required: Mapping[str, frozenset[str]],
-    english: Mapping[str, Mapping[str, str]],
-    optional: Mapping[str, frozenset[str]],
-) -> list[Page]:
-    """The pages at `paths`, each on the interval its option sets.
-
-    `required` are the titles each page must show; `english` maps each page's
-    English titles to them; `optional` are the titles its sensors read that a
-    page may leave out. An optional page is polled only when it was found and
-    its family has sensors on it.
-    """
-
-    def every(key: str) -> timedelta:
-        option, default = INTERVAL_OPTIONS[key]
-        return timedelta(minutes=options.get(option, default))
-
-    return [
-        Page(
-            HEAT_PUMP_PAGE,
-            paths[HEAT_PUMP_PAGE],
-            required[HEAT_PUMP_PAGE],
-            every(HEAT_PUMP_PAGE),
-            english=english[HEAT_PUMP_PAGE],
-            optional=optional[HEAT_PUMP_PAGE],
-        ),
-        Page(
-            STATISTICS_PAGE,
-            paths[STATISTICS_PAGE],
-            required[STATISTICS_PAGE],
-            every(STATISTICS_PAGE),
-            english=english[STATISTICS_PAGE],
-            optional=optional[STATISTICS_PAGE],
-        ),
-        Page(
-            HEATING_PAGE,
-            paths[HEATING_PAGE],
-            required[HEATING_PAGE],
-            every(HEATING_PAGE),
-            menu=True,
-            english=english[HEATING_PAGE],
-            optional=optional[HEATING_PAGE],
-        ),
-        *(
-            Page(
-                key,
-                paths[key],
-                required[key],
-                every(key),
-                # A settings page shows its values one level down, as entries.
-                menu=key in (*CIRCUIT_SETTINGS_PAGES, HOT_WATER_SETTINGS_PAGE),
-                form=MODULATION_TITLE if key == MODULATION_PAGE else None,
-                english=english.get(key, {}),
-                optional=optional.get(key, frozenset()),
-            )
-            for key in OPTIONAL_PAGES
-            if key in paths and required.get(key)
-        ),
-    ]
 
 
 @dataclass
@@ -459,6 +282,10 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             self._dialog_visits -= 1
             if not self._dialog_visits:
                 self._no_dialog_visit.set()
+
+    def polls(self, key: str) -> bool:
+        """Whether the page of `key` is among the ones polled."""
+        return any(page.key == key for page in self._pages)
 
     def _page(self, key: str) -> Page:
         return next(page for page in self._pages if page.key == key)
@@ -820,7 +647,11 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         found = await find_pages(self._client, overview, reads=self._polled_keys)
         data = self.config_entry.data
         pages = {key: found.get(key, path) for key, path in data[CONF.PAGES].items()}
-        if gone := {key for key in shared_addresses(pages) if key not in found}:
+        gone = {key for key in shared_addresses(pages) if key not in found}
+        # A form has no title to tell it by: at its old address another
+        # setting's form would pass for it.
+        gone |= {key for key in FORM_PAGES if key in pages and key not in found}
+        if gone:
             # Kept at its old address, a page not found again would read the
             # page found there as its own, and a write to it would land there.
             self._reloading = True

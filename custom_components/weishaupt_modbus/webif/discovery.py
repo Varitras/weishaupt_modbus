@@ -50,6 +50,7 @@ CIRCUITS = range(1, 6)
 # As a controller set to English showed them, 2026-10-10.
 INFO_ENGLISH = "information"
 HEAT_PUMP_ENGLISH = "heat pump"
+MODULATION_ENGLISH = "modulation"
 STATISTICS_ENGLISH = "statistics"
 HEATING_ENGLISH = "heating"
 ENGLISH_MENU_TITLES = {
@@ -57,6 +58,7 @@ ENGLISH_MENU_TITLES = {
     HEAT_PUMP_ENGLISH: HEAT_PUMP,
     STATISTICS_ENGLISH: STATISTICS,
     HEATING_ENGLISH: HEATING,
+    MODULATION_ENGLISH: MODULATION_TITLE,
 }
 
 HEAT_PUMP_PAGE = "heat_pump"
@@ -82,6 +84,8 @@ OPTIONAL_PAGES = (
     HOT_WATER_SETTINGS_PAGE,
     MODULATION_PAGE,
 )
+# The pages that are a setting's own form: no title on them tells them apart.
+FORM_PAGES = (MODULATION_PAGE,)
 # Where each page sits in the controller's menus, as its user finds it there
 # in German and in English; the optional pages were seen in German only.
 MENU_PATHS: dict[str, tuple[str, str | None]] = {
@@ -101,7 +105,10 @@ MENU_PATHS: dict[str, tuple[str, str | None]] = {
         for n in CIRCUITS
     },
     HOT_WATER_SETTINGS_PAGE: (f"{HOT_WATER} › {SETTINGS}", None),
-    MODULATION_PAGE: (f"{HEAT_PUMP} › {MODULATION_TITLE}", None),
+    MODULATION_PAGE: (
+        f"{HEAT_PUMP} › {MODULATION_TITLE}",
+        f"{HEAT_PUMP_ENGLISH} › {MODULATION_ENGLISH}",
+    ),
 }
 
 

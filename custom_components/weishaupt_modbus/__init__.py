@@ -48,7 +48,8 @@ from .items import ModbusItem
 from .kennfeld import PowerMap
 from .migrate_helpers import device_postfix, entry_unique_id, unique_id_from_parts
 from .webif.client import Client
-from .webif_coordinator import WebifCoordinator, polled_pages
+from .webif_coordinator import WebifCoordinator
+from .webif_polled import polled_pages
 from .webif_sensor import (
     OPTIONAL_TITLES,
     POWER_LIMIT,

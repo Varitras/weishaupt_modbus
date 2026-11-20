@@ -2147,7 +2147,8 @@
           "heating_circuit_interval_minutes": "Interval of the heating circuit page (minutes)",
           "second_generator_interval_minutes": "Interval of the 2nd heat source page (minutes)",
           "settings_interval_minutes": "Interval of the settings pages (minutes)",
-          "settings_written_per_day": "Settings written per day"
+          "settings_written_per_day": "Settings written per day",
+          "read_modulation": "Read and set the hot water modulation"
         },
         "data_description": {
           "heat_pump_interval_minutes": "How often the heat pump page is read, 1 to 60 minutes. A change reloads the entry.",
@@ -2156,7 +2157,8 @@
           "heating_circuit_interval_minutes": "How often the averaged outside temperatures are read, 1 to 60 minutes.",
           "second_generator_interval_minutes": "How often the switching cycles of the heating rod stages are read, 1 to 60 minutes.",
           "settings_interval_minutes": "How often the settings of the heating circuits and the hot water are read, 1 to 60 minutes.",
-          "settings_written_per_day": "At most this many settings, such as the heating power limit, are written a day; 0 switches the limit off. The controller stores each one in its EEPROM, which is rated for a limited number of writes."
+          "settings_written_per_day": "At most this many settings, such as the heating power limit, are written a day; 0 switches the limit off. The controller stores each one in its EEPROM, which is rated for a limited number of writes.",
+          "read_modulation": "Reads one more page for it, once an hour. Off spares the controller."
         }
       }
     }
@@ -2254,7 +2256,7 @@
     },
     "webif_pages_shared": {
       "title": "Web interface pages left out",
-      "description": "Left out: {pages}. Each had the same address as another page, so a value read or written there could belong to either. The web interface entry no longer reads or writes them; its other pages and Modbus are not affected. Use **Reconfigure** on the web interface entry: it searches every page anew, and this notice goes away."
+      "description": "Left out: {pages}. Which page their address leads to could not be told for sure, so a value read or written there could belong to another setting. The web interface entry no longer reads or writes them; its other pages and Modbus are not affected. Use **Reconfigure** on the web interface entry: it searches every page anew, and this notice goes away."
     }
   }
 }

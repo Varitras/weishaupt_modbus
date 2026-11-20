@@ -625,9 +625,10 @@ def test_the_save_scan_sees_a_call_and_nothing_else():
 
 
 def test_the_one_save_is_called_by_the_setting_write_only():
-    """Spec: nothing but the heating power limit can ever be written; user
-    wishes, 2026-11-17: and each circuit's minimum flow temperature, and an
-    Evoblock's modulation."""
+    """Spec: only the settings the integration sets can ever be written: the
+    heating power limit, and since the user's wishes of 2026-11-17 and
+    2026-11-20 each circuit's minimum flow temperature and the hot water
+    modulation."""
     callers = _in_package(_save_calls)
 
     assert [caller.rsplit(":", 1)[0] for caller in callers] == [SAVE_CALLER], (

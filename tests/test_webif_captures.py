@@ -20,7 +20,7 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     HEATING_PAGE,
     STATISTICS_PAGE,
 )
-from custom_components.weishaupt_modbus.webif_coordinator import polled_pages
+from custom_components.weishaupt_modbus.webif_polled import polled_pages
 from custom_components.weishaupt_modbus.webif_sensor import (
     OPTIONAL_TITLES,
     REQUIRED_TITLES,

@@ -78,10 +78,7 @@ def shown_tenths(shown: str) -> int | None:
 
 def shown_option(shown: str) -> int | None:
     """The form's option a form page's reading is, -1 for "-1"; None for anything else."""
-    digits = shown.removeprefix("-")
-    if not (digits.isascii() and digits.isdecimal()):
-        return None
-    return int(shown)
+    return int(shown) if pages.is_option(shown) else None
 
 
 @dataclass(frozen=True)
@@ -211,6 +208,18 @@ async def write_setting(
     return await _save(client, form, setting, target, count_write, shown_now)
 
 
+def own_form(text: str, path: str) -> pages.SettingForm | None:
+    """The form of the setting whose own page is at path; None for any other.
+
+    Another setting's form, or a form of another kind, served in its place is
+    neither its reading nor sent.
+    """
+    form = pages.setting_form(text)
+    if form is None or form.path != path or form.type != SETTING_LIST:
+        return None
+    return form
+
+
 async def _write_form(
     client: Client,
     path: str,
@@ -220,25 +229,23 @@ async def _write_form(
 ) -> str:
     """Set the setting whose own form is the page at path; that page afterwards.
 
-    Its form counts only with the page's own stack: another setting's form
-    served in its place is never sent.
+    Only its own form counts, before the save and after it.
     """
 
-    def own_form(text: str) -> pages.SettingForm | None:
-        form = pages.setting_form(text)
-        return form if form is not None and form.path == path else None
+    def form_here(text: str) -> pages.SettingForm | None:
+        return own_form(text, path)
 
     try:
-        page, form = await _read(client, path, own_form)
+        page, form = await _read(client, path, form_here)
     except (Broken, Unreachable) as error:
         raise FormNotRead(str(error)) from error
     if form.selected == target:
         return page
-    if form.type != SETTING_LIST or target not in form.offered:
+    if target not in form.offered:
         raise FormMismatch(f"{setting.title}: the form lacks {target}")
 
     async def selected_now() -> tuple[str, int]:
-        read_back, now = await _read(client, path, own_form)
+        read_back, now = await _read(client, path, form_here)
         return read_back, now.selected
 
     return await _save(client, form, setting, target, count_write, selected_now)

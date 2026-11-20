@@ -613,16 +613,11 @@ MINIMUM_TEMPERATURES = {
     )
     for circuit in CIRCUITS
 }
-# On an Evoblock, Wärmepumpe › Modulation: the heat pump's output while the
-# hot water loads, the option its own form has selected, "-1" for Automatik.
-# A select (webif_select.py). Seen in German alone (2026-11-18).
-MODULATION = _text(
-    "modulation",
-    MODULATION_TITLE,
-    NOT_SEEN,
-    page=MODULATION_PAGE,
-    models=ONLY_EVOBLOCK,
-)
+# Wärmepumpe › Modulation: the heat pump's output while the hot water loads,
+# Automatik or a fixed 50 to 100 % (manuals: WBB 6.7.5.4, Evoblock 6.7.5.3),
+# the option its own form has selected, "-1" for Automatik. A select
+# (webif_select.py). Seen in German alone, on a WEB 13/20 and a WBB.
+MODULATION = _text("modulation", MODULATION_TITLE, NOT_SEEN, page=MODULATION_PAGE)
 READ_VALUES = (
     *WEBIF_SENSORS,
     POWER_LIMIT,

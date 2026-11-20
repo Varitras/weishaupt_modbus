@@ -1,4 +1,8 @@
-"""The settings written through the web interface as a choice: an Evoblock's modulation."""
+"""The setting written through the web interface as a choice: the modulation.
+
+Wärmepumpe › Modulation, the heat pump's output while the hot water loads:
+Automatik, or a fixed 50 to 100 % (manuals: WBB 6.7.5.4, Evoblock 6.7.5.3).
+"""
 
 from collections.abc import Mapping
 from typing import Any
@@ -15,7 +19,7 @@ from .webif.discovery import MODULATION_PAGE
 from .webif_coordinator import WebifCoordinator
 from .webif_sensor import MODULATION
 
-# The options a WEB 13/20 offered, 2026-11-18. The form is read before each
+# The options a WEB 13/20 and a WBB offered. The form is read before each
 # save: one it does not offer is not sent.
 AUTOMATIC_OPTION = "auto"
 MODULATION_PERCENTS = range(50, 101, 5)
@@ -26,10 +30,9 @@ MODULATION_OPTIONS = {
 
 
 class ModulationSelect(CoordinatorEntity[WebifCoordinator], SelectEntity):
-    """Wärmepumpe › Modulation: the heat pump's output while the hot water loads.
+    """Wärmepumpe › Modulation, as its own form has it selected.
 
-    User wish, 2026-11-17: set to 50 % at the pump so far. Like the numbers,
-    it shows only what the controller reads back.
+    Like the numbers, it shows only what the controller reads back.
     """
 
     _attr_has_entity_name = True

@@ -2147,7 +2147,8 @@
                     "heating_circuit_interval_minutes": "Intervall der Heizkreis-Seite (Minuten)",
                     "second_generator_interval_minutes": "Intervall der 2.-WEZ-Seite (Minuten)",
                     "settings_interval_minutes": "Intervall der Einstellungsseiten (Minuten)",
-                    "settings_written_per_day": "Geschriebene Einstellungen pro Tag"
+                    "settings_written_per_day": "Geschriebene Einstellungen pro Tag",
+                    "read_modulation": "Modulation Warmwasser lesen und einstellen"
                 },
                 "data_description": {
                     "heat_pump_interval_minutes": "Wie oft die Wärmepumpen-Seite gelesen wird, 1 bis 60 Minuten. Eine Änderung lädt den Eintrag neu.",
@@ -2156,7 +2157,8 @@
                     "heating_circuit_interval_minutes": "Wie oft die gemittelten Außentemperaturen gelesen werden, 1 bis 60 Minuten.",
                     "second_generator_interval_minutes": "Wie oft die Schaltspiele der Heizstab-Stufen gelesen werden, 1 bis 60 Minuten.",
                     "settings_interval_minutes": "Wie oft die Einstellungen der Heizkreise und des Warmwassers gelesen werden, 1 bis 60 Minuten.",
-                    "settings_written_per_day": "Höchstens so viele Einstellungen, etwa die Leistungsbegrenzung Heizen, werden pro Tag geschrieben; 0 schaltet die Grenze ab. Der Regler speichert jede im EEPROM, das nur eine begrenzte Zahl von Schreibvorgängen verträgt."
+                    "settings_written_per_day": "Höchstens so viele Einstellungen, etwa die Leistungsbegrenzung Heizen, werden pro Tag geschrieben; 0 schaltet die Grenze ab. Der Regler speichert jede im EEPROM, das nur eine begrenzte Zahl von Schreibvorgängen verträgt.",
+                    "read_modulation": "Liest dafür eine Seite mehr, einmal pro Stunde. Aus schont den Regler."
                 }
             }
         }
@@ -2242,7 +2244,7 @@
         },
         "webif_pages_shared": {
             "title": "Seiten der Weboberfläche ausgelassen",
-            "description": "Ausgelassen: {pages}. Jede davon hatte dieselbe Adresse wie eine andere Seite; ein dort gelesener oder geschriebener Wert könnte zu beiden gehören. Der Eintrag der Weboberfläche liest und schreibt sie darum nicht mehr; seine übrigen Seiten und Modbus sind nicht betroffen. Wählen Sie **Neu konfigurieren** am Eintrag der Weboberfläche: Dabei werden alle Seiten neu gesucht, und dieser Hinweis verschwindet."
+            "description": "Ausgelassen: {pages}. Zu welcher Seite ihre Adresse führt, ließ sich nicht sicher sagen; ein dort gelesener oder geschriebener Wert könnte zu einer anderen Einstellung gehören. Der Eintrag der Weboberfläche liest und schreibt sie darum nicht mehr; seine übrigen Seiten und Modbus sind nicht betroffen. Wählen Sie **Neu konfigurieren** am Eintrag der Weboberfläche: Dabei werden alle Seiten neu gesucht, und dieser Hinweis verschwindet."
         },
         "webif_stopped_not_found_again": {
             "title": "Seite der Weboberfläche nicht wiedergefunden",

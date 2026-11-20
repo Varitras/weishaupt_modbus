@@ -14,6 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .configentry import host_lock, host_pacing
+from .const import CONST
 from .webif.client import Broken, Client, WebifError
 from .webif.discovery import (
     HEAT_PUMP_PAGE,
@@ -24,7 +25,7 @@ from .webif.discovery import (
     DoubledMenuEntries,
     find_pages,
 )
-from .webif_coordinator import Page, polled_pages
+from .webif_polled import Page, polled_pages
 from .webif_sensor import (
     MODELS,
     OPTIONAL_TITLES,
@@ -187,7 +188,9 @@ def _polled(found: Mapping[str, str]) -> dict[str, dict[str, Page]]:
             page.key: page
             for page in polled_pages(
                 found,
-                {},
+                # Every page an option may switch on is checked, so the
+                # option can be offered.
+                {CONST.OPTION_WEBIF_MODULATION: True},
                 REQUIRED_TITLES[model],
                 TITLES_SHOWN_OTHERWISE[model],
                 OPTIONAL_TITLES[model],

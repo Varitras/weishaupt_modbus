@@ -247,7 +247,7 @@ async def test_a_modulation_form_of_another_type_is_not_sent():
         MODULATION_PATH: [modulation_form(50).replace('"para_list"', '"para_text"')]
     }
 
-    with pytest.raises(setting.FormMismatch):
+    with pytest.raises(setting.FormNotRead):
         await setting.write_setting(
             client,
             MODULATION_PATH,
@@ -257,4 +257,4 @@ async def test_a_modulation_form_of_another_type_is_not_sent():
             lambda: events.append(("count",)),
         )
 
-    assert events == [("page", MODULATION_PATH)]
+    assert set(events) == {("page", MODULATION_PATH)}
