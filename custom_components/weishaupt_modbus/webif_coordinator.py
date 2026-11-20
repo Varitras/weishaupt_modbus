@@ -14,7 +14,8 @@ overview, at most once a round; the addresses found are kept in the entry.
 A page not found fails on its own, and a stop by it asks for a reconfigure.
 
 It also writes the settings the integration sets, the heating power limit,
-each circuit's minimum flow temperature and an Evoblock's modulation: once
+an Evoblock's minimum flow temperature of each circuit and the hot water
+modulation: once
 the requests for one have settled, between two pages of a round, never
 beside one.
 """

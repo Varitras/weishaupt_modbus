@@ -3,8 +3,9 @@
 When to write, how often and against which daily limit is the caller's. The
 entry is found by its title on its menu page, never by a stored address:
 the controller writes the value into the entry's address, so every save
-moves it. Three settings are written: the heating power limit, each
-circuit's minimum flow temperature and an Evoblock's modulation.
+moves it. Three settings are written: the heating power limit, an
+Evoblock's minimum flow temperature of each circuit, and the hot water
+modulation.
 
 The modulation's entry leads straight to its form, with no page of values
 before it: that form is the page polled, found by its title in the heat
