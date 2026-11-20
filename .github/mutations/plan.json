@@ -5896,8 +5896,8 @@
   {
     "label": "capture: another setting's form must not pass for the modulation's",
     "path": "tools/webif_capture.py",
-    "old": "        if form is None or form.path != path:\n",
-    "new": "        if form is None:\n",
+    "old": "        if form is None or form.path != path or form.type != SETTING_LIST:\n",
+    "new": "        if form is None or form.type != SETTING_LIST:\n",
     "tests": "modulation_page_without_its_own_form"
   },
   {
@@ -5969,5 +5969,54 @@
     "old": "            if key not in unread\n",
     "new": "            if True\n",
     "tests": "lost_modulation_never_read_is_dropped_without_a_reload"
+  },
+  {
+    "label": "capture: a modulation form of another type must not be taken",
+    "path": "tools/webif_capture.py",
+    "old": "        if form is None or form.path != path or form.type != SETTING_LIST:\n",
+    "new": "        if form is None or form.path != path:\n",
+    "tests": "modulation_form_of_another_type_is_not_taken"
+  },
+  {
+    "label": "capture: a circuit's name must stay out of the file",
+    "path": "tools/webif_capture.py",
+    "old": "    if step.shows_values and step.optional:\n",
+    "new": "    if False:\n",
+    "tests": "name_given_to_a_circuit_stays_out_of_the_file"
+  },
+  {
+    "label": "capture: the circuit menu must be the one Info lists first",
+    "path": "tools/webif_capture.py",
+    "old": "        circuit_of=\"heating_circuit\",\n",
+    "new": "        numbered=True,\n",
+    "tests": "settings_are_the_circuits_info_lists_first or circuit_menu_is_absent_without_a_circuit"
+  },
+  {
+    "label": "capture: an optional menu with nothing to open must be absent",
+    "path": "tools/webif_capture.py",
+    "old": "    if not offered and step.optional:\n        return None\n",
+    "new": "",
+    "tests": "optional_menu_with_nothing_to_open_is_absent"
+  },
+  {
+    "label": "capture: an optional page that never fits must be absent",
+    "path": "tools/webif_capture.py",
+    "old": "    return walk.misfits[step.key] >= OPTIONAL_TRIES\n",
+    "new": "    return False\n",
+    "tests": "optional_page_that_never_fits_is_absent_after_two_tries"
+  },
+  {
+    "label": "capture: an optional page must be tried twice",
+    "path": "tools/webif_capture.py",
+    "old": "OPTIONAL_TRIES = 2\n",
+    "new": "OPTIONAL_TRIES = 1\n",
+    "tests": "optional_page_that_never_fits_is_absent_after_two_tries"
+  },
+  {
+    "label": "capture: an entry sharing its link must not be taken",
+    "path": "tools/webif_capture.py",
+    "old": "    clear = [entry for entry in offered if links[entry.href] == 1]\n",
+    "new": "    clear = offered\n",
+    "tests": "optional_entry_sharing_its_link_is_not_taken"
   }
 ]

@@ -20,7 +20,7 @@ import time
 
 import pytest
 
-from custom_components.weishaupt_modbus.webif import client as webif, discovery
+from custom_components.weishaupt_modbus.webif import client as webif, discovery, setting
 
 from .webif_stand_in import (
     HEAT_PUMP_INFO,
@@ -453,7 +453,10 @@ async def test_the_pages_only_some_pumps_show_are_read_where_shown(socket_enable
     assert pages["circuit_settings"]["entries"] == [
         ["Minimale Vorlauftemperatur", "20.0 °C"]
     ]
-    assert pages["hot_water_settings"]["entries"] == [["Betriebsart", "Automatik"]]
+    # A word is kept as text alone: it could be a name the user gave.
+    assert pages["hot_water_settings"]["entries"] == [
+        ["Betriebsart", capture_tool.TEXT_SHOWN]
+    ]
     # What the form offers; the value set is the user's, not a title.
     assert pages["modulation"] == {
         "page": "modulation",
@@ -494,6 +497,117 @@ async def test_the_pages_only_some_pumps_show_are_never_offered_to_pick(
     assert questions == []
     assert pump.asked == [*LOGIN, *asked(WALK), *LOGOUT]
     assert report["absent"] == ALL_ABSENT
+
+
+async def test_a_name_given_to_a_circuit_stays_out_of_the_file(socket_enabled):
+    """The file goes to a public issue; what a settings page shows as text,
+    a circuit's name among it, is the user's."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.site[settings_path(CIRCUIT_MENU[2])] += column(
+            setting_link(CIRCUIT_MENU[2], "Name", "Kinderzimmer Max")
+        )
+        report, _, _ = await run_capture(pump)
+
+    assert "Kinderzimmer Max" not in json.dumps(report, ensure_ascii=False)
+    assert ["Name", capture_tool.TEXT_SHOWN] in by_page(report)["circuit_settings"][
+        "entries"
+    ]
+    assert ["Minimale Vorlauftemperatur", "20.0 °C"] in by_page(report)[
+        "circuit_settings"
+    ]["entries"]
+
+
+async def test_the_settings_are_the_circuits_info_lists_first(socket_enabled):
+    """A circuit switched off shows in the overview but not under Info: its
+    settings stood in for the first circuit's."""
+    first = CIRCUIT_MENU[2].replace("33", "32", 1)
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.site[paths(KNOWN)[0]] += column(link([first], "Heizkreis 1"))
+        pump.site[STACK + first] = column(
+            link([first, settings_segment(first)], "Einstellungen")
+        )
+        pump.site[settings_path(first)] = column(setting_link(first, "Ein/Aus", "Aus"))
+        report, _, _ = await run_capture(pump)
+
+    pages = by_page(report)
+    assert pages["circuit_menu"]["shown"] == "Heizkreis 2"
+    assert pages["circuit_settings"]["shown"] == "Heizkreis 2 › Einstellungen"
+    assert ("GET", STACK + first) not in pump.asked
+
+
+async def test_the_circuit_menu_is_absent_without_a_circuit_under_info(socket_enabled):
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        info = paths(KNOWN)[1]
+        pump.site[info] = (
+            pump.site[info]
+            .replace(">Heizkreis 2<", ">Unused 2<")
+            .replace(">Heizkreis 3<", ">Unused 3<")
+        )
+        report, _, _ = await run_capture(pump)
+
+    assert "Heizkreis n" in report["absent"]
+    assert ("GET", STACK + CIRCUIT_MENU[2]) not in pump.asked
+
+
+async def test_an_optional_menu_with_nothing_to_open_is_absent(socket_enabled):
+    """The hot water menu listing only its time program: the run gave up
+    after its last attempt, the six pages read whole lost with it."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        program = "46004000" + settings_segment(HOT_WATER_MENU)[8:]
+        pump.site[STACK + HOT_WATER_MENU] = column(
+            link([HOT_WATER_MENU, program], "Zeitprogramm")
+        )
+        report, _, rests = await run_capture(pump, attempts=2)
+
+    assert report is not None
+    assert "Warmwasser › Einstellungen" in report["absent"]
+    assert A_MINUTE not in rests
+
+
+async def test_an_optional_page_that_never_fits_is_absent_after_two_tries(
+    socket_enabled,
+):
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.site[OPTIONAL_WALK[1]] = column("")
+        report, _, rests = await run_capture(pump, attempts=3)
+
+    assert report is not None
+    assert "Info › 2. WEZ" in report["absent"]
+    assert rests.count(A_MINUTE) == 1
+    assert len(report["pages"]) == 12
+
+
+def test_an_optional_entry_sharing_its_link_is_not_taken():
+    menu = CIRCUIT_MENU[2]
+    page = column(
+        link([menu, settings_segment(menu)], "Einstellungen")
+        + link([menu, settings_segment(menu)], "Zeitprogramm")
+    )
+    walk = capture_tool._Walk()
+    walk.read["circuit_menu"] = capture_tool.pages.children(page, STACK + menu)
+
+    entry = capture_tool._entry(
+        capture_tool.STEP_BY_KEY["circuit_settings"],
+        walk,
+        lambda _: pytest.fail("an optional page is never picked"),
+    )
+
+    assert entry is None
+
+
+def test_a_modulation_form_of_another_type_is_not_taken():
+    """The integration reads and sets a list form only."""
+    path = STACK + f"{PUMP_MENU},{MODULATION}"
+    text = modulation_form(50).replace('"para_list"', '"para_text"')
+
+    assert (
+        capture_tool._entries(capture_tool.STEP_BY_KEY["modulation"], text, path) == []
+    )
 
 
 @pytest.mark.parametrize(
@@ -936,6 +1050,10 @@ def test_the_tool_talks_like_the_client(name):
 )
 def test_the_tool_looks_for_the_titles_the_integration_finds(name):
     assert getattr(capture_tool, name) == getattr(discovery, name)
+
+
+def test_the_tool_takes_the_form_type_the_integration_sets():
+    assert capture_tool.SETTING_LIST == setting.SETTING_LIST
 
 
 @pytest.mark.parametrize(

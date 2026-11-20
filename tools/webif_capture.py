@@ -18,14 +18,17 @@ knows them by their codes only, so check each title before confirming.
 
 Then it opens up to seven more, the pages the integration reads on some
 pumps: the first heating circuit's and the second heat generator's
-information pages, the first circuit's and the hot water's menus and settings
+information pages, that circuit's and the hot water's menus and settings
 pages, and the hot water modulation. Those it finds by their German titles
 alone and leaves out otherwise, never asking: their menus list Reset too,
-under codes it does not know. It only reads.
+under codes it does not know. One that does not fit twice is left out too.
+It only reads.
 
 The file holds the titles of each page, the values of the pages the
 integration reads, the options the modulation offers, and which of the seven
-the controller did not show. The tool adds no address, user name, password,
+the controller did not show. On those seven a value is kept only as a number
+with its unit; any other text, such as a name given to a circuit, is written
+as "(text)". The tool adds no address, user name, password,
 session or page address; the values are what those pages show, so read the
 file and check it for a serial number, an access code or a network address
 before you attach it.
@@ -42,6 +45,7 @@ beside it brings a portable Python of its own.
 """
 
 import argparse
+from collections import Counter
 from collections.abc import Callable, Iterable
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -115,6 +119,15 @@ SETTINGS = "Einstellungen"
 MODULATION_TITLE = "Modulation"
 # How the file names a circuit's place in the menus: the lowest one shown.
 ANY_CIRCUIT = "Heizkreis n"
+# The kind of form the integration reads and sets.
+SETTING_LIST = "para_list"
+# A value of an optional page kept only as a number with a unit seen on
+# these pages: any other text, a circuit's name among it, is the user's.
+SHOWN_NUMBER = re.compile(r"-?\d+(?:\.\d+)? ?(?:°C|K|%|h|kWh|KWh|kW|bar|BAR|Hz)?")
+TEXT_SHOWN = "(text)"
+# An optional page that does not fit this often is taken as not shown:
+# another model may show it in a shape nobody here has seen.
+OPTIONAL_TRIES = 2
 # A stack segment starts with the code of its menu entry: the main menu in the
 # first two hex digits, the entry in the next six. The rest carries the
 # device, the menu depth and at times a shown value.
@@ -173,8 +186,9 @@ class Step:
     The page it is an entry of ("" for the overview), its title there on a
     German controller and its code on the controller this was built for, what
     it is, and how it is read. An optional page is found by its German title
-    alone, the lowest numbered circuit's where it is `numbered`, and left out
-    when not shown; a `form` is a setting's own page.
+    alone, the lowest numbered circuit's where it is `numbered`, the circuit
+    the step `circuit_of` took where it names one, and left out when not
+    shown; a `form` is a setting's own page.
     """
 
     key: str
@@ -186,6 +200,7 @@ class Step:
     shows_values: bool
     optional: bool = False
     numbered: bool = False
+    circuit_of: str = ""
     form: bool = False
 
     @property
@@ -282,7 +297,7 @@ STEPS = (
         menu=True,
         shows_values=False,
         optional=True,
-        numbered=True,
+        circuit_of="heating_circuit",
     ),
     Step(
         "circuit_settings",
@@ -330,6 +345,7 @@ class _Walk:
     chosen: dict[str, Any] = field(default_factory=dict)
     picked: set[str] = field(default_factory=set)
     absent: set[str] = field(default_factory=set)
+    misfits: Counter[str] = field(default_factory=Counter)
 
 
 @dataclass(frozen=True)
@@ -534,8 +550,17 @@ def _item(href: str) -> str:
     return href.split(pages.STACK_QUERY, 1)[1].rsplit(",", maxsplit=1)[-1][ITEM_CODE]
 
 
-def _titled(step: Step, offered: list[Any]) -> list[Any]:
-    """The entries under the step's German title; the lowest circuit's only."""
+def _titled(step: Step, offered: list[Any], walk: _Walk) -> list[Any]:
+    """The entries under the step's German title; the lowest circuit's only.
+
+    Info lists the circuits switched on; the overview may show one more,
+    switched off, whose settings would stand in for the first circuit's.
+    """
+    if step.circuit_of:
+        circuit = walk.chosen.get(step.circuit_of)
+        if circuit is None:
+            return []
+        return [entry for entry in offered if entry.title == circuit.title]
     if not step.numbered:
         return [entry for entry in offered if entry.title == step.german]
     circuits = [
@@ -564,14 +589,19 @@ def _entry(step: Step, walk: _Walk, ask: Callable[[str], str]) -> Any:
         for entry in walk.read[step.parent]
         if entry.href is not None and _item(entry.href) not in NEVER_OPENED
     ]
+    if not offered and step.optional:
+        return None
     if not offered:
         # Kept, the parent would offer nothing in every later attempt too;
         # picked by the user, it was likely the wrong pick.
         del walk.read[step.parent]
         _drop_pick(walk, step.parent)
         raise Half(f"{STEP_BY_KEY[step.parent].what} came with nothing to open")
-    by_code = [entry for entry in offered if _item(entry.href) == step.code]
-    by_title = _titled(step, offered)
+    # An entry sharing its link with another may lead to either page.
+    links = Counter(entry.href for entry in walk.read[step.parent] if entry.href)
+    clear = [entry for entry in offered if links[entry.href] == 1]
+    by_code = [entry for entry in clear if _item(entry.href) == step.code]
+    by_title = _titled(step, clear, walk)
     found = by_code if len(by_code) == 1 else by_title
     if len(found) == 1:
         walk.chosen[step.key] = found[0]
@@ -592,7 +622,7 @@ def _entries(step: Step, text: str, path: str) -> list[Any]:
     if step.form:
         form = pages.setting_form(text)
         # Another setting's form served in its place would teach its options.
-        if form is None or form.path != path:
+        if form is None or form.path != path or form.type != SETTING_LIST:
             return []
         return list(form.offered)
     if not step.parent:
@@ -655,6 +685,9 @@ def _read_missing(session: Session, walk: _Walk, ask: Callable[[str], str]) -> N
                 continue
             path = entry.href
         entries = _entries(step, session.page(path, step.key), path)
+        if not _whole(step, entries) and _gives_up(step, walk):
+            walk.absent.add(step.key)
+            continue
         if not _whole(step, entries):
             _drop_pick(walk, step.key)
             raise Half(f"{step.what} came half")
@@ -668,14 +701,31 @@ def _read_missing(session: Session, walk: _Walk, ask: Callable[[str], str]) -> N
         print(f"   {step.what}: {len(entries)} entries")
 
 
+def _gives_up(step: Step, walk: _Walk) -> bool:
+    """An optional page that did not fit once more than it may."""
+    if not step.optional:
+        return False
+    walk.misfits[step.key] += 1
+    return walk.misfits[step.key] >= OPTIONAL_TRIES
+
+
 def _kept(step: Step, entries: list[Any]) -> dict[str, Any]:
     """What the file keeps of a page: values only where the integration reads them."""
     if step.form:
         # The options alone: the one set is the user's, not a title.
         return {"offered": entries}
+    if step.shows_values and step.optional:
+        return {"entries": [[entry.title, _neutral(entry.text)] for entry in entries]}
     if step.shows_values:
         return {"entries": [[entry.title, entry.text] for entry in entries]}
     return {"titles": [entry.title for entry in entries]}
+
+
+def _neutral(text: str) -> str:
+    """A number with its unit as shown, anything else as text alone."""
+    if not text or SHOWN_NUMBER.fullmatch(text):
+        return text
+    return TEXT_SHOWN
 
 
 def _report(walk: _Walk) -> dict[str, Any]:
