@@ -56,6 +56,7 @@ from .webif_sensor import (
     TITLES_SHOWN_OTHERWISE,
     entry_model,
 )
+from .webif_shared import clear_shared_notice, leave_out_stored
 from .weishaupt_modbus_api.const import DEFAULT_PORT, MODBUS_UNIT_ID
 from .weishaupt_modbus_api.device import WeishauptHeatPump
 from .weishaupt_modbus_api.hpconst import DEVICELISTS
@@ -215,6 +216,7 @@ async def _async_setup_web_interface(
         raise ConfigEntryError(
             translation_domain=CONST.DOMAIN, translation_key="webif_pump_removed"
         )
+    leave_out_stored(hass, entry)
     host = pump.data[CONF.HOST]
     # Created in the entry's setup, so Home Assistant detaches it on unload.
     session = async_create_clientsession(hass, cookie_jar=aiohttp.DummyCookieJar())
@@ -473,8 +475,9 @@ def _entity_id_with_new_label(entity_id: str, labels: tuple) -> str | None:
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Take the entry's circuit notices and write counts along."""
+    """Take the entry's notices and write counts along."""
     clear_circuit_notices(hass, entry)
+    clear_shared_notice(hass, entry.entry_id)
     await async_remove_write_counts(hass, entry.entry_id)
 
 

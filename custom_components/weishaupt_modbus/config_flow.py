@@ -31,6 +31,7 @@ from .webif.client import LoginRefused, Unreachable, WebifError
 from .webif.discovery import ENGLISH_MENU_TITLES, DoubledMenuEntries, MissingMenuEntries
 from .webif_coordinator import INTERVAL_OPTIONS
 from .webif_sensor import ENGLISH_TITLES, WBB
+from .webif_shared import clear_shared_notice
 from .webif_visit import (
     MissingTitles,
     UnclearValues,
@@ -583,6 +584,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=CONST.DOMAIN):  # pylint: dis
             visited, errors, placeholders = self._visit_result(visit)
             if visited is None:
                 return self._login_form(entry, step_id, errors, placeholders)
+            clear_shared_notice(self.hass, entry.entry_id)
             return self.async_update_reload_and_abort(
                 entry,
                 data_updates={
