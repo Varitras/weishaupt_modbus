@@ -2227,6 +2227,12 @@
     },
     "webif_minimum_temperature_step" : {
       "message" : "{value} °C wordt niet aangeboden. De minimumtemperatuur wordt ingesteld in stappen van 0,5 °C."
+    },
+    "webif_pages_shared" : {
+      "message" : "Meerdere pagina's van de webinterface zijn onder één adres opgeslagen, waaronder een die deze vermelding moet lezen. Kies **Opnieuw configureren** bij deze vermelding om alle pagina's opnieuw te zoeken."
+    },
+    "webif_write_reloading" : {
+      "message" : "De webinterface-vermelding wordt opnieuw geladen, omdat twee van haar pagina's één adres hadden. Er is niets verzonden; probeer het opnieuw zodra ze geladen is."
     }
   },
   "issues" : {
@@ -2245,6 +2251,10 @@
     "circuit_off_at_controller" : {
       "title" : "Verwarmingscircuit {circuit} uitgeschakeld op de warmtepomp",
       "description" : "Deze vermelding leest verwarmingscircuit {circuit}, maar de warmtepomp meldt het als uitgeschakeld. De waarden horen bij geen circuit in gebruik. Schakel het uit onder **Opnieuw configureren** van de warmtepompvermelding, of negeer deze melding als het circuit net wordt ingericht."
+    },
+    "webif_pages_shared" : {
+      "title" : "Pagina's van de webinterface weggelaten",
+      "description" : "Weggelaten: {pages}. Elke pagina had hetzelfde adres als een andere; een waarde die daar gelezen of geschreven wordt, kan bij beide horen. De webinterface-vermelding leest en schrijft ze daarom niet meer; haar andere pagina's en Modbus blijven gewoon werken. Kies **Opnieuw configureren** bij de webinterface-vermelding: daarbij worden alle pagina's opnieuw gezocht, en deze melding verdwijnt."
     }
   }
 }

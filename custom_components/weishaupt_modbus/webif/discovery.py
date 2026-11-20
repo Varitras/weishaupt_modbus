@@ -190,6 +190,12 @@ def _clear(shown: list[tuple[str, str]]) -> dict[str, str]:
     }
 
 
+def shared_addresses(paths: Mapping[str, str]) -> set[str]:
+    """The keys of the pages whose address another page has too."""
+    counts = Counter(paths.values())
+    return {key for key, path in paths.items() if counts[path] > 1}
+
+
 async def find_pages(
     client: Client,
     overview: str | None = None,

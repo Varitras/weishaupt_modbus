@@ -32,6 +32,7 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     MissingMenuEntries,
 )
 from custom_components.weishaupt_modbus.webif_sensor import EVOBLOCK, WBB
+from custom_components.weishaupt_modbus.webif_shared import SHARED_ISSUE
 from custom_components.weishaupt_modbus.webif_visit import (
     MissingTitles,
     UnclearValues,
@@ -39,7 +40,7 @@ from custom_components.weishaupt_modbus.webif_visit import (
     Visited,
 )
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import config_validation as cv, issue_registry as ir
 
 from .locking import WatchedLock, until
 
@@ -1072,6 +1073,38 @@ async def test_a_web_interface_entry_is_reconfigured_with_a_new_login_and_pages(
     assert entry.data[CONF.MODEL] == EVOBLOCK
     assert entry.data[CONF.PUMP_TITLE] == pump.title
     assert web_interface.visits == [(HOST, "other", "renewed")]
+
+
+async def test_a_reconfigure_takes_the_notice_of_pages_left_out_away(
+    hass, web_interface
+):
+    """It searched every page anew: the pages left out for sharing one
+    address are back, or gone for good."""
+    entry = _web_entry(hass, _pump_entry(hass))
+    ir.async_create_issue(
+        hass,
+        CONST.DOMAIN,
+        f"{SHARED_ISSUE}_{entry.entry_id}",
+        is_fixable=False,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key=SHARED_ISSUE,
+        translation_placeholders={"pages": "Info › 2. WEZ"},
+    )
+    web_interface.outcome = Visited(FOUND_PAGES, EVOBLOCK)
+
+    form = await entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        form["flow_id"], {CONF.USERNAME: "other", CONF.PASSWORD: "renewed"}
+    )
+    await hass.async_block_till_done()
+
+    assert result["reason"] == "reconfigure_successful"
+    assert (
+        ir.async_get(hass).async_get_issue(
+            CONST.DOMAIN, f"{SHARED_ISSUE}_{entry.entry_id}"
+        )
+        is None
+    )
 
 
 async def test_a_reconfigure_visit_that_fails_keeps_the_old_login(hass, web_interface):

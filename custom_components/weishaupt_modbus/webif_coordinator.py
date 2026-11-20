@@ -65,6 +65,7 @@ from .webif.discovery import (
     find_pages,
     in_both_languages,
     moved,
+    shared_addresses,
 )
 from .webif.setting import (
     MODULATION_TITLE,
@@ -74,6 +75,7 @@ from .webif.setting import (
     Setting,
     write_setting,
 )
+from .webif_shared import leave_out
 from .webif_write_messages import raise_translated
 from .weishaupt_modbus_api.write_budget import WriteBudget
 
@@ -436,6 +438,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         self._searched_in_round = False
         # The pages the last search did not find, kept at their old address.
         self._lost: set[str] = set()
+        # Two pages had one address: until the reload nothing is written.
+        self._reloading = False
         # Reloading the entry resumes polling at once after a stop.
         ir.async_delete_issue(hass, CONST.DOMAIN, self._issue)
 
@@ -505,6 +509,10 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
 
     def _refuse_write(self) -> None:
         """Refuse a write that cannot go out, before any request."""
+        if self._reloading:
+            raise HomeAssistantError(
+                translation_domain=CONST.DOMAIN, translation_key="webif_write_reloading"
+            )
         if self._stopped is not None:
             raise HomeAssistantError(
                 translation_domain=CONST.DOMAIN, translation_key="webif_write_stopped"
@@ -805,9 +813,20 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
 
         Only the pages the entry has get one: a page found only now joins
         after a reconfigure, whose visit checks it. A page not found keeps
-        its old address, and the ones found are polled at theirs.
+        its old address, and the ones found are polled at theirs; should a
+        page found have that address, the lost page is left out and the entry
+        reloads.
         """
         found = await find_pages(self._client, overview, reads=self._polled_keys)
+        data = self.config_entry.data
+        pages = {key: found.get(key, path) for key, path in data[CONF.PAGES].items()}
+        if gone := {key for key in shared_addresses(pages) if key not in found}:
+            # Kept at its old address, a page not found again would read the
+            # page found there as its own, and a write to it would land there.
+            self._reloading = True
+            leave_out(self.hass, self.config_entry, gone, pages)
+            self.hass.config_entries.async_schedule_reload(self.config_entry.entry_id)
+            raise Closed("pages at one address; the entry reloads")
         self._lost = {page.key for page in self._pages if page.key not in found}
         self._pages = [
             replace(page, path=found.get(page.key, page.path)) for page in self._pages
@@ -818,15 +837,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             "The pages moved to new addresses and were found again%s",
             f", but not {', '.join(sorted(self._lost))}" if self._lost else "",
         )
-        data = self.config_entry.data
         self.hass.config_entries.async_update_entry(
-            self.config_entry,
-            data={
-                **data,
-                CONF.PAGES: {
-                    key: found.get(key, path) for key, path in data[CONF.PAGES].items()
-                },
-            },
+            self.config_entry, data={**data, CONF.PAGES: pages}
         )
 
     async def _polled_keys(self, _: dict[str, str]) -> set[str]:

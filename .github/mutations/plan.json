@@ -5553,8 +5553,8 @@
   {
     "label": "webif coordinator: the pages found again are not kept in the entry",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "                    key: found.get(key, path) for key, path in data[CONF.PAGES].items()\n",
-    "new": "                    key: path for key, path in data[CONF.PAGES].items()\n",
+    "old": "            self.config_entry, data={**data, CONF.PAGES: pages}\n",
+    "new": "            self.config_entry, data={**data, CONF.PAGES: data[CONF.PAGES]}\n",
     "tests": "addresses_found_again_are_kept_in_the_entry or moved_while_polling_are_found_again"
   },
   {
@@ -5745,5 +5745,68 @@
     "old": "    *MINIMUM_TEMPERATURES.values(),\n    MODULATION,\n)\n",
     "new": "    *MINIMUM_TEMPERATURES.values(),\n)\n",
     "tests": "dialog_keeps_it_on_an_evoblock"
+  },
+  {
+    "label": "webif discovery: pages at one address must be named",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "    return {key for key, path in paths.items() if counts[path] > 1}\n",
+    "new": "    return {key for key, path in paths.items() if counts[path] > 2}\n",
+    "tests": "pages_sharing_an_address_are_named"
+  },
+  {
+    "label": "webif coordinator: a lost page at a found page's address must be left out",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if gone := {key for key in shared_addresses(pages) if key not in found}:\n",
+    "new": "        if gone := set():\n",
+    "tests": "lost_page_at_a_found_pages_address or no_write_goes_out_once_a_lost_page or lost_circuit_sends_nothing"
+  },
+  {
+    "label": "webif coordinator: no write may go out until the reload",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if self._reloading:\n",
+    "new": "        if False:\n",
+    "tests": "no_write_goes_out_once_a_lost_page or lost_circuit_sends_nothing"
+  },
+  {
+    "label": "webif shared: pages stored at one address must be left out at load",
+    "path": "custom_components/weishaupt_modbus/webif_shared.py",
+    "old": "    if not shared:\n        return\n",
+    "new": "    if True:\n        return\n",
+    "tests": "stored_at_one_address or stored_at_a_shared_address or stored_at_one_settings_page"
+  },
+  {
+    "label": "webif shared: a required page at a shared address must stop the setup",
+    "path": "custom_components/weishaupt_modbus/webif_shared.py",
+    "old": "    if shared - set(OPTIONAL_PAGES):\n",
+    "new": "    if False:\n",
+    "tests": "required_page_stored_at_a_shared_address"
+  },
+  {
+    "label": "webif shared: the pages left out must not be stored",
+    "path": "custom_components/weishaupt_modbus/webif_shared.py",
+    "old": "            CONF.PAGES: {key: path for key, path in pages.items() if key not in keys},\n",
+    "new": "            CONF.PAGES: dict(pages),\n",
+    "tests": "lost_page_at_a_found_pages_address or stored_at_one_address or stored_at_one_settings_page"
+  },
+  {
+    "label": "config flow: a reconfigure must take the notice of pages left out away",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "            clear_shared_notice(self.hass, entry.entry_id)\n",
+    "new": "",
+    "tests": "takes_the_notice_of_pages_left_out_away"
+  },
+  {
+    "label": "webif shared: the notice must outlast a restart",
+    "path": "custom_components/weishaupt_modbus/webif_shared.py",
+    "old": "        is_persistent=True,\n",
+    "new": "        is_persistent=False,\n",
+    "tests": "notice_of_pages_left_out_outlasts_a_restart"
+  },
+  {
+    "label": "setup: removing the entry must take the notice of pages left out along",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    clear_shared_notice(hass, entry.entry_id)\n",
+    "new": "",
+    "tests": "notice_of_pages_left_out_outlasts_a_restart"
   }
 ]
