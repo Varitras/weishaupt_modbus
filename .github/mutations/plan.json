@@ -5231,8 +5231,8 @@
   {
     "label": "webif family: polling lets a doubled conditional row pass",
     "path": "custom_components/weishaupt_modbus/webif_polled.py",
-    "old": "        complete = pages.is_complete(self.read(text), self.required, self.optional)\n",
-    "new": "        complete = pages.is_complete(self.read(text), self.required)\n",
+    "old": "        complete = pages.is_complete(self._judged(text), self.required, self.optional)\n",
+    "new": "        complete = pages.is_complete(self._judged(text), self.required)\n",
     "tests": "doubled_conditional_row_stops_polling"
   },
   {
@@ -5336,7 +5336,7 @@
   {
     "label": "webif coordinator: a settings page is read as a page of values",
     "path": "custom_components/weishaupt_modbus/webif_polled.py",
-    "old": "                menu=key in (*CIRCUIT_SETTINGS_PAGES, HOT_WATER_SETTINGS_PAGE),\n",
+    "old": "                menu=key in SETTINGS_PAGES,\n",
     "new": "                menu=False,\n",
     "tests": "settings_page_is_a_menu_on_the_settings_interval"
   },
@@ -5941,5 +5941,12 @@
     "old": "        parser.forms == parser.forms_closed == 1\n",
     "new": "        parser.forms == 1\n",
     "tests": "form_missing_a_part_is_not_read or cut_off_inside_its_choices"
+  },
+  {
+    "label": "webif settings pages: a blank row no sensor reads must not fail them",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "                strict=key not in SETTINGS_PAGES,\n",
+    "new": "                strict=True,\n",
+    "tests": "unread_row_is_blank or blank_unread_row_keeps"
   }
 ]

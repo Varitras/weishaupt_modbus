@@ -30,6 +30,7 @@ from .webif.discovery import (
 )
 from .webif.setting import MODULATION_TITLE, own_form
 
+SETTINGS_PAGES = (*CIRCUIT_SETTINGS_PAGES, HOT_WATER_SETTINGS_PAGE)
 # A wrong page in place of the asked one lacks every title: more than these
 # are counted, not listed, in the notice and the log.
 TITLES_NAMED = 5
@@ -57,7 +58,7 @@ INTERVAL_OPTIONS = {
     ),
     # The settings pages share one: they change only when someone sets them.
     **dict.fromkeys(
-        (*CIRCUIT_SETTINGS_PAGES, HOT_WATER_SETTINGS_PAGE),
+        SETTINGS_PAGES,
         (CONST.OPTION_WEBIF_SETTINGS_INTERVAL, CONST.WEBIF_SLOW_INTERVAL_MINUTES),
     ),
 }
@@ -82,6 +83,7 @@ class Page:
     spelt another way, to the German ones everything else goes by. `optional` are titles read when the
     page shows them, which it need not. `owner` is the main menu the page must
     show itself under, where its titles alone cannot tell it from another's.
+    A page that is not `strict` is judged by the rows it reads alone.
     """
 
     key: str
@@ -94,6 +96,7 @@ class Page:
     english: Mapping[str, str] = field(default_factory=dict, hash=False)
     optional: frozenset[str] = frozenset()
     owner: str | None = None
+    strict: bool = True
 
     def read(self, text: str) -> list[tuple[str, str]]:
         """The titles and values the page shows, English titles made German."""
@@ -113,8 +116,16 @@ class Page:
 
     def is_whole(self, text: str) -> bool:
         """Every required title once, none read twice, none blank, under its owner."""
-        complete = pages.is_complete(self.read(text), self.required, self.optional)
+        complete = pages.is_complete(self._judged(text), self.required, self.optional)
         return complete and self.owned(text)
+
+    def _judged(self, text: str) -> list[tuple[str, str]]:
+        """The rows its completeness goes by."""
+        found = self.read(text)
+        if self.strict:
+            return found
+        read = self.required | self.optional
+        return [(title, shown) for title, shown in found if title in read]
 
     def owned(self, text: str) -> bool:
         """Under its owner's main menu, or without one to be under."""
@@ -126,7 +137,7 @@ class Page:
 
     def unclear(self, text: str) -> frozenset[str]:
         """The titles shown without a value, and the ones read shown twice."""
-        found = self.read(text)
+        found = self._judged(text)
         counts = Counter(title for title, _ in found)
         empty = {title for title, shown in found if not shown}
         twice = {title for title in self.required | self.optional if counts[title] > 1}
@@ -210,11 +221,14 @@ def polled_pages(
                 required[key],
                 every(key),
                 # A settings page shows its values one level down, as entries.
-                menu=key in (*CIRCUIT_SETTINGS_PAGES, HOT_WATER_SETTINGS_PAGE),
+                menu=key in SETTINGS_PAGES,
                 form=MODULATION_TITLE if key == MODULATION_PAGE else None,
                 english=english.get(key, {}),
                 optional=optional.get(key, frozenset()),
                 owner=CIRCUIT_OWNERS.get(key),
+                # A settings page also lists rows no sensor reads, such as a
+                # circuit's name: one left blank must not fail the page.
+                strict=key not in SETTINGS_PAGES,
             )
             for key in OPTIONAL_PAGES
             if key in paths and required.get(key) and asked_for(key)

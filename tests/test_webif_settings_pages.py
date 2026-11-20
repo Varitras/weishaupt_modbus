@@ -545,6 +545,33 @@ async def test_an_evoblock_entry_reads_each_circuits_settings(hass, pump):
     assert _number(hass, 1) is None
 
 
+def _without_a_name(pump):
+    """Circuit 3's settings with its name row blank, as if none were given."""
+    pump.circuits[3].values["Name"] = ""
+    pump.circuits[3].show()
+
+
+async def test_the_dialog_keeps_a_settings_page_whose_unread_row_is_blank(hass, pump):
+    """Nobody has seen how a circuit without a name shows the row; blank, it
+    must not leave the circuit's settings out."""
+    _without_a_name(pump)
+
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert circuit_settings_page(3) in visited.pages
+
+
+@pytest.mark.e2e
+@pytest.mark.timeout(120)
+async def test_a_blank_unread_row_keeps_the_circuits_settings_polled(hass, pump):
+    _without_a_name(pump)
+
+    await _start(hass, _web_entry(hass, pump))
+
+    assert hass.states.get(_number(hass, 3)).state == "33.0"
+    assert _state(hass, "hk3_maximaltemperatur") == "55.0"
+
+
 @pytest.mark.e2e
 @pytest.mark.timeout(120)
 async def test_an_entry_made_before_them_gets_no_settings_entities(hass, pump):
