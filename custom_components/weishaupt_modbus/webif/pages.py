@@ -191,6 +191,7 @@ class _SaveForms(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
         self.forms = 0
+        self.forms_closed = 0
         self.hidden: list[tuple[str, str]] = []
         self.selects = 0
         self.options: list[tuple[str, bool]] = []
@@ -220,14 +221,16 @@ class _SaveForms(HTMLParser):
     def handle_endtag(self, tag: str) -> None:
         if tag == "select":
             self._in_select = False
-        elif tag == "form":
+        elif tag == "form" and self._in_form:
+            self.forms_closed += 1
             self._in_form = False
 
 
 def setting_form(page: str) -> SettingForm | None:
     """The page's save form; None when a part of it is missing or doubled.
 
-    A page served half must not leave a form that could still be sent.
+    A page served half must not leave a form that could still be sent, nor
+    one cut off inside its options, which would offer only some of them.
     """
     parser = _SaveForms()
     parser.feed(page)
@@ -235,7 +238,7 @@ def setting_form(page: str) -> SettingForm | None:
     selected = [option for option, chosen in parser.options if chosen]
     hidden_once = sorted(name for name, _ in parser.hidden) == sorted(FORM_FIELDS)
     whole = (
-        parser.forms == 1
+        parser.forms == parser.forms_closed == 1
         and hidden_once
         and all(fields.values())
         and parser.selects == 1

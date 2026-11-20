@@ -313,6 +313,8 @@ VALUE_LIST = '<div class="form-group"><select'
         LEAF.replace(
             "</select>", '</select><select name="value"><option value="62"></select>'
         ),
+        LEAF.split(SIXTY_ONE)[0],
+        LEAF.split("</form>")[0],
     ],
     ids=[
         "no id",
@@ -332,6 +334,8 @@ VALUE_LIST = '<div class="form-group"><select'
         "an empty id",
         "the value list in a second form",
         "two value lists",
+        "cut inside the value list",
+        "cut before the form ends",
     ],
 )
 def test_a_form_missing_a_part_is_not_read(page):

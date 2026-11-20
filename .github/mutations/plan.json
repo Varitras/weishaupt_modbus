@@ -4069,8 +4069,8 @@
   {
     "label": "webif pages: a form's parts spread over two forms are read",
     "path": "custom_components/weishaupt_modbus/webif/pages.py",
-    "old": "        parser.forms == 1\n",
-    "new": "        parser.forms >= 1\n",
+    "old": "        parser.forms == parser.forms_closed == 1\n",
+    "new": "        parser.forms >= 1 and parser.forms_closed >= 1\n",
     "tests": "form_missing_a_part_is_not_read"
   },
   {
@@ -5934,5 +5934,12 @@
     "old": "    return owners == [title]\n",
     "new": "    return bool(owners)\n",
     "tests": "retired_circuit_neither_shows_nor_sets"
+  },
+  {
+    "label": "webif form: a form not closed must not be read",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "        parser.forms == parser.forms_closed == 1\n",
+    "new": "        parser.forms == 1\n",
+    "tests": "form_missing_a_part_is_not_read or cut_off_inside_its_choices"
   }
 ]

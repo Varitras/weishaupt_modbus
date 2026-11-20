@@ -491,3 +491,34 @@ async def test_an_english_heat_pump_menu_lists_it_as_modulation(pump, client):
     found = await find_pages(client)
 
     assert found[MODULATION_PAGE] == MODULATION_PATH
+
+
+async def test_a_form_cut_off_inside_its_choices_is_asked_for_again(hass, pump, quick):
+    """Cut after the 50 shown, the form offered no 85: a choice the
+    controller has was refused without the whole form being asked for."""
+    await _start(hass, _web_entry(hass, pump))
+    cut = modulation_form(50).split('<option value="55"')[0]
+    pump.site = _ServedCutOnce(pump.site, MODULATION_PATH, cut)
+
+    await _choose(hass, "85")
+
+    assert [form["value"] for form in pump.saved] == ["85"]
+    assert hass.states.get(_select(hass)).state == "85"
+
+
+class _ServedCutOnce(dict):
+    """The site, whose page at `path` comes cut off the first time it is asked.
+
+    The page stays on the site, so a save of its form counts as current.
+    """
+
+    def __init__(self, site, path, cut):
+        super().__init__(site)
+        self._path = path
+        self._cut = cut
+
+    def get(self, key, default=None):
+        if key == self._path and self._cut is not None:
+            cut, self._cut = self._cut, None
+            return cut
+        return super().get(key, default)
