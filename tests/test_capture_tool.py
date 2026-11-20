@@ -1,4 +1,4 @@
-"""The title capture for another language or model: six pages, read only, nothing personal.
+"""The title capture for another language or model: read only, nothing personal.
 
 tools/webif_capture.py is handed to people whose controller has to stay on
 a language the integration cannot read yet, or is a model it does not know
@@ -26,6 +26,7 @@ from .webif_stand_in import (
     HEAT_PUMP_INFO,
     HEATING,
     INFO,
+    MODULATION,
     PASSWORD,
     PUMP_MENU,
     SESSION_ID,
@@ -33,7 +34,9 @@ from .webif_stand_in import (
     USER,
     StandInPump,
     column,
+    limit_leaf,
     link,
+    modulation_form,
     see_other,
     serving,
     value,
@@ -105,6 +108,110 @@ ENGLISH = {
     "statistics": "Statistics",
     "heating": "Heating",
 }
+
+
+# The pages only some pumps show, as an Evoblock showed them in German, at
+# made-up segments shaped like the controller's.
+CIRCUIT_INFO = {
+    2: "0C000C32000000000000000A0B020003000401",
+    3: "0C000C33000000000000000A0B020003000401",
+}
+SECOND_GENERATOR_INFO = "0C000C40000000000000000A0B020003000401"
+CIRCUIT_MENU = {
+    2: "33000001000000000080000A0B010002000301",
+    3: "34000001000000000080000A0B010002000301",
+}
+HOT_WATER_MENU = "46000001000000000080000A0B010002000301"
+MODULATION_OFFERED = [-1, *range(50, 101, 5)]
+
+
+def settings_segment(menu):
+    return menu[:2] + "00320000000000008000" + "0A0B020003000401"
+
+
+def menu_reset(menu):
+    return menu[:2] + "00450000000000008000" + "0A0B020003000401"
+
+
+def setting_link(menu, title, shown):
+    segment = menu[:2] + "003200" + "0000000000" + "40000A0B030011010401"
+    return link([menu, settings_segment(menu), segment], title, shown)
+
+
+def settings_path(menu):
+    return STACK + f"{menu},{settings_segment(menu)}"
+
+
+OPTIONAL_WALK = [
+    STACK + f"{INFO},{CIRCUIT_INFO[2]}",
+    STACK + f"{INFO},{SECOND_GENERATOR_INFO}",
+    STACK + f"{KNOWN['pump']},{MODULATION}",
+    STACK + CIRCUIT_MENU[2],
+    settings_path(CIRCUIT_MENU[2]),
+    STACK + HOT_WATER_MENU,
+    settings_path(HOT_WATER_MENU),
+]
+ALL_ABSENT = [
+    "Info › Heizkreis n",
+    "Info › 2. WEZ",
+    "Wärmepumpe › Modulation",
+    "Heizkreis n",
+    "Heizkreis n › Einstellungen",
+    "Warmwasser",
+    "Warmwasser › Einstellungen",
+]
+
+
+def with_optional_pages(pages, titles=None):
+    """The six pages, and those only some pumps show, in German.
+
+    Info lists the third circuit before the second: the lowest is read. Each
+    circuit's and the hot water's menu also lists Reset.
+    """
+    titles = titles or {
+        "circuit": "Heizkreis",
+        "second_generator": "2. WEZ",
+        "modulation": "Modulation",
+        "hot_water": "Warmwasser",
+        "settings": "Einstellungen",
+    }
+    circuit = titles["circuit"]
+    overview, info, pump = paths(KNOWN)[:3]
+    main = column(
+        link([CIRCUIT_MENU[2]], f"{circuit} 2", "FBH")
+        + link([CIRCUIT_MENU[3]], f"{circuit} 3", "RADIATOREN")
+        + link([HOT_WATER_MENU], titles["hot_water"])
+    )
+    pages = dict(pages)
+    pages[overview] += main
+    pages[info] += main + column(
+        link([INFO, CIRCUIT_INFO[3]], f"{circuit} 3")
+        + link([INFO, CIRCUIT_INFO[2]], f"{circuit} 2")
+        + link([INFO, SECOND_GENERATOR_INFO], titles["second_generator"])
+    )
+    pages[pump] += main + column(
+        link([KNOWN["pump"], MODULATION], titles["modulation"])
+    )
+    for menu in (CIRCUIT_MENU[2], CIRCUIT_MENU[3], HOT_WATER_MENU):
+        pages[STACK + menu] = column(
+            link([menu, settings_segment(menu)], titles["settings"])
+            + link([menu, menu_reset(menu)], "Reset")
+        )
+    pages[STACK + f"{INFO},{CIRCUIT_INFO[2]}"] = column(
+        value("Außentemperatur gemittelt", "5.0 °C")
+    )
+    # A row without a value: whether every row shows one nobody here has seen.
+    pages[STACK + f"{INFO},{SECOND_GENERATOR_INFO}"] = column(
+        value("Betriebsstunden", "120 h") + value("Störung", "")
+    )
+    pages[STACK + f"{KNOWN['pump']},{MODULATION}"] = modulation_form(80)
+    pages[settings_path(CIRCUIT_MENU[2])] = column(
+        setting_link(CIRCUIT_MENU[2], "Minimale Vorlauftemperatur", "20.0 °C")
+    )
+    pages[settings_path(HOT_WATER_MENU)] = column(
+        setting_link(HOT_WATER_MENU, "Betriebsart", "Automatik")
+    )
+    return pages
 
 
 def asked(paths):
@@ -313,6 +420,101 @@ async def test_a_picked_page_of_the_wrong_shape_is_picked_anew(socket_enabled):
         ["Switching difference", "4.5 K"],
         ["Power limit", "60 %"],
     ]
+
+
+async def test_the_pages_only_some_pumps_show_are_read_where_shown(socket_enabled):
+    """The circuits, the second heat generator, both settings pages and the
+    modulation: what the integration reads on some pumps, by their German
+    titles. The menus' Reset stays shut."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        report, questions, _ = await run_capture(pump)
+
+    assert questions == []
+    assert pump.asked == [*LOGIN, *asked(WALK + OPTIONAL_WALK), *LOGOUT]
+    assert report["absent"] == []
+    pages = by_page(report)
+    assert {key: pages[key]["shown"] for key in list(pages)[6:]} == {
+        "heating_circuit": "Info › Heizkreis 2",
+        "second_generator": "Info › 2. WEZ",
+        "modulation": "Wärmepumpe › Modulation",
+        "circuit_menu": "Heizkreis 2",
+        "circuit_settings": "Heizkreis 2 › Einstellungen",
+        "hot_water_menu": "Warmwasser",
+        "hot_water_settings": "Warmwasser › Einstellungen",
+    }
+    assert pages["heating_circuit"]["entries"] == [
+        ["Außentemperatur gemittelt", "5.0 °C"]
+    ]
+    assert pages["second_generator"]["entries"] == [
+        ["Betriebsstunden", "120 h"],
+        ["Störung", ""],
+    ]
+    assert pages["circuit_settings"]["entries"] == [
+        ["Minimale Vorlauftemperatur", "20.0 °C"]
+    ]
+    assert pages["hot_water_settings"]["entries"] == [["Betriebsart", "Automatik"]]
+    # What the form offers; the value set is the user's, not a title.
+    assert pages["modulation"] == {
+        "page": "modulation",
+        "german": "Wärmepumpe › Modulation",
+        "shown": "Wärmepumpe › Modulation",
+        "offered": MODULATION_OFFERED,
+    }
+    assert pages["circuit_menu"]["titles"] == ["Einstellungen", "Reset"]
+
+
+async def test_the_pages_a_pump_does_not_show_are_named_absent(socket_enabled):
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN)
+        report, questions, _ = await run_capture(pump)
+
+    assert questions == []
+    assert pump.asked == [*LOGIN, *asked(WALK), *LOGOUT]
+    assert len(report["pages"]) == 6
+    assert report["absent"] == ALL_ABSENT
+
+
+async def test_the_pages_only_some_pumps_show_are_never_offered_to_pick(
+    socket_enabled,
+):
+    """Their menus list Reset under codes nobody here knows: a pick is where
+    a mistyped number would open it."""
+    english = {
+        "circuit": "Heating circuit",
+        "second_generator": "2nd heat generator",
+        "modulation": "Modulation output",
+        "hot_water": "Hot water",
+        "settings": "Settings",
+    }
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN), english)
+        report, questions, _ = await run_capture(pump)
+
+    assert questions == []
+    assert pump.asked == [*LOGIN, *asked(WALK), *LOGOUT]
+    assert report["absent"] == ALL_ABSENT
+
+
+@pytest.mark.parametrize(
+    "half",
+    [
+        pytest.param(column(""), id="no form"),
+        pytest.param(limit_leaf(60), id="another setting's form"),
+    ],
+)
+async def test_a_modulation_page_without_its_own_form_is_asked_for_again(
+    socket_enabled, half
+):
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        whole = pump.site.pop(OPTIONAL_WALK[2])
+        pump.pages = [half, whole]
+        report, _, rests = await run_capture(pump)
+
+    assert rests.count(A_MINUTE) == 1
+    assert pump.asked.count(("GET", OPTIONAL_WALK[2])) == 2
+    assert by_page(report)["modulation"]["offered"] == MODULATION_OFFERED
 
 
 @pytest.mark.parametrize(
@@ -656,7 +858,7 @@ async def test_refused_credentials_are_not_tried_again(socket_enabled):
 
 async def test_the_report_holds_nothing_that_points_to_the_pump(socket_enabled):
     async with serving(StandInPump()) as pump:
-        pump.site = site(GERMAN)
+        pump.site = with_optional_pages(site(GERMAN))
         report, _, _ = await run_capture(pump)
         host = pump.host
 
@@ -671,6 +873,9 @@ async def test_the_report_holds_nothing_that_points_to_the_pump(socket_enabled):
         SESSION_ID[:8],
         "stack=",
         "0A0B",
+        # The names the user gave the circuits, shown beside their menus.
+        "FBH",
+        "RADIATOREN",
     ):
         assert personal not in text, personal
 
@@ -715,7 +920,20 @@ def test_the_tool_talks_like_the_client(name):
     assert getattr(capture_tool, name) == getattr(webif, name)
 
 
-@pytest.mark.parametrize("name", ["INFO", "HEAT_PUMP", "STATISTICS", "HEATING"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "INFO",
+        "HEAT_PUMP",
+        "STATISTICS",
+        "HEATING",
+        "HEATING_CIRCUIT",
+        "SECOND_GENERATOR",
+        "HOT_WATER",
+        "SETTINGS",
+        "MODULATION_TITLE",
+    ],
+)
 def test_the_tool_looks_for_the_titles_the_integration_finds(name):
     assert getattr(capture_tool, name) == getattr(discovery, name)
 

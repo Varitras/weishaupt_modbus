@@ -8,25 +8,33 @@ integration has to learn.
 
     python tools/webif_capture.py <address of the heat pump>
 
-It asks for the web interface's user and password and opens six pages, no
-more: the overview, the information menu, the heat pump's main menu, and the
-three pages the integration reads. It finds those entries by their codes on
-the controller it was built for, else by their German titles, else you pick
-them by number and confirm each pick by its title. Reset, Service and the time
-programs are never offered on that controller; on another one it knows them
-by their codes only, so check each title before confirming. It only reads.
+It asks for the web interface's user and password and opens six pages: the
+overview, the information menu, the heat pump's main menu, and the three
+pages the integration reads on every pump. It finds those entries by their
+codes on the controller it was built for, else by their German titles, else
+you pick them by number and confirm each pick by its title. Reset, Service
+and the time programs are never offered on that controller; on another one it
+knows them by their codes only, so check each title before confirming.
 
-The file holds the titles of each page, and the values of the three pages the
-integration reads. The tool adds no address, user name, password, session or
-page address; the values are what those pages show, so read the file and
-check it for a serial number, an access code or a network address before you
-attach it.
+Then it opens up to seven more, the pages the integration reads on some
+pumps: the first heating circuit's and the second heat generator's
+information pages, the first circuit's and the hot water's menus and settings
+pages, and the hot water modulation. Those it finds by their German titles
+alone and leaves out otherwise, never asking: their menus list Reset too,
+under codes it does not know. It only reads.
+
+The file holds the titles of each page, the values of the pages the
+integration reads, the options the modulation offers, and which of the seven
+the controller did not show. The tool adds no address, user name, password,
+session or page address; the values are what those pages show, so read the
+file and check it for a serial number, an access code or a network address
+before you attach it.
 
 The controller now and then serves a page half or not at all. That does not
 end the run: after a minute's rest the tool logs in again and asks only for
-what it still lacks, ten times at most. A run takes about a minute; one the
-controller keeps failing takes up to about three quarters of an hour before
-the tool gives up.
+what it still lacks, ten times at most. A run takes one to two minutes; one
+the controller keeps failing takes up to about an hour before the tool gives
+up.
 
 Needs Python 3.10 or newer and a copy of the whole repository: the titles are
 read with the integration's own page parser. On Windows, webif_capture.bat
@@ -44,6 +52,7 @@ import importlib.util
 import ipaddress
 import json
 import pathlib
+import re
 import socket
 import sys
 import threading
@@ -99,6 +108,13 @@ INFO = "Info"
 HEAT_PUMP = "Wärmepumpe"
 STATISTICS = "Statistik"
 HEATING = "Heizen"
+HEATING_CIRCUIT = re.compile(r"Heizkreis (\d)")
+SECOND_GENERATOR = "2. WEZ"
+HOT_WATER = "Warmwasser"
+SETTINGS = "Einstellungen"
+MODULATION_TITLE = "Modulation"
+# How the file names a circuit's place in the menus: the lowest one shown.
+ANY_CIRCUIT = "Heizkreis n"
 # A stack segment starts with the code of its menu entry: the main menu in the
 # first two hex digits, the entry in the next six. The rest carries the
 # device, the menu depth and at times a shown value.
@@ -156,7 +172,9 @@ class Step:
 
     The page it is an entry of ("" for the overview), its title there on a
     German controller and its code on the controller this was built for, what
-    it is, and how it is read.
+    it is, and how it is read. An optional page is found by its German title
+    alone, the lowest numbered circuit's where it is `numbered`, and left out
+    when not shown; a `form` is a setting's own page.
     """
 
     key: str
@@ -166,6 +184,14 @@ class Step:
     what: str
     menu: bool
     shows_values: bool
+    optional: bool = False
+    numbered: bool = False
+    form: bool = False
+
+    @property
+    def values_page(self) -> bool:
+        """A page of values, neither a menu nor a form."""
+        return not self.menu and not self.form
 
 
 STEPS = (
@@ -215,6 +241,79 @@ STEPS = (
         menu=True,
         shows_values=True,
     ),
+    Step(
+        "heating_circuit",
+        "info",
+        ANY_CIRCUIT,
+        "",
+        "the first heating circuit's information page",
+        menu=False,
+        shows_values=True,
+        optional=True,
+        numbered=True,
+    ),
+    Step(
+        "second_generator",
+        "info",
+        SECOND_GENERATOR,
+        "",
+        "the second heat generator's information page",
+        menu=False,
+        shows_values=True,
+        optional=True,
+    ),
+    Step(
+        "modulation",
+        "heat_pump_menu",
+        MODULATION_TITLE,
+        "",
+        "the hot water modulation",
+        menu=False,
+        shows_values=False,
+        optional=True,
+        form=True,
+    ),
+    Step(
+        "circuit_menu",
+        "overview",
+        ANY_CIRCUIT,
+        "",
+        "the first heating circuit's main menu",
+        menu=True,
+        shows_values=False,
+        optional=True,
+        numbered=True,
+    ),
+    Step(
+        "circuit_settings",
+        "circuit_menu",
+        SETTINGS,
+        "",
+        "the first heating circuit's settings",
+        menu=True,
+        shows_values=True,
+        optional=True,
+    ),
+    Step(
+        "hot_water_menu",
+        "overview",
+        HOT_WATER,
+        "",
+        "the hot water's main menu",
+        menu=True,
+        shows_values=False,
+        optional=True,
+    ),
+    Step(
+        "hot_water_settings",
+        "hot_water_menu",
+        SETTINGS,
+        "",
+        "the hot water's settings",
+        menu=True,
+        shows_values=True,
+        optional=True,
+    ),
 )
 STEP_BY_KEY = {step.key: step for step in STEPS}
 
@@ -223,13 +322,14 @@ STEP_BY_KEY = {step.key: step for step in STEPS}
 class _Walk:
     """What a run has learnt so far; it carries over from attempt to attempt.
 
-    The pages read whole, the entry each step reads, and which of those the
-    user picked.
+    The pages read whole, the entry each step reads, which of those the user
+    picked, and the optional pages the controller does not show.
     """
 
     read: dict[str, list[Any]] = field(default_factory=dict)
     chosen: dict[str, Any] = field(default_factory=dict)
     picked: set[str] = field(default_factory=set)
+    absent: set[str] = field(default_factory=set)
 
 
 @dataclass(frozen=True)
@@ -434,13 +534,28 @@ def _item(href: str) -> str:
     return href.split(pages.STACK_QUERY, 1)[1].rsplit(",", maxsplit=1)[-1][ITEM_CODE]
 
 
+def _titled(step: Step, offered: list[Any]) -> list[Any]:
+    """The entries under the step's German title; the lowest circuit's only."""
+    if not step.numbered:
+        return [entry for entry in offered if entry.title == step.german]
+    circuits = [
+        (int(match.group(1)), entry)
+        for entry in offered
+        if (match := HEATING_CIRCUIT.fullmatch(entry.title))
+    ]
+    if not circuits:
+        return []
+    lowest = min(number for number, _ in circuits)
+    return [entry for number, entry in circuits if number == lowest]
+
+
 def _entry(step: Step, walk: _Walk, ask: Callable[[str], str]) -> Any:
-    """The entry of its parent page the step reads.
+    """The entry of its parent page the step reads; None for an optional one not shown.
 
     Found by its code on the controller this was built for, else by its German
     title, else picked by the user; an entry the tool never opens is never
-    offered. Found once: a later attempt goes the same way, unless a picked
-    page came in a shape that does not fit.
+    offered, and an optional page never picked. Found once: a later attempt
+    goes the same way, unless a picked page came in a shape that does not fit.
     """
     if step.key in walk.chosen:
         return walk.chosen[step.key]
@@ -456,10 +571,12 @@ def _entry(step: Step, walk: _Walk, ask: Callable[[str], str]) -> Any:
         _drop_pick(walk, step.parent)
         raise Half(f"{STEP_BY_KEY[step.parent].what} came with nothing to open")
     by_code = [entry for entry in offered if _item(entry.href) == step.code]
-    by_title = [entry for entry in offered if entry.title == step.german]
+    by_title = _titled(step, offered)
     found = by_code if len(by_code) == 1 else by_title
     if len(found) == 1:
         walk.chosen[step.key] = found[0]
+    elif step.optional:
+        return None
     else:
         walk.chosen[step.key] = _pick(step, offered, ask)
         walk.picked.add(step.key)
@@ -467,7 +584,17 @@ def _entry(step: Step, walk: _Walk, ask: Callable[[str], str]) -> Any:
 
 
 def _entries(step: Step, text: str, path: str) -> list[Any]:
-    """What the page shows: the main menus, the entries one level down, or the values."""
+    """What the page shows: menus, entries, values, or its form's options.
+
+    The main menus on the overview, the entries one level down on a menu,
+    and the options its own form offers on a setting's page.
+    """
+    if step.form:
+        form = pages.setting_form(text)
+        # Another setting's form served in its place would teach its options.
+        if form is None or form.path != path:
+            return []
+        return list(form.offered)
     if not step.parent:
         return [pages.Entry(title, "", href) for title, href in pages.main_menus(text)]
     if step.menu:
@@ -477,8 +604,12 @@ def _entries(step: Step, text: str, path: str) -> list[Any]:
 
 def _whole(step: Step, entries: list[Any]) -> bool:
     """Something shown, and a value beside every entry where values belong."""
-    return bool(entries) and (
-        not step.shows_values or all(entry.text for entry in entries)
+    if not entries:
+        return False
+    # Nobody here has seen every row of the optional pages: one shown without
+    # a value would fail every attempt and with it the whole run.
+    return (
+        step.optional or not step.shows_values or all(entry.text for entry in entries)
     )
 
 
@@ -489,15 +620,17 @@ def _twin(step: Step, entries: list[Any], walk: _Walk) -> str | None:
     another's, whole by every check of its own; which of the two came right
     cannot be told.
     """
+    if not step.values_page:
+        return None
     titles = {entry.title for entry in entries}
     twins = [
         other.key
         for other in STEPS
-        if not other.menu
+        if other.values_page
         and other.key in walk.read
         and {entry.title for entry in walk.read[other.key]} == titles
     ]
-    return None if step.menu or not twins else twins[0]
+    return twins[0] if twins else None
 
 
 def _drop_pick(walk: _Walk, key: str) -> None:
@@ -511,9 +644,16 @@ def _drop_pick(walk: _Walk, key: str) -> None:
 def _read_missing(session: Session, walk: _Walk, ask: Callable[[str], str]) -> None:
     """Read every page not yet read whole, in the order of the menus."""
     for step in STEPS:
-        if step.key in walk.read:
+        if step.key in walk.read or step.key in walk.absent:
             continue
-        path = _entry(step, walk, ask).href if step.parent else OVERVIEW
+        path = OVERVIEW
+        if step.parent:
+            # The steps come after their parents: an absent parent is decided.
+            entry = None if step.parent in walk.absent else _entry(step, walk, ask)
+            if entry is None:
+                walk.absent.add(step.key)
+                continue
+            path = entry.href
         entries = _entries(step, session.page(path, step.key), path)
         if not _whole(step, entries):
             _drop_pick(walk, step.key)
@@ -530,6 +670,9 @@ def _read_missing(session: Session, walk: _Walk, ask: Callable[[str], str]) -> N
 
 def _kept(step: Step, entries: list[Any]) -> dict[str, Any]:
     """What the file keeps of a page: values only where the integration reads them."""
+    if step.form:
+        # The options alone: the one set is the user's, not a title.
+        return {"offered": entries}
     if step.shows_values:
         return {"entries": [[entry.title, entry.text] for entry in entries]}
     return {"titles": [entry.title for entry in entries]}
@@ -545,7 +688,13 @@ def _report(walk: _Walk) -> dict[str, Any]:
                 **_kept(step, walk.read[step.key]),
             }
             for step in STEPS
-        ]
+            if step.key in walk.read
+        ],
+        "absent": [
+            _path(step, lambda each: each.german)
+            for step in STEPS
+            if step.key in walk.absent
+        ],
     }
 
 
@@ -558,7 +707,7 @@ def capture(
     attempts: int = MAX_ATTEMPTS,
     sleep: Callable[[float], Any] = time.sleep,
 ) -> dict[str, Any] | None:
-    """The six pages' titles and values, or None when they could not be had."""
+    """The pages' titles and values, or None when they could not be had."""
     walk = _Walk()
     for attempt in range(1, attempts + 1):
         session = Session(host, user, password, sleep)

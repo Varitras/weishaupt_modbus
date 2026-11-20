@@ -2984,22 +2984,22 @@
   {
     "label": "capture: a page that shows nothing is not taken",
     "path": "tools/webif_capture.py",
-    "old": "    return bool(entries) and (\n",
-    "new": "    return True and (\n",
+    "old": "    if not entries:\n        return False\n",
+    "new": "    if False:\n        return False\n",
     "tests": "page_served_half_is_asked_for_again_after_a_minute"
   },
   {
     "label": "capture: a page with a blank value is not taken",
     "path": "tools/webif_capture.py",
-    "old": "        not step.shows_values or all(entry.text for entry in entries)\n",
-    "new": "        True\n",
+    "old": "        step.optional or not step.shows_values or all(entry.text for entry in entries)\n",
+    "new": "        step.optional or not step.shows_values or True\n",
     "tests": "page_served_half_is_asked_for_again_after_a_minute"
   },
   {
     "label": "capture: a later attempt asks only for what is missing",
     "path": "tools/webif_capture.py",
-    "old": "        if step.key in walk.read:\n            continue\n",
-    "new": "",
+    "old": "        if step.key in walk.read or step.key in walk.absent:\n            continue\n",
+    "new": "        if step.key in walk.absent:\n            continue\n",
     "tests": "page_served_half_is_asked_for_again_after_a_minute"
   },
   {
@@ -3208,7 +3208,7 @@
   {
     "label": "capture: a page showing another page's values is not taken",
     "path": "tools/webif_capture.py",
-    "old": "    return None if step.menu or not twins else twins[0]\n",
+    "old": "    return twins[0] if twins else None\n",
     "new": "    return None\n",
     "tests": "page_showing_another_sections_values_is_read_again"
   },
@@ -5885,5 +5885,33 @@
     "old": "        key = (page, setting.title)\n",
     "new": "        key = (\"\", setting.title)\n",
     "tests": "two_circuits_set_within_the_quiet_time_each_get_their_value"
+  },
+  {
+    "label": "capture: an optional page not shown must not be offered to pick",
+    "path": "tools/webif_capture.py",
+    "old": "    elif step.optional:\n        return None\n",
+    "new": "    elif False:\n        return None\n",
+    "tests": "never_offered_to_pick or a_pump_does_not_show_are_named_absent"
+  },
+  {
+    "label": "capture: another setting's form must not pass for the modulation's",
+    "path": "tools/webif_capture.py",
+    "old": "        if form is None or form.path != path:\n",
+    "new": "        if form is None:\n",
+    "tests": "modulation_page_without_its_own_form"
+  },
+  {
+    "label": "capture: the lowest circuit must be read",
+    "path": "tools/webif_capture.py",
+    "old": "    lowest = min(number for number, _ in circuits)\n",
+    "new": "    lowest = max(number for number, _ in circuits)\n",
+    "tests": "only_some_pumps_show_are_read_where_shown"
+  },
+  {
+    "label": "capture: an optional page's row without a value must not fail the run",
+    "path": "tools/webif_capture.py",
+    "old": "        step.optional or not step.shows_values or all(entry.text for entry in entries)\n",
+    "new": "        not step.shows_values or all(entry.text for entry in entries)\n",
+    "tests": "only_some_pumps_show_are_read_where_shown"
   }
 ]
