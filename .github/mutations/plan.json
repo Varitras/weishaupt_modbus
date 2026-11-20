@@ -5931,9 +5931,9 @@
   {
     "label": "webif circuit owner: the menu at the address must be the circuit's",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "    return menu_owners(text, path) == [title]\n",
-    "new": "    return bool(menu_owners(text, path))\n",
-    "tests": "retired_circuit_neither_shows_nor_sets"
+    "old": "    return shown[title] == 1 and menu_owners(text, path) == [title]\n",
+    "new": "    return shown[title] == 1 and bool(menu_owners(text, path))\n",
+    "tests": "its_one_clear_menu or retired_circuit_neither_shows_nor_sets"
   },
   {
     "label": "webif form: a form not closed must not be read",
@@ -6053,5 +6053,40 @@
     "old": "SHOWN_UNITS = (\"°C\", \"K\", \"BAR\", \"KW\", \"KWh\", \"m3/h\", \"rpm\", \"Hz\", \"h\", \"%\")\n",
     "new": "SHOWN_UNITS = (\"°C\", \"K\", \"%\")\n",
     "tests": "units_kept_are_those_the_integration_reads or number_with_its_unit_is_kept"
+  },
+  {
+    "label": "webif circuit owner: a title shown at another address too must not count",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "    return shown[title] == 1 and menu_owners(text, path) == [title]\n",
+    "new": "    return menu_owners(text, path) == [title]\n",
+    "tests": "its_one_clear_menu or circuit_title_shown_twice"
+  },
+  {
+    "label": "webif circuit owner: another title at the address must not count",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "    return shown[title] == 1 and menu_owners(text, path) == [title]\n",
+    "new": "    return shown[title] == 1 and title in menu_owners(text, path)\n",
+    "tests": "its_one_clear_menu"
+  },
+  {
+    "label": "webif circuit owner: a half page showing its own menu must not be another's",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "        return self.owner is not None and bool(owners) and self.owner not in owners\n",
+    "new": "        return self.owner is not None and bool(owners)\n",
+    "tests": "cut_after_its_main_menus_is_a_half_page"
+  },
+  {
+    "label": "webif circuit owner: a half page must not be named as under another menu",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "        if self.under_another(text):\n",
+    "new": "        if not self.owned(text):\n",
+    "tests": "served_half_pauses_as_it_ever_did"
+  },
+  {
+    "label": "webif circuit owner: a circuit back under its own menu must not stay lost",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            self._lost.discard(page.key)\n",
+    "new": "            pass\n",
+    "tests": "back_under_its_own_menu_is_no_longer_lost"
   }
 ]

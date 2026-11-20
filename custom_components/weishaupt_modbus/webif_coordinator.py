@@ -630,6 +630,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 self._lost.add(page.key)
             raise
         if page.is_whole(text):
+            # Under its own menu again: a later failure is no longer a loss.
+            self._lost.discard(page.key)
             return page, text
         if not self._searched_in_round:
             self._searched_in_round = True

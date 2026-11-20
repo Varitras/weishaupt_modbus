@@ -190,9 +190,13 @@ def leads_from(text: str, path: str, title: str) -> bool:
     Every page lists the main menus; the one linked by the address's first
     segment is the page's own. The settings pages of two circuits show the
     same rows: when the controller gave a retired circuit's address to
-    another one, only this told them apart.
+    another one, only this told them apart. As discovery takes a menu, the
+    title must be shown once, and no other title at that link.
     """
-    return menu_owners(text, path) == [title]
+    shown = Counter(
+        ENGLISH_MENU_TITLES.get(each, each) for each, _ in pages.main_menus(text)
+    )
+    return shown[title] == 1 and menu_owners(text, path) == [title]
 
 
 def menu_owners(text: str, path: str) -> list[str]:

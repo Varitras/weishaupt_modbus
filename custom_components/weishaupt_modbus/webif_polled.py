@@ -135,8 +135,8 @@ class Page:
     def under_another(self, text: str) -> bool:
         """Shown under another main menu than its owner's.
 
-        Not a page served half, which shows none, but another circuit's at
-        its address.
+        Another circuit's page at its address. A page served half shows no
+        main menu, or still its owner's under the address's code.
         """
         owners = menu_owners(text, self.path)
         return self.owner is not None and bool(owners) and self.owner not in owners
@@ -160,7 +160,7 @@ class Page:
             ("blank or doubled", self.unclear(text)),
         )
         flaws = [f"{kind}: {_titles(titles)}" for kind, titles in named if titles]
-        if not self.owned(text):
+        if self.under_another(text):
             flaws.append(f"not under {self.owner}")
         return "; ".join(flaws)
 

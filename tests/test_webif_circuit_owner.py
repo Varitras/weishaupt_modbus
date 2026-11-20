@@ -10,6 +10,7 @@ to. Synthetic loopback stand-in only.
 import pytest
 
 from custom_components.weishaupt_modbus.const import CONST
+from custom_components.weishaupt_modbus.webif.discovery import leads_from
 from custom_components.weishaupt_modbus.webif_coordinator import (
     FAILURES_TO_STOP,
     NOT_FOUND_AGAIN_ISSUE,
@@ -203,3 +204,127 @@ async def test_a_circuit_page_served_half_pauses_as_it_ever_did(hass, pump, quic
     )
     assert issue is not None
     assert issue.translation_key == STOPPED_ISSUE
+    assert "not under" not in issue.translation_placeholders["error"]
+
+
+async def _healthy_entry(hass, pump):
+    found = await read_web_interface(hass, pump.host, USER, PASSWORD)
+    entry = _web_entry(hass, pump)
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, CONF.PAGES: found.pages}
+    )
+    await _start(hass, entry)
+    clock = Clock()
+    entry.runtime_data.coordinator._clock = clock
+    return entry, clock
+
+
+async def _round_later(hass, entry, clock):
+    clock.now += A_ROUND_LATER
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+
+def _notice(hass, entry):
+    return ir.async_get(hass).async_get_issue(
+        CONST.DOMAIN, f"{STOPPED_ISSUE}_{entry.entry_id}"
+    )
+
+
+OTHER_MENU = "35000001000000000080000A0B010002000301"
+OWN_PATH = STACK + f"{THIRD_MENU},33003200000000000080000A0B020003000401"
+
+
+@pytest.mark.parametrize(
+    ("menus", "owned"),
+    [
+        (link([THIRD_MENU], "Heizkreis 3"), True),
+        (link([THIRD_MENU], "Heizkreis 3") + link([OTHER_MENU], "Heizkreis 3"), False),
+        (link([THIRD_MENU], "Heizkreis 3") + link([THIRD_MENU], "Heizkreis 2"), False),
+        (link([THIRD_MENU], "Heizkreis 2"), False),
+        (link([THIRD_MENU], "Heizkreis 2") + link([OTHER_MENU], "Heizkreis 3"), False),
+        ("", False),
+    ],
+    ids=[
+        "its own menu alone",
+        "its title at another address too",
+        "another title at its address too",
+        "another circuit's menu",
+        "its title moved to another address",
+        "no main menu",
+    ],
+)
+def test_a_page_is_a_circuits_only_under_its_one_clear_menu(menus, owned):
+    """Discovery takes a menu only when its title and its link are each
+    shown once; a page must meet the same rule to count as the circuit's."""
+    page = main_menus() + column(menus)
+
+    assert leads_from(page, OWN_PATH, "Heizkreis 3") is owned
+
+
+@pytest.mark.parametrize("reload", [False, True], ids=["running", "reloaded"])
+async def test_a_circuit_title_shown_twice_neither_shows_nor_sets_a_value(
+    hass, pump, quick, reload
+):
+    """Two main menus called Heizkreis 3, one at the old address now
+    serving circuit 2: the page there named Heizkreis 3 its owner, and
+    circuit 2's minimum was shown and set as circuit 3's."""
+    entry, clock = await _healthy_entry(hass, pump)
+    give_the_third_address_to_the_second(pump)
+    old_overview = pump.site[webif.OVERVIEW]
+    both = pump.current(main_menus()) + column(
+        link([THIRD_MENU], "Heizkreis 3", NAMES[2])
+        + link([pump.current(THIRD_MENU)], "Heizkreis 3", NAMES[3])
+        + link([pump.current(HOT_WATER_MENU)], "Warmwasser")
+    )
+    for address, text in tuple(pump.site.items()):
+        pump.site[address] = text.replace(old_overview, both)
+    pump.site[webif.OVERVIEW] = both
+    pump.pages = [both]
+    await _round_later(hass, entry, clock)
+    if reload:
+        await hass.config_entries.async_reload(entry.entry_id)
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert hass.states.get(_number(hass, 3)).state != "20.0"
+    await _set(hass, 3)
+
+    assert pump.saved == []
+    assert pump.circuits[2].values["Minimaltemperatur"] == "20.0 °C"
+
+
+async def test_a_circuit_back_under_its_own_menu_is_no_longer_lost(hass, pump, quick):
+    """Once seen under another circuit's menu, the page stayed lost after it
+    came right again: a later ordinary failure asked for Reconfigure."""
+    entry, clock = await _healthy_entry(hass, pump)
+    path = SETTINGS[THIRD]
+    own = pump.site[path]
+    pump.site[path] = own.replace("Heizkreis 3", "Heizkreis 4")
+    await _round_later(hass, entry, clock)
+    pump.site[path] = own
+    await _round_later(hass, entry, clock)
+    assert hass.states.get(_number(hass, 3)).state == "33.0"
+    pump.site[path] = column("")
+
+    for _ in range(FAILURES_TO_STOP):
+        await _round_later(hass, entry, clock)
+
+    assert _notice(hass, entry).translation_key == STOPPED_ISSUE
+
+
+async def test_a_circuit_page_cut_after_its_main_menus_is_a_half_page(
+    hass, pump, quick
+):
+    """A real page lists its main menus before its rows: cut short, it still
+    shows its own circuit's menu, and must fail as served half, not as
+    another circuit's."""
+    entry, clock = await _healthy_entry(hass, pump)
+    pump.site[SETTINGS[THIRD]] = overview()
+
+    for _ in range(FAILURES_TO_STOP):
+        await _round_later(hass, entry, clock)
+
+    notice = _notice(hass, entry)
+    assert notice.translation_key == STOPPED_ISSUE
+    assert "not under" not in notice.translation_placeholders["error"]
+    assert THIRD not in entry.runtime_data.coordinator._lost
