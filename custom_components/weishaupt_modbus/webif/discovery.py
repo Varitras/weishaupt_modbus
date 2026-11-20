@@ -170,7 +170,12 @@ def moved(text: str, path: str) -> bool:
     if INFO not in menus or HEAT_PUMP not in menus:
         return False
     first = path.partition(pages.STACK_QUERY)[2].split(",", 1)[0]
-    return all(link.partition(pages.STACK_QUERY)[2] != first for link in menus.values())
+    # Every main menu shown, also one under a link another title shares: the
+    # menus read clearly may lack the one with the address's code.
+    return all(
+        link.partition(pages.STACK_QUERY)[2] != first
+        for _, link in pages.main_menus(text)
+    )
 
 
 def _main_menus(text: str) -> dict[str, str]:

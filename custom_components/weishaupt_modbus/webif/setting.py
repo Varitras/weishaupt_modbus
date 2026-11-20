@@ -11,6 +11,7 @@ before it: that form is the page polled, found by its title in the heat
 pump menu, and the one read before and after its save.
 """
 
+from collections import Counter
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
@@ -125,12 +126,22 @@ MODULATION = Setting(
 
 
 def _entry(page: str, menu_path: str, setting: Setting) -> tuple[int, str] | None:
-    """The option the setting shows and its link; None unless shown once."""
-    found = [
-        (shown, entry.href)
+    """The option the setting shows and its link; None unless shown once.
+
+    A link another row of the page shares leads to a form which of the two
+    saves cannot be told: None too.
+    """
+    rows = [
+        (entry, entry.href)
         for entry in pages.children(page, menu_path)
+        if entry.href is not None
+    ]
+    links = Counter(href for _, href in rows)
+    found = [
+        (shown, href)
+        for entry, href in rows
         if entry.title in setting.titles
-        and entry.href is not None
+        and links[href] == 1
         and (shown := setting.option(entry.text)) is not None
     ]
     return found[0] if len(found) == 1 else None

@@ -5483,8 +5483,8 @@
   {
     "label": "webif discovery: every overview is taken for a moved page",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "    return all(link.partition(pages.STACK_QUERY)[2] != first for link in menus.values())\n",
-    "new": "    return True\n",
+    "old": "        link.partition(pages.STACK_QUERY)[2] != first\n",
+    "new": "        True\n",
     "tests": "served_half_or_whole_says_no_page_moved or old_codes_is_asked_again_not_searched"
   },
   {
@@ -5539,8 +5539,8 @@
   {
     "label": "webif coordinator: one search for good, not one a round",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        self._searched_in_round = False\n        # By key",
-    "new": "        # By key",
+    "old": "        self._searched_in_round = False\n        self._search_failed = False\n        # By key",
+    "new": "        self._search_failed = False\n        # By key",
     "tests": "codes_changed_twice_are_found_twice"
   },
   {
@@ -5857,5 +5857,33 @@
     "old": "        gone |= {key for key in FORM_PAGES if key in pages and key not in found}\n",
     "new": "",
     "tests": "lost_modulation_is_left_out_rather_than_read_at_its_old_address"
+  },
+  {
+    "label": "webif setting: a row whose link another row shares must not be written",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        and links[href] == 1\n",
+    "new": "",
+    "tests": "two_rows_linking_to_one_form_send_nothing"
+  },
+  {
+    "label": "webif discovery: the move check must compare every main menu's link",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        for _, link in pages.main_menus(text)\n",
+    "new": "        for link in menus.values()\n",
+    "tests": "half_page_with_two_main_menus_at_one_link"
+  },
+  {
+    "label": "webif coordinator: pages after a failed search must not fail as moved again",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if self._search_failed:\n",
+    "new": "        if False:\n",
+    "tests": "pages_after_a_failed_search_fail_for_it"
+  },
+  {
+    "label": "webif coordinator: each circuit's setting must have its own burst",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        key = (page, setting.title)\n",
+    "new": "        key = (\"\", setting.title)\n",
+    "tests": "two_circuits_set_within_the_quiet_time_each_get_their_value"
   }
 ]

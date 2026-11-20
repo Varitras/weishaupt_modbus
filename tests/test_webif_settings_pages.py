@@ -295,8 +295,8 @@ async def test_the_dialog_leaves_out_a_menu_without_its_settings_unsearched(hass
 
 
 async def test_a_circuit_info_does_not_list_is_not_looked_for(pump, client):
-    """The Evoblock's first circuit is the heat pump itself: its menu holds
-    a switch, no settings page."""
+    """An Evoblock's circuit 1, switched off, is not listed by Info; its
+    settings page holds the switch alone (screenshot, 2026-11-17)."""
     pump.site[STACK + INFO] = info_menu().replace("Heizkreis 3", "Heizkreis 9")
 
     await settings_found(client)
@@ -422,6 +422,17 @@ SHARED_OVERVIEW = main_menus() + column(
 async def test_two_circuits_at_one_settings_page_are_both_left_out(pump, client):
     """Which circuit a value written there reaches cannot be told."""
     pump.site[webif.OVERVIEW] = SHARED_OVERVIEW
+
+    assert await settings_found(client) == {
+        HOT_WATER_SETTINGS_PAGE: SETTINGS[HOT_WATER_SETTINGS_PAGE]
+    }
+
+
+async def test_two_circuits_at_one_menu_are_left_out_when_info_lists_one(pump, client):
+    """Info listing only circuit 3 hid the doubled link from a check made
+    after its filter: circuit 3 got circuit 2's menu."""
+    pump.site[webif.OVERVIEW] = SHARED_OVERVIEW
+    pump.site[STACK + INFO] = info_menu().replace("Heizkreis 2", "Heizkreis 9")
 
     assert await settings_found(client) == {
         HOT_WATER_SETTINGS_PAGE: SETTINGS[HOT_WATER_SETTINGS_PAGE]

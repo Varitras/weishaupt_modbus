@@ -259,6 +259,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         # How often the pages were searched again since the setup.
         self.searched_again = 0
         self._searched_in_round = False
+        self._search_failed = False
         # The pages the last search did not find, kept at their old address.
         self._lost: set[str] = set()
         # Two pages had one address: until the reload nothing is written.
@@ -509,6 +510,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
     async def _round(self) -> bool:
         """Ask every due page; False when the round had to end early."""
         self._searched_in_round = False
+        self._search_failed = False
         # By key: a search in the round gives the pages left new addresses.
         for key in [page.key for page in self._due()]:
             await self._no_dialog_visit.wait()
@@ -623,7 +625,11 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             return page, text
         if not self._searched_in_round:
             self._searched_in_round = True
-            await self._search_again(text)
+            try:
+                await self._search_again(text)
+            except WebifError:
+                self._search_failed = True
+                raise
             page = self._page(page.key)
             if page.key not in self._lost:
                 text = await self._client.page(
@@ -633,6 +639,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                     return page, text
         if page.key in self._lost:
             raise Broken(f"{page.key}: not found again", "not found again")
+        if self._search_failed:
+            # No page got a new address: it failed as the search did.
+            raise Broken(f"{page.key}: search failed", "search failed")
         raise Broken(f"{page.key}: moved again", "moved again", text=text)
 
     async def _search_again(self, overview: str) -> None:

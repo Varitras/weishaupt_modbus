@@ -459,6 +459,27 @@ async def test_heizen_and_kuehlen_at_one_link_send_no_save(
     assert coordinator.diagnostics()["searched_again"] == 0
 
 
+async def test_the_pages_after_a_failed_search_fail_for_it_not_as_moved_again(
+    coordinator, pump, clock, caplog
+):
+    """No page got a new address: "moved again" told a move that did not
+    happen."""
+    caplog.set_level(logging.DEBUG, logger=webif_coordinator.__name__)
+    pump.site[STACK + PUMP_MENU] = main_menus() + column(
+        link([PUMP_MENU, HEATING], "Heizen")
+        + link([PUMP_MENU, HEATING], "Kühlen")
+        + link([PUMP_MENU, RESET], "Reset")
+    )
+    pump.renumber(NEW)
+
+    await next_round(coordinator, pump, clock)
+
+    reasons = [message for message in caplog.messages if " in a row: " in message]
+    assert reasons
+    assert not [reason for reason in reasons if "moved again" in reason]
+    assert [reason for reason in reasons if "search failed" in reason]
+
+
 async def test_a_write_asked_for_during_a_search_reads_and_saves_at_the_new_address(
     coordinator, pump, clock, monkeypatch
 ):

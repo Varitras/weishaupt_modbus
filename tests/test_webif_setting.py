@@ -21,11 +21,14 @@ from .webif_stand_in import (
     GERMAN_HEATING,
     HEATING,
     HEATING_PATH,
+    MAIN_MENUS,
     MODULATION_PATH,
     PUMP_MENU,
+    column,
     heating_page,
     limit_leaf,
     limit_segment,
+    link,
     modulation_form,
 )
 
@@ -171,6 +174,23 @@ async def test_a_heating_page_without_the_limit_sends_nothing():
         await write(client)
 
     assert events == [("page", HEATING_PATH)]
+
+
+async def test_two_rows_linking_to_one_form_send_nothing():
+    """Which setting that form saves cannot be told: the switching
+    difference linked to the power limit's own page would have its value
+    written as the limit."""
+    page = MAIN_MENUS + column(
+        link([PUMP_MENU, HEATING, limit_segment(60)], "Schaltdifferenz", "60 %")
+        + link([PUMP_MENU, HEATING, limit_segment(60)], "Leistungsbegrenzung", "60 %")
+    )
+    client, events = scripted(heating=[page])
+
+    with pytest.raises(setting.FormNotRead):
+        await write(client)
+
+    assert ("save", 61) not in events
+    assert {event for event, *_ in events} == {"page"}
 
 
 async def test_a_target_the_controller_already_shows_is_not_written():

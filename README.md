@@ -144,15 +144,11 @@ incomplete page, so the integration asks little: one request at a time, at
 least 5 seconds apart, never at the same moment as its Modbus requests. After
 three failures in a row it pauses, asks that page again after 15 minutes (or
 the shortest page interval, if longer), then at waits doubling up to 2 hours,
-and resumes by itself when the page comes whole. A controller may give its
-menus new codes, and then answers the addresses of the old ones with its
-overview; the entry searches its pages again from that overview, the
-settings pages it reads among them, at most once a round, and keeps the new
-addresses. A page not found again fails on its own, and should it pause the
-polling, the notice asks for **Reconfigure**. Should a page found have the old
-address of one not found, the latter is left out, a notice asks for
-**Reconfigure**, and the entry reloads. Switching the web server on,
-adding the entry and everything it reads are described under
+and resumes by itself when the page comes whole. The controller may change
+its page addresses; the integration then finds its pages again by itself, at
+most once per update. A page it cannot find again, or cannot tell apart from
+another one, needs **Reconfigure**, and a notice says so. Switching the web
+server on, adding the entry and everything it reads are described under
 [Web Interface](https://github.com/Varitras/weishaupt_modbus/wiki/Web-Interface).
 It needs the web interface's language set to Auto, German or English.
 
