@@ -29,7 +29,7 @@ from functools import partial
 import logging
 import math
 import time
-from typing import Any
+from typing import Any, NoReturn
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
@@ -366,10 +366,10 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         """
         if self.budget.allows_write() or self._shown(page, setting) == target:
             return
-        raise self._limit_reached()
+        self._raise_limit_reached()
 
-    def _limit_reached(self) -> HomeAssistantError:
-        return HomeAssistantError(
+    def _raise_limit_reached(self) -> NoReturn:
+        raise HomeAssistantError(
             translation_domain=CONST.DOMAIN,
             translation_key="webif_write_limit_reached",
             translation_placeholders={"limit": str(self.budget.limit)},
@@ -401,7 +401,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             nonlocal counted
             # Run as the save goes out: refused here, nothing is sent.
             if not self.budget.allows_write():
-                raise self._limit_reached()
+                self._raise_limit_reached()
             counted = True
             self.budget.record_write()
 
