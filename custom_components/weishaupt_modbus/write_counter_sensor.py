@@ -37,13 +37,23 @@ class WriteCounterDescription(SensorEntityDescription):
     daily: bool = False
 
 
-def _counter(key: str, *, daily: bool) -> WriteCounterDescription:
+def _state_class(*, daily: bool, may_fall: bool) -> SensorStateClass:
+    if daily:
+        return SensorStateClass.MEASUREMENT
+    if may_fall:
+        # A total-increasing sensor that falls reads as a meter reset, and
+        # the long-term sum counts what was taken back once more.
+        return SensorStateClass.TOTAL
+    return SensorStateClass.TOTAL_INCREASING
+
+
+def _counter(
+    key: str, *, daily: bool, may_fall: bool = False
+) -> WriteCounterDescription:
     return WriteCounterDescription(
         key=key,
         translation_key=key,
-        state_class=(
-            SensorStateClass.MEASUREMENT if daily else SensorStateClass.TOTAL_INCREASING
-        ),
+        state_class=_state_class(daily=daily, may_fall=may_fall),
         entity_category=EntityCategory.DIAGNOSTIC,
         daily=daily,
     )
@@ -53,9 +63,10 @@ TOTAL_WRITES = _counter("eeprom_writes_total", daily=False)
 WRITES_TODAY = _counter("eeprom_writes_today", daily=True)
 WRITE_COUNTER_DESCRIPTIONS = (TOTAL_WRITES, WRITES_TODAY)
 # The settings the web interface wrote, counted apart from the Modbus writes
-# and limited by an option of its own.
+# and limited by an option of its own. A save the controller turned away is
+# taken back, so its total may fall.
 WEBIF_WRITE_COUNTER_DESCRIPTIONS = (
-    _counter("webif_settings_written_total", daily=False),
+    _counter("webif_settings_written_total", daily=False, may_fall=True),
     _counter("webif_settings_written_today", daily=True),
 )
 

@@ -6466,5 +6466,12 @@
     "old": "        self._shut_down = True\n",
     "new": "",
     "tests": "brings_no_stop_notice_back"
+  },
+  {
+    "label": "write counters: the web settings total reads a fall as a meter reset",
+    "path": "custom_components/weishaupt_modbus/write_counter_sensor.py",
+    "old": "    if may_fall:\n",
+    "new": "    if False:\n",
+    "tests": "meter_reset"
   }
 ]

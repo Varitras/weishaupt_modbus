@@ -602,6 +602,15 @@ def test_yesterdays_energy_has_no_long_term_statistics():
         assert item.params["stateclass"] == expected, item.name
 
 
+def test_the_web_settings_total_may_fall_back_without_a_meter_reset():
+    """A save the controller turned away is counted as it goes out and taken
+    back: as a total-increasing sensor the fall read as a meter reset, and
+    the long-term sum counted a setting never saved."""
+    total, today = WEBIF_WRITE_COUNTER_DESCRIPTIONS
+    assert total.state_class == SensorStateClass.TOTAL
+    assert today.state_class == SensorStateClass.MEASUREMENT
+
+
 def test_the_digital_inputs_all_read_as_on_or_off():
     """The data-point list gives SG-Ready 1/2 and DE1/DE2 the same format,
     FormatDigital. Only DE1/DE2 got the on/off list; SG-Ready 1/2 stayed
