@@ -451,19 +451,24 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 _LOGGER.exception(
                     "Writing %s failed on an unexpected error", burst.name
                 )
-            failure: WebifError = WriteFailed(type(error).__name__)
-            if counted:
-                # The save may have gone out: the next round asks, and
-                # "failed" would invite the user to save it again.
-                self._readings[burst.page].asked_at = None
-                failure = MaybeSaved(f"{type(error).__name__} after the save")
-            outcome.set_exception(failure)
+            outcome.set_exception(self._unexpected(burst, error, counted=counted))
         else:
             outcome.set_result(None)
         finally:
             # Cancelled as the entry unloads: no caller may wait for good.
             if not outcome.done() and not handed_on:
                 outcome.set_exception(_cut_off(counted=counted))
+
+    def _unexpected(
+        self, burst: _Burst, error: Exception, *, counted: bool
+    ) -> WebifError:
+        """What the callers of a write that met an unexpected error hear."""
+        if not counted:
+            return WriteFailed(type(error).__name__)
+        # The save may have gone out: the next round asks, and "failed" would
+        # invite the user to save it again.
+        self._readings[burst.page].asked_at = None
+        return MaybeSaved(f"{type(error).__name__} after the save")
 
     def _after_failed_write(self, error: Exception, page: Page) -> None:
         if isinstance(error.__cause__, Unreachable):
