@@ -1698,11 +1698,20 @@ async def test_a_login_refused_while_writing_stops_the_polling_too(
     assert client.asked == []
 
 
+def _faulty_before_sending(client, error):
+    """A save that fails before anything is sent, and so counts nothing."""
+
+    async def faulty(form, value, count_write):
+        raise error
+
+    client.save = faulty
+
+
 async def test_an_unexpected_error_of_a_write_logs_once(
     coordinator, client, clock, quick, caplog
 ):
     await first_round_showing(coordinator, client, clock)
-    client.save_error = RuntimeError("a fault of the form")
+    _faulty_before_sending(client, RuntimeError("a fault of the form"))
 
     for _ in range(2):
         assert await refused(coordinator.set_power_limit(61)) == (
@@ -1726,7 +1735,7 @@ async def test_a_write_logs_its_unexpected_error_after_a_round_did(
     client.shows_power_limit(60)
     client.answer(HEAT_PUMP, RuntimeError("a fault of the parser"))
     await round_at(coordinator, clock, 0)
-    client.save_error = RuntimeError("a fault of the form")
+    _faulty_before_sending(client, RuntimeError("a fault of the form"))
 
     assert await refused(coordinator.set_power_limit(61)) == (
         "webif_write_failed",
@@ -1836,13 +1845,7 @@ async def test_a_write_keeps_the_rest_a_timeout_gave_the_controller(
     assert listened.update_interval == QUARTER_HOUR - timedelta(seconds=60)
 
 
-async def test_after_an_unexpected_error_on_the_read_back_the_heating_page_is_due(
-    coordinator, client, clock, quick
-):
-    """The save may have gone out: the next round reads what the controller
-    holds instead of showing the old value for up to an hour."""
-    await first_round_showing(coordinator, client, clock)
-
+def _saved_then_faulty(client):
     async def saved_then_faulty(form, value, count_write):
         count_write()
         client.asked.append(SAVE)
@@ -1850,7 +1853,31 @@ async def test_after_an_unexpected_error_on_the_read_back_the_heating_page_is_du
 
     client.save = saved_then_faulty
 
-    assert (await refused(coordinator.set_power_limit(61)))[0] == "webif_write_failed"
+
+async def test_an_unexpected_error_after_the_save_went_out_says_it_may_be_saved(
+    coordinator, client, clock, quick
+):
+    """Told the write failed, as for an error before anything was sent, the
+    user would save again a value the controller may already hold."""
+    await first_round_showing(coordinator, client, clock)
+    _saved_then_faulty(client)
+
+    assert await refused(coordinator.set_power_limit(61)) == (
+        "webif_write_maybe_saved",
+        NAMED,
+    )
+    assert coordinator.budget.writes_today == 1
+
+
+async def test_after_an_unexpected_error_on_the_read_back_the_heating_page_is_due(
+    coordinator, client, clock, quick
+):
+    """The save may have gone out: the next round reads what the controller
+    holds instead of showing the old value for up to an hour."""
+    await first_round_showing(coordinator, client, clock)
+    _saved_then_faulty(client)
+
+    await refused(coordinator.set_power_limit(61))
     client.shows_power_limit(61)
     client.asked.clear()
     await round_at(coordinator, clock, 60)

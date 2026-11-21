@@ -3621,8 +3621,8 @@
   {
     "label": "power limit write: after an unexpected error once counted the heating page waits",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            if counted:\n                # The save may have gone out: the next round asks.\n                self._readings[burst.page].asked_at = None\n",
-    "new": "",
+    "old": "                self._readings[burst.page].asked_at = None\n                failure = MaybeSaved(",
+    "new": "                failure = MaybeSaved(",
     "tests": "unexpected_error_on_the_read_back_the_heating_page_is_due"
   },
   {
@@ -6326,5 +6326,12 @@
     "old": "    else { Set-Content -Path $OutFile -Value $CsvHeader -Encoding UTF8 }\n",
     "new": "",
     "tests": "nothing_answered_writes_the_file_it_names"
+  },
+  {
+    "label": "power limit write: an unexpected error after the save reads as failed",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                failure = MaybeSaved(f\"{type(error).__name__} after the save\")\n",
+    "new": "",
+    "tests": "unexpected_error_after_the_save_went_out_says_it_may_be_saved"
   }
 ]
