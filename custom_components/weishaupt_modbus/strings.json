@@ -2217,10 +2217,10 @@
       "message": "Today's limit of {limit} settings written is reached. It is set in the options of the web interface entry."
     },
     "webif_write_form_not_read": {
-      "message": "The form of {setting} could not be read from the web interface. Nothing was sent."
+      "message": "The form of {setting} could not be read from the web interface, or did not match the value shown. Nothing was sent."
     },
     "webif_write_form_mismatch": {
-      "message": "The form of {setting} does not match the value shown or does not offer this value. Nothing was sent."
+      "message": "The form of {setting} does not offer this value. Nothing was sent."
     },
     "webif_write_not_saved": {
       "message": "The controller did not save {setting}: its session had ended. Try again."

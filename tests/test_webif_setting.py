@@ -115,41 +115,61 @@ async def test_a_write_reads_the_form_saves_once_and_reads_back(titles):
 STACK_FIELD = f'value="{PUMP_MENU},{HEATING},{limit_segment(60)}"'
 
 
+WRONG_FORMS = {
+    "the form's stack is not the link's": limit_leaf(60).replace(
+        STACK_FIELD, f'value="{PUMP_MENU},{HEATING},{limit_segment(59)}"'
+    ),
+    "the form selects another value than shown": limit_leaf(60)
+    .replace('value="60" selected', 'value="60"')
+    .replace('<option value="59">', '<option value="59" selected>'),
+    "the form is no list choice": limit_leaf(60).replace(
+        'value="para_list"', 'value="para_text"'
+    ),
+}
+
+
 @pytest.mark.parametrize(
-    ("leaf", "target"),
+    ("leaf", "target", "error"),
     [
-        (
-            limit_leaf(60).replace(
-                STACK_FIELD, f'value="{PUMP_MENU},{HEATING},{limit_segment(59)}"'
-            ),
-            61,
-        ),
-        (
-            limit_leaf(60)
-            .replace('value="60" selected', 'value="60"')
-            .replace('<option value="59">', '<option value="59" selected>'),
-            61,
-        ),
-        (limit_leaf(60).replace('value="para_list"', 'value="para_text"'), 61),
-        (limit_leaf(60, offered=range(20, 101)), 15),
+        *[(leaf, 61, setting.FormNotRead) for leaf in WRONG_FORMS.values()],
+        (limit_leaf(60, offered=range(20, 101)), 15, setting.FormMismatch),
     ],
-    ids=[
-        "the form's stack is not the link's",
-        "the form selects another value than shown",
-        "the form is no list choice",
-        "the target is not offered",
-    ],
+    ids=[*WRONG_FORMS, "the target is not offered"],
 )
-async def test_a_form_that_does_not_match_sends_nothing(leaf, target):
+async def test_a_form_that_does_not_match_sends_nothing(leaf, target, error):
     """The form must be the one of the value the heating page shows: a stack
     of another value is a save nobody has tried."""
     client, events = scripted(leaf=leaf)
 
-    with pytest.raises(setting.FormMismatch):
+    with pytest.raises(error):
         await write(client, target)
 
     assert ("count",) not in events
     assert not [event for event in events if event[0] == "save"]
+
+
+class AskingAgainClient(ScriptedClient):
+    """Asks once more for a page its rule finds not whole, as the client does."""
+
+    async def page(self, path, complete):
+        try:
+            return await super().page(path, complete)
+        except Broken:
+            return await super().page(path, complete)
+
+
+@pytest.mark.parametrize("wrong", WRONG_FORMS.values(), ids=WRONG_FORMS)
+async def test_a_whole_but_wrong_form_page_is_asked_for_once_more(wrong):
+    """Refused at once as not matching: the controller's whole but wrong
+    pages got the client's second try everywhere but here."""
+    events = []
+    client = AskingAgainClient(events, (heating_page(60), heating_page(61)), None)
+    client.answers[LEAF] = [wrong, limit_leaf(60)]
+
+    await write(client)
+
+    assert events.count(("page", LEAF)) == 2
+    assert ("save", 61) in events
 
 
 @pytest.mark.parametrize(

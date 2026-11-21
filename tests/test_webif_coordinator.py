@@ -1682,10 +1682,8 @@ def _session_gone(client):
     client.save_error = NotSaved("POST /pro_save.html: HTTP 303 to /index.html")
 
 
-def _other_form(client):
-    client.script[leaf(60)] = [
-        limit_leaf(60).replace('value="para_list"', 'value="para_text"')
-    ]
+def _target_not_offered(client):
+    client.script[leaf(60)] = [limit_leaf(60, offered=range(50, 61))]
 
 
 def _login_refused_while_writing(client):
@@ -1714,7 +1712,7 @@ async def test_a_save_the_controller_turned_away_uses_up_no_write_of_the_day(
     ("failure", "key"),
     [
         (_session_gone, "webif_write_not_saved"),
-        (_other_form, "webif_write_form_mismatch"),
+        (_target_not_offered, "webif_write_form_mismatch"),
         (_login_refused_while_writing, "webif_write_login_refused"),
         (_closed, "webif_write_aborted"),
     ],
