@@ -34,8 +34,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-# Windows PowerShell 5.1 draws its progress bar for every block received,
-# which slows a download many times over.
+# Windows PowerShell 5.1 draws a progress bar for Expand-Archive that only
+# slows it down.
 $ProgressPreference = 'SilentlyContinue'
 
 $capture = Join-Path $ToolsDir 'webif_capture.py'
@@ -53,7 +53,9 @@ function Install-Python {
         Write-Host 'Downloading Python from python.org, once (about 11 MB) ...'
         # Windows PowerShell 5.1 may offer only TLS versions python.org refuses.
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        Invoke-WebRequest -Uri $PythonUrl -OutFile $download -UseBasicParsing
+        # Not Invoke-WebRequest: Windows PowerShell 5.1 reads its -OutFile as
+        # a wildcard, and a folder like "weishaupt [1]" stopped the download.
+        (New-Object System.Net.WebClient).DownloadFile($PythonUrl, $download)
         $hash = (Get-FileHash -LiteralPath $download -Algorithm SHA256).Hash
         if ($hash -ne $PythonSha256) {
             Write-Host "The download is not the Python it should be (SHA-256 $hash); nothing was run."

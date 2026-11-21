@@ -157,6 +157,22 @@ def test_a_folder_named_like_the_old_staging_folder_is_kept(tools, download):
     }
 
 
+def test_a_folder_with_brackets_in_its_path_gets_its_python(tmp_path, download):
+    """Windows PowerShell 5.1 reads -OutFile as a wildcard: in a folder like
+    "weishaupt [1]" the download failed before a byte was saved. pwsh, which
+    runs these tests, reads it literally, so the download must not go
+    through a parameter that reads wildcards at all."""
+    tools = tmp_path / "weishaupt [1]" / "tools"
+    tools.mkdir(parents=True)
+    (tools / CAPTURE).write_text("", encoding="utf-8")
+
+    process = _start(tools, download)
+
+    assert process.returncode == 0, process.stdout + process.stderr
+    assert _called(tools) == [str(tools / CAPTURE), "192.0.2.10"]
+    assert not re.search(r"-OutFile\s+\$", STARTER.read_text(encoding="ascii"))
+
+
 def test_a_second_start_downloads_nothing(tools, download):
     _start(tools, download)
 

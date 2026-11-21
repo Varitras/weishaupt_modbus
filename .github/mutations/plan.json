@@ -6382,5 +6382,12 @@
     "old": "            return form if matches else None\n",
     "new": "            return form\n",
     "tests": "whole_but_wrong_form_page_is_asked_for_once_more"
+  },
+  {
+    "label": "capture starter: the download takes a wildcard path",
+    "path": "tools/webif_capture.bat",
+    "old": "        (New-Object System.Net.WebClient).DownloadFile($PythonUrl, $download)\n",
+    "new": "        Invoke-WebRequest -Uri $PythonUrl -OutFile $download -UseBasicParsing\n",
+    "tests": "brackets_in_its_path_gets_its_python"
   }
 ]
