@@ -6,8 +6,9 @@ if not defined CAPTURE_HOST set /p "CAPTURE_HOST=Address of the heat pump: "
 set "CAPTURE_SELF=%~f0"
 rem Path and host reach PowerShell as environment, never as source text.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "& ([scriptblock]::Create((Get-Content -LiteralPath $env:CAPTURE_SELF -Raw))) -HostName $env:CAPTURE_HOST"
+set "CAPTURE_STATUS=%errorlevel%"
 pause
-exit /b
+exit /b %CAPTURE_STATUS%
 
 Records the titles a heat pump's web interface shows, without an installed
 Python: it runs webif_capture.py next to it with a portable Python.

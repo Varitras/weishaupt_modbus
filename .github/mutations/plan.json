@@ -6305,5 +6305,19 @@
     "old": "self._new_day, hour=0,",
     "new": "self._new_day, hour=1,",
     "tests": "rolls_to_the_new_day_while_polling_fails"
+  },
+  {
+    "label": "capture starter: the pause hides the worker's exit code",
+    "path": "tools/webif_capture.bat",
+    "old": "exit /b %CAPTURE_STATUS%\n",
+    "new": "exit /b\n",
+    "tests": "exit_code_after_its_pause"
+  },
+  {
+    "label": "scan starter: the pause hides the worker's exit code",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "exit /b %SCAN_STATUS%\n",
+    "new": "exit /b\n",
+    "tests": "exit_code_after_its_pause"
   }
 ]

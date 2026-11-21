@@ -6,8 +6,9 @@ if not defined SCAN_HOST set /p "SCAN_HOST=IP address of the heat pump: "
 set "SCAN_SELF=%~f0"
 rem Path and host reach PowerShell as environment, never as source text.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "& ([scriptblock]::Create((Get-Content -LiteralPath $env:SCAN_SELF -Raw))) -HostName $env:SCAN_HOST"
+set "SCAN_STATUS=%errorlevel%"
 pause
-exit /b
+exit /b %SCAN_STATUS%
 
 Reads the Modbus registers of a Weishaupt heat pump and saves them as CSV.
 

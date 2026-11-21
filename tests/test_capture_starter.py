@@ -188,6 +188,23 @@ def test_without_the_capture_beside_it_nothing_is_downloaded(tools, download):
     assert download["requests"] == []
 
 
+@pytest.mark.parametrize("name", ["webif_capture.bat", "weishaupt_scan.bat"])
+def test_a_starter_returns_the_workers_exit_code_after_its_pause(name):
+    """The pause before returning set the exit code to 0: a caller saw
+    success after the capture or the scan had failed. Read from the batch
+    half, as cmd is not there where the suite runs."""
+    source = (REPO / "tools" / name).read_bytes().decode("ascii")
+    batch = source.split("\r\nexit /b", 1)[0].split("\r\n")
+    worker = next(
+        index for index, line in enumerate(batch) if line.startswith("powershell ")
+    )
+
+    saved = re.fullmatch(r'set "(\w+)=%errorlevel%"', batch[worker + 1])
+    assert saved, batch[worker + 1]
+    assert batch[worker + 2 :] == ["pause"]
+    assert f"\r\nexit /b %{saved.group(1)}%\r\n" in source
+
+
 def test_the_starter_keeps_windows_line_ends():
     """cmd misreads a batch file with bare LF line ends, and Windows
     PowerShell 5.1 reads a file without BOM in the ANSI code page."""
