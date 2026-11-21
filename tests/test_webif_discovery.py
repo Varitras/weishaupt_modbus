@@ -603,3 +603,14 @@ async def test_a_refused_login_is_not_tried_twice(hass, pump, monkeypatch):
     with pytest.raises(webif.LoginRefused):
         await read_web_interface(hass, pump.host, USER, "wrong")
     assert len(pump.forms) == 1
+
+
+def test_a_half_page_with_two_main_menus_at_one_link_says_no_page_moved():
+    """Its main menus are under the codes its address holds, one of them
+    twice: the menus read clearly lack it, all of them still have it."""
+    first_segment = "33000001000000000080000A0B010002000301"
+    half = MAIN_MENUS + column(
+        link([first_segment], "Heizkreis 2") + link([first_segment], "Heizkreis 3")
+    )
+
+    assert not moved(half, STACK + f"{first_segment},{HEATING}")

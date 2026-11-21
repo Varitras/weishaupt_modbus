@@ -270,6 +270,17 @@ def test_the_setting_form_is_read_as_the_controller_serves_it():
     assert form.parent_path == stand_in.HEATING_PATH
 
 
+@pytest.mark.parametrize("selected", [stand_in.AUTOMATIC, 50])
+def test_automatik_is_read_as_the_option_minus_one(selected):
+    """An Evoblock's modulation offers -1 for Automatik beside 50 to 100."""
+    form = pages.setting_form(stand_in.modulation_form(selected))
+
+    assert form is not None
+    assert form.offered == stand_in.MODULATION_OPTIONS
+    assert form.selected == selected
+    assert form.parent_path == stand_in.STACK + PUMP_MENU
+
+
 LEAF = stand_in.limit_leaf(60)
 SIXTY_ONE = '<option value="61">'
 TYPE_FIELD = '<input type="hidden" name="type"'
@@ -288,6 +299,9 @@ VALUE_LIST = '<div class="form-group"><select'
         LEAF.replace(SIXTY_ONE, '<option value="x">'),
         LEAF.replace(SIXTY_ONE, '<option value="²">'),
         LEAF.replace(SIXTY_ONE, '<option value="６１">'),
+        LEAF.replace(SIXTY_ONE, '<option value="--61">'),
+        LEAF.replace(SIXTY_ONE, '<option value="-">'),
+        LEAF.replace(SIXTY_ONE, '<option value="6-1">'),
         LEAF.replace('action="pro_save.html"', 'action="other.html"'),
         LEAF.replace(
             TYPE_FIELD, '<input type="hidden" name="id" value="X">' + TYPE_FIELD
@@ -299,6 +313,8 @@ VALUE_LIST = '<div class="form-group"><select'
         LEAF.replace(
             "</select>", '</select><select name="value"><option value="62"></select>'
         ),
+        LEAF.split(SIXTY_ONE)[0],
+        LEAF.split("</form>")[0],
     ],
     ids=[
         "no id",
@@ -310,11 +326,16 @@ VALUE_LIST = '<div class="form-group"><select'
         "an option no number",
         "an option a superscript digit",
         "an option in full-width digits",
+        "an option with two minus signs",
+        "an option a minus alone",
+        "an option with a minus inside",
         "another action",
         "the id twice",
         "an empty id",
         "the value list in a second form",
         "two value lists",
+        "cut inside the value list",
+        "cut before the form ends",
     ],
 )
 def test_a_form_missing_a_part_is_not_read(page):

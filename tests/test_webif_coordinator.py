@@ -38,10 +38,9 @@ from custom_components.weishaupt_modbus.webif.discovery import (
 )
 from custom_components.weishaupt_modbus.webif_coordinator import (
     STOPPED_ISSUE,
-    Page,
     WebifCoordinator,
-    polled_pages,
 )
+from custom_components.weishaupt_modbus.webif_polled import Page, polled_pages
 from custom_components.weishaupt_modbus.weishaupt_modbus_api.write_budget import (
     WriteBudget,
 )

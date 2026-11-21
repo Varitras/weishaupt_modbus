@@ -30,6 +30,7 @@ from custom_components.weishaupt_modbus.items import ModbusItem
 from custom_components.weishaupt_modbus.webif_sensor import (
     ANSWER_TIME,
     MINIMUM_TEMPERATURES,
+    MODULATION,
     POWER_LIMIT,
     TRAFFIC_SENSORS,
     WEBIF_SENSORS,
@@ -273,6 +274,8 @@ def test_no_translation_outlives_its_item(path):
     known.update(
         ("number", minimum.translation_key) for minimum in MINIMUM_TEMPERATURES.values()
     )
+    # The modulation is a choice.
+    known.add(("select", MODULATION.translation_key))
     known |= _switch_keys()
     # Every platform the file names, not the ones PLATFORM_OF knows: the
     # switches went unchecked that way.
@@ -636,6 +639,41 @@ def test_the_input_functions_read_as_the_web_interface_names_them():
 
     assert states["io_konf_in_3"] == "HK-Sperre"
     assert states["io_konf_in_4"] == "Umschaltung Hz/Kü"
+
+
+@pytest.mark.parametrize(
+    ("code", "shown"),
+    [
+        (33, "2. WEZ"),
+        (34, "Sperre Verdichter"),
+        (35, "Leistungsbegr. + Sperre"),
+        (36, "Leistungsbegrenzung"),
+    ],
+)
+def test_the_functions_after_the_circuits_read_by_the_codes_the_controller_offers(
+    code, shown
+):
+    """A WBB's function lists jump from 19 to 33 (2026-10-02): an input set
+    to the power limitation read a bare 36."""
+    rows = {item.address: item for item in _items(hpconst)}
+    key = rows[45103].get_translation_key_from_number(code)
+    states = _entity_translations(PACKAGE / "translations" / "de.json")["sensor"][
+        "konf_ausg_h12"
+    ]["state"]
+
+    assert key == f"io_konf_in_{code}"
+    assert states[key] == shown
+
+
+@pytest.mark.parametrize("code", [20, 21])
+def test_no_input_function_is_named_for_a_code_no_list_offers(code):
+    """No function list shows 20 or 21: on a WBB 16 to 19 are "Heizkreis 1
+    ..." and the next entries 33 on, so on a pump with more circuits they are
+    likely its circuits'. Named "2. WEZ" and "Sperre Verdichter" from an older
+    list, they would read wrong there; a bare number does not."""
+    rows = {item.address: item for item in _items(hpconst)}
+
+    assert rows[45103].get_translation_key_from_number(code) == str(code)
 
 
 @pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)

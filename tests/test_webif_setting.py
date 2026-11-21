@@ -21,10 +21,15 @@ from .webif_stand_in import (
     GERMAN_HEATING,
     HEATING,
     HEATING_PATH,
+    MAIN_MENUS,
+    MODULATION_PATH,
     PUMP_MENU,
+    column,
     heating_page,
     limit_leaf,
     limit_segment,
+    link,
+    modulation_form,
 )
 
 LEAF = f"{HEATING_PATH},{limit_segment(60)}"
@@ -64,6 +69,11 @@ def whole(text):
     return bool(pages.children(text, HEATING_PATH))
 
 
+def anywhere(_text):
+    """A setting without a main menu it must be under."""
+    return True
+
+
 def scripted(heating=(heating_page(60), heating_page(61)), leaf=limit_leaf(60)):
     events = []
     return ScriptedClient(events, heating, leaf), events
@@ -74,6 +84,7 @@ async def write(client, target=61):
         client,
         HEATING_PATH,
         whole,
+        anywhere,
         setting.POWER_LIMIT,
         target,
         lambda: client.events.append(("count",)),
@@ -171,6 +182,23 @@ async def test_a_heating_page_without_the_limit_sends_nothing():
     assert events == [("page", HEATING_PATH)]
 
 
+async def test_two_rows_linking_to_one_form_send_nothing():
+    """Which setting that form saves cannot be told: the switching
+    difference linked to the power limit's own page would have its value
+    written as the limit."""
+    page = MAIN_MENUS + column(
+        link([PUMP_MENU, HEATING, limit_segment(60)], "Schaltdifferenz", "60 %")
+        + link([PUMP_MENU, HEATING, limit_segment(60)], "Leistungsbegrenzung", "60 %")
+    )
+    client, events = scripted(heating=[page])
+
+    with pytest.raises(setting.FormNotRead):
+        await write(client)
+
+    assert ("save", 61) not in events
+    assert {event for event, *_ in events} == {"page"}
+
+
 async def test_a_target_the_controller_already_shows_is_not_written():
     """Owner decision, 2026-10-09: read fresh, and write only what differs."""
     client, events = scripted(heating=[heating_page(61)])
@@ -235,3 +263,25 @@ async def test_a_refused_login_is_no_unreadable_form():
 )
 def test_the_power_limit_is_read_as_a_whole_percentage(shown, expected):
     assert setting.shown_percent(shown) == expected
+
+
+async def test_a_modulation_form_of_another_type_is_not_sent():
+    """Its form is its page: what holds for the power limit's own page holds
+    for it."""
+    client, events = scripted()
+    client.answers = {
+        MODULATION_PATH: [modulation_form(50).replace('"para_list"', '"para_text"')]
+    }
+
+    with pytest.raises(setting.FormNotRead):
+        await setting.write_setting(
+            client,
+            MODULATION_PATH,
+            whole,
+            anywhere,
+            setting.MODULATION,
+            85,
+            lambda: events.append(("count",)),
+        )
+
+    assert set(events) == {("page", MODULATION_PATH)}

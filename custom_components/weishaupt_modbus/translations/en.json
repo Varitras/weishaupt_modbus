@@ -22,7 +22,7 @@
       "unclear_values": "The web interface's page {page} shows {titles} without a value or more than once. Try again; if it stays so, this controller is not supported yet.",
       "unknown_units": "The web interface's page {page} shows {titles} in a unit the integration does not know. This controller is not supported yet. To have it supported, open an issue and attach the file tools/webif_capture.py writes (see the README).",
       "missing_menu_entries": "The web interface's menus do not show {titles}. The integration finds its pages by these names, in German or English: is the web interface's language (Settings › General › Language) set to Auto, German or English? If it has to stay on another language, open an issue so that it can be added, and attach the file tools/webif_capture.py writes (see the README).",
-      "doubled_menu_entries": "The web interface's menus show {titles} more than once. Try again; if it stays so, this controller is not supported yet.",
+      "doubled_menu_entries": "The web interface's menus show {titles} more than once, or under another entry's link. Try again; if it stays so, this controller is not supported yet.",
       "unknown": "An unexpected error occurred; the log holds the details."
     },
     "progress": {
@@ -392,6 +392,23 @@
       }
     },
     "select": {
+      "webif_modulation": {
+        "name": "{prefix}Hot water modulation",
+        "state": {
+          "auto": "Automatic",
+          "50": "50 %",
+          "55": "55 %",
+          "60": "60 %",
+          "65": "65 %",
+          "70": "70 %",
+          "75": "75 %",
+          "80": "80 %",
+          "85": "85 %",
+          "90": "90 %",
+          "95": "95 %",
+          "100": "100 %"
+        }
+      },
       "hz_operationmode": {
         "name": "{prefix}Operation mode",
         "state": {
@@ -1234,9 +1251,11 @@
           "io_konf_in_18": "Heating circuit ... normal",
           "io_konf_in_19": "Heating circuit ... comfort",
           "io_konf_in_2": "Increased operation",
-          "io_konf_in_20": "2nd heat source",
-          "io_konf_in_21": "Lock compressor",
           "io_konf_in_3": "HK block",
+          "io_konf_in_33": "2nd heat source",
+          "io_konf_in_34": "Lock compressor",
+          "io_konf_in_35": "Power limitation + lock",
+          "io_konf_in_36": "Power limitation",
           "io_konf_in_4": "Hz/cooling changeover",
           "io_konf_in_5": "Sleep mode",
           "io_konf_in_6": "Emergency stop",
@@ -1262,9 +1281,11 @@
           "io_konf_in_18": "Heating circuit ... normal",
           "io_konf_in_19": "Heating circuit ... comfort",
           "io_konf_in_2": "Increased operation",
-          "io_konf_in_20": "2nd heat source",
-          "io_konf_in_21": "Lock compressor",
           "io_konf_in_3": "HK block",
+          "io_konf_in_33": "2nd heat source",
+          "io_konf_in_34": "Lock compressor",
+          "io_konf_in_35": "Power limitation + lock",
+          "io_konf_in_36": "Power limitation",
           "io_konf_in_4": "Hz/cooling changeover",
           "io_konf_in_5": "Sleep mode",
           "io_konf_in_6": "Emergency stop",
@@ -1290,9 +1311,11 @@
           "io_konf_in_18": "Heating circuit ... normal",
           "io_konf_in_19": "Heating circuit ... comfort",
           "io_konf_in_2": "Increased operation",
-          "io_konf_in_20": "2nd heat source",
-          "io_konf_in_21": "Lock compressor",
           "io_konf_in_3": "HK block",
+          "io_konf_in_33": "2nd heat source",
+          "io_konf_in_34": "Lock compressor",
+          "io_konf_in_35": "Power limitation + lock",
+          "io_konf_in_36": "Power limitation",
           "io_konf_in_4": "Hz/cooling changeover",
           "io_konf_in_5": "Sleep mode",
           "io_konf_in_6": "Emergency stop",
@@ -1318,9 +1341,11 @@
           "io_konf_in_18": "Heating circuit ... normal",
           "io_konf_in_19": "Heating circuit ... comfort",
           "io_konf_in_2": "Increased operation",
-          "io_konf_in_20": "2nd heat source",
-          "io_konf_in_21": "Lock compressor",
           "io_konf_in_3": "HK block",
+          "io_konf_in_33": "2nd heat source",
+          "io_konf_in_34": "Lock compressor",
+          "io_konf_in_35": "Power limitation + lock",
+          "io_konf_in_36": "Power limitation",
           "io_konf_in_4": "Hz/cooling changeover",
           "io_konf_in_5": "Sleep mode",
           "io_konf_in_6": "Emergency stop",
@@ -1346,9 +1371,11 @@
           "io_konf_in_18": "Heating circuit ... normal",
           "io_konf_in_19": "Heating circuit ... comfort",
           "io_konf_in_2": "Increased operation",
-          "io_konf_in_20": "2nd heat source",
-          "io_konf_in_21": "Lock compressor",
           "io_konf_in_3": "HK block",
+          "io_konf_in_33": "2nd heat source",
+          "io_konf_in_34": "Lock compressor",
+          "io_konf_in_35": "Power limitation + lock",
+          "io_konf_in_36": "Power limitation",
           "io_konf_in_4": "Hz/cooling changeover",
           "io_konf_in_5": "Sleep mode",
           "io_konf_in_6": "Emergency stop",
@@ -1374,9 +1401,11 @@
           "io_konf_in_18": "Heating circuit ... normal",
           "io_konf_in_19": "Heating circuit ... comfort",
           "io_konf_in_2": "Increased operation",
-          "io_konf_in_20": "2nd heat source",
-          "io_konf_in_21": "Lock compressor",
           "io_konf_in_3": "HK block",
+          "io_konf_in_33": "2nd heat source",
+          "io_konf_in_34": "Lock compressor",
+          "io_konf_in_35": "Power limitation + lock",
+          "io_konf_in_36": "Power limitation",
           "io_konf_in_4": "Hz/cooling changeover",
           "io_konf_in_5": "Sleep mode",
           "io_konf_in_6": "Emergency stop",
@@ -1402,9 +1431,11 @@
           "io_konf_in_18": "Heating circuit ... normal",
           "io_konf_in_19": "Heating circuit ... comfort",
           "io_konf_in_2": "Increased operation",
-          "io_konf_in_20": "2nd heat source",
-          "io_konf_in_21": "Lock compressor",
           "io_konf_in_3": "HK block",
+          "io_konf_in_33": "2nd heat source",
+          "io_konf_in_34": "Lock compressor",
+          "io_konf_in_35": "Power limitation + lock",
+          "io_konf_in_36": "Power limitation",
           "io_konf_in_4": "Hz/cooling changeover",
           "io_konf_in_5": "Sleep mode",
           "io_konf_in_6": "Emergency stop",
@@ -1430,9 +1461,11 @@
           "io_konf_in_18": "Heating circuit ... normal",
           "io_konf_in_19": "Heating circuit ... comfort",
           "io_konf_in_2": "Increased operation",
-          "io_konf_in_20": "2nd heat source",
-          "io_konf_in_21": "Lock compressor",
           "io_konf_in_3": "HK block",
+          "io_konf_in_33": "2nd heat source",
+          "io_konf_in_34": "Lock compressor",
+          "io_konf_in_35": "Power limitation + lock",
+          "io_konf_in_36": "Power limitation",
           "io_konf_in_4": "Hz/cooling changeover",
           "io_konf_in_5": "Sleep mode",
           "io_konf_in_6": "Emergency stop",
@@ -2130,7 +2163,8 @@
           "heating_circuit_interval_minutes": "Interval of the heating circuit page (minutes)",
           "second_generator_interval_minutes": "Interval of the 2nd heat source page (minutes)",
           "settings_interval_minutes": "Interval of the settings pages (minutes)",
-          "settings_written_per_day": "Settings written per day"
+          "settings_written_per_day": "Settings written per day",
+          "read_modulation": "Read and set the hot water modulation"
         },
         "data_description": {
           "heat_pump_interval_minutes": "How often the heat pump page is read, 1 to 60 minutes. A change reloads the entry.",
@@ -2139,7 +2173,8 @@
           "heating_circuit_interval_minutes": "How often the averaged outside temperatures are read, 1 to 60 minutes.",
           "second_generator_interval_minutes": "How often the switching cycles of the heating rod stages are read, 1 to 60 minutes.",
           "settings_interval_minutes": "How often the settings of the heating circuits and the hot water are read, 1 to 60 minutes.",
-          "settings_written_per_day": "At most this many settings, such as the heating power limit, are written a day; 0 switches the limit off. The controller stores each one in its EEPROM, which is rated for a limited number of writes."
+          "settings_written_per_day": "At most this many settings, such as the heating power limit, are written a day; 0 switches the limit off. The controller stores each one in its EEPROM, which is rated for a limited number of writes.",
+          "read_modulation": "Reads one more page for it, once an hour. Off spares the controller."
         }
       }
     }
@@ -2215,7 +2250,7 @@
       "message": "Some of the web interface's pages are stored at one address, a page this entry must read among them. Use **Reconfigure** on this entry to search every page anew."
     },
     "webif_write_reloading": {
-      "message": "The web interface entry is reloading, as two of its pages had one address. Nothing was sent; try again once it has loaded."
+      "message": "The web interface entry is reloading, as it could not tell some of its pages apart after they moved. Nothing was sent; try again once it has loaded."
     }
   },
   "issues": {
@@ -2237,7 +2272,7 @@
     },
     "webif_pages_shared": {
       "title": "Web interface pages left out",
-      "description": "Left out: {pages}. Each had the same address as another page, so a value read or written there could belong to either. The web interface entry no longer reads or writes them; its other pages and Modbus are not affected. Use **Reconfigure** on the web interface entry: it searches every page anew, and this notice goes away."
+      "description": "Left out: {pages}. Which page their address leads to could not be told for sure, so a value read or written there could belong to another setting. The web interface entry no longer reads or writes them; its other pages and Modbus are not affected. Use **Reconfigure** on the web interface entry: it searches every page anew, and this notice goes away."
     }
   }
 }

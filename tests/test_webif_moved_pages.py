@@ -20,18 +20,21 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     HEAT_PUMP_PAGE,
     HEATING_CIRCUIT_PAGE,
     HEATING_PAGE,
+    MODULATION_PAGE,
     PAGE_MENUS,
     circuit_settings_page,
 )
-from custom_components.weishaupt_modbus.webif.setting import MINIMUM_TEMPERATURE
+from custom_components.weishaupt_modbus.webif.setting import (
+    MINIMUM_TEMPERATURE,
+    MODULATION,
+)
 from custom_components.weishaupt_modbus.webif_coordinator import (
     FAILURES_TO_STOP,
     NOT_FOUND_AGAIN_ISSUE,
     STOPPED_ISSUE,
-    Page,
     WebifCoordinator,
-    polled_pages,
 )
+from custom_components.weishaupt_modbus.webif_polled import Page, polled_pages
 from custom_components.weishaupt_modbus.webif_sensor import (
     EVOBLOCK,
     OPTIONAL_TITLES,
@@ -47,12 +50,14 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 
 from .locking import until
+from .test_webif_modulation import with_modulation
 from .test_webif_optional_pages import info_menu
 from .test_webif_settings_pages import ALL_PAGES, HOT_WATER_MENU, MENUS, evoblock_site
 from .test_webif_setup import PAGES, SHOWN, SITE
 from .webif_stand_in import (
     HEATING,
     INFO,
+    MODULATION_PATH,
     PAGE_PATH,
     PASSWORD,
     PUMP_MENU,
@@ -66,6 +71,7 @@ from .webif_stand_in import (
     link,
     main_menus,
     menu_site,
+    modulation_form,
     serving,
     value,
 )
@@ -453,6 +459,64 @@ async def test_heizen_and_kuehlen_at_one_link_send_no_save(
     assert coordinator.diagnostics()["searched_again"] == 0
 
 
+async def test_the_pages_after_a_failed_search_fail_for_it_not_as_moved_again(
+    coordinator, pump, clock, caplog
+):
+    """No page got a new address: "moved again" told a move that did not
+    happen."""
+    caplog.set_level(logging.DEBUG, logger=webif_coordinator.__name__)
+    pump.site[STACK + PUMP_MENU] = main_menus() + column(
+        link([PUMP_MENU, HEATING], "Heizen")
+        + link([PUMP_MENU, HEATING], "Kühlen")
+        + link([PUMP_MENU, RESET], "Reset")
+    )
+    pump.renumber(NEW)
+
+    await next_round(coordinator, pump, clock)
+
+    reasons = [message for message in caplog.messages if " in a row: " in message]
+    assert reasons
+    assert not [reason for reason in reasons if "moved again" in reason]
+    assert [reason for reason in reasons if "search failed" in reason]
+
+
+async def test_a_failed_search_blames_no_page_in_a_later_round(
+    coordinator, pump, clock, caplog
+):
+    """The search failing once must not name every later failure for it:
+    a round whose search finds the pages again blames a page that is still
+    moved again at its new address on that."""
+    caplog.set_level(logging.DEBUG, logger=webif_coordinator.__name__)
+    pump.site[STACK + PUMP_MENU] = main_menus() + column(
+        link([PUMP_MENU, HEATING], "Heizen")
+        + link([PUMP_MENU, HEATING], "Kühlen")
+        + link([PUMP_MENU, RESET], "Reset")
+    )
+    pump.renumber(NEW)
+    await next_round(coordinator, pump, clock)
+    pump.site[pump.current(STACK + PUMP_MENU)] = pump.current(
+        main_menus()
+        + column(
+            link([PUMP_MENU, HEATING], "Heizen") + link([PUMP_MENU, RESET], "Reset")
+        )
+    )
+    # At its new address the overview again, under codes newer still.
+    pump.site[pump.current(STACK + f"{PUMP_MENU},{HEATING}")] = main_menus().replace(
+        TOKEN, "CAFE"
+    )
+    caplog.clear()
+
+    await next_round(coordinator, pump, clock)
+
+    reasons = [message for message in caplog.messages if " in a row: " in message]
+    assert [
+        reason
+        for reason in reasons
+        if reason.startswith("heating failed") and "moved again" in reason
+    ]
+    assert not [reason for reason in reasons if "search failed" in reason]
+
+
 async def test_a_write_asked_for_during_a_search_reads_and_saves_at_the_new_address(
     coordinator, pump, clock, monkeypatch
 ):
@@ -663,5 +727,116 @@ async def test_a_lost_circuit_sends_nothing_to_the_circuit_at_its_address(
             circuit_settings_page(3), MINIMUM_TEMPERATURE, 345
         )
 
+    assert pump.asked == []
+    assert pump.saved == []
+
+
+@pytest.fixture
+async def modulation_lost(hass, pump, clock):
+    """An Evoblock reading its modulation, whose heat pump menu lists it no
+    more under the new codes; another setting's list form answers at its old
+    address."""
+    async for coordinator in _losing_modulation(
+        hass, pump, clock, {CONST.OPTION_WEBIF_MODULATION: True}
+    ):
+        yield coordinator
+
+
+@pytest.fixture
+async def unread_modulation_lost(hass, pump, clock):
+    """The same with the modulation switched off: found at setup, never read."""
+    async for coordinator in _losing_modulation(hass, pump, clock, {}):
+        yield coordinator
+
+
+async def _losing_modulation(hass, pump, clock, options):
+    evoblock_site(pump)
+    with_modulation(pump)
+    pump.site[STACK + PUMP_MENU] = menu_site()[STACK + PUMP_MENU]
+    pages = {**ALL_PAGES, MODULATION_PAGE: MODULATION_PATH}
+    entry = MockConfigEntry(
+        domain=CONST.DOMAIN, data={CONF.PAGES: pages}, options=options
+    )
+    entry.add_to_hass(hass)
+    async with aiohttp.ClientSession(cookie_jar=aiohttp.DummyCookieJar()) as session:
+        client = webif.Client(
+            session,
+            pump.host,
+            USER,
+            PASSWORD,
+            host_lock=asyncio.Lock(),
+            pacing=webif.Pacing(),
+            gap=0,
+        )
+        polled = polled_pages(
+            pages,
+            options,
+            REQUIRED_TITLES[EVOBLOCK],
+            TITLES_SHOWN_OTHERWISE[EVOBLOCK],
+            OPTIONAL_TITLES[EVOBLOCK],
+        )
+        yield WebifCoordinator(
+            hass, entry, client, polled, budget=WriteBudget(0, 10), clock=clock
+        )
+
+
+async def test_a_lost_modulation_never_read_is_dropped_without_a_reload(
+    hass, unread_modulation_lost, pump, clock, reloads
+):
+    """Switched off, it is neither read nor written: a reload and a notice
+    for it only alarmed. Its old address goes, so switching it on asks for
+    Reconfigure, whose visit checks it."""
+    coordinator = unread_modulation_lost
+    pump.renumber(NEW)
+
+    await next_round(coordinator, pump, clock)
+
+    assert reloads == []
+    assert (
+        ir.async_get(hass).async_get_issue(
+            CONST.DOMAIN, f"{SHARED_ISSUE}_{coordinator.config_entry.entry_id}"
+        )
+        is None
+    )
+    assert MODULATION_PAGE not in coordinator.config_entry.data[CONF.PAGES]
+    assert coordinator.last_update_success
+
+
+async def test_a_modulation_never_read_but_found_again_keeps_its_new_address(
+    hass, unread_modulation_lost, pump, clock, reloads
+):
+    """Switched off but still listed, it must move with the others: dropped,
+    its switch would leave the options until a Reconfigure."""
+    coordinator = unread_modulation_lost
+    with_modulation(pump)
+    pump.renumber(NEW)
+
+    await next_round(coordinator, pump, clock)
+
+    assert reloads == []
+    assert coordinator.config_entry.data[CONF.PAGES][MODULATION_PAGE] == (
+        pump.current(MODULATION_PATH)
+    )
+
+
+async def test_a_lost_modulation_is_left_out_rather_than_read_at_its_old_address(
+    modulation_lost, pump, clock, reloads
+):
+    """Its own form shows no titles to tell it by: at its old address,
+    another setting's form would pass for it, and a choice would be saved
+    there."""
+    coordinator = modulation_lost
+    pump.renumber(NEW)
+    pump.site[MODULATION_PATH] = modulation_form(60).replace(
+        "<h5>Modulation</h5>", "<h5>Pumpe</h5>"
+    )
+
+    await next_round(coordinator, pump, clock)
+    pump.asked.clear()
+
+    assert MODULATION_PAGE not in coordinator.config_entry.data[CONF.PAGES]
+    assert reloads == [coordinator.config_entry.entry_id]
+    with pytest.raises(HomeAssistantError):
+        await coordinator.set_setting(MODULATION_PAGE, MODULATION, 85)
     assert pump.asked == []
     assert pump.saved == []

@@ -154,6 +154,34 @@ def limit_leaf(limit, offered=LIMIT_OPTIONS):
     )
 
 
+# Wärmepumpe › Modulation on an Evoblock: its entry leads straight to its form,
+# whose id carries the value; -1 is Automatik (2026-11-18).
+MODULATION = "64001600000000000080000A0B020011000401"
+MODULATION_PATH = STACK + f"{PUMP_MENU},{MODULATION}"
+AUTOMATIC = -1
+MODULATION_OPTIONS = (AUTOMATIC, *range(50, 101, 5))
+
+
+def modulation_form(selected, offered=MODULATION_OPTIONS):
+    """Wärmepumpe › Modulation: its title and the one form that saves it."""
+    options = "".join(
+        f'<option value="{option}"{" selected" if option == selected else ""}>\n'
+        f"{'Automatik' if option == AUTOMATIC else option}</option>\n"
+        for option in offered
+    )
+    return MAIN_MENUS + (
+        "<h5>Modulation</h5>\n"
+        '<form action="pro_save.html" method="POST">'
+        '<input type="hidden" name="id" '
+        f'value="6400160D01000000{selected & 0xFF:02X}40000A0B040111010401">\n'
+        f'<input type="hidden" name="stack" value="{PUMP_MENU},{MODULATION}">\n'
+        '<input type="hidden" name="type" value="para_list">'
+        '<div class="form-group"><select class="form-control" name="value">\n'
+        f"{options}</select></div>\n"
+        '<button type="submit" class="btn btn-success">Speichern</button></form>\n'
+    )
+
+
 def menu_site(titles=GERMAN_MENUS):
     """The overview, Info and the heat pump menu, by the address asked for."""
     main = main_menus(titles)

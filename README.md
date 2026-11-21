@@ -114,9 +114,9 @@ The controller's local web interface, *WEM Lokal*, shows values Modbus does
 not carry: the refrigerant circuit, compressor speed and counters, target and
 actual output, the flow rate, energy statistics to three decimals including
 the yearly totals, and the heating power limit. The integration reads them in
-a second entry beside the heat pump and sets the heating power limit and, on
-an Evoblock, each heating circuit's minimum flow temperature; nothing else is
-written.
+a second entry beside the heat pump and sets the heating power limit, on an
+Evoblock each heating circuit's minimum flow temperature, and, once switched
+on, the hot water modulation; nothing else is written.
 
 On an Evoblock, the entry also reads two pages Info lists there, when it
 finds them: the lowest-numbered heating circuit's, for the outdoor
@@ -124,29 +124,35 @@ temperature averaged as the heating curve follows it (*AT Mittelwert*,
 *AT Langzeitwert*), and the 2nd heat generator's, for the switching cycles
 of each heating rod stage (*Schaltspiele E1*, *E2*). It also reads the
 settings of each circuit Info lists, *Heizkreis n › Einstellungen*: the
-minimum flow temperature, as a number to set, and the maximum, the demand increase and the SG Ready raise;
-and *Warmwasser › Einstellungen*: the hot water's system operating mode. A
-page that comes half, or with a value blank or twice, also when searched
-again, is left out rather than failing the dialog; so are two circuits the
-overview links to one address. Each of the two pages Info lists has an interval
-of its own, and the settings pages share one; all three are 15 minutes unless
-set otherwise. An entry added before this version reads them after
+minimum flow temperature, as a number to set, and the maximum, the demand
+increase and the SG Ready raise; and *Warmwasser › Einstellungen*: the hot
+water's system operating mode. One of these pages that comes half, or with a
+value the integration reads blank or twice, also when searched again, is left
+out rather than failing the dialog; so are two circuits the overview links to
+one address.
+Each of the two pages Info lists has an interval of its own, and the settings
+pages share one; all three are 15 minutes
+unless set otherwise. An entry added before this version reads them after
 **Reconfigure**.
+
+On a WBB and an Evoblock, *Wärmepumpe › Modulation* sets the heat pump's
+output while the hot water loads: Automatik, or a fixed 50 to 100 %. It is
+off unless switched on in the web interface entry's options, as it costs a
+page more; then it is read once an hour and offered as a choice to set. An
+entry added before this version shows the switch after **Reconfigure** once,
+where the controller offers the page.
 
 The controller's web server is slow and now and then answers with an
 incomplete page, so the integration asks little: one request at a time, at
 least 5 seconds apart, never at the same moment as its Modbus requests. After
 three failures in a row it pauses, asks that page again after 15 minutes (or
 the shortest page interval, if longer), then at waits doubling up to 2 hours,
-and resumes by itself when the page comes whole. A controller may give its
-menus new codes, and then answers the addresses of the old ones with its
-overview; the entry searches its pages again from that overview, the
-settings pages it reads among them, at most once a round, and keeps the new
-addresses. A page not found again fails on its own, and should it pause the
-polling, the notice asks for **Reconfigure**. Should a page found have the old
-address of one not found, the latter is left out, a notice asks for
-**Reconfigure**, and the entry reloads. Switching the web server on,
-adding the entry and everything it reads are described under
+and resumes by itself when the page comes whole. The controller may change
+its page addresses; the integration then finds its pages again by itself, at
+most once per update. A page it reads that it cannot find again, or cannot
+tell apart from another one, needs **Reconfigure**, and a notice says so; the
+modulation, while switched off, is simply dropped. Switching the web
+server on, adding the entry and everything it reads are described under
 [Web Interface](https://github.com/Varitras/weishaupt_modbus/wiki/Web-Interface).
 It needs the web interface's language set to Auto, German or English.
 
@@ -175,7 +181,7 @@ and what the file holds:
   of an Evoblock (seen on a WEB 13/20); another model may show other rows, and
   the dialog then says it is not supported yet.
 
-More under [How Data Updates](https://github.com/Varitras/weishaupt_modbus/wiki/How-Data-Updates#known-limits-of-the-values).
+More on the energies and performance factors under [How Data Updates](https://github.com/Varitras/weishaupt_modbus/wiki/How-Data-Updates#known-limits-of-the-values).
 
 ## Troubleshooting
 

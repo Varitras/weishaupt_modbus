@@ -22,7 +22,7 @@
       "unclear_values" : "De pagina {page} van de webinterface toont {titles} zonder waarde of meer dan eens. Probeer het opnieuw; blijft het zo, dan wordt deze regelaar nog niet ondersteund.",
       "unknown_units" : "De pagina {page} van de webinterface toont {titles} in een eenheid die de integratie niet kent. Deze regelaar wordt nog niet ondersteund. Om hem te laten ondersteunen, open een issue en voeg het bestand toe dat tools/webif_capture.py schrijft (zie de README).",
       "missing_menu_entries" : "De menu's van de webinterface tonen {titles} niet. De integratie vindt haar pagina's via deze namen, in het Duits of het Engels: staat de taal van de webinterface (Einstellungen › Allgemein › Sprache) op Auto, Duits of Engels? Moet die op een andere taal blijven, open dan een issue zodat die kan worden toegevoegd, en voeg het bestand toe dat tools/webif_capture.py schrijft (zie de README).",
-      "doubled_menu_entries" : "De menu's van de webinterface tonen {titles} meer dan eens. Probeer het opnieuw; blijft het zo, dan wordt deze regelaar nog niet ondersteund.",
+      "doubled_menu_entries" : "De menu's van de webinterface tonen {titles} meer dan eens of onder de link van een ander item. Probeer het opnieuw; blijft het zo, dan wordt deze regelaar nog niet ondersteund.",
       "unknown" : "Er is een onverwachte fout opgetreden; het logboek bevat de details."
     },
     "progress" : {
@@ -392,6 +392,23 @@
       }
     },
     "select" : {
+      "webif_modulation" : {
+        "name" : "{prefix}Modulatie warm water",
+        "state" : {
+          "auto" : "Automatisch",
+          "50" : "50 %",
+          "55" : "55 %",
+          "60" : "60 %",
+          "65" : "65 %",
+          "70" : "70 %",
+          "75" : "75 %",
+          "80" : "80 %",
+          "85" : "85 %",
+          "90" : "90 %",
+          "95" : "95 %",
+          "100" : "100 %"
+        }
+      },
       "hz_operationmode" : {
         "name" : "{prefix}Bedrijfsmodus",
         "state" : {
@@ -1222,9 +1239,11 @@
           "io_konf_in_18" : "Verwarmingscircuit ... normaal",
           "io_konf_in_19" : "Verwarmingscircuit ... comfort",
           "io_konf_in_2" : "Verhoogde werking",
-          "io_konf_in_20" : "2e warmtebron",
-          "io_konf_in_21" : "Compressor blokkeren",
           "io_konf_in_3" : "HK blokkeren",
+          "io_konf_in_33" : "2e warmtebron",
+          "io_konf_in_34" : "Compressor blokkeren",
+          "io_konf_in_35" : "Vermogensbegrenzing + blokkering",
+          "io_konf_in_36" : "Vermogensbegrenzing",
           "io_konf_in_4" : "HZ/koeling omschakeling",
           "io_konf_in_5" : "Slaapmodus",
           "io_konf_in_6" : "Noodstop",
@@ -1250,9 +1269,11 @@
           "io_konf_in_18" : "Verwarmingscircuit ... normaal",
           "io_konf_in_19" : "Verwarmingscircuit ... comfort",
           "io_konf_in_2" : "Verhoogde werking",
-          "io_konf_in_20" : "2e warmtebron",
-          "io_konf_in_21" : "Compressor blokkeren",
           "io_konf_in_3" : "HK blokkeren",
+          "io_konf_in_33" : "2e warmtebron",
+          "io_konf_in_34" : "Compressor blokkeren",
+          "io_konf_in_35" : "Vermogensbegrenzing + blokkering",
+          "io_konf_in_36" : "Vermogensbegrenzing",
           "io_konf_in_4" : "HZ/koeling omschakeling",
           "io_konf_in_5" : "Slaapmodus",
           "io_konf_in_6" : "Noodstop",
@@ -1278,9 +1299,11 @@
           "io_konf_in_18" : "Verwarmingscircuit ... normaal",
           "io_konf_in_19" : "Verwarmingscircuit ... comfort",
           "io_konf_in_2" : "Verhoogde werking",
-          "io_konf_in_20" : "2e warmtebron",
-          "io_konf_in_21" : "Compressor blokkeren",
           "io_konf_in_3" : "HK blokkeren",
+          "io_konf_in_33" : "2e warmtebron",
+          "io_konf_in_34" : "Compressor blokkeren",
+          "io_konf_in_35" : "Vermogensbegrenzing + blokkering",
+          "io_konf_in_36" : "Vermogensbegrenzing",
           "io_konf_in_4" : "HZ/koeling omschakeling",
           "io_konf_in_5" : "Slaapmodus",
           "io_konf_in_6" : "Noodstop",
@@ -1306,9 +1329,11 @@
           "io_konf_in_18" : "Verwarmingscircuit ... normaal",
           "io_konf_in_19" : "Verwarmingscircuit ... comfort",
           "io_konf_in_2" : "Verhoogde werking",
-          "io_konf_in_20" : "2e warmtebron",
-          "io_konf_in_21" : "Compressor blokkeren",
           "io_konf_in_3" : "HK blokkeren",
+          "io_konf_in_33" : "2e warmtebron",
+          "io_konf_in_34" : "Compressor blokkeren",
+          "io_konf_in_35" : "Vermogensbegrenzing + blokkering",
+          "io_konf_in_36" : "Vermogensbegrenzing",
           "io_konf_in_4" : "HZ/koeling omschakeling",
           "io_konf_in_5" : "Slaapmodus",
           "io_konf_in_6" : "Noodstop",
@@ -1334,9 +1359,11 @@
           "io_konf_in_18" : "Verwarmingscircuit ... normaal",
           "io_konf_in_19" : "Verwarmingscircuit ... comfort",
           "io_konf_in_2" : "Verhoogde werking",
-          "io_konf_in_20" : "2e warmtebron",
-          "io_konf_in_21" : "Compressor blokkeren",
           "io_konf_in_3" : "HK blokkeren",
+          "io_konf_in_33" : "2e warmtebron",
+          "io_konf_in_34" : "Compressor blokkeren",
+          "io_konf_in_35" : "Vermogensbegrenzing + blokkering",
+          "io_konf_in_36" : "Vermogensbegrenzing",
           "io_konf_in_4" : "HZ/koeling omschakeling",
           "io_konf_in_5" : "Slaapmodus",
           "io_konf_in_6" : "Noodstop",
@@ -1362,9 +1389,11 @@
           "io_konf_in_18" : "Verwarmingscircuit ... normaal",
           "io_konf_in_19" : "Verwarmingscircuit ... comfort",
           "io_konf_in_2" : "Verhoogde werking",
-          "io_konf_in_20" : "2e warmtebron",
-          "io_konf_in_21" : "Compressor blokkeren",
           "io_konf_in_3" : "HK blokkeren",
+          "io_konf_in_33" : "2e warmtebron",
+          "io_konf_in_34" : "Compressor blokkeren",
+          "io_konf_in_35" : "Vermogensbegrenzing + blokkering",
+          "io_konf_in_36" : "Vermogensbegrenzing",
           "io_konf_in_4" : "HZ/koeling omschakeling",
           "io_konf_in_5" : "Slaapmodus",
           "io_konf_in_6" : "Noodstop",
@@ -1390,9 +1419,11 @@
           "io_konf_in_18" : "Verwarmingscircuit ... normaal",
           "io_konf_in_19" : "Verwarmingscircuit ... comfort",
           "io_konf_in_2" : "Verhoogde werking",
-          "io_konf_in_20" : "2e warmtebron",
-          "io_konf_in_21" : "Compressor blokkeren",
           "io_konf_in_3" : "HK blokkeren",
+          "io_konf_in_33" : "2e warmtebron",
+          "io_konf_in_34" : "Compressor blokkeren",
+          "io_konf_in_35" : "Vermogensbegrenzing + blokkering",
+          "io_konf_in_36" : "Vermogensbegrenzing",
           "io_konf_in_4" : "HZ/koeling omschakeling",
           "io_konf_in_5" : "Slaapmodus",
           "io_konf_in_6" : "Noodstop",
@@ -1418,9 +1449,11 @@
           "io_konf_in_18" : "Verwarmingscircuit ... normaal",
           "io_konf_in_19" : "Verwarmingscircuit ... comfort",
           "io_konf_in_2" : "Verhoogde werking",
-          "io_konf_in_20" : "2e warmtebron",
-          "io_konf_in_21" : "Compressor blokkeren",
           "io_konf_in_3" : "HK blokkeren",
+          "io_konf_in_33" : "2e warmtebron",
+          "io_konf_in_34" : "Compressor blokkeren",
+          "io_konf_in_35" : "Vermogensbegrenzing + blokkering",
+          "io_konf_in_36" : "Vermogensbegrenzing",
           "io_konf_in_4" : "HZ/koeling omschakeling",
           "io_konf_in_5" : "Slaapmodus",
           "io_konf_in_6" : "Noodstop",
@@ -2130,7 +2163,8 @@
           "heating_circuit_interval_minutes" : "Interval van de verwarmingscircuitpagina (minuten)",
           "second_generator_interval_minutes" : "Interval van de pagina 2e warmtebron (minuten)",
           "settings_interval_minutes" : "Interval van de instellingenpagina's (minuten)",
-          "settings_written_per_day" : "Geschreven instellingen per dag"
+          "settings_written_per_day" : "Geschreven instellingen per dag",
+          "read_modulation" : "Modulatie warm water lezen en instellen"
         },
         "data_description" : {
           "heat_pump_interval_minutes" : "Hoe vaak de warmtepomppagina wordt gelezen, 1 tot 60 minuten. Een wijziging laadt de vermelding opnieuw.",
@@ -2139,7 +2173,8 @@
           "heating_circuit_interval_minutes" : "Hoe vaak de gemiddelde buitentemperaturen worden gelezen, 1 tot 60 minuten.",
           "second_generator_interval_minutes" : "Hoe vaak de schakelcycli van de verwarmingselementtrappen worden gelezen, 1 tot 60 minuten.",
           "settings_interval_minutes" : "Hoe vaak de instellingen van de verwarmingscircuits en het warm water worden gelezen, 1 tot 60 minuten.",
-          "settings_written_per_day" : "Er worden per dag hoogstens zoveel instellingen geschreven, zoals de vermogensbegrenzing verwarmen; 0 schakelt de limiet uit. De regelaar slaat elke instelling op in zijn EEPROM, dat slechts een beperkt aantal schrijfbewerkingen verdraagt."
+          "settings_written_per_day" : "Er worden per dag hoogstens zoveel instellingen geschreven, zoals de vermogensbegrenzing verwarmen; 0 schakelt de limiet uit. De regelaar slaat elke instelling op in zijn EEPROM, dat slechts een beperkt aantal schrijfbewerkingen verdraagt.",
+          "read_modulation" : "Leest daarvoor één pagina meer, één keer per uur. Uit spaart de regelaar."
         }
       }
     }
@@ -2215,7 +2250,7 @@
       "message" : "Meerdere pagina's van de webinterface zijn onder één adres opgeslagen, waaronder een die deze vermelding moet lezen. Kies **Opnieuw configureren** bij deze vermelding om alle pagina's opnieuw te zoeken."
     },
     "webif_write_reloading" : {
-      "message" : "De webinterface-vermelding wordt opnieuw geladen, omdat twee van haar pagina's één adres hadden. Er is niets verzonden; probeer het opnieuw zodra ze geladen is."
+      "message" : "De webinterface-vermelding wordt opnieuw geladen, omdat niet al haar pagina's op hun nieuwe adressen zeker konden worden toegewezen. Er is niets verzonden; probeer het opnieuw zodra ze geladen is."
     }
   },
   "issues" : {
@@ -2237,7 +2272,7 @@
     },
     "webif_pages_shared" : {
       "title" : "Pagina's van de webinterface weggelaten",
-      "description" : "Weggelaten: {pages}. Elke pagina had hetzelfde adres als een andere; een waarde die daar gelezen of geschreven wordt, kan bij beide horen. De webinterface-vermelding leest en schrijft ze daarom niet meer; haar andere pagina's en Modbus blijven gewoon werken. Kies **Opnieuw configureren** bij de webinterface-vermelding: daarbij worden alle pagina's opnieuw gezocht, en deze melding verdwijnt."
+      "description" : "Weggelaten: {pages}. Naar welke pagina hun adres leidt, viel niet zeker te zeggen; een waarde die daar gelezen of geschreven wordt, kan bij een andere instelling horen. De webinterface-vermelding leest en schrijft ze daarom niet meer; haar andere pagina's en Modbus blijven gewoon werken. Kies **Opnieuw configureren** bij de webinterface-vermelding: daarbij worden alle pagina's opnieuw gezocht, en deze melding verdwijnt."
     }
   }
 }

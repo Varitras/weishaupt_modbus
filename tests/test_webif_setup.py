@@ -15,7 +15,7 @@ from pytest_homeassistant_custom_component.common import (
     mock_restore_cache_with_extra_data,
 )
 
-from custom_components.weishaupt_modbus import webif_coordinator
+from custom_components.weishaupt_modbus import webif_coordinator, webif_polled
 from custom_components.weishaupt_modbus.config_flow import ConfigFlow
 from custom_components.weishaupt_modbus.configentry import HOST_LOCKS, host_lock
 from custom_components.weishaupt_modbus.const import CONF, CONST, DEVICES
@@ -105,8 +105,10 @@ EVERY_SENSOR = (*WBB_SENSORS, *TRAFFIC_SENSORS, ANSWER_TIME)
 # And the setting a WBB has written, a number, with the counts of its writes.
 EVERY_ENTITY = (*EVERY_SENSOR, POWER_LIMIT, *WEBIF_WRITE_COUNTER_DESCRIPTIONS)
 SHOWN: dict = {}
+# The three pages a WBB entry polls unless asked for more.
 for sensor in VALUES[WBB]:
-    SHOWN.setdefault(sensor.page, {})[sensor.title] = SAMPLE[sensor.shown_unit]
+    if sensor.page in PAGES:
+        SHOWN.setdefault(sensor.page, {})[sensor.title] = SAMPLE[sensor.shown_unit]
 HEATING_LINKS = {
     "Schaltdifferenz": SWITCHING_DIFFERENCE,
     "Leistungsbegrenzung": POWER_LIMIT_SEGMENT,
@@ -285,7 +287,7 @@ async def test_a_first_round_failing_leaves_no_session_behind(hass, pump, monkey
     def unreadable(self, text):
         raise ValueError("a page layout nobody expected")
 
-    monkeypatch.setattr(webif_coordinator.Page, "read", unreadable)
+    monkeypatch.setattr(webif_polled.Page, "read", unreadable)
 
     entry = await _start(hass, _entries(hass, pump))
 

@@ -26,11 +26,12 @@ from custom_components.weishaupt_modbus.webif.discovery import (
 )
 from custom_components.weishaupt_modbus.webif.setting import (
     MINIMUM_TEMPERATURE,
+    MODULATION,
     POWER_LIMIT,
     Setting,
     shown_tenths,
 )
-from custom_components.weishaupt_modbus.webif_coordinator import polled_pages
+from custom_components.weishaupt_modbus.webif_polled import polled_pages
 from custom_components.weishaupt_modbus.webif_sensor import (
     ENGLISH_TITLES,
     EVOBLOCK,
@@ -294,8 +295,8 @@ async def test_the_dialog_leaves_out_a_menu_without_its_settings_unsearched(hass
 
 
 async def test_a_circuit_info_does_not_list_is_not_looked_for(pump, client):
-    """The Evoblock's first circuit is the heat pump itself: its menu holds
-    a switch, no settings page."""
+    """An Evoblock's circuit 1, switched off, is not listed by Info; its
+    settings page holds the switch alone (screenshot, 2026-11-17)."""
     pump.site[STACK + INFO] = info_menu().replace("Heizkreis 3", "Heizkreis 9")
 
     await settings_found(client)
@@ -427,6 +428,17 @@ async def test_two_circuits_at_one_settings_page_are_both_left_out(pump, client)
     }
 
 
+async def test_two_circuits_at_one_menu_are_left_out_when_info_lists_one(pump, client):
+    """Info listing only circuit 3 hid the doubled link from a check made
+    after its filter: circuit 3 got circuit 2's menu."""
+    pump.site[webif.OVERVIEW] = SHARED_OVERVIEW
+    pump.site[STACK + INFO] = info_menu().replace("Heizkreis 2", "Heizkreis 9")
+
+    assert await settings_found(client) == {
+        HOT_WATER_SETTINGS_PAGE: SETTINGS[HOT_WATER_SETTINGS_PAGE]
+    }
+
+
 async def test_the_dialog_leaves_out_two_circuits_at_one_settings_page(hass, pump):
     pump.site[webif.OVERVIEW] = SHARED_OVERVIEW
 
@@ -480,18 +492,25 @@ def test_a_temperature_is_the_option_of_its_tenths(shown_value, tenths):
     assert shown_tenths(shown_value) == tenths
 
 
-def test_only_the_power_limit_and_the_minimum_temperature_can_be_written():
+def test_only_the_power_limit_the_minimum_temperature_and_the_modulation_are_written():
     """Spec: nothing else can be written. A Setting is what write_setting
-    takes; the module defines these two and no other."""
+    takes; the module defines these three and no other. The modulation, an
+    Evoblock's, user wish 2026-11-18."""
     defined = {
         name
         for name, value in inspect.getmembers(setting)
         if isinstance(value, Setting)
     }
 
-    assert defined == {"POWER_LIMIT", "MINIMUM_TEMPERATURE"}
+    assert defined == {"POWER_LIMIT", "MINIMUM_TEMPERATURE", "MODULATION"}
     assert POWER_LIMIT.titles[0] == "Leistungsbegrenzung"
     assert MINIMUM_TEMPERATURE.titles == ("Minimaltemperatur",)
+    assert MODULATION.titles == ("Modulation",)
+    assert [s.form_page for s in (POWER_LIMIT, MINIMUM_TEMPERATURE, MODULATION)] == [
+        False,
+        False,
+        True,
+    ]
 
 
 def _web_entry(hass, pump):
@@ -524,6 +543,33 @@ async def test_an_evoblock_entry_reads_each_circuits_settings(hass, pump):
     assert number.attributes["max"] == 55.0
     assert number.attributes["step"] == 0.5
     assert _number(hass, 1) is None
+
+
+def _without_a_name(pump):
+    """Circuit 3's settings with its name row blank, as if none were given."""
+    pump.circuits[3].values["Name"] = ""
+    pump.circuits[3].show()
+
+
+async def test_the_dialog_keeps_a_settings_page_whose_unread_row_is_blank(hass, pump):
+    """Nobody has seen how a circuit without a name shows the row; blank, it
+    must not leave the circuit's settings out."""
+    _without_a_name(pump)
+
+    visited = await read_web_interface(hass, pump.host, USER, PASSWORD)
+
+    assert circuit_settings_page(3) in visited.pages
+
+
+@pytest.mark.e2e
+@pytest.mark.timeout(120)
+async def test_a_blank_unread_row_keeps_the_circuits_settings_polled(hass, pump):
+    _without_a_name(pump)
+
+    await _start(hass, _web_entry(hass, pump))
+
+    assert hass.states.get(_number(hass, 3)).state == "33.0"
+    assert _state(hass, "hk3_maximaltemperatur") == "55.0"
 
 
 @pytest.mark.e2e

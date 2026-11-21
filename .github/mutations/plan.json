@@ -751,8 +751,8 @@
   {
     "label": "translations: the input functions must read as the controller names them",
     "path": "custom_components/weishaupt_modbus/translations/de.json",
-    "old": "\"name\": \"{prefix}Konf. Eingang H1.2\",\n                \"state\": {\n                    \"io_konf_in_0\": \"SG Ready 1.0\",\n                    \"io_konf_in_1\": \"EVU-Sperre\",\n                    \"io_konf_in_10\": \"Erzeugersperre HZ und WW\",\n                    \"io_konf_in_11\": \"Warmwasser Standby\",\n                    \"io_konf_in_12\": \"Warmwasser Absenk\",\n                    \"io_konf_in_13\": \"Warmwasser Normal\",\n                    \"io_konf_in_14\": \"Warmwasser PUSH\",\n                    \"io_konf_in_15\": \"Taupunktwächter\",\n                    \"io_konf_in_16\": \"Heizkreis … Standby\",\n                    \"io_konf_in_17\": \"Heizkreis … Absenk\",\n                    \"io_konf_in_18\": \"Heizkreis … Normal\",\n                    \"io_konf_in_19\": \"Heizkreis … Komfort\",\n                    \"io_konf_in_2\": \"Erhöhter Betrieb\",\n                    \"io_konf_in_20\": \"2.WEZ\",\n                    \"io_konf_in_21\": \"Sperre Verdichter\",\n                    \"io_konf_in_3\": \"HK-Sperre\",",
-    "new": "\"name\": \"{prefix}Konf. Eingang H1.2\",\n                \"state\": {\n                    \"io_konf_in_0\": \"SG Ready 1.0\",\n                    \"io_konf_in_1\": \"EVU-Sperre\",\n                    \"io_konf_in_10\": \"Erzeugersperre HZ und WW\",\n                    \"io_konf_in_11\": \"Warmwasser Standby\",\n                    \"io_konf_in_12\": \"Warmwasser Absenk\",\n                    \"io_konf_in_13\": \"Warmwasser Normal\",\n                    \"io_konf_in_14\": \"Warmwasser PUSH\",\n                    \"io_konf_in_15\": \"Taupunktwächter\",\n                    \"io_konf_in_16\": \"Heizkreis … Standby\",\n                    \"io_konf_in_17\": \"Heizkreis … Absenk\",\n                    \"io_konf_in_18\": \"Heizkreis … Normal\",\n                    \"io_konf_in_19\": \"Heizkreis … Komfort\",\n                    \"io_konf_in_2\": \"Erhöhter Betrieb\",\n                    \"io_konf_in_20\": \"2.WEZ\",\n                    \"io_konf_in_21\": \"Sperre Verdichter\",\n                    \"io_konf_in_3\": \"3\",",
+    "old": "\"name\": \"{prefix}Konf. Eingang H1.2\",\n                \"state\": {\n                    \"io_konf_in_0\": \"SG Ready 1.0\",\n                    \"io_konf_in_1\": \"EVU-Sperre\",\n                    \"io_konf_in_10\": \"Erzeugersperre HZ und WW\",\n                    \"io_konf_in_11\": \"Warmwasser Standby\",\n                    \"io_konf_in_12\": \"Warmwasser Absenk\",\n                    \"io_konf_in_13\": \"Warmwasser Normal\",\n                    \"io_konf_in_14\": \"Warmwasser PUSH\",\n                    \"io_konf_in_15\": \"Taupunktwächter\",\n                    \"io_konf_in_16\": \"Heizkreis … Standby\",\n                    \"io_konf_in_17\": \"Heizkreis … Absenk\",\n                    \"io_konf_in_18\": \"Heizkreis … Normal\",\n                    \"io_konf_in_19\": \"Heizkreis … Komfort\",\n                    \"io_konf_in_2\": \"Erhöhter Betrieb\",\n                    \"io_konf_in_3\": \"HK-Sperre\",",
+    "new": "\"name\": \"{prefix}Konf. Eingang H1.2\",\n                \"state\": {\n                    \"io_konf_in_0\": \"SG Ready 1.0\",\n                    \"io_konf_in_1\": \"EVU-Sperre\",\n                    \"io_konf_in_10\": \"Erzeugersperre HZ und WW\",\n                    \"io_konf_in_11\": \"Warmwasser Standby\",\n                    \"io_konf_in_12\": \"Warmwasser Absenk\",\n                    \"io_konf_in_13\": \"Warmwasser Normal\",\n                    \"io_konf_in_14\": \"Warmwasser PUSH\",\n                    \"io_konf_in_15\": \"Taupunktwächter\",\n                    \"io_konf_in_16\": \"Heizkreis … Standby\",\n                    \"io_konf_in_17\": \"Heizkreis … Absenk\",\n                    \"io_konf_in_18\": \"Heizkreis … Normal\",\n                    \"io_konf_in_19\": \"Heizkreis … Komfort\",\n                    \"io_konf_in_2\": \"Erhöhter Betrieb\",\n                    \"io_konf_in_3\": \"3\",",
     "tests": "input_functions_read_as_the_web_interface_names_them"
   },
   {
@@ -1450,7 +1450,7 @@
   },
   {
     "label": "webif coordinator: the heat pump page ignores its interval option",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
     "old": "            every(HEAT_PUMP_PAGE),\n",
     "new": "            timedelta(minutes=CONST.WEBIF_INTERVAL_MINUTES),\n",
     "tests": "follows_the_interval_option"
@@ -1898,21 +1898,21 @@
   },
   {
     "label": "webif coordinator: the statistics ignore their interval option",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
     "old": "            every(STATISTICS_PAGE),\n",
     "new": "            timedelta(minutes=CONST.WEBIF_SLOW_INTERVAL_MINUTES),\n",
     "tests": "each_page_follows_its_own_interval_option"
   },
   {
     "label": "webif coordinator: the heating settings ignore their interval option",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
     "old": "            every(HEATING_PAGE),\n",
     "new": "            timedelta(minutes=CONST.WEBIF_SLOW_INTERVAL_MINUTES),\n",
     "tests": "each_page_follows_its_own_interval_option"
   },
   {
     "label": "webif coordinator: every page keeps its default interval",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
     "old": "        return timedelta(minutes=options.get(option, default))\n",
     "new": "        return timedelta(minutes=default)\n",
     "tests": "each_page_follows_its_own_interval_option or statistics_interval_below"
@@ -2381,14 +2381,14 @@
   },
   {
     "label": "webif coordinator: a title shown twice is not unclear",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
     "old": "        twice = {title for title in self.required | self.optional if counts[title] > 1}\n",
     "new": "        twice = set()\n",
     "tests": "values_shown_empty_or_twice_are_named"
   },
   {
     "label": "webif coordinator: an empty value is not unclear",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
     "old": "        empty = {title for title, shown in found if not shown}\n",
     "new": "        empty = set()\n",
     "tests": "values_shown_empty_or_twice_are_named"
@@ -2984,22 +2984,22 @@
   {
     "label": "capture: a page that shows nothing is not taken",
     "path": "tools/webif_capture.py",
-    "old": "    return bool(entries) and (\n",
-    "new": "    return True and (\n",
+    "old": "    if not entries:\n        return False\n",
+    "new": "    if False:\n        return False\n",
     "tests": "page_served_half_is_asked_for_again_after_a_minute"
   },
   {
     "label": "capture: a page with a blank value is not taken",
     "path": "tools/webif_capture.py",
-    "old": "        not step.shows_values or all(entry.text for entry in entries)\n",
-    "new": "        True\n",
+    "old": "        step.optional or not step.shows_values or all(entry.text for entry in entries)\n",
+    "new": "        step.optional or not step.shows_values or True\n",
     "tests": "page_served_half_is_asked_for_again_after_a_minute"
   },
   {
     "label": "capture: a later attempt asks only for what is missing",
     "path": "tools/webif_capture.py",
-    "old": "        if step.key in walk.read:\n            continue\n",
-    "new": "",
+    "old": "        if step.key in walk.read or step.key in walk.absent:\n            continue\n",
+    "new": "        if step.key in walk.absent:\n            continue\n",
     "tests": "page_served_half_is_asked_for_again_after_a_minute"
   },
   {
@@ -3208,7 +3208,7 @@
   {
     "label": "capture: a page showing another page's values is not taken",
     "path": "tools/webif_capture.py",
-    "old": "    return None if step.menu or not twins else twins[0]\n",
+    "old": "    return twins[0] if twins else None\n",
     "new": "    return None\n",
     "tests": "page_showing_another_sections_values_is_read_again"
   },
@@ -3509,8 +3509,8 @@
   {
     "label": "power limit number: the heating page no longer requires its title",
     "path": "custom_components/weishaupt_modbus/webif_sensor.py",
-    "old": "READ_VALUES = (*WEBIF_SENSORS, POWER_LIMIT, *MINIMUM_TEMPERATURES.values())\n",
-    "new": "READ_VALUES = (*WEBIF_SENSORS, *MINIMUM_TEMPERATURES.values())\n",
+    "old": "READ_VALUES = (\n    *WEBIF_SENSORS,\n    POWER_LIMIT,\n",
+    "new": "READ_VALUES = (\n    *WEBIF_SENSORS,\n",
     "tests": "heating_page_still_requires_the_power_limit"
   },
   {
@@ -3648,28 +3648,28 @@
   },
   {
     "label": "webif english: a page is read under the titles it shows",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
     "old": "        return [(self.english.get(title, title), shown) for title, shown in found]\n",
     "new": "        return found\n",
     "tests": "reads_each_page_it_found_once or become_sensors_on_a_device or power_limit_is_set_from_home_assistant or reads_the_form_saves_once"
   },
   {
     "label": "webif english: the heat pump page gets no English titles",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
     "old": "            english=english[HEAT_PUMP_PAGE],\n",
     "new": "",
     "tests": "reads_each_page_it_found_once or become_sensors_on_a_device or power_limit_is_set_from_home_assistant or reads_the_form_saves_once"
   },
   {
     "label": "webif english: the statistics page gets no English titles",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
     "old": "            english=english[STATISTICS_PAGE],\n",
     "new": "",
     "tests": "reads_each_page_it_found_once or become_sensors_on_a_device or power_limit_is_set_from_home_assistant or reads_the_form_saves_once"
   },
   {
     "label": "webif english: the heating page gets no English titles",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
     "old": "            english=english[HEATING_PAGE],\n",
     "new": "",
     "tests": "reads_each_page_it_found_once or become_sensors_on_a_device or power_limit_is_set_from_home_assistant or reads_the_form_saves_once"
@@ -3718,7 +3718,7 @@
   },
   {
     "label": "webif english: a page with English titles cannot be hashed",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
     "old": "    english: Mapping[str, str] = field(default_factory=dict, hash=False)\n",
     "new": "    english: Mapping[str, str] = field(default_factory=dict)\n",
     "tests": "can_be_hashed"
@@ -4020,8 +4020,29 @@
   {
     "label": "webif pages: an option in digits other than ASCII is read",
     "path": "custom_components/weishaupt_modbus/webif/pages.py",
-    "old": "        and all(option.isascii() and option.isdecimal() for option, _ in parser.options)\n",
-    "new": "        and all(option.isdecimal() for option, _ in parser.options)\n",
+    "old": "    return digits.isascii() and digits.isdecimal()\n",
+    "new": "    return digits.isdecimal()\n",
+    "tests": "form_missing_a_part_is_not_read"
+  },
+  {
+    "label": "webif pages: Automatik's minus one is refused",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "    digits = option.removeprefix(\"-\")\n",
+    "new": "    digits = option\n",
+    "tests": "automatik_is_read_as_the_option_minus_one"
+  },
+  {
+    "label": "webif pages: an option with two minus signs is read",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "    digits = option.removeprefix(\"-\")\n",
+    "new": "    digits = option.lstrip(\"-\")\n",
+    "tests": "form_missing_a_part_is_not_read"
+  },
+  {
+    "label": "webif pages: a minus inside an option is read",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "    digits = option.removeprefix(\"-\")\n",
+    "new": "    digits = option.replace(\"-\", \"\", 1)\n",
     "tests": "form_missing_a_part_is_not_read"
   },
   {
@@ -4048,8 +4069,8 @@
   {
     "label": "webif pages: a form's parts spread over two forms are read",
     "path": "custom_components/weishaupt_modbus/webif/pages.py",
-    "old": "        parser.forms == 1\n",
-    "new": "        parser.forms >= 1\n",
+    "old": "        parser.forms == parser.forms_closed == 1\n",
+    "new": "        parser.forms >= 1 and parser.forms_closed >= 1\n",
     "tests": "form_missing_a_part_is_not_read"
   },
   {
@@ -4698,14 +4719,14 @@
   },
   {
     "label": "webif coordinator: five lacking titles are counted, not named",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
     "old": "    if len(titles) > TITLES_NAMED:\n",
     "new": "    if len(titles) >= TITLES_NAMED:\n",
     "tests": "page_lacking_more_than_five_titles_counts_them"
   },
   {
     "label": "webif coordinator: a broken page names no blank titles",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
     "old": "            (\"blank or doubled\", self.unclear(text)),\n",
     "new": "",
     "tests": "broken_page_names_the_titles_that_made_it_so"
@@ -4733,7 +4754,7 @@
   },
   {
     "label": "webif coordinator: a value without a title is named by nothing",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
     "old": "    return \", \".join(sorted(title or \"untitled\" for title in titles))\n",
     "new": "    return \", \".join(sorted(titles))\n",
     "tests": "value_without_a_title_is_named_untitled"
@@ -4814,20 +4835,6 @@
     "old": "UNREACHABLE = (ModbusTimeoutError, ModbusConnectionError)\n",
     "new": "UNREACHABLE = (ModbusTimeoutError, ModbusError)\n",
     "tests": "logged_as_info"
-  },
-  {
-    "label": "capture: a menu with nothing to open goes to the pick",
-    "path": "tools/webif_capture.py",
-    "old": "    if not offered:\n",
-    "new": "    if False:\n",
-    "tests": "nothing_to_open"
-  },
-  {
-    "label": "capture: a menu with nothing to open is kept",
-    "path": "tools/webif_capture.py",
-    "old": "        del walk.read[step.parent]\n",
-    "new": "        pass\n",
-    "tests": "nothing_to_open"
   },
   {
     "label": "scan tool: a register answer to another function is a reading",
@@ -5181,7 +5188,7 @@
   },
   {
     "label": "webif family: the doubled conditional row is not named",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
     "old": "        twice = {title for title in self.required | self.optional if counts[title] > 1}\n",
     "new": "        twice = {title for title in self.required if counts[title] > 1}\n",
     "tests": "conditional_row_shown_twice"
@@ -5209,9 +5216,9 @@
   },
   {
     "label": "webif family: polling lets a doubled conditional row pass",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        return pages.is_complete(self.read(text), self.required, self.optional)\n",
-    "new": "        return pages.is_complete(self.read(text), self.required)\n",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "        complete = pages.is_complete(self._judged(text), self.required, self.optional)\n",
+    "new": "        complete = pages.is_complete(self._judged(text), self.required)\n",
     "tests": "doubled_conditional_row_stops_polling"
   },
   {
@@ -5286,9 +5293,9 @@
   },
   {
     "label": "webif coordinator: an optional page without sensors is polled",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            if key in paths and required.get(key)\n",
-    "new": "            if key in paths\n",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "            if key in paths and required.get(key) and asked_for(key)\n",
+    "new": "            if key in paths and asked_for(key)\n",
     "tests": "polled_only_where_found_and_read"
   },
   {
@@ -5314,8 +5321,8 @@
   },
   {
     "label": "webif coordinator: a settings page is read as a page of values",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "                menu=key in (*CIRCUIT_SETTINGS_PAGES, HOT_WATER_SETTINGS_PAGE),\n",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "                menu=key in SETTINGS_PAGES,\n",
     "new": "                menu=False,\n",
     "tests": "settings_page_is_a_menu_on_the_settings_interval"
   },
@@ -5462,8 +5469,8 @@
   {
     "label": "webif discovery: every overview is taken for a moved page",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
-    "old": "    return all(link.partition(pages.STACK_QUERY)[2] != first for link in menus.values())\n",
-    "new": "    return True\n",
+    "old": "        link.partition(pages.STACK_QUERY)[2] != first\n",
+    "new": "        True\n",
     "tests": "served_half_or_whole_says_no_page_moved or old_codes_is_asked_again_not_searched"
   },
   {
@@ -5504,8 +5511,8 @@
   {
     "label": "webif coordinator: the overview in place of a page is asked for twice",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "    return page.is_whole(text) or moved(text, page.path)\n",
-    "new": "    return page.is_whole(text)\n",
+    "old": "    return page.is_whole(text) or moved(text, page.path) or page.under_another(text)\n",
+    "new": "    return page.is_whole(text) or page.under_another(text)\n",
     "tests": "moved_pages_are_found_again_from_the_overview or moved_again_at_their_new_addresses"
   },
   {
@@ -5518,8 +5525,8 @@
   {
     "label": "webif coordinator: one search for good, not one a round",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        self._searched_in_round = False\n        # By key",
-    "new": "        # By key",
+    "old": "        self._searched_in_round = False\n        self._search_failed = False\n        # By key",
+    "new": "        self._search_failed = False\n        # By key",
     "tests": "codes_changed_twice_are_found_twice"
   },
   {
@@ -5607,6 +5614,125 @@
     "tests": "stopped_right_after_the_search_is_asked_at_its_new_address"
   },
   {
+    "label": "modulation: not taken from the heat pump menu",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        **_modulation(menus.heat_pump),\n",
+    "new": "",
+    "tests": "found_by_its_title_in_the_heat_pump_menu or dialog_keeps_it_on_an_evoblock or found_again_under_new_codes"
+  },
+  {
+    "label": "modulation: a heat pump menu without it fails on a missing key",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        if MODULATION_TITLE in heat_pump\n",
+    "new": "        if True\n",
+    "tests": "heat_pump_menu_without_it_leaves_it_out"
+  },
+  {
+    "label": "modulation: another setting's form passes for its value",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    if form is None or form.path != path or form.type != SETTING_LIST:\n",
+    "new": "    if form is None or form.type != SETTING_LIST:\n",
+    "tests": "without_its_own_form_is_not_whole or read_back_not_of_its_own_form"
+  },
+  {
+    "label": "modulation: its page is read as a page of values",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "                form=MODULATION_TITLE if key == MODULATION_PAGE else None,\n",
+    "new": "                form=None,\n",
+    "tests": "dialog_keeps_it_on_an_evoblock or polled_hourly_once_switched_on"
+  },
+  {
+    "label": "modulation: its write is named with its title twice",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if self.setting.form_page:\n",
+    "new": "        if False:\n",
+    "tests": "form_does_not_offer_is_not_sent or another_option_read_back_is_named"
+  },
+  {
+    "label": "modulation: its write looks for a page of values before its form",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    if setting.form_page:\n",
+    "new": "    if False:\n",
+    "tests": "it_is_set_from_home_assistant"
+  },
+  {
+    "label": "modulation: another setting's form in its place is sent",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        return own_form(text, path)\n",
+    "new": "        return pages.setting_form(text)\n",
+    "tests": "form_not_its_own_is_not_sent"
+  },
+  {
+    "label": "modulation: the option shown already is saved again",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    if form.selected == target:\n        return page\n",
+    "new": "",
+    "tests": "option_shown_already_sends_nothing"
+  },
+  {
+    "label": "modulation: an option the form does not offer is sent",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    if target not in form.offered:\n",
+    "new": "    if False:\n",
+    "tests": "form_does_not_offer_is_not_sent"
+  },
+  {
+    "label": "modulation: a form of another type is sent",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    if form is None or form.path != path or form.type != SETTING_LIST:\n",
+    "new": "    if form is None or form.path != path:\n",
+    "tests": "modulation_form_of_another_type_is_not_sent or read_back_not_of_its_own_form"
+  },
+  {
+    "label": "modulation: what its save left is not read back",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        return read_back, now.selected\n",
+    "new": "        return read_back, target\n",
+    "tests": "another_option_read_back_is_named"
+  },
+  {
+    "label": "modulation: Automatik reads as no option",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "    digits = option.removeprefix(\"-\")\n",
+    "new": "    digits = option\n",
+    "tests": "it_is_set_from_home_assistant"
+  },
+  {
+    "label": "modulation: Automatik is named as minus one",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "    lambda option: AUTOMATIC_SHOWN if option == AUTOMATIC else f\"{option} {PERCENT}\",\n",
+    "new": "    lambda option: f\"{option} {PERCENT}\",\n",
+    "tests": "another_option_read_back_is_named"
+  },
+  {
+    "label": "modulation: an entry that does not poll it gets the choice",
+    "path": "custom_components/weishaupt_modbus/select.py",
+    "old": "        if web.coordinator.polls(MODULATION_PAGE) and (\n",
+    "new": "        if True and (\n",
+    "tests": "entry_without_it_gets_no_choice or neither_read_nor_offered_until_switched_on"
+  },
+  {
+    "label": "modulation: a WBB must get the choice too",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "MODULATION = _text(\"modulation\", MODULATION_TITLE, NOT_SEEN, page=MODULATION_PAGE)\n",
+    "new": "MODULATION = _text(\n    \"modulation\", MODULATION_TITLE, NOT_SEEN, page=MODULATION_PAGE, models=ONLY_EVOBLOCK\n)\n",
+    "tests": "wbb_keeps_it_too or wbb_entry_gets_the_choice_too"
+  },
+  {
+    "label": "modulation: the web entry sets up no choices",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "WEBIF_PLATFORMS: list[str] = [\"number\", \"select\", \"sensor\"]\n",
+    "new": "WEBIF_PLATFORMS: list[str] = [\"number\", \"sensor\"]\n",
+    "tests": "shows_it_as_a_choice"
+  },
+  {
+    "label": "modulation: an Evoblock does not read it",
+    "path": "custom_components/weishaupt_modbus/webif_sensor.py",
+    "old": "    *MINIMUM_TEMPERATURES.values(),\n    MODULATION,\n)\n",
+    "new": "    *MINIMUM_TEMPERATURES.values(),\n)\n",
+    "tests": "dialog_keeps_it_on_an_evoblock"
+  },
+  {
     "label": "webif discovery: pages at one address must be named",
     "path": "custom_components/weishaupt_modbus/webif/discovery.py",
     "old": "    return {key for key, path in paths.items() if counts[path] > 1}\n",
@@ -5616,8 +5742,8 @@
   {
     "label": "webif coordinator: a lost page at a found page's address must be left out",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        if gone := {key for key in shared_addresses(pages) if key not in found}:\n",
-    "new": "        if gone := set():\n",
+    "old": "        gone = {key for key in shared_addresses(pages) if key not in found}\n",
+    "new": "        gone = set()\n",
     "tests": "lost_page_at_a_found_pages_address or no_write_goes_out_once_a_lost_page or lost_circuit_sends_nothing"
   },
   {
@@ -5668,5 +5794,383 @@
     "old": "    clear_shared_notice(hass, entry.entry_id)\n",
     "new": "",
     "tests": "notice_of_pages_left_out_outlasts_a_restart"
+  },
+  {
+    "label": "modulation: two quick choices must make one write",
+    "path": "custom_components/weishaupt_modbus/select.py",
+    "old": "PARALLEL_UPDATES = 0\n",
+    "new": "PARALLEL_UPDATES = 1\n",
+    "tests": "two_choices_within_the_quiet_time"
+  },
+  {
+    "label": "modulation: it must stay unread unless switched on",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "        return key != MODULATION_PAGE or options.get(\n",
+    "new": "        return True or options.get(\n",
+    "tests": "not_polled_unless_switched_on or neither_read_nor_offered_until_switched_on"
+  },
+  {
+    "label": "modulation: it must be read hourly",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "MODULATION_INTERVAL = timedelta(hours=1)\n",
+    "new": "MODULATION_INTERVAL = timedelta(minutes=15)\n",
+    "tests": "polled_hourly_once_switched_on"
+  },
+  {
+    "label": "modulation: the options must offer its switch where found",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                    if MODULATION_PAGE in polled\n",
+    "new": "                    if False\n",
+    "tests": "offer_its_switch_as_saved"
+  },
+  {
+    "label": "modulation: the dialog must check it although it is off",
+    "path": "custom_components/weishaupt_modbus/webif_visit.py",
+    "old": "                {CONST.OPTION_WEBIF_MODULATION: True},\n",
+    "new": "                {},\n",
+    "tests": "dialog_keeps_it_on_an_evoblock or wbb_keeps_it_too"
+  },
+  {
+    "label": "modulation: a stopped polling must show no frozen choice",
+    "path": "custom_components/weishaupt_modbus/webif_select.py",
+    "old": "        if not self.coordinator.last_update_success:\n            return None\n",
+    "new": "",
+    "tests": "stopped_polling_shows_no_frozen_choice"
+  },
+  {
+    "label": "webif coordinator: a lost form page must be left out",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        gone |= {key for key in FORM_PAGES if key in polled and key not in found}\n",
+    "new": "",
+    "tests": "lost_modulation_is_left_out_rather_than_read_at_its_old_address"
+  },
+  {
+    "label": "webif setting: a row whose link another row shares must not be written",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        and links[href] == 1\n",
+    "new": "",
+    "tests": "two_rows_linking_to_one_form_send_nothing"
+  },
+  {
+    "label": "webif discovery: the move check must compare every main menu's link",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "        for _, link in pages.main_menus(text)\n",
+    "new": "        for link in menus.values()\n",
+    "tests": "half_page_with_two_main_menus_at_one_link"
+  },
+  {
+    "label": "webif coordinator: pages after a failed search must not fail as moved again",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if self._search_failed:\n",
+    "new": "        if False:\n",
+    "tests": "pages_after_a_failed_search_fail_for_it"
+  },
+  {
+    "label": "webif coordinator: each circuit's setting must have its own burst",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        key = (page, setting.title)\n",
+    "new": "        key = (\"\", setting.title)\n",
+    "tests": "two_circuits_set_within_the_quiet_time_each_get_their_value"
+  },
+  {
+    "label": "capture: an optional page not shown must not be offered to pick",
+    "path": "tools/webif_capture.py",
+    "old": "    elif step.optional:\n        return None\n",
+    "new": "    elif False:\n        return None\n",
+    "tests": "never_offered_to_pick or a_pump_does_not_show_are_named_absent"
+  },
+  {
+    "label": "capture: another setting's form must not pass for the modulation's",
+    "path": "tools/webif_capture.py",
+    "old": "        if form is None or form.path != path or form.type != SETTING_LIST:\n",
+    "new": "        if form is None or form.type != SETTING_LIST:\n",
+    "tests": "modulation_page_without_its_own_form"
+  },
+  {
+    "label": "capture: the lowest circuit must be read",
+    "path": "tools/webif_capture.py",
+    "old": "    lowest = min(number for number, _ in circuits)\n",
+    "new": "    lowest = max(number for number, _ in circuits)\n",
+    "tests": "only_some_pumps_show_are_read_where_shown"
+  },
+  {
+    "label": "capture: an optional page's row without a value must not fail the run",
+    "path": "tools/webif_capture.py",
+    "old": "        step.optional or not step.shows_values or all(entry.text for entry in entries)\n",
+    "new": "        not step.shows_values or all(entry.text for entry in entries)\n",
+    "tests": "only_some_pumps_show_are_read_where_shown"
+  },
+  {
+    "label": "webif circuit owner: a page under another circuit's menu must not count",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "        return self.owner is None or leads_from(text, self.path, self.owner)\n",
+    "new": "        return True\n",
+    "tests": "retired_circuit_neither_shows_nor_sets"
+  },
+  {
+    "label": "webif circuit owner: each circuit's settings page must have its owner",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "                owner=CIRCUIT_OWNERS.get(key),\n",
+    "new": "                owner=None,\n",
+    "tests": "retired_circuit_neither_shows_nor_sets"
+  },
+  {
+    "label": "webif circuit owner: the menu at the address must be the circuit's",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "    return shown[title] == 1 and menu_owners(text, path) == [title]\n",
+    "new": "    return shown[title] == 1 and bool(menu_owners(text, path))\n",
+    "tests": "its_one_clear_menu or retired_circuit_neither_shows_nor_sets"
+  },
+  {
+    "label": "webif form: a form not closed must not be read",
+    "path": "custom_components/weishaupt_modbus/webif/pages.py",
+    "old": "        parser.forms == parser.forms_closed == 1\n",
+    "new": "        parser.forms == 1\n",
+    "tests": "form_missing_a_part_is_not_read or cut_off_inside_its_choices"
+  },
+  {
+    "label": "webif settings pages: a blank row no sensor reads must not fail them",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "                strict=key not in SETTINGS_PAGES,\n",
+    "new": "                strict=True,\n",
+    "tests": "unread_row_is_blank or blank_unread_row_keeps"
+  },
+  {
+    "label": "modulation: the options must show its switch as saved",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                            modulation, default=options.get(modulation, False)\n",
+    "new": "                            modulation, default=False\n",
+    "tests": "offer_its_switch_as_saved"
+  },
+  {
+    "label": "webif coordinator: a failed search must not blame a later round's pages",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self._searched_in_round = False\n        self._search_failed = False\n        # By key",
+    "new": "        self._searched_in_round = False\n        # By key",
+    "tests": "failed_search_blames_no_page_in_a_later_round"
+  },
+  {
+    "label": "webif coordinator: a lost form never read must lose its old address",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            if key not in unread\n",
+    "new": "            if True\n",
+    "tests": "lost_modulation_never_read_is_dropped_without_a_reload"
+  },
+  {
+    "label": "capture: a modulation form of another type must not be taken",
+    "path": "tools/webif_capture.py",
+    "old": "        if form is None or form.path != path or form.type != SETTING_LIST:\n",
+    "new": "        if form is None or form.path != path:\n",
+    "tests": "modulation_form_of_another_type_is_not_taken"
+  },
+  {
+    "label": "capture: a circuit's name must stay out of the file",
+    "path": "tools/webif_capture.py",
+    "old": "    if step.shows_values and step.optional:\n",
+    "new": "    if False:\n",
+    "tests": "name_given_to_a_circuit_stays_out_of_the_file"
+  },
+  {
+    "label": "capture: the circuit menu must be the one Info lists first",
+    "path": "tools/webif_capture.py",
+    "old": "        circuit_of=\"heating_circuit\",\n",
+    "new": "        numbered=True,\n",
+    "tests": "settings_are_the_circuits_info_lists_first or circuit_menu_is_absent_without_a_circuit"
+  },
+  {
+    "label": "capture: an optional page that never fits must be absent",
+    "path": "tools/webif_capture.py",
+    "old": "    return last or walk.misfits[step.key] >= OPTIONAL_TRIES\n",
+    "new": "    return last\n",
+    "tests": "optional_page_that_never_fits_is_absent_after_two_tries"
+  },
+  {
+    "label": "capture: an optional page must be tried twice",
+    "path": "tools/webif_capture.py",
+    "old": "OPTIONAL_TRIES = 2\n",
+    "new": "OPTIONAL_TRIES = 1\n",
+    "tests": "optional_page_that_never_fits_is_absent_after_two_tries"
+  },
+  {
+    "label": "capture: an entry sharing its link must not be taken",
+    "path": "tools/webif_capture.py",
+    "old": "    clear = [entry for entry in offered if links[entry.href] == 1]\n",
+    "new": "    clear = offered\n",
+    "tests": "optional_entry_sharing_its_link_is_not_taken"
+  },
+  {
+    "label": "webif circuit owner: a half page must not count as another circuit's",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "        return self.owner is not None and bool(owners) and self.owner not in owners\n",
+    "new": "        return self.owner is not None and self.owner not in owners\n",
+    "tests": "served_half_pauses_as_it_ever_did"
+  },
+  {
+    "label": "capture: an optional page showing another's values must go absent",
+    "path": "tools/webif_capture.py",
+    "old": "        if twin is not None and _gives_up(step, walk, last):\n",
+    "new": "        if False:\n",
+    "tests": "optional_page_showing_another_pages_values_is_absent"
+  },
+  {
+    "label": "capture: the units the integration reads must be kept",
+    "path": "tools/webif_capture.py",
+    "old": "SHOWN_UNITS = (\"°C\", \"K\", \"BAR\", \"KW\", \"KWh\", \"m3/h\", \"rpm\", \"Hz\", \"h\", \"%\")\n",
+    "new": "SHOWN_UNITS = (\"°C\", \"K\", \"%\")\n",
+    "tests": "units_kept_are_those_the_integration_reads or number_with_its_unit_is_kept"
+  },
+  {
+    "label": "webif circuit owner: a title shown at another address too must not count",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "    return shown[title] == 1 and menu_owners(text, path) == [title]\n",
+    "new": "    return menu_owners(text, path) == [title]\n",
+    "tests": "its_one_clear_menu or circuit_title_shown_twice"
+  },
+  {
+    "label": "webif circuit owner: another title at the address must not count",
+    "path": "custom_components/weishaupt_modbus/webif/discovery.py",
+    "old": "    return shown[title] == 1 and menu_owners(text, path) == [title]\n",
+    "new": "    return shown[title] == 1 and title in menu_owners(text, path)\n",
+    "tests": "its_one_clear_menu"
+  },
+  {
+    "label": "webif circuit owner: a half page showing its own menu must not be another's",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "        return self.owner is not None and bool(owners) and self.owner not in owners\n",
+    "new": "        return self.owner is not None and bool(owners)\n",
+    "tests": "cut_after_its_main_menus_is_a_half_page"
+  },
+  {
+    "label": "webif circuit owner: a half page must not be named as under another menu",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "        if self.under_another(text):\n",
+    "new": "        if not self.owned(text):\n",
+    "tests": "served_half_pauses_as_it_ever_did"
+  },
+  {
+    "label": "webif circuit owner: a circuit back under its own menu must not stay lost",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            self._lost.discard(page.key)\n",
+    "new": "            pass\n",
+    "tests": "back_under_its_own_menu_is_no_longer_lost"
+  },
+  {
+    "label": "webif circuit owner: another circuit's page must start a search",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "    return page.is_whole(text) or moved(text, page.path) or page.under_another(text)\n",
+    "new": "    return page.is_whole(text) or moved(text, page.path)\n",
+    "tests": "two_circuits_that_swap_addresses_are_found_again"
+  },
+  {
+    "label": "webif circuit owner: a form under another circuit must not be sent",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        return pages.setting_form(text) if owned(text) else None\n",
+    "new": "        return pages.setting_form(text)\n",
+    "tests": "form_now_under_another_circuit_is_not_saved"
+  },
+  {
+    "label": "webif circuit owner: a write must know its page's owner",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                    page.owned,\n",
+    "new": "                    lambda _text: True,\n",
+    "tests": "form_now_under_another_circuit_is_not_saved"
+  },
+  {
+    "label": "modulation: saving the options must keep those not shown",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                data={**self.config_entry.options, **user_input}\n",
+    "new": "                data=user_input\n",
+    "tests": "keeps_those_the_form_does_not_show"
+  },
+  {
+    "label": "modulation: a choice switched off must leave the registry",
+    "path": "custom_components/weishaupt_modbus/select.py",
+    "old": "            registry.async_remove(old)\n",
+    "new": "            pass\n",
+    "tests": "choice_switched_off_leaves_the_device"
+  },
+  {
+    "label": "webif coordinator: an unread form found again must keep its new address",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        unread = {key for key in FORM_PAGES if key not in found.keys() | polled}\n",
+    "new": "        unread = {key for key in FORM_PAGES if key not in polled}\n",
+    "tests": "never_read_but_found_again_keeps_its_new_address"
+  },
+  {
+    "label": "inputs: the power limitation must read by its code 36",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "    StatusItem(number=36, translation_key=\"io_konf_in_36\"),\n",
+    "new": "",
+    "tests": "codes_the_controller_offers"
+  },
+  {
+    "label": "capture: a required page must be read again beside an optional twin",
+    "path": "tools/webif_capture.py",
+    "old": "            del walk.read[twin]\n",
+    "new": "            pass\n",
+    "tests": "wrong_first_answer_of_a_required_page_is_not_kept"
+  },
+  {
+    "label": "capture: a name must stay out of the file however it looks",
+    "path": "tools/webif_capture.py",
+    "old": "    if title in FREE_TEXT_TITLES:\n        return TEXT_SHOWN\n",
+    "new": "",
+    "tests": "number_given_as_a_circuits_name"
+  },
+  {
+    "label": "capture: an optional misfit in the last attempt must be absent",
+    "path": "tools/webif_capture.py",
+    "old": "    return last or walk.misfits[step.key] >= OPTIONAL_TRIES\n",
+    "new": "    return walk.misfits[step.key] >= OPTIONAL_TRIES\n",
+    "tests": "misfitting_in_the_last_attempt_is_absent"
+  },
+  {
+    "label": "capture: the last attempt must be known",
+    "path": "tools/webif_capture.py",
+    "old": "            _read_missing(session, walk, ask, last=attempt == attempts)\n",
+    "new": "            _read_missing(session, walk, ask, last=False)\n",
+    "tests": "misfitting_in_the_last_attempt_is_absent"
+  },
+  {
+    "label": "capture: a pick must offer no entry sharing its link",
+    "path": "tools/webif_capture.py",
+    "old": "        walk.chosen[step.key] = _pick(step, clear, ask)\n",
+    "new": "        walk.chosen[step.key] = _pick(step, offered, ask)\n",
+    "tests": "pick_offers_no_entry_sharing_its_link"
+  },
+  {
+    "label": "capture: a menu of shared links must stop the attempt",
+    "path": "tools/webif_capture.py",
+    "old": "    elif not clear or wanted_shared:\n",
+    "new": "    elif wanted_shared:\n",
+    "tests": "whose_entries_all_share_links_stops_the_attempt"
+  },
+  {
+    "label": "webif circuit owner: a page under an unclear menu must name why",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "        elif not self.owned(text) and menu_owners(text, self.path):\n",
+    "new": "        elif False:\n",
+    "tests": "whole_page_under_an_unclear_menu_names_why"
+  },
+  {
+    "label": "capture: a menu of shared links must be asked for again",
+    "path": "tools/webif_capture.py",
+    "old": "        del walk.read[step.parent]\n",
+    "new": "",
+    "tests": "once_served_with_shared_links_is_asked_for_again or nothing_to_open"
+  },
+  {
+    "label": "webif circuit owner: a page without its menu must name why",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "        elif not self.owned(text):\n            flaws.append(f\"no {self.owner} menu\")\n",
+    "new": "",
+    "tests": "whole_page_under_an_unclear_menu_names_why"
+  },
+  {
+    "label": "capture: the wanted entry on a shared link must stop the attempt",
+    "path": "tools/webif_capture.py",
+    "old": "    elif not clear or wanted_shared:\n",
+    "new": "    elif not clear:\n",
+    "tests": "wanted_entry_on_a_shared_link_stops_the_attempt"
   }
 ]

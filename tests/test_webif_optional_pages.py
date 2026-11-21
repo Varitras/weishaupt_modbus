@@ -17,11 +17,12 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     HEAT_PUMP_PAGE,
     HEATING_CIRCUIT_PAGE,
     HEATING_PAGE,
+    MODULATION_PAGE,
     SECOND_GENERATOR_PAGE,
     STATISTICS_PAGE,
     find_pages,
 )
-from custom_components.weishaupt_modbus.webif_coordinator import polled_pages
+from custom_components.weishaupt_modbus.webif_polled import polled_pages
 from custom_components.weishaupt_modbus.webif_sensor import (
     ENGLISH_TITLES,
     EVOBLOCK,
@@ -233,7 +234,13 @@ async def test_an_optional_page_the_second_search_brings_whole_is_kept(hass, pum
 
 
 def test_only_an_evoblock_has_sensors_on_them():
-    assert set(REQUIRED_TITLES[WBB]) == {HEAT_PUMP_PAGE, STATISTICS_PAGE, HEATING_PAGE}
+    """Both have the modulation; the pages Info lists only an Evoblock."""
+    assert set(REQUIRED_TITLES[WBB]) == {
+        HEAT_PUMP_PAGE,
+        STATISTICS_PAGE,
+        HEATING_PAGE,
+        MODULATION_PAGE,
+    }
     assert REQUIRED_TITLES[EVOBLOCK][HEATING_CIRCUIT_PAGE] == {
         "AT Mittelwert",
         "AT Langzeitwert",

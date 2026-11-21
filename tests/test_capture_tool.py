@@ -1,4 +1,4 @@
-"""The title capture for another language or model: six pages, read only, nothing personal.
+"""The title capture for another language or model: read only, nothing personal.
 
 tools/webif_capture.py is handed to people whose controller has to stay on
 a language the integration cannot read yet, or is a model it does not know
@@ -20,12 +20,14 @@ import time
 
 import pytest
 
-from custom_components.weishaupt_modbus.webif import client as webif, discovery
+from custom_components.weishaupt_modbus import webif_sensor
+from custom_components.weishaupt_modbus.webif import client as webif, discovery, setting
 
 from .webif_stand_in import (
     HEAT_PUMP_INFO,
     HEATING,
     INFO,
+    MODULATION,
     PASSWORD,
     PUMP_MENU,
     SESSION_ID,
@@ -33,7 +35,9 @@ from .webif_stand_in import (
     USER,
     StandInPump,
     column,
+    limit_leaf,
     link,
+    modulation_form,
     see_other,
     serving,
     value,
@@ -105,6 +109,110 @@ ENGLISH = {
     "statistics": "Statistics",
     "heating": "Heating",
 }
+
+
+# The pages only some pumps show, as an Evoblock showed them in German, at
+# made-up segments shaped like the controller's.
+CIRCUIT_INFO = {
+    2: "0C000C32000000000000000A0B020003000401",
+    3: "0C000C33000000000000000A0B020003000401",
+}
+SECOND_GENERATOR_INFO = "0C000C40000000000000000A0B020003000401"
+CIRCUIT_MENU = {
+    2: "33000001000000000080000A0B010002000301",
+    3: "34000001000000000080000A0B010002000301",
+}
+HOT_WATER_MENU = "46000001000000000080000A0B010002000301"
+MODULATION_OFFERED = [-1, *range(50, 101, 5)]
+
+
+def settings_segment(menu):
+    return menu[:2] + "00320000000000008000" + "0A0B020003000401"
+
+
+def menu_reset(menu):
+    return menu[:2] + "00450000000000008000" + "0A0B020003000401"
+
+
+def setting_link(menu, title, shown):
+    segment = menu[:2] + "003200" + "0000000000" + "40000A0B030011010401"
+    return link([menu, settings_segment(menu), segment], title, shown)
+
+
+def settings_path(menu):
+    return STACK + f"{menu},{settings_segment(menu)}"
+
+
+OPTIONAL_WALK = [
+    STACK + f"{INFO},{CIRCUIT_INFO[2]}",
+    STACK + f"{INFO},{SECOND_GENERATOR_INFO}",
+    STACK + f"{KNOWN['pump']},{MODULATION}",
+    STACK + CIRCUIT_MENU[2],
+    settings_path(CIRCUIT_MENU[2]),
+    STACK + HOT_WATER_MENU,
+    settings_path(HOT_WATER_MENU),
+]
+ALL_ABSENT = [
+    "Info › Heizkreis n",
+    "Info › 2. WEZ",
+    "Wärmepumpe › Modulation",
+    "Heizkreis n",
+    "Heizkreis n › Einstellungen",
+    "Warmwasser",
+    "Warmwasser › Einstellungen",
+]
+
+
+def with_optional_pages(pages, titles=None):
+    """The six pages, and those only some pumps show, in German.
+
+    Info lists the third circuit before the second: the lowest is read. Each
+    circuit's and the hot water's menu also lists Reset.
+    """
+    titles = titles or {
+        "circuit": "Heizkreis",
+        "second_generator": "2. WEZ",
+        "modulation": "Modulation",
+        "hot_water": "Warmwasser",
+        "settings": "Einstellungen",
+    }
+    circuit = titles["circuit"]
+    overview, info, pump = paths(KNOWN)[:3]
+    main = column(
+        link([CIRCUIT_MENU[2]], f"{circuit} 2", "FBH")
+        + link([CIRCUIT_MENU[3]], f"{circuit} 3", "RADIATOREN")
+        + link([HOT_WATER_MENU], titles["hot_water"])
+    )
+    pages = dict(pages)
+    pages[overview] += main
+    pages[info] += main + column(
+        link([INFO, CIRCUIT_INFO[3]], f"{circuit} 3")
+        + link([INFO, CIRCUIT_INFO[2]], f"{circuit} 2")
+        + link([INFO, SECOND_GENERATOR_INFO], titles["second_generator"])
+    )
+    pages[pump] += main + column(
+        link([KNOWN["pump"], MODULATION], titles["modulation"])
+    )
+    for menu in (CIRCUIT_MENU[2], CIRCUIT_MENU[3], HOT_WATER_MENU):
+        pages[STACK + menu] = column(
+            link([menu, settings_segment(menu)], titles["settings"])
+            + link([menu, menu_reset(menu)], "Reset")
+        )
+    pages[STACK + f"{INFO},{CIRCUIT_INFO[2]}"] = column(
+        value("Außentemperatur gemittelt", "5.0 °C")
+    )
+    # A row without a value: whether every row shows one nobody here has seen.
+    pages[STACK + f"{INFO},{SECOND_GENERATOR_INFO}"] = column(
+        value("Betriebsstunden", "120 h") + value("Störung", "")
+    )
+    pages[STACK + f"{KNOWN['pump']},{MODULATION}"] = modulation_form(80)
+    pages[settings_path(CIRCUIT_MENU[2])] = column(
+        setting_link(CIRCUIT_MENU[2], "Minimale Vorlauftemperatur", "20.0 °C")
+    )
+    pages[settings_path(HOT_WATER_MENU)] = column(
+        setting_link(HOT_WATER_MENU, "Betriebsart", "Automatik")
+    )
+    return pages
 
 
 def asked(paths):
@@ -313,6 +421,391 @@ async def test_a_picked_page_of_the_wrong_shape_is_picked_anew(socket_enabled):
         ["Switching difference", "4.5 K"],
         ["Power limit", "60 %"],
     ]
+
+
+async def test_the_pages_only_some_pumps_show_are_read_where_shown(socket_enabled):
+    """The circuits, the second heat generator, both settings pages and the
+    modulation: what the integration reads on some pumps, by their German
+    titles. The menus' Reset stays shut."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        report, questions, _ = await run_capture(pump)
+
+    assert questions == []
+    assert pump.asked == [*LOGIN, *asked(WALK + OPTIONAL_WALK), *LOGOUT]
+    assert report["absent"] == []
+    pages = by_page(report)
+    assert {key: pages[key]["shown"] for key in list(pages)[6:]} == {
+        "heating_circuit": "Info › Heizkreis 2",
+        "second_generator": "Info › 2. WEZ",
+        "modulation": "Wärmepumpe › Modulation",
+        "circuit_menu": "Heizkreis 2",
+        "circuit_settings": "Heizkreis 2 › Einstellungen",
+        "hot_water_menu": "Warmwasser",
+        "hot_water_settings": "Warmwasser › Einstellungen",
+    }
+    assert pages["heating_circuit"]["entries"] == [
+        ["Außentemperatur gemittelt", "5.0 °C"]
+    ]
+    assert pages["second_generator"]["entries"] == [
+        ["Betriebsstunden", "120 h"],
+        ["Störung", ""],
+    ]
+    assert pages["circuit_settings"]["entries"] == [
+        ["Minimale Vorlauftemperatur", "20.0 °C"]
+    ]
+    # A word is kept as text alone: it could be a name the user gave.
+    assert pages["hot_water_settings"]["entries"] == [
+        ["Betriebsart", capture_tool.TEXT_SHOWN]
+    ]
+    # What the form offers; the value set is the user's, not a title.
+    assert pages["modulation"] == {
+        "page": "modulation",
+        "german": "Wärmepumpe › Modulation",
+        "shown": "Wärmepumpe › Modulation",
+        "offered": MODULATION_OFFERED,
+    }
+    assert pages["circuit_menu"]["titles"] == ["Einstellungen", "Reset"]
+
+
+async def test_the_pages_a_pump_does_not_show_are_named_absent(socket_enabled):
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN)
+        report, questions, _ = await run_capture(pump)
+
+    assert questions == []
+    assert pump.asked == [*LOGIN, *asked(WALK), *LOGOUT]
+    assert len(report["pages"]) == 6
+    assert report["absent"] == ALL_ABSENT
+
+
+async def test_the_pages_only_some_pumps_show_are_never_offered_to_pick(
+    socket_enabled,
+):
+    """Their menus list Reset under codes nobody here knows: a pick is where
+    a mistyped number would open it."""
+    english = {
+        "circuit": "Heating circuit",
+        "second_generator": "2nd heat generator",
+        "modulation": "Modulation output",
+        "hot_water": "Hot water",
+        "settings": "Settings",
+    }
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN), english)
+        report, questions, _ = await run_capture(pump)
+
+    assert questions == []
+    assert pump.asked == [*LOGIN, *asked(WALK), *LOGOUT]
+    assert report["absent"] == ALL_ABSENT
+
+
+async def test_a_name_given_to_a_circuit_stays_out_of_the_file(socket_enabled):
+    """The file goes to a public issue; what a settings page shows as text,
+    a circuit's name among it, is the user's."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.site[settings_path(CIRCUIT_MENU[2])] += column(
+            setting_link(CIRCUIT_MENU[2], "Name", "Kinderzimmer Max")
+        )
+        report, _, _ = await run_capture(pump)
+
+    assert "Kinderzimmer Max" not in json.dumps(report, ensure_ascii=False)
+    assert ["Name", capture_tool.TEXT_SHOWN] in by_page(report)["circuit_settings"][
+        "entries"
+    ]
+    assert ["Minimale Vorlauftemperatur", "20.0 °C"] in by_page(report)[
+        "circuit_settings"
+    ]["entries"]
+
+
+async def test_the_settings_are_the_circuits_info_lists_first(socket_enabled):
+    """A circuit switched off shows in the overview but not under Info: its
+    settings stood in for the first circuit's."""
+    first = CIRCUIT_MENU[2].replace("33", "32", 1)
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.site[paths(KNOWN)[0]] += column(link([first], "Heizkreis 1"))
+        pump.site[STACK + first] = column(
+            link([first, settings_segment(first)], "Einstellungen")
+        )
+        pump.site[settings_path(first)] = column(setting_link(first, "Ein/Aus", "Aus"))
+        report, _, _ = await run_capture(pump)
+
+    pages = by_page(report)
+    assert pages["circuit_menu"]["shown"] == "Heizkreis 2"
+    assert pages["circuit_settings"]["shown"] == "Heizkreis 2 › Einstellungen"
+    assert ("GET", STACK + first) not in pump.asked
+
+
+async def test_the_circuit_menu_is_absent_without_a_circuit_under_info(socket_enabled):
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        info = paths(KNOWN)[1]
+        pump.site[info] = (
+            pump.site[info]
+            .replace(">Heizkreis 2<", ">Unused 2<")
+            .replace(">Heizkreis 3<", ">Unused 3<")
+        )
+        report, _, _ = await run_capture(pump)
+
+    assert "Heizkreis n" in report["absent"]
+    assert ("GET", STACK + CIRCUIT_MENU[2]) not in pump.asked
+
+
+async def test_an_optional_menu_with_nothing_to_open_is_absent(socket_enabled):
+    """The hot water menu listing only its time program: the run gave up
+    after its last attempt, the six pages read whole lost with it."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        program = "46004000" + settings_segment(HOT_WATER_MENU)[8:]
+        pump.site[STACK + HOT_WATER_MENU] = column(
+            link([HOT_WATER_MENU, program], "Zeitprogramm")
+        )
+        report, _, rests = await run_capture(pump, attempts=2)
+
+    assert report is not None
+    assert "Warmwasser › Einstellungen" in report["absent"]
+    assert A_MINUTE not in rests
+
+
+async def test_an_optional_page_that_never_fits_is_absent_after_two_tries(
+    socket_enabled,
+):
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.site[OPTIONAL_WALK[1]] = column("")
+        report, _, rests = await run_capture(pump, attempts=3)
+
+    assert report is not None
+    assert "Info › 2. WEZ" in report["absent"]
+    assert rests.count(A_MINUTE) == 1
+    assert len(report["pages"]) == 12
+
+
+async def test_an_optional_page_showing_another_pages_values_is_absent_after_two_tries(
+    socket_enabled,
+):
+    """A circuit's page served as the heat pump's on every try: the run
+    gave up after its last attempt, the six pages read whole lost with it."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.site[OPTIONAL_WALK[0]] = pump.site[HEAT_PUMP_PAGE]
+        report, _, _ = await run_capture(pump, attempts=3)
+
+    assert report is not None
+    assert "Info › Heizkreis n" in report["absent"]
+    assert "heat_pump" in by_page(report)
+    # Asked once more at the first match, which of the two came wrong being
+    # unknown, and kept at the second.
+    assert pump.asked.count(("GET", HEAT_PUMP_PAGE)) == 2
+
+
+async def test_a_wrong_first_answer_of_a_required_page_is_not_kept(socket_enabled):
+    """The heat pump page came once with the circuit page's rows; the circuit
+    page then came right and was left out, the wrong rows kept as the heat
+    pump's."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        right = pump.site.pop(HEAT_PUMP_PAGE)
+        pump.pages = [pump.site[OPTIONAL_WALK[0]], right]
+        report, _, _ = await run_capture(pump, attempts=3)
+
+    pages = by_page(report)
+    assert pages["heat_pump"]["entries"] == [
+        ["Flow temperature", "35.2 °C"],
+        ["Compressor", "Off"],
+    ]
+    assert "heating_circuit" in pages
+
+
+def test_the_units_kept_are_those_the_integration_reads():
+    assert {
+        webif_sensor.CELSIUS,
+        webif_sensor.KELVIN,
+        webif_sensor.BAR,
+        webif_sensor.KILOWATT,
+        webif_sensor.KILOWATT_HOURS,
+        webif_sensor.CUBIC_METRES_PER_HOUR,
+        webif_sensor.RPM,
+        webif_sensor.HERTZ,
+        webif_sensor.HOURS,
+    } <= set(capture_tool.SHOWN_UNITS)
+
+
+@pytest.mark.parametrize("shown", ["3.0 KW", "1.1 m3/h", "2400 rpm", "-5.5 °C", "60 %"])
+def test_a_number_with_its_unit_is_kept(shown):
+    assert capture_tool._neutral("Leistung", shown) == shown
+
+
+async def test_a_number_given_as_a_circuits_name_stays_out_of_the_file(socket_enabled):
+    """A name such as a flat's number passed for a value; a counter showing
+    the same number is one."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.site[settings_path(CIRCUIT_MENU[2])] += column(
+            setting_link(CIRCUIT_MENU[2], "Name", "007")
+            + setting_link(CIRCUIT_MENU[2], "Schaltspiele", "007")
+        )
+        report, _, _ = await run_capture(pump)
+
+    entries = by_page(report)["circuit_settings"]["entries"]
+    assert ["Name", capture_tool.TEXT_SHOWN] in entries
+    assert ["Schaltspiele", "007"] in entries
+
+
+async def test_an_optional_page_misfitting_in_the_last_attempt_is_absent(
+    socket_enabled,
+):
+    """The six pages read whole in the last attempt, an optional one half:
+    the run gave up and wrote nothing."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.site[OPTIONAL_WALK[1]] = column("")
+        report, _, _ = await run_capture(pump, attempts=1)
+
+    assert report is not None
+    assert "Info › 2. WEZ" in report["absent"]
+
+
+def test_a_pick_offers_no_entry_sharing_its_link():
+    """Which page a shared link leads to cannot be told; offered, it was
+    picked and its titles taught as the asked page's."""
+    shared = (
+        STACK
+        + "64000001000000000080000A0B010002000301,64009900000000000080000A0B020003000401"
+    )
+    own = (
+        STACK
+        + "64000001000000000080000A0B010002000301,64009800000000000080000A0B020003000401"
+    )
+    walk = capture_tool._Walk()
+    walk.read["heat_pump_menu"] = [
+        capture_tool.pages.Entry("Heating", "", shared),
+        capture_tool.pages.Entry("Cooling", "", shared),
+        capture_tool.pages.Entry("Reset", "", own),
+    ]
+    offered = []
+
+    def ask(question):
+        offered.append(question)
+        return "1" if "Number" in question else "y"
+
+    entry = capture_tool._entry(capture_tool.STEP_BY_KEY["heating"], walk, ask)
+
+    assert entry.href == own
+
+
+def test_a_menu_whose_entries_all_share_links_stops_the_attempt():
+    shared = (
+        STACK
+        + "64000001000000000080000A0B010002000301,64009900000000000080000A0B020003000401"
+    )
+    walk = capture_tool._Walk()
+    walk.read["heat_pump_menu"] = [
+        capture_tool.pages.Entry("Heating", "", shared),
+        capture_tool.pages.Entry("Cooling", "", shared),
+    ]
+
+    with pytest.raises(capture_tool.Half):
+        capture_tool._entry(
+            capture_tool.STEP_BY_KEY["heating"],
+            walk,
+            lambda _: pytest.fail("nothing clear to pick"),
+        )
+
+
+async def test_a_menu_once_served_with_shared_links_is_asked_for_again(socket_enabled):
+    """Kept, the menu stopped every later attempt the same way, and the run
+    gave up without asking the controller again."""
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN)
+        whole = pump.site.pop(WALK[2])
+        shared = column(
+            link([KNOWN["pump"], KNOWN["heating"]], "Heizen")
+            + link([KNOWN["pump"], KNOWN["heating"]], "Kühlen")
+        )
+        pump.pages = [shared, whole]
+        report, _, rests = await run_capture(pump, attempts=3)
+
+    assert report is not None
+    assert rests.count(A_MINUTE) == 1
+    assert "heating" in by_page(report)
+
+
+def test_a_wanted_entry_on_a_shared_link_stops_the_attempt():
+    """Heizen beside Kühlen on one link, Warmwasser clear: only the wrong
+    entries were offered to pick, and the menu was never read again."""
+    pump_menu = KNOWN["pump"]
+    shared = STACK + f"{pump_menu},{KNOWN['heating']}"
+    walk = capture_tool._Walk()
+    walk.read["heat_pump_menu"] = [
+        capture_tool.pages.Entry("Heizen", "", shared),
+        capture_tool.pages.Entry("Kühlen", "", shared),
+        capture_tool.pages.Entry(
+            "Warmwasser",
+            "",
+            STACK + f"{pump_menu},64003300000000000080000A0B020003000401",
+        ),
+    ]
+
+    with pytest.raises(capture_tool.Half):
+        capture_tool._entry(
+            capture_tool.STEP_BY_KEY["heating"],
+            walk,
+            lambda _: pytest.fail("only wrong entries to pick"),
+        )
+
+    assert "heat_pump_menu" not in walk.read
+
+
+def test_an_optional_entry_sharing_its_link_is_not_taken():
+    menu = CIRCUIT_MENU[2]
+    page = column(
+        link([menu, settings_segment(menu)], "Einstellungen")
+        + link([menu, settings_segment(menu)], "Zeitprogramm")
+    )
+    walk = capture_tool._Walk()
+    walk.read["circuit_menu"] = capture_tool.pages.children(page, STACK + menu)
+
+    entry = capture_tool._entry(
+        capture_tool.STEP_BY_KEY["circuit_settings"],
+        walk,
+        lambda _: pytest.fail("an optional page is never picked"),
+    )
+
+    assert entry is None
+
+
+def test_a_modulation_form_of_another_type_is_not_taken():
+    """The integration reads and sets a list form only."""
+    path = STACK + f"{PUMP_MENU},{MODULATION}"
+    text = modulation_form(50).replace('"para_list"', '"para_text"')
+
+    assert (
+        capture_tool._entries(capture_tool.STEP_BY_KEY["modulation"], text, path) == []
+    )
+
+
+@pytest.mark.parametrize(
+    "half",
+    [
+        pytest.param(column(""), id="no form"),
+        pytest.param(limit_leaf(60), id="another setting's form"),
+    ],
+)
+async def test_a_modulation_page_without_its_own_form_is_asked_for_again(
+    socket_enabled, half
+):
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        whole = pump.site.pop(OPTIONAL_WALK[2])
+        pump.pages = [half, whole]
+        report, _, rests = await run_capture(pump)
+
+    assert rests.count(A_MINUTE) == 1
+    assert pump.asked.count(("GET", OPTIONAL_WALK[2])) == 2
+    assert by_page(report)["modulation"]["offered"] == MODULATION_OFFERED
 
 
 @pytest.mark.parametrize(
@@ -656,7 +1149,7 @@ async def test_refused_credentials_are_not_tried_again(socket_enabled):
 
 async def test_the_report_holds_nothing_that_points_to_the_pump(socket_enabled):
     async with serving(StandInPump()) as pump:
-        pump.site = site(GERMAN)
+        pump.site = with_optional_pages(site(GERMAN))
         report, _, _ = await run_capture(pump)
         host = pump.host
 
@@ -671,6 +1164,9 @@ async def test_the_report_holds_nothing_that_points_to_the_pump(socket_enabled):
         SESSION_ID[:8],
         "stack=",
         "0A0B",
+        # The names the user gave the circuits, shown beside their menus.
+        "FBH",
+        "RADIATOREN",
     ):
         assert personal not in text, personal
 
@@ -715,9 +1211,26 @@ def test_the_tool_talks_like_the_client(name):
     assert getattr(capture_tool, name) == getattr(webif, name)
 
 
-@pytest.mark.parametrize("name", ["INFO", "HEAT_PUMP", "STATISTICS", "HEATING"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "INFO",
+        "HEAT_PUMP",
+        "STATISTICS",
+        "HEATING",
+        "HEATING_CIRCUIT",
+        "SECOND_GENERATOR",
+        "HOT_WATER",
+        "SETTINGS",
+        "MODULATION_TITLE",
+    ],
+)
 def test_the_tool_looks_for_the_titles_the_integration_finds(name):
     assert getattr(capture_tool, name) == getattr(discovery, name)
+
+
+def test_the_tool_takes_the_form_type_the_integration_sets():
+    assert capture_tool.SETTING_LIST == setting.SETTING_LIST
 
 
 @pytest.mark.parametrize(

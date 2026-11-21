@@ -9,6 +9,7 @@ from custom_components.weishaupt_modbus.webif.discovery import (
     CIRCUITS,
     HEAT_PUMP_PAGE,
     HEATING_PAGE,
+    MODULATION_PAGE,
     STATISTICS_PAGE,
 )
 from custom_components.weishaupt_modbus.webif_sensor import (
@@ -197,12 +198,13 @@ def test_an_energy_shows_the_three_decimals_the_controller_gives():
 
 def test_every_page_requires_the_titles_of_its_sensors():
     """The value list: the 31 values only the web interface has on the heat
-    pump page but the conditional one, all 14 statistics, and the two heating
-    settings."""
+    pump page but the conditional one, all 14 statistics, the two heating
+    settings, and the modulation on its own form."""
     assert {page: len(titles) for page, titles in REQUIRED_TITLES[WBB].items()} == {
         HEAT_PUMP_PAGE: 30,
         STATISTICS_PAGE: 14,
         HEATING_PAGE: 2,
+        MODULATION_PAGE: 1,
     }
 
 

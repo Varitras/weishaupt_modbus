@@ -22,7 +22,7 @@
             "unclear_values": "Die Seite {page} der Weboberfläche zeigt {titles} ohne Wert oder mehrfach. Bitte erneut versuchen; bleibt es so, wird dieser Regler noch nicht unterstützt.",
             "unknown_units": "Die Seite {page} der Weboberfläche zeigt {titles} in einer Einheit, die die Integration nicht kennt. Dieser Regler wird noch nicht unterstützt. Damit er unterstützt werden kann, eröffnen Sie ein Issue und hängen Sie die Datei an, die tools/webif_capture.py schreibt (siehe README).",
             "missing_menu_entries": "Die Menüs der Weboberfläche zeigen {titles} nicht. Die Integration findet ihre Seiten über diese Namen, auf Deutsch oder Englisch: Steht die Sprache der Weboberfläche (Einstellungen › Allgemein › Sprache) auf Auto, Deutsch oder English? Muss sie auf einer anderen Sprache bleiben, eröffnen Sie ein Issue, damit sie ergänzt werden kann, und hängen Sie die Datei an, die tools/webif_capture.py schreibt (siehe README).",
-            "doubled_menu_entries": "Die Menüs der Weboberfläche zeigen {titles} mehrfach. Bitte erneut versuchen; bleibt es so, wird dieser Regler noch nicht unterstützt.",
+            "doubled_menu_entries": "Die Menüs der Weboberfläche zeigen {titles} mehrfach oder unter dem Link eines anderen Eintrags. Bitte erneut versuchen; bleibt es so, wird dieser Regler noch nicht unterstützt.",
             "unknown": "Ein unerwarteter Fehler ist aufgetreten; Details stehen im Log."
         },
         "progress": {
@@ -392,6 +392,23 @@
           }
         },
         "select": {
+            "webif_modulation": {
+                "name": "{prefix}Modulation Warmwasser",
+                "state": {
+                    "auto": "Automatik",
+                    "50": "50 %",
+                    "55": "55 %",
+                    "60": "60 %",
+                    "65": "65 %",
+                    "70": "70 %",
+                    "75": "75 %",
+                    "80": "80 %",
+                    "85": "85 %",
+                    "90": "90 %",
+                    "95": "95 %",
+                    "100": "100 %"
+                }
+            },
             "hz_operationmode": {
                 "name": "{prefix}Betriebsart",
                 "state": {
@@ -1240,9 +1257,11 @@
                     "io_konf_in_18": "Heizkreis … Normal",
                     "io_konf_in_19": "Heizkreis … Komfort",
                     "io_konf_in_2": "Erhöhter Betrieb",
-                    "io_konf_in_20": "2.WEZ",
-                    "io_konf_in_21": "Sperre Verdichter",
                     "io_konf_in_3": "HK-Sperre",
+                    "io_konf_in_33": "2. WEZ",
+                    "io_konf_in_34": "Sperre Verdichter",
+                    "io_konf_in_35": "Leistungsbegr. + Sperre",
+                    "io_konf_in_36": "Leistungsbegrenzung",
                     "io_konf_in_4": "Umschaltung Hz/Kü",
                     "io_konf_in_5": "Ruhemodus",
                     "io_konf_in_6": "Not-Aus",
@@ -1268,9 +1287,11 @@
                     "io_konf_in_18": "Heizkreis … Normal",
                     "io_konf_in_19": "Heizkreis … Komfort",
                     "io_konf_in_2": "Erhöhter Betrieb",
-                    "io_konf_in_20": "2.WEZ",
-                    "io_konf_in_21": "Sperre Verdichter",
                     "io_konf_in_3": "HK-Sperre",
+                    "io_konf_in_33": "2. WEZ",
+                    "io_konf_in_34": "Sperre Verdichter",
+                    "io_konf_in_35": "Leistungsbegr. + Sperre",
+                    "io_konf_in_36": "Leistungsbegrenzung",
                     "io_konf_in_4": "Umschaltung Hz/Kü",
                     "io_konf_in_5": "Ruhemodus",
                     "io_konf_in_6": "Not-Aus",
@@ -1296,9 +1317,11 @@
                     "io_konf_in_18": "Heizkreis … Normal",
                     "io_konf_in_19": "Heizkreis … Komfort",
                     "io_konf_in_2": "Erhöhter Betrieb",
-                    "io_konf_in_20": "2.WEZ",
-                    "io_konf_in_21": "Sperre Verdichter",
                     "io_konf_in_3": "HK-Sperre",
+                    "io_konf_in_33": "2. WEZ",
+                    "io_konf_in_34": "Sperre Verdichter",
+                    "io_konf_in_35": "Leistungsbegr. + Sperre",
+                    "io_konf_in_36": "Leistungsbegrenzung",
                     "io_konf_in_4": "Umschaltung Hz/Kü",
                     "io_konf_in_5": "Ruhemodus",
                     "io_konf_in_6": "Not-Aus",
@@ -1324,9 +1347,11 @@
                     "io_konf_in_18": "Heizkreis … Normal",
                     "io_konf_in_19": "Heizkreis … Komfort",
                     "io_konf_in_2": "Erhöhter Betrieb",
-                    "io_konf_in_20": "2.WEZ",
-                    "io_konf_in_21": "Sperre Verdichter",
                     "io_konf_in_3": "HK-Sperre",
+                    "io_konf_in_33": "2. WEZ",
+                    "io_konf_in_34": "Sperre Verdichter",
+                    "io_konf_in_35": "Leistungsbegr. + Sperre",
+                    "io_konf_in_36": "Leistungsbegrenzung",
                     "io_konf_in_4": "Umschaltung Hz/Kü",
                     "io_konf_in_5": "Ruhemodus",
                     "io_konf_in_6": "Not-Aus",
@@ -1352,9 +1377,11 @@
                     "io_konf_in_18": "Heizkreis … Normal",
                     "io_konf_in_19": "Heizkreis … Komfort",
                     "io_konf_in_2": "Erhöhter Betrieb",
-                    "io_konf_in_20": "2.WEZ",
-                    "io_konf_in_21": "Sperre Verdichter",
                     "io_konf_in_3": "HK-Sperre",
+                    "io_konf_in_33": "2. WEZ",
+                    "io_konf_in_34": "Sperre Verdichter",
+                    "io_konf_in_35": "Leistungsbegr. + Sperre",
+                    "io_konf_in_36": "Leistungsbegrenzung",
                     "io_konf_in_4": "Umschaltung Hz/Kü",
                     "io_konf_in_5": "Ruhemodus",
                     "io_konf_in_6": "Not-Aus",
@@ -1380,9 +1407,11 @@
                     "io_konf_in_18": "Heizkreis … Normal",
                     "io_konf_in_19": "Heizkreis … Komfort",
                     "io_konf_in_2": "Erhöhter Betrieb",
-                    "io_konf_in_20": "2.WEZ",
-                    "io_konf_in_21": "Sperre Verdichter",
                     "io_konf_in_3": "HK-Sperre",
+                    "io_konf_in_33": "2. WEZ",
+                    "io_konf_in_34": "Sperre Verdichter",
+                    "io_konf_in_35": "Leistungsbegr. + Sperre",
+                    "io_konf_in_36": "Leistungsbegrenzung",
                     "io_konf_in_4": "Umschaltung Hz/Kü",
                     "io_konf_in_5": "Ruhemodus",
                     "io_konf_in_6": "Not-Aus",
@@ -1408,9 +1437,11 @@
                     "io_konf_in_18": "Heizkreis … Normal",
                     "io_konf_in_19": "Heizkreis … Komfort",
                     "io_konf_in_2": "Erhöhter Betrieb",
-                    "io_konf_in_20": "2.WEZ",
-                    "io_konf_in_21": "Sperre Verdichter",
                     "io_konf_in_3": "HK-Sperre",
+                    "io_konf_in_33": "2. WEZ",
+                    "io_konf_in_34": "Sperre Verdichter",
+                    "io_konf_in_35": "Leistungsbegr. + Sperre",
+                    "io_konf_in_36": "Leistungsbegrenzung",
                     "io_konf_in_4": "Umschaltung Hz/Kü",
                     "io_konf_in_5": "Ruhemodus",
                     "io_konf_in_6": "Not-Aus",
@@ -1436,9 +1467,11 @@
                     "io_konf_in_18": "Heizkreis … Normal",
                     "io_konf_in_19": "Heizkreis … Komfort",
                     "io_konf_in_2": "Erhöhter Betrieb",
-                    "io_konf_in_20": "2.WEZ",
-                    "io_konf_in_21": "Sperre Verdichter",
                     "io_konf_in_3": "HK-Sperre",
+                    "io_konf_in_33": "2. WEZ",
+                    "io_konf_in_34": "Sperre Verdichter",
+                    "io_konf_in_35": "Leistungsbegr. + Sperre",
+                    "io_konf_in_36": "Leistungsbegrenzung",
                     "io_konf_in_4": "Umschaltung Hz/Kü",
                     "io_konf_in_5": "Ruhemodus",
                     "io_konf_in_6": "Not-Aus",
@@ -2130,7 +2163,8 @@
                     "heating_circuit_interval_minutes": "Intervall der Heizkreis-Seite (Minuten)",
                     "second_generator_interval_minutes": "Intervall der 2.-WEZ-Seite (Minuten)",
                     "settings_interval_minutes": "Intervall der Einstellungsseiten (Minuten)",
-                    "settings_written_per_day": "Geschriebene Einstellungen pro Tag"
+                    "settings_written_per_day": "Geschriebene Einstellungen pro Tag",
+                    "read_modulation": "Modulation Warmwasser lesen und einstellen"
                 },
                 "data_description": {
                     "heat_pump_interval_minutes": "Wie oft die Wärmepumpen-Seite gelesen wird, 1 bis 60 Minuten. Eine Änderung lädt den Eintrag neu.",
@@ -2139,7 +2173,8 @@
                     "heating_circuit_interval_minutes": "Wie oft die gemittelten Außentemperaturen gelesen werden, 1 bis 60 Minuten.",
                     "second_generator_interval_minutes": "Wie oft die Schaltspiele der Heizstab-Stufen gelesen werden, 1 bis 60 Minuten.",
                     "settings_interval_minutes": "Wie oft die Einstellungen der Heizkreise und des Warmwassers gelesen werden, 1 bis 60 Minuten.",
-                    "settings_written_per_day": "Höchstens so viele Einstellungen, etwa die Leistungsbegrenzung Heizen, werden pro Tag geschrieben; 0 schaltet die Grenze ab. Der Regler speichert jede im EEPROM, das nur eine begrenzte Zahl von Schreibvorgängen verträgt."
+                    "settings_written_per_day": "Höchstens so viele Einstellungen, etwa die Leistungsbegrenzung Heizen, werden pro Tag geschrieben; 0 schaltet die Grenze ab. Der Regler speichert jede im EEPROM, das nur eine begrenzte Zahl von Schreibvorgängen verträgt.",
+                    "read_modulation": "Liest dafür eine Seite mehr, einmal pro Stunde. Aus schont den Regler."
                 }
             }
         }
@@ -2215,7 +2250,7 @@
             "message": "Mehrere Seiten der Weboberfläche sind unter einer Adresse gespeichert, darunter eine, die dieser Eintrag lesen muss. Wählen Sie **Neu konfigurieren** an diesem Eintrag, um alle Seiten neu zu suchen."
         },
         "webif_write_reloading": {
-            "message": "Der Eintrag der Weboberfläche wird neu geladen, weil zwei seiner Seiten eine Adresse hatten. Es wurde nichts gesendet; versuchen Sie es erneut, sobald er geladen ist."
+            "message": "Der Eintrag der Weboberfläche wird neu geladen, weil sich nicht alle seiner Seiten an ihren neuen Adressen sicher zuordnen ließen. Es wurde nichts gesendet; versuchen Sie es erneut, sobald er geladen ist."
         }
     },
     "issues": {
@@ -2225,7 +2260,7 @@
         },
         "webif_pages_shared": {
             "title": "Seiten der Weboberfläche ausgelassen",
-            "description": "Ausgelassen: {pages}. Jede davon hatte dieselbe Adresse wie eine andere Seite; ein dort gelesener oder geschriebener Wert könnte zu beiden gehören. Der Eintrag der Weboberfläche liest und schreibt sie darum nicht mehr; seine übrigen Seiten und Modbus sind nicht betroffen. Wählen Sie **Neu konfigurieren** am Eintrag der Weboberfläche: Dabei werden alle Seiten neu gesucht, und dieser Hinweis verschwindet."
+            "description": "Ausgelassen: {pages}. Zu welcher Seite ihre Adresse führt, ließ sich nicht sicher sagen; ein dort gelesener oder geschriebener Wert könnte zu einer anderen Einstellung gehören. Der Eintrag der Weboberfläche liest und schreibt sie darum nicht mehr; seine übrigen Seiten und Modbus sind nicht betroffen. Wählen Sie **Neu konfigurieren** am Eintrag der Weboberfläche: Dabei werden alle Seiten neu gesucht, und dieser Hinweis verschwindet."
         },
         "webif_stopped_not_found_again": {
             "title": "Seite der Weboberfläche nicht wiedergefunden",

@@ -34,7 +34,12 @@ TITLES = json.loads(
 EVOBLOCK_TITLES = ROWS
 
 
-@pytest.mark.parametrize("sensor", VALUES[WBB], ids=lambda sensor: sensor.key)
+# The pages of values the capture holds; the modulation's own form has no
+# rows, only its entry in the heat pump menu, which the menu tests check.
+CAPTURED_VALUES = [sensor for sensor in VALUES[WBB] if sensor.page in TITLES["pages"]]
+
+
+@pytest.mark.parametrize("sensor", CAPTURED_VALUES, ids=lambda sensor: sensor.key)
 def test_each_value_is_read_under_the_titles_and_unit_the_controller_shows(sensor):
     """An English title paired with another value of the same unit passed
     every test CI runs, and its sensor would show that value."""
@@ -74,7 +79,9 @@ def test_each_menu_entry_is_found_under_the_title_the_controller_shows(english, 
     assert (german, english) in pairs
 
 
-@pytest.mark.parametrize("key", list(ENGLISH_TITLES[WBB]))
+@pytest.mark.parametrize(
+    "key", [key for key in ENGLISH_TITLES[WBB] if key in TITLES["pages"]]
+)
 def test_no_english_title_is_the_german_title_of_another_row(key):
     """Every title a page shows is mapped, read or not: an English title
     equal to another row's German one would read that row as the value."""

@@ -28,8 +28,13 @@ from .const import CONF, CONST
 from .kennfeld import get_filepath
 from .migrate_helpers import entry_unique_id
 from .webif.client import LoginRefused, Unreachable, WebifError
-from .webif.discovery import ENGLISH_MENU_TITLES, DoubledMenuEntries, MissingMenuEntries
-from .webif_coordinator import INTERVAL_OPTIONS
+from .webif.discovery import (
+    ENGLISH_MENU_TITLES,
+    MODULATION_PAGE,
+    DoubledMenuEntries,
+    MissingMenuEntries,
+)
+from .webif_polled import INTERVAL_OPTIONS
 from .webif_sensor import ENGLISH_TITLES, WBB
 from .webif_shared import clear_shared_notice
 from .webif_visit import (
@@ -790,7 +795,11 @@ class WebifOptionsFlow(config_entries.OptionsFlowWithReload):
     ) -> config_entries.ConfigFlowResult:
         """The intervals, in minutes, and the daily limit of settings written."""
         if user_input is not None:
-            return self.async_create_entry(data=user_input)
+            # The form shows only the options of pages stored now: one left
+            # out until a Reconfigure keeps its own.
+            return self.async_create_entry(
+                data={**self.config_entry.options, **user_input}
+            )
         options = self.config_entry.options
         # A plain range this short draws a slider that hides its value.
         minutes = vol.All(
@@ -818,6 +827,7 @@ class WebifOptionsFlow(config_entries.OptionsFlowWithReload):
             vol.Coerce(int),
         )
         limit = CONST.OPTION_WEBIF_WRITE_LIMIT_PER_DAY
+        modulation = CONST.OPTION_WEBIF_MODULATION
         polled = self.config_entry.data[CONF.PAGES]
         schema = vol.Schema(
             {
@@ -830,6 +840,15 @@ class WebifOptionsFlow(config_entries.OptionsFlowWithReload):
                 vol.Required(
                     limit, default=options.get(limit, CONST.WEBIF_WRITE_LIMIT_PER_DAY)
                 ): writes_per_day,
+                **(
+                    {
+                        vol.Required(
+                            modulation, default=options.get(modulation, False)
+                        ): bool
+                    }
+                    if MODULATION_PAGE in polled
+                    else {}
+                ),
             }
         )
         return self.async_show_form(step_id="webif", data_schema=schema)

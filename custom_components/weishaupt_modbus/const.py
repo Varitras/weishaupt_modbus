@@ -66,6 +66,7 @@ class MainConstants:
     OPTION_WEBIF_HEATING_CIRCUIT_INTERVAL: str = "heating_circuit_interval_minutes"
     OPTION_WEBIF_SECOND_GENERATOR_INTERVAL: str = "second_generator_interval_minutes"
     OPTION_WEBIF_SETTINGS_INTERVAL: str = "settings_interval_minutes"
+    OPTION_WEBIF_MODULATION: str = "read_modulation"
     WEBIF_INTERVAL_MINUTES: int = 5
     WEBIF_SLOW_INTERVAL_MINUTES: int = 15
     WEBIF_INTERVAL_MIN_MINUTES: int = 1

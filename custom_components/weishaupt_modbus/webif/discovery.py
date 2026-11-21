@@ -9,6 +9,10 @@ overview, Info, and the heat pump's main menu. Nothing else is opened on the
 way to them; the heat pump menu also lists Reset. The titles are German; a
 controller set to English shows its own, which stand for them.
 
+An Evoblock's heat pump menu also lists Modulation, the heat pump's output
+while the hot water loads, whose entry leads straight to its form: taken
+when shown, as the pages below are.
+
 Info also lists a page per heating circuit and one for the second heat
 generator. They are taken when Info shows them, and left out otherwise: a
 pump without them, or set to English, whose titles for them nobody has seen,
@@ -28,6 +32,7 @@ import re
 
 from . import pages
 from .client import OVERVIEW, Broken, Client
+from .setting import MODULATION_TITLE
 
 INFO = "Info"
 HEAT_PUMP = "Wärmepumpe"
@@ -45,6 +50,7 @@ CIRCUITS = range(1, 6)
 # As a controller set to English showed them, 2026-10-10.
 INFO_ENGLISH = "information"
 HEAT_PUMP_ENGLISH = "heat pump"
+MODULATION_ENGLISH = "modulation"
 STATISTICS_ENGLISH = "statistics"
 HEATING_ENGLISH = "heating"
 ENGLISH_MENU_TITLES = {
@@ -52,6 +58,7 @@ ENGLISH_MENU_TITLES = {
     HEAT_PUMP_ENGLISH: HEAT_PUMP,
     STATISTICS_ENGLISH: STATISTICS,
     HEATING_ENGLISH: HEATING,
+    MODULATION_ENGLISH: MODULATION_TITLE,
 }
 
 HEAT_PUMP_PAGE = "heat_pump"
@@ -60,11 +67,17 @@ HEATING_PAGE = "heating"
 HEATING_CIRCUIT_PAGE = "heating_circuit"
 SECOND_GENERATOR_PAGE = "second_generator"
 HOT_WATER_SETTINGS_PAGE = "hot_water_settings"
+MODULATION_PAGE = "modulation"
 
 
 def circuit_settings_page(circuit: int) -> str:
     """The key of a heating circuit's settings page."""
     return f"circuit_settings_{circuit}"
+
+
+def circuit_menu(circuit: int) -> str:
+    """The title of a heating circuit's main menu."""
+    return f"Heizkreis {circuit}"
 
 
 CIRCUIT_SETTINGS_PAGES = tuple(circuit_settings_page(n) for n in CIRCUITS)
@@ -74,7 +87,11 @@ OPTIONAL_PAGES = (
     SECOND_GENERATOR_PAGE,
     *CIRCUIT_SETTINGS_PAGES,
     HOT_WATER_SETTINGS_PAGE,
+    MODULATION_PAGE,
 )
+# The pages that are a setting's own form: its generic fields cannot tell
+# which setting owns an address the controller gave to another.
+FORM_PAGES = (MODULATION_PAGE,)
 # Where each page sits in the controller's menus, as its user finds it there
 # in German and in English; the optional pages were seen in German only.
 MENU_PATHS: dict[str, tuple[str, str | None]] = {
@@ -90,10 +107,14 @@ MENU_PATHS: dict[str, tuple[str, str | None]] = {
     HEATING_CIRCUIT_PAGE: (f"{INFO} › Heizkreis", None),
     SECOND_GENERATOR_PAGE: (f"{INFO} › {SECOND_GENERATOR}", None),
     **{
-        circuit_settings_page(n): (f"Heizkreis {n} › {SETTINGS}", None)
+        circuit_settings_page(n): (f"{circuit_menu(n)} › {SETTINGS}", None)
         for n in CIRCUITS
     },
     HOT_WATER_SETTINGS_PAGE: (f"{HOT_WATER} › {SETTINGS}", None),
+    MODULATION_PAGE: (
+        f"{HEAT_PUMP} › {MODULATION_TITLE}",
+        f"{HEAT_PUMP_ENGLISH} › {MODULATION_ENGLISH}",
+    ),
 }
 
 
@@ -155,7 +176,37 @@ def moved(text: str, path: str) -> bool:
     if INFO not in menus or HEAT_PUMP not in menus:
         return False
     first = path.partition(pages.STACK_QUERY)[2].split(",", 1)[0]
-    return all(link.partition(pages.STACK_QUERY)[2] != first for link in menus.values())
+    # Every main menu shown, also one under a link another title shares: the
+    # menus read clearly may lack the one with the address's code.
+    return all(
+        link.partition(pages.STACK_QUERY)[2] != first
+        for _, link in pages.main_menus(text)
+    )
+
+
+def leads_from(text: str, path: str, title: str) -> bool:
+    """The page at path sits under the main menu `title`, as the page shows it.
+
+    Every page lists the main menus; the one linked by the address's first
+    segment is the page's own. The settings pages of two circuits show the
+    same rows: when the controller gave a retired circuit's address to
+    another one, only this told them apart. As discovery takes a menu, the
+    title must be shown once, and no other title at that link.
+    """
+    shown = Counter(
+        ENGLISH_MENU_TITLES.get(each, each) for each, _ in pages.main_menus(text)
+    )
+    return shown[title] == 1 and menu_owners(text, path) == [title]
+
+
+def menu_owners(text: str, path: str) -> list[str]:
+    """The main menus the page shows under its address's first segment."""
+    first = path.partition(pages.STACK_QUERY)[2].split(",", 1)[0]
+    return [
+        ENGLISH_MENU_TITLES.get(shown, shown)
+        for shown, link in pages.main_menus(text)
+        if link.partition(pages.STACK_QUERY)[2] == first
+    ]
 
 
 def _main_menus(text: str) -> dict[str, str]:
@@ -197,11 +248,12 @@ async def find_pages(
 ) -> dict[str, str]:
     """The address of each page to poll, by page key; the setup's and a round's.
 
-    `overview` is an answer `moved` took for the overview: the main menus are
-    read from it rather than asked for again. `reads` gets the other pages
-    found and gives the keys of those its model has values on, reading them
-    first if it must; only the settings pages among those are searched, as
-    `find_settings_pages` does with `last`. Without it, none are.
+    `overview` is an answer listing the main menus under their current codes:
+    the overview `moved` took, or another circuit's page at the address. The
+    main menus are read from it rather than asked for again. `reads` gets the
+    other pages found and gives the keys of those its model has values on,
+    reading them first if it must; only the settings pages among those are
+    searched, as `find_settings_pages` does with `last`. Without it, none are.
 
     Raises WebifError when a menu will not show what it must.
     """
@@ -245,6 +297,7 @@ def pages_in(menus: Menus) -> dict[str, str]:
         STATISTICS_PAGE: menus.info[STATISTICS],
         HEATING_PAGE: menus.heat_pump[HEATING],
         **_optional_pages(menus.info),
+        **_modulation(menus.heat_pump),
     }
 
 
@@ -254,7 +307,7 @@ def settings_menus(menus: Menus) -> dict[str, str]:
     A circuit's only when Info lists it and the overview shows its menu.
     """
     wanted = {
-        circuit_settings_page(number): f"Heizkreis {number}"
+        circuit_settings_page(number): circuit_menu(number)
         for number, _ in _circuits(menus.info)
         if number in CIRCUITS
     }
@@ -284,6 +337,15 @@ def _optional_pages(info: dict[str, str]) -> dict[str, str]:
     if SECOND_GENERATOR in info:
         found[SECOND_GENERATOR_PAGE] = info[SECOND_GENERATOR]
     return found
+
+
+def _modulation(heat_pump: dict[str, str]) -> dict[str, str]:
+    """The modulation's form among the heat pump menu's entries."""
+    return (
+        {MODULATION_PAGE: heat_pump[MODULATION_TITLE]}
+        if MODULATION_TITLE in heat_pump
+        else {}
+    )
 
 
 async def find_settings_pages(
