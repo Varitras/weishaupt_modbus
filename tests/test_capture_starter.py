@@ -124,6 +124,39 @@ def test_a_python_that_is_not_the_published_one_is_never_run(tools, download):
     assert {path.name for path in tools.iterdir()} == {CAPTURE}
 
 
+def test_a_python_folder_the_starter_did_not_make_is_kept(tools, download):
+    """A folder named python without the expected executable may hold
+    anything of the user's: it was removed whole before unpacking."""
+    theirs = tools / "python" / "notes.txt"
+    theirs.parent.mkdir()
+    theirs.write_text("mine", encoding="utf-8")
+
+    process = _start(tools, download)
+
+    assert process.returncode == 1
+    assert "python" in process.stdout
+    assert theirs.read_text(encoding="utf-8") == "mine"
+    assert download["requests"] == []
+
+
+def test_a_folder_named_like_the_old_staging_folder_is_kept(tools, download):
+    """The staging folder had a fixed name and was removed whole before
+    unpacking, whoever it belonged to."""
+    theirs = tools / "python-unpacking" / "notes.txt"
+    theirs.parent.mkdir()
+    theirs.write_text("mine", encoding="utf-8")
+
+    process = _start(tools, download)
+
+    assert process.returncode == 0, process.stdout + process.stderr
+    assert theirs.read_text(encoding="utf-8") == "mine"
+    assert {path.name for path in tools.iterdir()} == {
+        CAPTURE,
+        "python",
+        "python-unpacking",
+    }
+
+
 def test_a_second_start_downloads_nothing(tools, download):
     _start(tools, download)
 

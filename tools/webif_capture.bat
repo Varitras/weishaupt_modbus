@@ -42,29 +42,31 @@ $pythonDir = Join-Path $ToolsDir 'python'
 $python = Join-Path $pythonDir $PythonExe
 
 function Install-Python {
-    $download = Join-Path $ToolsDir 'python-download.zip'
-    $unpacking = Join-Path $ToolsDir 'python-unpacking'
-    Write-Host 'Downloading Python from python.org, once (about 11 MB) ...'
-    # Windows PowerShell 5.1 may offer only TLS versions python.org refuses.
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest -Uri $PythonUrl -OutFile $download -UseBasicParsing
-    $hash = (Get-FileHash -LiteralPath $download -Algorithm SHA256).Hash
-    if ($hash -ne $PythonSha256) {
-        Remove-Item -LiteralPath $download
-        Write-Host "The download is not the Python it should be (SHA-256 $hash); nothing was run."
-        return $false
-    }
-    foreach ($folder in @($unpacking, $pythonDir)) {
-        if (Test-Path -LiteralPath $folder) {
-            Remove-Item -LiteralPath $folder -Recurse
+    # A folder of its own for every start: whatever else lies next to this
+    # file may be the user's, and only this folder is ever removed whole.
+    $staging = Join-Path $ToolsDir ('python-setup-' + [guid]::NewGuid().ToString('N'))
+    $download = Join-Path $staging 'python.zip'
+    $unpacking = Join-Path $staging 'python'
+    New-Item -ItemType Directory -Path $staging | Out-Null
+    try {
+        Write-Host 'Downloading Python from python.org, once (about 11 MB) ...'
+        # Windows PowerShell 5.1 may offer only TLS versions python.org refuses.
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri $PythonUrl -OutFile $download -UseBasicParsing
+        $hash = (Get-FileHash -LiteralPath $download -Algorithm SHA256).Hash
+        if ($hash -ne $PythonSha256) {
+            Write-Host "The download is not the Python it should be (SHA-256 $hash); nothing was run."
+            return $false
         }
+        Expand-Archive -LiteralPath $download -DestinationPath $unpacking
+        # Unpacked aside and moved at once: a start broken off midway leaves no
+        # half Python that the next start would take for a whole one.
+        Move-Item -LiteralPath $unpacking -Destination $pythonDir
+        return $true
     }
-    Expand-Archive -LiteralPath $download -DestinationPath $unpacking
-    Remove-Item -LiteralPath $download
-    # Unpacked aside and moved at once: a start broken off midway leaves no
-    # half Python that the next start would take for a whole one.
-    Move-Item -LiteralPath $unpacking -Destination $pythonDir
-    return $true
+    finally {
+        Remove-Item -LiteralPath $staging -Recurse
+    }
 }
 
 if (-not (Test-Path -LiteralPath $capture)) {
@@ -72,6 +74,10 @@ if (-not (Test-Path -LiteralPath $capture)) {
     exit 1
 }
 if (-not (Test-Path -LiteralPath $python)) {
+    if (Test-Path -LiteralPath $pythonDir) {
+        Write-Host "There is a folder ""python"" next to this file without the Python this starter puts there; it is left as it is. Move or rename it and start again."
+        exit 1
+    }
     if (-not (Install-Python)) {
         exit 1
     }

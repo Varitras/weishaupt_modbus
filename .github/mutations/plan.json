@@ -3859,8 +3859,8 @@
   {
     "label": "capture starter: a refused download stays on disk",
     "path": "tools/webif_capture.bat",
-    "old": "        Remove-Item -LiteralPath $download\n        Write-Host \"The download",
-    "new": "        Write-Host \"The download",
+    "old": "    finally {\n        Remove-Item -LiteralPath $staging -Recurse\n    }\n",
+    "new": "    finally {\n    }\n",
     "tests": "not_the_published_one_is_never_run"
   },
   {
@@ -6228,5 +6228,19 @@
     "old": "    if item.state is None:\n        return None\n",
     "new": "",
     "tests": "neither_set_nor_off_shows_its_switch_unknown"
+  },
+  {
+    "label": "capture starter: a python folder it did not make is replaced",
+    "path": "tools/webif_capture.bat",
+    "old": "    if (Test-Path -LiteralPath $pythonDir) {\n",
+    "new": "    if ($false) {\n",
+    "tests": "python_folder_the_starter_did_not_make_is_kept"
+  },
+  {
+    "label": "capture starter: the staging folder has a fixed name",
+    "path": "tools/webif_capture.bat",
+    "old": "$staging = Join-Path $ToolsDir ('python-setup-' + [guid]::NewGuid().ToString('N'))\n",
+    "new": "$staging = Join-Path $ToolsDir 'python-unpacking'\n",
+    "tests": "named_like_the_old_staging_folder_is_kept"
   }
 ]
