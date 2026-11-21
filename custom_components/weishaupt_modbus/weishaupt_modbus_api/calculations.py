@@ -14,6 +14,9 @@ class PowerMap(Protocol):
     def map(self, air_intake_raw: float, flow_temp_raw: float) -> float | None:
         """Rated heating power in W at an air intake and a flow temperature (raw tenths); None without a map."""
 
+    def map_min(self, air_intake_raw: float, flow_temp_raw: float) -> float | None:
+        """Minimum heating power in W at the same point; None for a map without minimum curves."""
+
 
 def heat_output(
     power_request_percent: float,
@@ -21,11 +24,26 @@ def heat_output(
     flow_temperature_raw: float,
     power_map: PowerMap,
 ) -> float | None:
-    """Heating power in W: the request in percent of the map's rated power."""
+    """Heating power in W from the request and the power map.
+
+    A map with minimum curves: minimum + request x (maximum - minimum), and
+    0 W at 0 % - the compressor is off then, not at its minimum (on a WEB
+    13/20 the request reads 0 exactly when the delivered output does, and
+    14 % or more while it runs). Checked against flow rate x spread on one
+    WEB 13/20 only; on a WBB the same formula read far too high, so a map
+    has minimum curves only where they were checked.
+
+    Every other map: the request in percent of the rated power, unchanged.
+    """
     rated = power_map.map(air_intake_temperature_raw, flow_temperature_raw)
     if rated is None:
         return None
-    return power_request_percent / 100 * rated
+    minimum = power_map.map_min(air_intake_temperature_raw, flow_temperature_raw)
+    if minimum is None:
+        return power_request_percent / 100 * rated
+    if power_request_percent <= 0:
+        return 0.0
+    return minimum + power_request_percent / 100 * (rated - minimum)
 
 
 def spread(flow_temperature: float, return_temperature_raw: float) -> float:

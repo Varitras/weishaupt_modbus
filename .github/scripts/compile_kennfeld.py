@@ -2,9 +2,10 @@
 
 A raw grid names a few points per flow-temperature curve (known_x, known_y,
 known_t); the integration reads a compiled_grid with a value per 0.1 °C of
-air intake temperature. Compiling needs numpy; with scipy the curve between the
-points is a smooth spline, without it a straight line. It happens here,
-once, and not on every user's machine.
+air intake temperature. Optional minimum curves (min_known_x, min_known_y, a
+row per known_t) become a compiled_min_grid on the same keys. Compiling needs
+numpy; with scipy the curve between the points is a smooth spline, without it
+a straight line. It happens here, once, and not on every user's machine.
 
     python .github/scripts/compile_kennfeld.py custom_components/weishaupt_modbus/kennfeld/my_kennfeld.json
 
@@ -71,11 +72,44 @@ def compile_grid(data: dict) -> dict[str, list[float]]:
         print("scipy not installed - joining the points by lines", file=sys.stderr)
         curves = [partial(np.interp, xp=known_x, fp=ys) for ys in known_y]
     assert len(curves) == len(known_t), "one curve per flow temperature"
-    # The integration's rounding of the bounds, so that its keys are these.
-    low, high = round(known_x[0] * 10), round(known_x[-1] * 10)
     return {
         str(raw): [round(float(curve(raw / 10.0)), 1) for curve in curves]
-        for raw in range(low, high + 1)
+        for raw in air_keys(known_x)
+    }
+
+
+def air_keys(known_x: list) -> range:
+    """Every tenth between the bounds, the keys of a compiled grid.
+
+    The integration's rounding of the bounds, so that its keys are these.
+    """
+    low, high = round(known_x[0] * 10), round(known_x[-1] * 10)
+    return range(low, high + 1)
+
+
+def compile_min_grid(data: dict) -> dict[str, list[float]] | None:
+    """The minimum curves on the same keys as compiled_grid; None without them.
+
+    Optional: a map without min_known_y keeps the plain request x maximum.
+    Joined by lines and held flat beyond their ends, never a spline: the
+    points are read off a datasheet diagram, and a spline swings between them
+    and runs away past the last one. One row per flow temperature, in the
+    order of known_t.
+    """
+    if "min_known_y" not in data:
+        return None
+    import numpy as np  # noqa: PLC0415
+
+    min_x, min_y = data["min_known_x"], data["min_known_y"]
+    if min_x != sorted(set(min_x)):
+        raise ValueError("min_known_x must be ascending, each temperature once")
+    if len(min_y) != len(data["known_t"]) or any(len(ys) != len(min_x) for ys in min_y):
+        raise ValueError(
+            "min_known_y needs one row per known_t, one value per min_known_x"
+        )
+    return {
+        str(raw): [round(float(np.interp(raw / 10.0, min_x, ys)), 1) for ys in min_y]
+        for raw in air_keys(data["known_x"])
     }
 
 
@@ -165,6 +199,9 @@ def main(argv: list[str]) -> int:
             file=sys.stderr,
         )
         return 1
+    if "min_known_y" in data:
+        # sorted with the temperatures they belong to, like the maximum curves
+        _, data["min_known_y"] = sorted_curves(data["known_t"], data["min_known_y"])
     data["known_t"], data["known_y"] = sorted_curves(data["known_t"], data["known_y"])
     # The integration refuses such a grid, and the file it replaced is gone.
     distinct = len(set(data["known_t"])) == len(data["known_t"])
@@ -176,6 +213,9 @@ def main(argv: list[str]) -> int:
         )
         return 1
     data["compiled_grid"] = compile_grid(data)
+    min_grid = compile_min_grid(data)
+    if min_grid is not None:
+        data["compiled_min_grid"] = min_grid
     path.write_text(json.dumps(data, separators=(",", ":")) + "\n", encoding="utf-8")
     print(f"compiled {path.name}: {len(data['compiled_grid'])} air intake temperatures")
     preview = path.with_suffix(".svg")

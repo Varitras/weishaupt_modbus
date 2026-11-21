@@ -96,9 +96,32 @@ def _looks_like_a_grid(data: Any) -> bool:
     low, high = raw_bounds
     if any(str(raw) not in grid for raw in range(low, high + 1)):
         return False
+    return _rows_fit(grid, known_t)
+
+
+def _rows_fit(grid: dict[str, Any], known_t: list[Any]) -> bool:
+    """One usable number per flow curve in every row."""
     return all(
         _numbers(row, at_least=len(known_t)) and len(row) == len(known_t)
         for row in grid.values()
+    )
+
+
+def _fits_the_grid(min_grid: Any, grid: dict[str, Any], known_t: list[Any]) -> bool:
+    """Whether a compiled_min_grid can stand beside the accepted compiled_grid.
+
+    The same keys, so that map_min() looks up what map() looks up, and a
+    minimum no higher than the maximum at any point: above it, the formula
+    would give less heat at a higher request.
+    """
+    if not isinstance(min_grid, dict) or min_grid.keys() != grid.keys():
+        return False
+    if not _rows_fit(min_grid, known_t):
+        return False
+    return all(
+        low <= high
+        for key, row in min_grid.items()
+        for low, high in zip(row, grid[key], strict=True)
     )
 
 
@@ -251,6 +274,7 @@ class PowerMap:
         self.hass = hass
         self._config_entry = config_entry
         self._compiled_grid: dict[str, list[float]] = {}
+        self._compiled_min_grid: dict[str, list[float]] = {}
         self._known_t: list[int] = [35, 55]
         self._air_range_raw: list[int] = [-300, 400]
 
@@ -305,7 +329,29 @@ class PowerMap:
         assert raw_bounds is not None
         self._air_range_raw = raw_bounds
         self._compiled_grid = data["compiled_grid"]
+        self._compiled_min_grid = self._accepted_min_grid(data, filepath.name)
         return True
+
+    def _accepted_min_grid(
+        self, data: dict[str, Any], name: str
+    ) -> dict[str, list[float]]:
+        """The optional minimum curves, or none - never the whole map refused.
+
+        Without them the heat output is the request times the maximum, as it
+        always was; a broken set only costs the correction, not the sensor.
+        """
+        min_grid: dict[str, list[float]] | None = data.get("compiled_min_grid")
+        if min_grid is None:
+            return {}
+        if not _fits_the_grid(min_grid, data["compiled_grid"], self._known_t):
+            _LOGGER.error(
+                "Power map %s has minimum curves that do not fit its grid (a "
+                "value per flow curve for every air intake temperature, none "
+                "above the maximum); the heat output uses the maximum only",
+                name,
+            )
+            return {}
+        return min_grid
 
     def _copy_powermap_plot(self, json_filepath: Path | None, www_dir: Path) -> None:
         """Put this entry's preview under www/local, or take a stale one down.
@@ -339,7 +385,16 @@ class PowerMap:
         None without a map: 0 W here became a recorded heat output of zero for
         a configuration problem.
         """
-        if not self._compiled_grid:
+        return self._interpolate(self._compiled_grid, air_intake_raw, flow_temp_raw)
+
+    def map_min(self, air_intake_raw: float, flow_temp_raw: float) -> float | None:
+        """Minimum power at the same point; None for a map without minimum curves."""
+        return self._interpolate(self._compiled_min_grid, air_intake_raw, flow_temp_raw)
+
+    def _interpolate(
+        self, grid: dict[str, list[float]], air_intake_raw: float, flow_temp_raw: float
+    ) -> float | None:
+        if not grid:
             return None
 
         air_raw = max(
@@ -351,7 +406,7 @@ class PowerMap:
         )
 
         # A grid is loaded only with a row for every tenth between its bounds.
-        vals = self._compiled_grid[str(air_raw)]
+        vals = grid[str(air_raw)]
 
         # Clamped to the curves, the flow temperature always lies between two.
         y0_idx = 0

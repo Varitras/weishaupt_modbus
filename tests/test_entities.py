@@ -724,10 +724,34 @@ def test_the_heat_output_takes_the_power_map():
         values={"luftansautgemp": 100, "vl_temp": 350}, cache={33103: 50}
     )
     entry = _entry()
-    entry.runtime_data.powermap = SimpleNamespace(map=lambda outside, flow: 8000.0)
+    entry.runtime_data.powermap = SimpleNamespace(
+        map=lambda outside, flow: 8000.0, map_min=lambda outside, flow: None
+    )
     sensor = entities.MyCalcSensorEntity(entry, item, coordinator)
 
     assert sensor.translate_val(None) == 4000
+
+
+def test_the_heat_output_takes_the_minimum_curves_where_the_map_has_them():
+    item = ModbusItem(
+        33103,
+        "Wärmeleistung",
+        FORMATS.NUMBER,
+        TYPES.SENSOR_CALC,
+        DEVICES.WP,
+        "waermeleistung",
+        params=PARAMS_CALCPOWER,
+    )
+    coordinator = FakeCoordinator(
+        values={"luftansautgemp": 100, "vl_temp": 350}, cache={33103: 50}
+    )
+    entry = _entry()
+    entry.runtime_data.powermap = SimpleNamespace(
+        map=lambda outside, flow: 8000.0, map_min=lambda outside, flow: 4000.0
+    )
+    sensor = entities.MyCalcSensorEntity(entry, item, coordinator)
+
+    assert sensor.translate_val(None) == 6000
 
 
 @pytest.mark.parametrize(
