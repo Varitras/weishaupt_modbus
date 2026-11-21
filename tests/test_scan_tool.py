@@ -277,6 +277,22 @@ def test_a_scan_with_nothing_answered_writes_the_file_it_names(tmp_path, serve):
     assert rows == []
 
 
+@pytest.mark.parametrize(
+    "registers", [{}, {(READ_INPUT, 30001): 195}], ids=["nothing", "a register"]
+)
+def test_a_scan_in_a_folder_with_brackets_writes_its_file(tmp_path, serve, registers):
+    """Unpacked to "weishaupt [1]": a path read as a wildcard matched
+    nothing, and the scan stopped before it wrote a byte."""
+    folder = tmp_path / "weishaupt [1]"
+    folder.mkdir()
+    port = serve(_StandInPump(registers=registers, identification={0: ([], None)}))
+
+    process, _ = _scan(folder, port, InputRegisters=[30001], HoldingRegisters=[])
+
+    assert process.returncode == 0, process.stderr
+    assert (folder / "scan.csv").exists()
+
+
 def test_an_aborted_scan_keeps_the_registers_it_read(tmp_path, serve):
     """Five dropped requests in a row end the scan; what came before is
     evidence and was lost with the table it belonged to."""

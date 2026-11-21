@@ -213,8 +213,8 @@ try {
     Read-Table 'holding' $FunctionReadHolding $HoldingRegisters | ForEach-Object { $rows.Add($_) }
 }
 finally {
-    if ($rows.Count -gt 0) { $rows | Export-Csv -Path $OutFile -NoTypeInformation -Encoding UTF8 }
-    else { Set-Content -Path $OutFile -Value $CsvHeader -Encoding UTF8 }
+    if ($rows.Count -gt 0) { $rows | Export-Csv -LiteralPath $OutFile -NoTypeInformation -Encoding UTF8 }
+    else { Set-Content -LiteralPath $OutFile -Value $CsvHeader -Encoding UTF8 }
     $script:client.Close()
 }
 

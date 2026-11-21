@@ -6337,9 +6337,23 @@
   {
     "label": "scan: a scan with nothing answered writes no file",
     "path": "tools/weishaupt_scan.bat",
-    "old": "    else { Set-Content -Path $OutFile -Value $CsvHeader -Encoding UTF8 }\n",
+    "old": "    else { Set-Content -LiteralPath $OutFile -Value $CsvHeader -Encoding UTF8 }\n",
     "new": "",
     "tests": "nothing_answered_writes_the_file_it_names"
+  },
+  {
+    "label": "scan: the empty file's path is read as a wildcard",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "Set-Content -LiteralPath $OutFile",
+    "new": "Set-Content -Path $OutFile",
+    "tests": "folder_with_brackets_writes_its_file"
+  },
+  {
+    "label": "scan: the CSV's path is read as a wildcard",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "Export-Csv -LiteralPath $OutFile",
+    "new": "Export-Csv -Path $OutFile",
+    "tests": "folder_with_brackets_writes_its_file"
   },
   {
     "label": "power limit write: an unexpected error after the save reads as failed",
