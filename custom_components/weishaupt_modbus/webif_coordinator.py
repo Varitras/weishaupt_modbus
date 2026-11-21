@@ -623,8 +623,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         """The page whole, and as it is polled now: moved, at its new address.
 
         The overview or another circuit's page in its place is not asked for
-        twice, and leads to one search a round. One at a new address too is a failure of the page, as
-        is a page the search did not find again, under its own name.
+        twice, and leads to one search a round. One at a new address too is a
+        failure of the page, as is a page the search did not find again, under
+        its own name.
         """
         text = await self._client.page(page.path, partial(_whole_or_moved, page))
         if page.is_whole(text):
@@ -653,7 +654,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         raise Broken(f"{page.key}: moved again", "moved again", text=text)
 
     async def _search_again(self, overview: str) -> None:
-        """Each page's new address, from the main menus `overview` shows, kept.
+        """Each page's new address, from the main menus `overview` shows.
 
         `overview` is the overview in a page's place or another circuit's page
         at its address; both list the main menus under their current codes.

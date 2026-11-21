@@ -250,10 +250,10 @@ async def find_pages(
 
     `overview` is an answer listing the main menus under their current codes:
     the overview `moved` took, or another circuit's page at the address. The
-    main menus are read from it rather than asked for again. `reads` gets the other pages
-    found and gives the keys of those its model has values on, reading them
-    first if it must; only the settings pages among those are searched, as
-    `find_settings_pages` does with `last`. Without it, none are.
+    main menus are read from it rather than asked for again. `reads` gets the
+    other pages found and gives the keys of those its model has values on,
+    reading them first if it must; only the settings pages among those are
+    searched, as `find_settings_pages` does with `last`. Without it, none are.
 
     Raises WebifError when a menu will not show what it must.
     """

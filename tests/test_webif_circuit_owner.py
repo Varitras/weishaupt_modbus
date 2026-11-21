@@ -409,6 +409,9 @@ def test_a_whole_page_under_an_unclear_menu_names_why():
         "20.0 °C",
     )
     text = main_menus() + column(link([THIRD_MENU], "Heizkreis 3") * 2) + column(row)
+    # Its rows all there, but no main menu at all: nested one level too deep.
+    without = column(row)
 
     assert not page.is_whole(text)
     assert page.flaws(text) == "Heizkreis 3 unclear"
+    assert page.flaws(without) == "no Heizkreis 3 menu"

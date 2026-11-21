@@ -165,6 +165,8 @@ class Page:
         elif not self.owned(text) and menu_owners(text, self.path):
             # Its menu shown twice, or beside another title at its link.
             flaws.append(f"{self.owner} unclear")
+        elif not self.owned(text):
+            flaws.append(f"no {self.owner} menu")
         return "; ".join(flaws)
 
 

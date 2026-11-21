@@ -603,12 +603,19 @@ def _entry(step: Step, walk: _Walk, ask: Callable[[str], str]) -> Any:
     by_code = [entry for entry in clear if _item(entry.href) == step.code]
     by_title = _titled(step, clear, walk)
     found = by_code if len(by_code) == 1 else by_title
+    # The entry asked for on a shared link: the others are no pick for it.
+    wanted_shared = [
+        entry
+        for entry in offered
+        if links[entry.href] > 1
+        and (_item(entry.href) == step.code or entry.title == step.german)
+    ]
     if len(found) == 1:
         walk.chosen[step.key] = found[0]
     elif step.optional:
         return None
-    elif not clear:
-        # Nothing to open, or only entries sharing a link. Kept, the parent
+    elif not clear or wanted_shared:
+        # Nothing to open, or the entry asked for sharing a link. Kept, the parent
         # would stop every later attempt the same way; picked by the user,
         # it was likely the wrong pick.
         del walk.read[step.parent]

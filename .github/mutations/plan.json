@@ -6141,8 +6141,8 @@
   {
     "label": "capture: a menu of shared links must stop the attempt",
     "path": "tools/webif_capture.py",
-    "old": "    elif not clear:\n",
-    "new": "    elif False:\n",
+    "old": "    elif not clear or wanted_shared:\n",
+    "new": "    elif wanted_shared:\n",
     "tests": "whose_entries_all_share_links_stops_the_attempt"
   },
   {
@@ -6158,5 +6158,19 @@
     "old": "        del walk.read[step.parent]\n",
     "new": "",
     "tests": "once_served_with_shared_links_is_asked_for_again or nothing_to_open"
+  },
+  {
+    "label": "webif circuit owner: a page without its menu must name why",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "        elif not self.owned(text):\n            flaws.append(f\"no {self.owner} menu\")\n",
+    "new": "",
+    "tests": "whole_page_under_an_unclear_menu_names_why"
+  },
+  {
+    "label": "capture: the wanted entry on a shared link must stop the attempt",
+    "path": "tools/webif_capture.py",
+    "old": "    elif not clear or wanted_shared:\n",
+    "new": "    elif not clear:\n",
+    "tests": "wanted_entry_on_a_shared_link_stops_the_attempt"
   }
 ]

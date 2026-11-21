@@ -733,6 +733,32 @@ async def test_a_menu_once_served_with_shared_links_is_asked_for_again(socket_en
     assert "heating" in by_page(report)
 
 
+def test_a_wanted_entry_on_a_shared_link_stops_the_attempt():
+    """Heizen beside Kühlen on one link, Warmwasser clear: only the wrong
+    entries were offered to pick, and the menu was never read again."""
+    pump_menu = KNOWN["pump"]
+    shared = STACK + f"{pump_menu},{KNOWN['heating']}"
+    walk = capture_tool._Walk()
+    walk.read["heat_pump_menu"] = [
+        capture_tool.pages.Entry("Heizen", "", shared),
+        capture_tool.pages.Entry("Kühlen", "", shared),
+        capture_tool.pages.Entry(
+            "Warmwasser",
+            "",
+            STACK + f"{pump_menu},64003300000000000080000A0B020003000401",
+        ),
+    ]
+
+    with pytest.raises(capture_tool.Half):
+        capture_tool._entry(
+            capture_tool.STEP_BY_KEY["heating"],
+            walk,
+            lambda _: pytest.fail("only wrong entries to pick"),
+        )
+
+    assert "heat_pump_menu" not in walk.read
+
+
 def test_an_optional_entry_sharing_its_link_is_not_taken():
     menu = CIRCUIT_MENU[2]
     page = column(
