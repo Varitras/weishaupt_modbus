@@ -5525,8 +5525,8 @@
   {
     "label": "webif coordinator: the overview in place of a page is asked for twice",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "    return page.is_whole(text) or moved(text, page.path)\n",
-    "new": "    return page.is_whole(text)\n",
+    "old": "    return page.is_whole(text) or moved(text, page.path) or page.under_another(text)\n",
+    "new": "    return page.is_whole(text) or page.under_another(text)\n",
     "tests": "moved_pages_are_found_again_from_the_overview or moved_again_at_their_new_addresses"
   },
   {
@@ -6020,13 +6020,6 @@
     "tests": "optional_entry_sharing_its_link_is_not_taken"
   },
   {
-    "label": "webif circuit owner: a page under another circuit's menu must count as not found again",
-    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "                self._lost.add(page.key)\n",
-    "new": "                pass\n",
-    "tests": "pause_asks_for_reconfigure_after_a_restart"
-  },
-  {
     "label": "webif circuit owner: a half page must not count as another circuit's",
     "path": "custom_components/weishaupt_modbus/webif_polled.py",
     "old": "        return self.owner is not None and bool(owners) and self.owner not in owners\n",
@@ -6088,5 +6081,26 @@
     "old": "            self._lost.discard(page.key)\n",
     "new": "            pass\n",
     "tests": "back_under_its_own_menu_is_no_longer_lost"
+  },
+  {
+    "label": "webif circuit owner: another circuit's page must start a search",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "    return page.is_whole(text) or moved(text, page.path) or page.under_another(text)\n",
+    "new": "    return page.is_whole(text) or moved(text, page.path)\n",
+    "tests": "two_circuits_that_swap_addresses_are_found_again"
+  },
+  {
+    "label": "webif circuit owner: a form under another circuit must not be sent",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "        return pages.setting_form(text) if owned(text) else None\n",
+    "new": "        return pages.setting_form(text)\n",
+    "tests": "form_now_under_another_circuit_is_not_saved"
+  },
+  {
+    "label": "webif circuit owner: a write must know its page's owner",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                    page.owned,\n",
+    "new": "                    lambda _text: True,\n",
+    "tests": "form_now_under_another_circuit_is_not_saved"
   }
 ]

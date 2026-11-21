@@ -69,6 +69,11 @@ def whole(text):
     return bool(pages.children(text, HEATING_PATH))
 
 
+def anywhere(_text):
+    """A setting without a main menu it must be under."""
+    return True
+
+
 def scripted(heating=(heating_page(60), heating_page(61)), leaf=limit_leaf(60)):
     events = []
     return ScriptedClient(events, heating, leaf), events
@@ -79,6 +84,7 @@ async def write(client, target=61):
         client,
         HEATING_PATH,
         whole,
+        anywhere,
         setting.POWER_LIMIT,
         target,
         lambda: client.events.append(("count",)),
@@ -272,6 +278,7 @@ async def test_a_modulation_form_of_another_type_is_not_sent():
             client,
             MODULATION_PATH,
             whole,
+            anywhere,
             setting.MODULATION,
             85,
             lambda: events.append(("count",)),

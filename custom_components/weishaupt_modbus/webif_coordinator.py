@@ -130,8 +130,11 @@ def _retry_due(stopped: _Stopped, now: float) -> list[Page]:
 
 
 def _whole_or_moved(page: Page, text: str) -> bool:
-    """Whole, or the overview in its place, which asking again cannot mend."""
-    return page.is_whole(text) or moved(text, page.path)
+    """Whole, or moved: asking again cannot mend either.
+
+    Moved is the overview or another circuit's page in its place.
+    """
+    return page.is_whole(text) or moved(text, page.path) or page.under_another(text)
 
 
 def _failure_reason(page: Page, error: WebifError) -> str:
@@ -401,6 +404,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                     self._client,
                     page.path,
                     page.is_whole,
+                    page.owned,
                     burst.setting,
                     burst.target,
                     count_write,
@@ -621,14 +625,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         search a round. One at a new address too is a failure of the page, as
         is a page the search did not find again, under its own name.
         """
-        try:
-            text = await self._client.page(page.path, partial(_whole_or_moved, page))
-        except Broken as error:
-            # Its address leads to another circuit's page: no search finds it
-            # there again, and a restart forgets one that did not.
-            if error.text is not None and page.under_another(error.text):
-                self._lost.add(page.key)
-            raise
+        text = await self._client.page(page.path, partial(_whole_or_moved, page))
         if page.is_whole(text):
             # Under its own menu again: a later failure is no longer a loss.
             self._lost.discard(page.key)

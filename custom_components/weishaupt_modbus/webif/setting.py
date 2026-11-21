@@ -170,14 +170,17 @@ async def write_setting(
     client: Client,
     menu_path: str,
     whole: Callable[[str], bool],
+    owned: Callable[[str], bool],
     setting: Setting,
     target: int,
     count_write: Callable[[], object],
 ) -> str:
     """Set `setting` to the option `target`; its menu page as read afterwards.
 
-    `whole` is the menu page's own completeness rule. For a setting on a
-    form page, `menu_path` is that page, and the form tells it whole.
+    `whole` is the menu page's own completeness rule, `owned` tells a page
+    shown under the main menu it belongs to; the form's page must be too. For
+    a setting on a form page, `menu_path` is that page, and the form tells it
+    whole.
     `count_write` runs as the save goes out, see Client.save. A target the
     controller already shows ends the write after the first read.
 
@@ -191,11 +194,16 @@ async def write_setting(
     def setting_shown(text: str) -> tuple[int, str] | None:
         return _entry(text, menu_path, setting) if whole(text) else None
 
+    def form_of_the_owner(text: str) -> pages.SettingForm | None:
+        # Between the two reads the controller may give the address to
+        # another circuit, whose form would pass every other check.
+        return pages.setting_form(text) if owned(text) else None
+
     try:
         menu, (shown, link) = await _read(client, menu_path, setting_shown)
         if shown == target:
             return menu
-        _, form = await _read(client, link, pages.setting_form)
+        _, form = await _read(client, link, form_of_the_owner)
     except (Broken, Unreachable) as error:
         raise FormNotRead(str(error)) from error
     link_stack = link.split(pages.STACK_QUERY, 1)[-1]

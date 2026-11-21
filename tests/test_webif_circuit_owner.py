@@ -7,6 +7,8 @@ only the main menu its address leads from still names the circuit it belongs
 to. Synthetic loopback stand-in only.
 """
 
+import re
+
 import pytest
 
 from custom_components.weishaupt_modbus.const import CONST
@@ -328,3 +330,55 @@ async def test_a_circuit_page_cut_after_its_main_menus_is_a_half_page(
     assert notice.translation_key == STOPPED_ISSUE
     assert "not under" not in notice.translation_placeholders["error"]
     assert THIRD not in entry.runtime_data.coordinator._lost
+
+
+def _exchanged(text):
+    """The text with circuits 2 and 3 at each other's menu codes."""
+    return re.sub(
+        r"(?<![0-9A-F])(33|34)(?=00[0-9A-F]{15,})",
+        lambda match: {"33": "34", "34": "33"}[match.group(1)],
+        text,
+    )
+
+
+async def test_two_circuits_that_swap_addresses_are_found_again(hass, pump, quick):
+    """Each old address showed the other circuit's page, whole and not the
+    overview: no search ran, and polling paused for Reconfigure."""
+    entry, clock = await _healthy_entry(hass, pump)
+    pump.site = {_exchanged(path): _exchanged(text) for path, text in pump.site.items()}
+
+    for _ in range(FAILURES_TO_STOP):
+        await _round_later(hass, entry, clock)
+
+    stored = entry.data[CONF.PAGES]
+    assert stored[THIRD] == SETTINGS[SECOND]
+    assert stored[SECOND] == SETTINGS[THIRD]
+    assert hass.states.get(_number(hass, 3)).state == "33.0"
+    assert _notice(hass, entry) is None
+
+
+async def test_a_form_now_under_another_circuit_is_not_saved(
+    hass, pump, quick, monkeypatch
+):
+    """Between the settings page and the form the controller gave the
+    address to circuit 2, whose minimum was the same: its form was sent."""
+    pump.circuits[2].values["Minimaltemperatur"] = "33.0 °C"
+    pump.circuits[2].show()
+    entry, _ = await _healthy_entry(hass, pump)
+    client = entry.runtime_data.coordinator._client
+    asked = client.page
+    moved = []
+
+    async def move_before_the_form(path, complete):
+        if path.startswith(SETTINGS[THIRD] + ",") and not moved:
+            give_the_third_address_to_the_second(pump)
+            moved.append(path)
+        return await asked(path, complete)
+
+    monkeypatch.setattr(client, "page", move_before_the_form)
+
+    await _set(hass, 3)
+
+    assert moved
+    assert pump.saved == []
+    assert pump.circuits[2].values["Minimaltemperatur"] == "33.0 °C"
