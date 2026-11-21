@@ -9,6 +9,8 @@ The behaviour tests run the PowerShell half of the file against a stand-in
 Modbus server on the loopback address and look at what actually arrives.
 They need PowerShell 7 (`pwsh`); GitHub's Ubuntu runners ship it, and a
 missing one fails rather than skips - a skipped safety test reads as a pass.
+The batch file itself starts Windows PowerShell 5.1, which these tests do
+not run.
 """
 
 import csv

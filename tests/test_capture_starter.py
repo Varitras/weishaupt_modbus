@@ -5,7 +5,10 @@ runs tools/webif_capture.py with it. What it downloads runs on a stranger's
 computer, so the check of the download is held by tests: they run the
 PowerShell half of the file against a stand-in download on the loopback
 address. They need PowerShell 7 (`pwsh`); a missing one fails rather than
-skips, as for the scan tool.
+skips, as for the scan tool. The batch file itself starts Windows
+PowerShell 5.1, which is not there where the suite runs: where the two
+differ, as for wildcard paths or how a native program gets its arguments,
+the test says so.
 """
 
 import functools
@@ -183,9 +186,11 @@ def test_a_second_start_downloads_nothing(tools, download):
 
 
 def test_the_address_reaches_the_capture_as_typed(tools, download):
-    """Handed over as environment, never as source: an & or a quote in what
-    the user typed stays text."""
-    typed = 'pump & "x" $env:PATH'
+    """Handed over as environment, never as source: an & or a $ in what the
+    user typed stays text. Not held here: Windows PowerShell 5.1 drops a
+    typed double quote when it starts python.exe, and the stand-in Python
+    is a script PowerShell runs itself."""
+    typed = "pump & $env:PATH"
 
     _start(tools, download, host=typed)
 
