@@ -182,14 +182,34 @@ def test_a_start_broken_off_during_the_download_leaves_nothing_behind(tools, dow
     left = tools / ("python-setup-" + "0" * 32)
     left.mkdir()
     (left / "python.zip").write_bytes(b"half")
+    _age(left, hours=2)
     mine = tools / "python-setup-mine"
     mine.mkdir()
+    _age(mine, hours=2)
 
     process = _start(tools, download)
 
     assert process.returncode == 0, process.stdout + process.stderr
     assert not left.exists()
     assert mine.exists()
+
+
+def test_a_start_still_running_beside_keeps_its_folder(tools, download):
+    """A second start removed the first one's folder while it unpacked,
+    and the first moved a Python without python.exe into place."""
+    running = tools / ("python-setup-" + "1" * 32)
+    running.mkdir()
+    (running / "python.zip").write_bytes(b"half")
+
+    process = _start(tools, download)
+
+    assert process.returncode == 0, process.stdout + process.stderr
+    assert (running / "python.zip").exists()
+
+
+def _age(folder: pathlib.Path, hours: int) -> None:
+    then = folder.stat().st_mtime - hours * 3600
+    os.utime(folder, (then, then))
 
 
 def test_a_second_start_downloads_nothing(tools, download):

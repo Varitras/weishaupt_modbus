@@ -32,7 +32,8 @@ param(
     [string]$PythonUrl = 'https://www.python.org/ftp/python/3.13.16/python-3.13.16-embed-amd64.zip',
     # As python.org publishes it for that file.
     [string]$PythonSha256 = '97dae5274cc54867065e8d5a3226e48c35017ed332a0fdb0e27d5b5821961297',
-    [string]$PythonExe = 'python.exe'
+    [string]$PythonExe = 'python.exe',
+    [int]$LeftoverHours = 1
 )
 
 $ErrorActionPreference = 'Stop'
@@ -50,13 +51,15 @@ $pythonDir = Join-Path $ToolsDir 'python'
 $python = Join-Path $pythonDir $PythonExe
 
 function Install-Python {
-    # A start whose window was closed midway skipped its cleanup; only names
-    # this file makes, with a whole GUID, are removed.
+    # An interrupted start can leave a staging folder. Only names this file
+    # makes are removed, and only once an hour old: a second start must not
+    # take the folder of one still unpacking. One that will not go stays
+    # for a later start.
+    $abandoned = (Get-Date).AddHours(-$LeftoverHours)
     Get-ChildItem -LiteralPath $ToolsDir -Directory -Filter 'python-setup-*' |
-        Where-Object { $_.Name -match '^python-setup-[0-9a-f]{32}$' } |
-        Remove-Item -Recurse
-    # A folder of its own for every start: whatever else lies next to this
-    # file may be the user's, and only this folder is ever removed whole.
+        Where-Object { $_.Name -match '^python-setup-[0-9a-f]{32}$' -and $_.LastWriteTime -lt $abandoned } |
+        Remove-Item -Recurse -ErrorAction SilentlyContinue
+    # Download and unpack in a separate staging folder for this start.
     $staging = Join-Path $ToolsDir ('python-setup-' + [guid]::NewGuid().ToString('N'))
     $download = Join-Path $staging 'python.zip'
     $unpacking = Join-Path $staging 'python'

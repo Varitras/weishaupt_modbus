@@ -6358,7 +6358,7 @@
   {
     "label": "capture starter: a broken-off start's folder stays",
     "path": "tools/webif_capture.bat",
-    "old": "        Remove-Item -Recurse\n",
+    "old": "        Remove-Item -Recurse -ErrorAction SilentlyContinue\n",
     "new": "        Out-Null\n",
     "tests": "broken_off_during_the_download_leaves_nothing_behind"
   },
@@ -6368,6 +6368,13 @@
     "old": "'^python-setup-[0-9a-f]{32}$'",
     "new": "'^python-setup-'",
     "tests": "broken_off_during_the_download_leaves_nothing_behind"
+  },
+  {
+    "label": "capture starter: a running start's folder is removed",
+    "path": "tools/webif_capture.bat",
+    "old": " -and $_.LastWriteTime -lt $abandoned }",
+    "new": " }",
+    "tests": "still_running_beside_keeps_its_folder"
   },
   {
     "label": "power limit write: an unexpected error after the save reads as failed",
