@@ -634,6 +634,9 @@ def test_the_compile_script_refuses_a_grid_the_integration_would_not_load(
     assert "known_t" in capsys.readouterr().err
 
 
+_TWO_CURVES = {"known_x": [-10, 10], "known_t": [35, 55], "known_y": [[5, 6], [3, 4]]}
+
+
 @pytest.mark.parametrize(
     "raw",
     [
@@ -641,8 +644,17 @@ def test_the_compile_script_refuses_a_grid_the_integration_would_not_load(
         {"known_x": ["-10", "10"], "known_t": [35, 55], "known_y": [[1, 2], [3, 4]]},
         {"known_x": [-10, 10], "known_t": [35, 55], "known_y": [[1, "2"], [3, 4]]},
         {"known_x": [-10, 10], "known_t": [True, 55], "known_y": [[1, 2], [3, 4]]},
+        {**_TWO_CURVES, "min_known_x": ["-10", "10"], "min_known_y": [[1, 1], [1, 1]]},
+        {**_TWO_CURVES, "min_known_x": [-10, 10], "min_known_y": [[1, "1"], [1, 1]]},
     ],
-    ids=["quoted flow", "quoted air", "quoted power", "true as a flow"],
+    ids=[
+        "quoted flow",
+        "quoted air",
+        "quoted power",
+        "true as a flow",
+        "quoted minimum air",
+        "quoted minimum power",
+    ],
 )
 def test_the_compile_script_refuses_values_that_are_not_numbers(
     tmp_path, monkeypatch, capsys, raw

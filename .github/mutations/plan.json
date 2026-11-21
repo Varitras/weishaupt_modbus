@@ -6510,6 +6510,20 @@
     "tests": "refuses_values_that_are_not_numbers"
   },
   {
+    "label": "compile script: a quoted minimum air temperature is compiled",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": " *data.get(\"min_known_x\", []),",
+    "new": "",
+    "tests": "refuses_values_that_are_not_numbers"
+  },
+  {
+    "label": "compile script: a quoted minimum power is compiled",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": ", *data.get(\"min_known_y\", [])]",
+    "new": "]",
+    "tests": "refuses_values_that_are_not_numbers"
+  },
+  {
     "label": "write counters: the web settings total reads a fall as a meter reset",
     "path": "custom_components/weishaupt_modbus/write_counter_sensor.py",
     "old": "    if may_fall:\n",

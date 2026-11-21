@@ -36,9 +36,13 @@ def _is_number(value: object) -> bool:
 
 
 def only_numbers(data: dict) -> bool:
-    """Whether every temperature and power is a number, as the integration needs."""
-    powers = [value for row in data["known_y"] for value in row]
-    values = [*data["known_x"], *data["known_t"], *powers]
+    """Whether every temperature and power is a number, as the integration needs.
+
+    The minimum curves too: a quoted one stopped the compiler half way.
+    """
+    rows = [*data["known_y"], *data.get("min_known_y", [])]
+    powers = [value for row in rows for value in row]
+    values = [*data["known_x"], *data["known_t"], *data.get("min_known_x", []), *powers]
     return all(_is_number(value) for value in values)
 
 
