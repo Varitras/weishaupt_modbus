@@ -1703,6 +1703,32 @@ async def test_the_write_counters_survive_a_reload(hass):
     )
 
 
+async def test_todays_write_count_rolls_to_the_new_day_while_polling_fails(
+    hass, pump, freezer
+):
+    """The sensor was written only when a poll told it to: through an outage
+    across midnight it showed yesterday's count and date."""
+    entry = await _setup(hass, _entry(hass))
+    coordinator = entry.runtime_data.coordinator
+    await _write_once(hass, entry)
+    today_id = er.async_get(hass).async_get_entity_id(
+        "sensor", CONST.DOMAIN, WRITES_TODAY_UNIQUE_ID
+    )
+    assert hass.states.get(today_id).state == "1"
+    pump.fail_requests(ModbusConnectionError("link down"))
+    while coordinator.last_update_success:
+        await coordinator.async_refresh()
+
+    midnight = dt_util.start_of_local_day() + timedelta(days=1)
+    freezer.move_to(midnight + timedelta(seconds=1))
+    async_fire_time_changed(hass, midnight + timedelta(seconds=1))
+    await hass.async_block_till_done()
+
+    state = hass.states.get(today_id)
+    assert state.state == "0"
+    assert state.attributes["day"] == midnight.date().isoformat()
+
+
 async def test_todays_write_count_survives_a_reload_while_polling_fails(hass):
     """The daily count is the entry's, not its sensor's: while the counter
     sensor followed the failing polling, a reload restored today's count as

@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -12,6 +13,7 @@ from homeassistant.components.sensor import (
 from homeassistant.const import EntityCategory
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -102,9 +104,22 @@ class WriteCounterSensor(CoordinatorEntity[DataUpdateCoordinator[Any]], SensorEn
         return {DAY_ATTRIBUTE: self._budget.day.isoformat()}
 
     async def async_added_to_hass(self) -> None:
-        """Show each counted write as it is counted."""
+        """Show each counted write as it is counted, and today's from midnight."""
         await super().async_added_to_hass()
         self.async_on_remove(self._budget.add_listener(self.async_write_ha_state))
+        if not self.entity_description.daily:
+            return
+        # A failed poll writes no state: through an outage across midnight
+        # the count and day of yesterday stayed on show.
+        self.async_on_remove(
+            async_track_time_change(
+                self.hass, self._new_day, hour=0, minute=0, second=0
+            )
+        )
+
+    @callback
+    def _new_day(self, _now: datetime) -> None:
+        self.async_write_ha_state()
 
     @callback
     def async_entity_id_changed(self, old_entity_id: str) -> None:

@@ -6291,5 +6291,19 @@
     "old": "    if preview.exists():\n",
     "new": "    if False:\n",
     "tests": "no_old_preview_behind"
+  },
+  {
+    "label": "write counter: today's count waits for a poll after midnight",
+    "path": "custom_components/weishaupt_modbus/write_counter_sensor.py",
+    "old": "        if not self.entity_description.daily:\n            return\n        # A failed poll",
+    "new": "        if True:\n            return\n        # A failed poll",
+    "tests": "rolls_to_the_new_day_while_polling_fails"
+  },
+  {
+    "label": "write counter: today's count rolls an hour after midnight",
+    "path": "custom_components/weishaupt_modbus/write_counter_sensor.py",
+    "old": "self._new_day, hour=0,",
+    "new": "self._new_day, hour=1,",
+    "tests": "rolls_to_the_new_day_while_polling_fails"
   }
 ]
