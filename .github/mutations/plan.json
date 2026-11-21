@@ -6221,5 +6221,12 @@
     "old": "        if counted and not self.write_budget.allows_write():\n",
     "new": "        if not self.write_budget.allows_write():\n",
     "tests": "pv_setpoint_uses_none_of_the_eeprom_allowance"
+  },
+  {
+    "label": "switch: a setpoint neither set nor off must not read as on",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "    if item.state is None:\n        return None\n",
+    "new": "",
+    "tests": "neither_set_nor_off_shows_its_switch_unknown"
   }
 ]

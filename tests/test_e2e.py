@@ -452,6 +452,19 @@ async def _switch(hass, service, entity_id):
     await hass.async_block_till_done()
 
 
+@pytest.mark.parametrize("word", [0x8001, 0x80FF], ids=["0x8001", "0x80FF"])
+async def test_a_setpoint_neither_set_nor_off_shows_its_switch_unknown(
+    hass, pump, word
+):
+    """A word that is no setting and not the off word read as on: an
+    automation took the setpoint for active."""
+    pump.load_raw({"holding": {SG_READY_BOOST: word}})
+
+    await _setup(hass, _entry(hass))
+
+    assert hass.states.get(_boost_switch(hass)).state == "unknown"
+
+
 async def test_a_setpoint_switched_off_before_a_reload_comes_back_with_its_value(
     hass, pump
 ):
