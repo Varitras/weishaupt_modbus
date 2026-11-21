@@ -665,6 +665,17 @@ def test_the_functions_after_the_circuits_read_by_the_codes_the_controller_offer
     assert states[key] == shown
 
 
+@pytest.mark.parametrize("code", [20, 21])
+def test_no_input_function_is_named_for_a_code_no_list_offers(code):
+    """No function list shows 20 or 21: on a WBB 16 to 19 are "Heizkreis 1
+    ..." and the next entries 33 on, so on a pump with more circuits they are
+    likely its circuits'. Named "2. WEZ" and "Sperre Verdichter" from an older
+    list, they would read wrong there; a bare number does not."""
+    rows = {item.address: item for item in _items(hpconst)}
+
+    assert rows[45103].get_translation_key_from_number(code) == str(code)
+
+
 @pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
 def test_an_input_configuration_is_named_like_the_other_inputs(path):
     """45103-45106 were named configurations of outputs H1.2-H1.5 while
