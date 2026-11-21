@@ -58,6 +58,8 @@ $IllegalDataAddress = 2
 $MaxTimeoutsInRow = 5
 # A short answer is as unusable as none, and handled the same way.
 $MalformedAnswer = 'The pump sent a malformed answer.'
+# Export-Csv writes no file for no rows, the closing line names it anyway.
+$CsvHeader = '"table","address","value","note"'
 
 $script:client = $null
 $script:stream = $null
@@ -206,6 +208,7 @@ try {
 }
 finally {
     if ($rows.Count -gt 0) { $rows | Export-Csv -Path $OutFile -NoTypeInformation -Encoding UTF8 }
+    else { Set-Content -Path $OutFile -Value $CsvHeader -Encoding UTF8 }
     $script:client.Close()
 }
 

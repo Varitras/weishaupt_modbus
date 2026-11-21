@@ -243,6 +243,21 @@ def test_a_register_reading_zero_counts_as_answered(tmp_path, serve):
     assert "2 registers answered" in process.stdout, process.stdout
 
 
+def test_a_scan_with_nothing_answered_writes_the_file_it_names(tmp_path, serve):
+    """No identification and no register answered: the scan said it wrote
+    the CSV and ended well, and there was no file."""
+    pump = _StandInPump(identification={0: ([], None)})
+    port = serve(pump)
+
+    process, rows = _scan(tmp_path, port, InputRegisters=[30001], HoldingRegisters=[])
+
+    assert process.returncode == 0, process.stderr
+    assert "0 registers answered, written to" in process.stdout, process.stdout
+    with (tmp_path / "scan.csv").open(encoding="utf-8-sig", newline="") as handle:
+        assert next(csv.reader(handle)) == ["table", "address", "value", "note"]
+    assert rows == []
+
+
 def test_an_aborted_scan_keeps_the_registers_it_read(tmp_path, serve):
     """Five dropped requests in a row end the scan; what came before is
     evidence and was lost with the table it belonged to."""

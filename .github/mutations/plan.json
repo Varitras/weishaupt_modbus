@@ -6319,5 +6319,12 @@
     "old": "exit /b %SCAN_STATUS%\n",
     "new": "exit /b\n",
     "tests": "exit_code_after_its_pause"
+  },
+  {
+    "label": "scan: a scan with nothing answered writes no file",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "    else { Set-Content -Path $OutFile -Value $CsvHeader -Encoding UTF8 }\n",
+    "new": "",
+    "tests": "nothing_answered_writes_the_file_it_names"
   }
 ]
