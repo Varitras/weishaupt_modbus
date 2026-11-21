@@ -389,6 +389,9 @@
           },
           "sgr_anhebung_active": {
             "name": "{prefix}SG Ready Anhebung aktiv"
+          },
+          "grenztemp_active": {
+            "name": "{prefix}Grenztemperatur aktiv"
           }
         },
         "select": {

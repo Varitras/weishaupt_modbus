@@ -727,3 +727,27 @@ def test_every_circuit_copy_sits_on_its_own_device_switch_and_bounds(circuit):
     ]
     assert bounds
     assert set(bounds) <= keys, f"bounded by another circuit: {set(bounds) - keys}"
+
+
+def _item_at(address: int) -> ModbusItem:
+    return next(
+        item
+        for group in LIST_NAMES
+        for item in getattr(hpconst, group)
+        if item.address == address
+    )
+
+
+def test_the_limit_temperature_can_be_set_off_as_its_menu_offers():
+    """The controller's menu offers "Aus" and -25 to 40 degC for 44104; read
+    as an absent sensor, "Aus" left the number unavailable and no way to set it."""
+    params = _item_at(44104).params
+    assert params.get("off_is_a_setting") is True
+    assert (params["min"], params["max"]) == (-25, 40)
+
+
+@pytest.mark.parametrize("address", [44105, 44106])
+def test_the_bivalence_temperatures_keep_their_own_bounds(address):
+    params = _item_at(address).params
+    assert not params.get("off_is_a_setting")
+    assert (params["min"], params["max"]) == (-20, 40)

@@ -389,6 +389,9 @@
       },
       "sgr_anhebung_active" : {
         "name" : "{prefix}SG Ready-boost actief"
+      },
+      "grenztemp_active" : {
+        "name" : "{prefix}Grenstemperatuur actief"
       }
     },
     "select" : {
