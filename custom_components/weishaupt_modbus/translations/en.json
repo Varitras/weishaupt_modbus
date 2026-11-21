@@ -2229,7 +2229,7 @@
       "message": "The controller did not save {setting}: its session had ended. Try again."
     },
     "webif_write_maybe_saved": {
-      "message": "It is unclear whether {setting} was saved: the answer to the save was lost or could not be handled. The next reading shows the value."
+      "message": "It is unclear whether {setting} was saved. Check the value after the next reading before trying again."
     },
     "webif_write_other_value": {
       "message": "The controller shows {shown} instead of {target} for {setting}."

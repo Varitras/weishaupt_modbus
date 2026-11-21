@@ -2229,7 +2229,7 @@
             "message": "Der Regler hat {setting} nicht gespeichert: Seine Sitzung war beendet. Versuchen Sie es erneut."
         },
         "webif_write_maybe_saved": {
-            "message": "Ob {setting} gespeichert wurde, ist unklar: Die Antwort auf das Speichern fehlte oder ließ sich nicht auswerten. Die nächste Abfrage zeigt den Wert."
+            "message": "Ob {setting} gespeichert wurde, ist unklar. Prüfen Sie den Wert nach der nächsten Abfrage, bevor Sie es erneut versuchen."
         },
         "webif_write_other_value": {
             "message": "Der Regler zeigt für {setting} {shown} statt {target}."
