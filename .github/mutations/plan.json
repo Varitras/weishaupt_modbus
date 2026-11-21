@@ -4837,20 +4837,6 @@
     "tests": "logged_as_info"
   },
   {
-    "label": "capture: a menu with nothing to open goes to the pick",
-    "path": "tools/webif_capture.py",
-    "old": "    if not offered:\n",
-    "new": "    if False:\n",
-    "tests": "nothing_to_open"
-  },
-  {
-    "label": "capture: a menu with nothing to open is kept",
-    "path": "tools/webif_capture.py",
-    "old": "        # picked by the user, it was likely the wrong pick.\n        del walk.read[step.parent]\n",
-    "new": "        # picked by the user, it was likely the wrong pick.\n        pass\n",
-    "tests": "nothing_to_open"
-  },
-  {
     "label": "scan tool: a register answer to another function is a reading",
     "path": "tools/weishaupt_scan.bat",
     "old": "    Assert-AnswersFunction $body $function\n",
@@ -4916,8 +4902,8 @@
   {
     "label": "capture: a picked menu with nothing to open stays picked",
     "path": "tools/webif_capture.py",
-    "old": "        _drop_pick(walk, step.parent)\n        raise Half(f\"{STEP_BY_KEY[step.parent].what} came with nothing to open\")\n",
-    "new": "        raise Half(f\"{STEP_BY_KEY[step.parent].what} came with nothing to open\")\n",
+    "old": "        _drop_pick(walk, step.parent)\n",
+    "new": "",
     "tests": "picked_menu_with_nothing"
   },
   {
@@ -5992,13 +5978,6 @@
     "tests": "settings_are_the_circuits_info_lists_first or circuit_menu_is_absent_without_a_circuit"
   },
   {
-    "label": "capture: an optional menu with nothing to open must be absent",
-    "path": "tools/webif_capture.py",
-    "old": "    if not offered and step.optional:\n        return None\n",
-    "new": "",
-    "tests": "optional_menu_with_nothing_to_open_is_absent"
-  },
-  {
     "label": "capture: an optional page that never fits must be absent",
     "path": "tools/webif_capture.py",
     "old": "    return last or walk.misfits[step.key] >= OPTIONAL_TRIES\n",
@@ -6176,8 +6155,8 @@
   {
     "label": "capture: a menu of shared links must be asked for again",
     "path": "tools/webif_capture.py",
-    "old": "        # Kept, the parent would stop every later attempt the same way.\n        del walk.read[step.parent]\n",
+    "old": "        del walk.read[step.parent]\n",
     "new": "",
-    "tests": "once_served_with_shared_links_is_asked_for_again"
+    "tests": "once_served_with_shared_links_is_asked_for_again or nothing_to_open"
   }
 ]

@@ -597,14 +597,6 @@ def _entry(step: Step, walk: _Walk, ask: Callable[[str], str]) -> Any:
         for entry in walk.read[step.parent]
         if entry.href is not None and _item(entry.href) not in NEVER_OPENED
     ]
-    if not offered and step.optional:
-        return None
-    if not offered:
-        # Kept, the parent would offer nothing in every later attempt too;
-        # picked by the user, it was likely the wrong pick.
-        del walk.read[step.parent]
-        _drop_pick(walk, step.parent)
-        raise Half(f"{STEP_BY_KEY[step.parent].what} came with nothing to open")
     # An entry sharing its link with another may lead to either page.
     links = Counter(entry.href for entry in walk.read[step.parent] if entry.href)
     clear = [entry for entry in offered if links[entry.href] == 1]
@@ -616,10 +608,12 @@ def _entry(step: Step, walk: _Walk, ask: Callable[[str], str]) -> Any:
     elif step.optional:
         return None
     elif not clear:
-        # Kept, the parent would stop every later attempt the same way.
+        # Nothing to open, or only entries sharing a link. Kept, the parent
+        # would stop every later attempt the same way; picked by the user,
+        # it was likely the wrong pick.
         del walk.read[step.parent]
         _drop_pick(walk, step.parent)
-        raise Half(f"every entry of {STEP_BY_KEY[step.parent].what} shares its link")
+        raise Half(f"{STEP_BY_KEY[step.parent].what} came with nothing clear to open")
     else:
         walk.chosen[step.key] = _pick(step, clear, ask)
         walk.picked.add(step.key)
