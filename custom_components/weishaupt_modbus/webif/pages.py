@@ -164,8 +164,8 @@ def children(page: str, parent: str) -> list[Entry]:
 class SettingForm:
     """The form on a setting's own page: what it sends and what it offers.
 
-    `id` and `stack` carry the setting's current value and change with every
-    save, so a form is read fresh for each one.
+    Some settings encode their current value in `id` and `stack`. Each
+    write reads the form again to get its current fields and choices.
     """
 
     id: str

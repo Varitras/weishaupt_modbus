@@ -23,8 +23,8 @@ It differs from upstream on purpose:
   instead of opening a socket of its own.
 - **Entity ids are yours.** The integration no longer rewrites entity ids on
   every start; a rename in Home Assistant stays.
-- **Two Home Assistant versions are tested** on every change: the declared
-  minimum (`hacs.json`) and the newest final release.
+- **Home Assistant compatibility tests** run on the declared minimum
+  (`hacs.json`) and the newest stable version supported by the test framework.
 - **A test suite guards the register table**: every register has a name in
   every language, every status value has a state text, no translation
   outlives its item.
@@ -92,10 +92,12 @@ listed under [Entities](https://github.com/Varitras/weishaupt_modbus/wiki/Entiti
 
 The integration registers no actions of its own. Values are written with Home
 Assistant's standard actions: `number.set_value`, `select.select_option`,
-`switch.turn_on` and `switch.turn_off`. Writes go to the heat pump's EEPROM,
-which Weishaupt rates for 100 000 writes; trigger automations that set values
-on a change, not on a schedule. Two sensors count the writes, and the options
-set a warning threshold and a daily limit (see
+`switch.turn_on` and `switch.turn_off`. Weishaupt rates the heat pump's EEPROM
+for 100 000 writes. Trigger automations that change stored settings only when
+the value changes. The PV power setpoint (register 40002) is held in RAM: its
+writes are not counted and do not use up the daily limit. Two sensors show
+the counts of the other writes. The options set the warning threshold and
+daily limit (see
 [How Data Updates](https://github.com/Varitras/weishaupt_modbus/wiki/How-Data-Updates)).
 
 Show the power map of your model on a dashboard:

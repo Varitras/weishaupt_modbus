@@ -26,10 +26,12 @@ credentials or the network configuration of the installation.
 Registers are written only on an explicit user action, and the controller's
 EEPROM has a limited write budget, which the integration counts and caps.
 
-Its optional web interface entry logs in to the controller's web interface
-over plain HTTP - the controller offers nothing else - and reads pages; the
-only thing it writes there is the heating power limit, on an explicit user
-action and under a daily limit. In scope there too: the user and password
-going anywhere but the controller, a setting written that the user did not
-ask for, and a power map picture that loads or runs anything once copied
-under `www/`.
+The optional web interface entry uses plain HTTP because the controller
+offers no encrypted connection. It can set the heating power limit, the
+minimum flow temperature of each Evoblock heating circuit, and hot water
+modulation when enabled. All three require an explicit user action and
+share the entry's daily write limit.
+
+Please report credentials sent anywhere besides the controller, a setting
+changed without the user's request, or a power map picture that loads or
+runs other content once copied under `www/`.
