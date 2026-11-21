@@ -1785,6 +1785,29 @@ async def test_a_start_reads_the_counts_from_the_file_and_a_write_saves_them(
     assert await _saved_counts(hass, hass_storage, entry) == (8, 3, today)
 
 
+async def test_a_counts_file_corrected_after_a_failed_start_is_read_on_reload(
+    hass, hass_storage
+):
+    """The counts were kept in memory before they were checked: once the
+    file was corrected, every reload took the broken counts again and the
+    entry stayed failed until Home Assistant restarted."""
+    entry = _entry(hass)
+    key = f"{CONST.DOMAIN}.{entry.entry_id}.write_counts"
+    counts = {"total": 13, "today": 1, "day": "1st"}
+    hass_storage[key] = {"version": 1, "minor_version": 1, "key": key, "data": counts}
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert entry.state is ConfigEntryState.SETUP_ERROR
+
+    # In place: the stand-in storage hands every load the dict it first read.
+    counts["day"] = dt_util.now().date().isoformat()
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert _counts(entry) == (13, 1)
+
+
 async def test_a_reload_while_the_counts_are_being_saved_keeps_them(hass, monkeypatch):
     """Home Assistant's load does not wait for a save already writing: a
     reload in that moment read the file as it was before the last write, and

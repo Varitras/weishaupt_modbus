@@ -6242,5 +6242,12 @@
     "old": "$staging = Join-Path $ToolsDir ('python-setup-' + [guid]::NewGuid().ToString('N'))\n",
     "new": "$staging = Join-Path $ToolsDir 'python-unpacking'\n",
     "tests": "named_like_the_old_staging_folder_is_kept"
+  },
+  {
+    "label": "write counts: counts the budget refused are kept for the next start",
+    "path": "custom_components/weishaupt_modbus/write_counts.py",
+    "old": "    budget.load(counts)\n    kept.counts = counts\n",
+    "new": "    kept.counts = counts\n    budget.load(counts)\n",
+    "tests": "corrected_after_a_failed_start_is_read_on_reload"
   }
 ]

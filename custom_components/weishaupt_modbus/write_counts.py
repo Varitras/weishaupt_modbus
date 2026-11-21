@@ -53,8 +53,10 @@ async def async_keep_write_counts(
     counts = kept.counts
     if counts is None:
         counts = await kept.store.async_load() or {}
-    kept.counts = counts
+    # Kept only once the budget took them: counts it refuses fail the setup,
+    # and a retry reads the file again, which may have been corrected.
     budget.load(counts)
+    kept.counts = counts
 
     def keep() -> None:
         latest = kept.counts = budget.counts()
