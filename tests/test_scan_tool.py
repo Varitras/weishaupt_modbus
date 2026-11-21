@@ -228,6 +228,23 @@ def test_an_address_typed_with_a_space_is_scanned_without_it(tmp_path, serve):
     assert _values(rows, "input") == {30002: 195}
 
 
+@pytest.mark.parametrize("typed", ["", "  "], ids=["nothing", "spaces"])
+def test_no_address_at_the_prompt_says_so_before_anything_is_asked(
+    tmp_path, serve, typed
+):
+    """Enter alone at the prompt ended in PowerShell's own red error about
+    binding a parameter."""
+    pump = _StandInPump()
+    port = serve(pump)
+
+    process, _ = _scan(tmp_path, port, host=typed, InputRegisters=[30001])
+
+    assert process.returncode == 1
+    assert "address" in process.stdout
+    assert "Parameter" not in process.stdout + process.stderr
+    assert pump.functions == []
+
+
 def test_a_register_reading_zero_counts_as_answered(tmp_path, serve):
     """PowerShell's `0 -ne ''` is false: the closing line counted 23 of 41
     answered registers on a real pump, every one reading 0 left out."""

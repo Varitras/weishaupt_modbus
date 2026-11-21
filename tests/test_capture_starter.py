@@ -192,6 +192,20 @@ def test_the_address_reaches_the_capture_as_typed(tools, download):
     assert _called(tools)[1] == typed
 
 
+@pytest.mark.parametrize("typed", ["", "  "], ids=["nothing", "spaces"])
+def test_no_address_at_the_prompt_says_so_before_anything_is_downloaded(
+    tools, download, typed
+):
+    """Enter alone at the prompt ended in PowerShell's own red error about
+    binding a parameter."""
+    process = _start(tools, download, host=typed)
+
+    assert process.returncode == 1
+    assert "address" in process.stdout
+    assert "Parameter" not in process.stdout + process.stderr
+    assert download["requests"] == []
+
+
 def test_without_the_capture_beside_it_nothing_is_downloaded(tools, download):
     """The batch file alone, without the repository, said nothing useful
     after an 11 MB download."""

@@ -30,7 +30,9 @@ The pump serves one request at a time; while the scan runs, Home
 Assistant may miss a poll. The scan takes about a minute.
 #>
 param(
-    [Parameter(Mandatory = $true)][string]$HostName,
+    # Not mandatory: Enter alone at the prompt gets a plain message below,
+    # not PowerShell's own error about binding a parameter.
+    [string]$HostName = '',
     [int]$Port = 502,
     [byte]$UnitId = 1,
     [int[]]$InputRegisters = (30001..39999),
@@ -43,6 +45,10 @@ Set-StrictMode -Version 3
 $ErrorActionPreference = 'Stop'
 # The prompt keeps a pasted space; the integration strips it too.
 $HostName = $HostName.Trim()
+if (-not $HostName) {
+    Write-Host 'No address given: start again and enter the IP address of the heat pump.'
+    exit 1
+}
 
 $FunctionReadHolding = 0x03
 $FunctionReadInput = 0x04

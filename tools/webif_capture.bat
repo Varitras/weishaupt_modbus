@@ -25,7 +25,9 @@ The capture asks for the web interface's user and password, and the file it
 writes lands in the current working directory.
 #>
 param(
-    [Parameter(Mandatory = $true)][string]$HostName,
+    # Not mandatory: Enter alone at the prompt gets a plain message below,
+    # not PowerShell's own error about binding a parameter.
+    [string]$HostName = '',
     [string]$ToolsDir = (Split-Path -Parent $env:CAPTURE_SELF),
     [string]$PythonUrl = 'https://www.python.org/ftp/python/3.13.16/python-3.13.16-embed-amd64.zip',
     # As python.org publishes it for that file.
@@ -37,6 +39,11 @@ $ErrorActionPreference = 'Stop'
 # Windows PowerShell 5.1 draws a progress bar for Expand-Archive that only
 # slows it down.
 $ProgressPreference = 'SilentlyContinue'
+
+if ([string]::IsNullOrWhiteSpace($HostName)) {
+    Write-Host 'No address given: start again and enter the address of the heat pump, like 192.0.2.10 or a name.'
+    exit 1
+}
 
 $capture = Join-Path $ToolsDir 'webif_capture.py'
 $pythonDir = Join-Path $ToolsDir 'python'

@@ -6389,5 +6389,19 @@
     "old": "        (New-Object System.Net.WebClient).DownloadFile($PythonUrl, $download)\n",
     "new": "        Invoke-WebRequest -Uri $PythonUrl -OutFile $download -UseBasicParsing\n",
     "tests": "brackets_in_its_path_gets_its_python"
+  },
+  {
+    "label": "capture starter: an empty address goes on to the download",
+    "path": "tools/webif_capture.bat",
+    "old": "if ([string]::IsNullOrWhiteSpace($HostName)) {\n",
+    "new": "if ($false) {\n",
+    "tests": "no_address_at_the_prompt_says_so_before_anything_is_downloaded"
+  },
+  {
+    "label": "scan starter: an empty address goes on to the scan",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "if (-not $HostName) {\n",
+    "new": "if ($false) {\n",
+    "tests": "no_address_at_the_prompt_says_so_before_anything_is_asked"
   }
 ]
