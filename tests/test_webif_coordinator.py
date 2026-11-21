@@ -1504,6 +1504,25 @@ async def test_a_write_is_refused_again_when_its_quiet_time_ends(
     assert client.asked == []
 
 
+async def test_a_write_is_refused_when_the_login_is_refused_in_its_quiet_time(
+    hass, coordinator, client, clock, freezer
+):
+    """Asked while the login worked; by the time the requests had settled a
+    round had met a refused login, and the write must not try it again."""
+    await first_round_showing(coordinator, client, clock)
+    call = asyncio.create_task(refused(coordinator.set_power_limit(61)))
+    await settle()
+
+    clock.now = 2 * 60 * 60
+    await _login_refused(coordinator, client, clock)
+    client.asked.clear()
+    freezer.tick(timedelta(seconds=webif_coordinator.DEBOUNCE_SECONDS))
+    async_fire_time_changed(hass)
+
+    assert await call == ("webif_write_login_refused", None)
+    assert client.asked == []
+
+
 async def test_a_write_publishes_the_heating_page_as_read(
     coordinator, client, clock, quick
 ):

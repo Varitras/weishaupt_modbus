@@ -3497,7 +3497,7 @@
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
     "old": "                    return\n                self._refuse_write()\n",
     "new": "                    return\n",
-    "tests": "refused_again_when_its_quiet_time_ends"
+    "tests": "refused_when_the_login_is_refused_in_its_quiet_time"
   },
   {
     "label": "power limit number: a value between two percentages is written",
