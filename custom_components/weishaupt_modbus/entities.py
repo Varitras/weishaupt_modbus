@@ -231,7 +231,7 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
         return max(low, min(word, high))
 
     async def set_translate_val(self, value: str | float) -> int | None:
-        """Translate and write a value directly to the Modbus client."""
+        """Translate a value and write it to the heat pump over Modbus."""
         check: Callable[[], None] | None = None
         val: int | Callable[[], int] | None
         if self._api_item.format == FORMATS.STATUS:

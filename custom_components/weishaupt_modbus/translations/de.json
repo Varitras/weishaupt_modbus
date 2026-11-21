@@ -1500,7 +1500,7 @@
                 "name": "{prefix}Luftansaugtemperatur"
             },
             "puffer_temp": {
-                "name": "{prefix}Puffertemperatur?"
+                "name": "{prefix}Puffertemperatur"
             },
             "pumpe_einschaltart": {
                 "name": "{prefix}Pumpe Einschaltart"

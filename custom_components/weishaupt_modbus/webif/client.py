@@ -330,8 +330,9 @@ class Client:
 
         `count_write` runs as the POST goes out, after the gap and the lock
         Modbus shares: a save called off while it waits is no write, and one
-        sent may reach the EEPROM, answered or not. A connect that fails
-        cannot be told from a lost answer, so that one counts too.
+        sent may reach the EEPROM, answered or not. Should it raise, nothing
+        is sent. A connect that fails counts too: aiohttp tells it from a
+        lost answer, but counting it errs on the side of the EEPROM.
 
         Raises Closed when the client closed before the POST, NotSaved when
         the session was gone, MaybeSaved when the answer leaves it open.

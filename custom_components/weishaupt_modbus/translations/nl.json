@@ -904,7 +904,7 @@
         "name" : "{prefix}Buitentemperatuur"
       },
       "betriebsanzeige" : {
-        "name" : "{prefix}Vermogensweergave",
+        "name" : "{prefix}Bedrijfsindicatie",
         "state" : {
           "system_operationmode_undefined" : "Ongedefinieerd",
           "system_operationmode_relaistest" : "relais-test",
@@ -1548,14 +1548,14 @@
         "name" : "{prefix}Bedrijfsuren E1"
       },
       "sgr1" : {
-        "name" : "{prefix}SG-Klaar 1",
+        "name" : "{prefix}SG-Ready 1",
         "state" : {
           "w2_status_aus" : "Uit",
           "w2_status_ein" : "Aan"
         }
       },
       "sgr2" : {
-        "name" : "{prefix}SG-Klaar 2",
+        "name" : "{prefix}SG-Ready 2",
         "state" : {
           "w2_status_aus" : "Uit",
           "w2_status_ein" : "Aan"

@@ -696,7 +696,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         after a reconfigure, whose visit checks it. A page not found keeps
         its old address, and the ones found are polled at theirs; should a
         page found have that address, the lost page is left out and the entry
-        reloads.
+        reloads. A setting's form not found is never kept: polled, it is left
+        out and the entry reloads; switched off, it is dropped quietly.
         """
         found = await find_pages(self._client, overview, reads=self._polled_keys)
         data = self.config_entry.data
