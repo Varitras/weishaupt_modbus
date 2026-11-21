@@ -1230,6 +1230,80 @@ async def test_an_entry_of_the_upstream_2_0_line_is_stripped_of_its_login_and_ma
         assert key not in entry.data, f"{key!r} survived the migration"
 
 
+@pytest.mark.parametrize(
+    ("version", "data"),
+    [
+        (1, {CONF.HOST: "192.0.2.10"}),
+        (
+            2,
+            {
+                k: BASE_DATA[k]
+                for k in (
+                    CONF.HOST,
+                    CONF.PORT,
+                    CONF.PREFIX,
+                    CONF.DEVICE_POSTFIX,
+                    CONF.KENNFELD_FILE,
+                )
+            },
+        ),
+        (
+            3,
+            {
+                k: v
+                for k, v in BASE_DATA.items()
+                if k not in (CONF.NAME_DEVICE_PREFIX, CONF.NAME_TOPIC_PREFIX)
+            },
+        ),
+    ],
+    ids=["version 1", "version 2", "version 3"],
+)
+async def test_an_entry_of_an_early_version_gets_every_later_key(hass, version, data):
+    """No test held what versions 2 and 3 lacked: moving a version boundary
+    by one went unnoticed."""
+    entry = _entry(hass, data=data, version=version)
+
+    await _setup(hass, entry)
+
+    assert entry.version == 11
+    assert {key: entry.data[key] for key in BASE_DATA} == BASE_DATA
+
+
+# A fresh entry of the upstream 2.0 prereleases (2.0.0_RC01, 2.0.0_JUST_a_
+# QUICK_TEST): their flow wrote no naming keys, and the quick test a port
+# of 502.0.
+FRESH_UPSTREAM_2_0 = {
+    CONF.HOST: "192.0.2.10",
+    "mac": "00:00:5e:00:53:01",
+    CONF.PORT: 502,
+    CONF.KENNFELD_FILE: CONST.DEF_KENNFELDFILE,
+    CONF.HK2: False,
+    CONF.HK3: False,
+    CONF.HK4: False,
+    CONF.HK5: False,
+    "enable-webif": False,
+    "entity_uid_migration": True,
+}
+
+
+@pytest.mark.parametrize("port", [502, 502.0], ids=["RC01", "quick test"])
+async def test_a_fresh_entry_of_the_upstream_2_0_line_migrates(hass, port):
+    """Without the naming keys the migration stopped at "prefix" and the
+    entry never loaded."""
+    entry = _entry(hass, data={**FRESH_UPSTREAM_2_0, CONF.PORT: port}, version=9)
+
+    await _setup(hass, entry)
+
+    assert entry.version == 11
+    assert entry.data[CONF.PREFIX] == CONST.DEF_PREFIX
+    assert entry.data[CONF.DEVICE_POSTFIX] == ""
+    assert entry.data[CONF.NAME_DEVICE_PREFIX] is False
+    assert entry.data[CONF.NAME_TOPIC_PREFIX] is False
+    assert entry.data[CONF.PORT] == 502
+    assert isinstance(entry.data[CONF.PORT], int)
+    assert entry.unique_id == "192.0.2.10:502"
+
+
 @pytest.mark.parametrize("postfix", ["", "2"])
 # 11: an entry an earlier release had migrated already, devices left behind.
 @pytest.mark.parametrize("version", [8, 11])

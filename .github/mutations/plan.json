@@ -6172,5 +6172,33 @@
     "old": "    elif not clear or wanted_shared:\n",
     "new": "    elif not clear:\n",
     "tests": "wanted_entry_on_a_shared_link_stops_the_attempt"
+  },
+  {
+    "label": "migration: a fresh upstream 2.0 entry must get its naming keys",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        (CONF.PREFIX, CONST.DEF_PREFIX),\n",
+    "new": "",
+    "tests": "fresh_entry_of_the_upstream_2_0_line_migrates or early_version_gets_every_later_key"
+  },
+  {
+    "label": "migration: a port of 502.0 must become 502",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    new_data[CONF.PORT] = int(new_data[CONF.PORT])\n",
+    "new": "",
+    "tests": "fresh_entry_of_the_upstream_2_0_line_migrates"
+  },
+  {
+    "label": "migration: an early entry must get its circuits",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        (CONF.HK2, False),\n",
+    "new": "",
+    "tests": "early_version_gets_every_later_key"
+  },
+  {
+    "label": "migration: an early entry must get the name options",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        (CONF.NAME_TOPIC_PREFIX, False),\n",
+    "new": "",
+    "tests": "early_version_gets_every_later_key"
   }
 ]
