@@ -6200,5 +6200,26 @@
     "old": "        (CONF.NAME_TOPIC_PREFIX, False),\n",
     "new": "",
     "tests": "early_version_gets_every_later_key"
+  },
+  {
+    "label": "writes: a register held in RAM must use none of the allowance",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        counted = not item.params.get(\"in_ram\", False)\n",
+    "new": "        counted = True\n",
+    "tests": "pv_setpoint_uses_none_of_the_eeprom_allowance"
+  },
+  {
+    "label": "writes: the PV setpoint must be marked as held in RAM",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "    \"in_ram\": True,\n",
+    "new": "",
+    "tests": "pv_setpoint_uses_none_of_the_eeprom_allowance"
+  },
+  {
+    "label": "writes: a RAM register must not be refused by the limit",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        if counted and not self.write_budget.allows_write():\n",
+    "new": "        if not self.write_budget.allows_write():\n",
+    "tests": "pv_setpoint_uses_none_of_the_eeprom_allowance"
   }
 ]

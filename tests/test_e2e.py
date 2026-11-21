@@ -1650,7 +1650,9 @@ async def test_an_out_of_range_poll_interval_is_refused(hass):
         )
 
 
-PV_SETPOINT = 40002
+# A room setpoint, stored in the EEPROM: its writes count. The PV setpoint,
+# held in RAM, uses none of the allowance.
+COUNTED_SETTING = 41105
 WRITES_TOTAL_UNIQUE_ID = "weishaupt_wbbeeprom_writes_total"
 WRITES_TODAY_UNIQUE_ID = "weishaupt_wbbeeprom_writes_today"
 
@@ -1670,7 +1672,7 @@ async def test_the_write_counters_survive_a_reload(hass):
     assert hass.states.get(total_id).state == "0"
 
     pump = entry.runtime_data.coordinator.device
-    setpoint = next(row for row in pump.items if row.address == PV_SETPOINT)
+    setpoint = next(row for row in pump.items if row.address == COUNTED_SETTING)
     await pump.write(setpoint, 5)
     await hass.async_block_till_done()
     # At once, not after the next poll: a reload in between restored 0.
@@ -1694,7 +1696,7 @@ async def test_todays_write_count_survives_a_reload_while_polling_fails(hass):
     0, and the daily limit was free again."""
     entry = await _setup(hass, _entry(hass))
     device = entry.runtime_data.coordinator.device
-    setpoint = next(row for row in device.items if row.address == PV_SETPOINT)
+    setpoint = next(row for row in device.items if row.address == COUNTED_SETTING)
     await device.write(setpoint, 5)
     await hass.async_block_till_done()
     entry.runtime_data.coordinator.async_set_update_error(UpdateFailed("link down"))
@@ -1708,7 +1710,7 @@ async def test_todays_write_count_survives_a_reload_while_polling_fails(hass):
 
 async def _write_once(hass, entry):
     device = entry.runtime_data.coordinator.device
-    setpoint = next(row for row in device.items if row.address == PV_SETPOINT)
+    setpoint = next(row for row in device.items if row.address == COUNTED_SETTING)
     await device.write(setpoint, setpoint.state + 1 if setpoint.state else 5)
     await hass.async_block_till_done()
 

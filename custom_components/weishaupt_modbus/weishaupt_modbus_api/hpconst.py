@@ -468,6 +468,7 @@ IO_KONFIG_IN: list[StatusItem] = [
 # "off_is_a_setting": the menu offers "Aus" beside the value, reported as 0x8000; a switch sets it
 # "only_if_served": no entity when the first poll finds the register refused (firmware without it)
 # "enabled_by_default": False creates the entity disabled; an existing one stays enabled or disabled as it was
+# "in_ram": held in RAM, never written to the EEPROM; its writes use none of the daily allowance
 #
 # For SENSOR_CALC only:
 # "calculation": a function from calculations.py. It receives the entity's own register (divided),
@@ -793,6 +794,8 @@ PARAMS_CALCJAZ: dict = {
 }
 
 PARAMS_PV: dict = {
+    # The data-point list 83807301: not written to the EEPROM, so no limit.
+    "in_ram": True,
     "min": 0,
     "max": 65535,
     "precision": 0,
