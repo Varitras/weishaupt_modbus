@@ -584,6 +584,22 @@ def test_the_compile_script_writes_a_grid_of_two_flow_temperatures(
     assert kennfeld._looks_like_a_grid(json.loads(path.read_text(encoding="utf-8")))
 
 
+def test_compiling_without_pygal_leaves_no_old_preview_behind(tmp_path, monkeypatch):
+    """The preview of the map before stayed beside the new grid, and the
+    integration published it, an old title naming the file included."""
+    monkeypatch.setitem(sys.modules, "scipy.interpolate", None)
+    monkeypatch.setitem(sys.modules, "pygal", None)
+    raw = {"known_x": [-10, 10], "known_t": [35, 55], "known_y": [[1, 2], [3, 4]]}
+    path = tmp_path / "own_kennfeld.json"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    old = path.with_suffix(".svg")
+    old.write_text("<svg><title>own_kennfeld</title></svg>", encoding="utf-8")
+
+    assert _compile_script().main(["compile_kennfeld.py", str(path)]) == 0
+
+    assert not old.exists()
+
+
 class _RecordingChart:
     """Stands in for pygal.XY: keeps the title, renders a bare SVG.
 

@@ -6284,5 +6284,12 @@
     "old": "MIN_FLOW_TEMPERATURES = 2\n",
     "new": "MIN_FLOW_TEMPERATURES = 3\n",
     "tests": "writes_a_grid_of_two_flow_temperatures"
+  },
+  {
+    "label": "compile kennfeld: without pygal the old preview stays",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "    if preview.exists():\n",
+    "new": "    if False:\n",
+    "tests": "no_old_preview_behind"
   }
 ]

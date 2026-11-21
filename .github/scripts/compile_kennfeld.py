@@ -8,9 +8,9 @@ once, and not on every user's machine.
 
     python .github/scripts/compile_kennfeld.py custom_components/weishaupt_modbus/kennfeld/my_kennfeld.json
 
-It also draws the preview picture next to the grid (needs pygal); the
-integration only copies that picture under www/ and refuses one that
-carries script.
+It also draws the preview picture next to the grid (needs pygal; without
+it, an older picture there is removed); the integration only copies that
+picture under www/ and refuses one that carries script.
 """
 
 from functools import partial
@@ -154,8 +154,15 @@ def main(argv: list[str]) -> int:
     data["compiled_grid"] = compile_grid(data)
     path.write_text(json.dumps(data, separators=(",", ":")) + "\n", encoding="utf-8")
     print(f"compiled {path.name}: {len(data['compiled_grid'])} air intake temperatures")
-    if draw_preview(data, path.with_suffix(".svg")):
-        print(f"drew {path.with_suffix('.svg').name}")
+    preview = path.with_suffix(".svg")
+    if draw_preview(data, preview):
+        print(f"drew {preview.name}")
+        return 0
+    # The integration would publish it as this map's picture: the curves of
+    # the map before, and an old title that may name the file.
+    if preview.exists():
+        preview.unlink()
+        print(f"removed the old {preview.name}", file=sys.stderr)
     return 0
 
 
