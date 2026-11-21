@@ -176,6 +176,22 @@ def test_a_folder_with_brackets_in_its_path_gets_its_python(tmp_path, download):
     assert not re.search(r"-OutFile\s+\$", STARTER.read_text(encoding="ascii"))
 
 
+def test_a_start_broken_off_during_the_download_leaves_nothing_behind(tools, download):
+    """A closed window skips the cleanup: each start made a folder of its
+    own, and the one left behind stayed for good."""
+    left = tools / ("python-setup-" + "0" * 32)
+    left.mkdir()
+    (left / "python.zip").write_bytes(b"half")
+    mine = tools / "python-setup-mine"
+    mine.mkdir()
+
+    process = _start(tools, download)
+
+    assert process.returncode == 0, process.stdout + process.stderr
+    assert not left.exists()
+    assert mine.exists()
+
+
 def test_a_second_start_downloads_nothing(tools, download):
     _start(tools, download)
 

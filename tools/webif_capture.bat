@@ -50,6 +50,11 @@ $pythonDir = Join-Path $ToolsDir 'python'
 $python = Join-Path $pythonDir $PythonExe
 
 function Install-Python {
+    # A start whose window was closed midway skipped its cleanup; only names
+    # this file makes, with a whole GUID, are removed.
+    Get-ChildItem -LiteralPath $ToolsDir -Directory -Filter 'python-setup-*' |
+        Where-Object { $_.Name -match '^python-setup-[0-9a-f]{32}$' } |
+        Remove-Item -Recurse
     # A folder of its own for every start: whatever else lies next to this
     # file may be the user's, and only this folder is ever removed whole.
     $staging = Join-Path $ToolsDir ('python-setup-' + [guid]::NewGuid().ToString('N'))

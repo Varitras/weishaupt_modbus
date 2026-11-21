@@ -6356,6 +6356,20 @@
     "tests": "folder_with_brackets_writes_its_file"
   },
   {
+    "label": "capture starter: a broken-off start's folder stays",
+    "path": "tools/webif_capture.bat",
+    "old": "        Remove-Item -Recurse\n",
+    "new": "        Out-Null\n",
+    "tests": "broken_off_during_the_download_leaves_nothing_behind"
+  },
+  {
+    "label": "capture starter: any python-setup folder is removed",
+    "path": "tools/webif_capture.bat",
+    "old": "'^python-setup-[0-9a-f]{32}$'",
+    "new": "'^python-setup-'",
+    "tests": "broken_off_during_the_download_leaves_nothing_behind"
+  },
+  {
     "label": "power limit write: an unexpected error after the save reads as failed",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
     "old": "        if not counted:\n            return WriteFailed(type(error).__name__)\n",
