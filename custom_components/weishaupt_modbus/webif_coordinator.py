@@ -323,6 +323,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         refused or fails.
         """
         self._refuse_write()
+        self._refuse_over_the_limit(page, setting, target)
         key = (page, setting.title)
         if key not in self._bursts:
             burst = _Burst(page, setting, target, self.hass.loop.create_future())
@@ -355,12 +356,31 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 translation_domain=CONST.DOMAIN,
                 translation_key="webif_write_login_refused",
             )
-        if not self.budget.allows_write():
-            raise HomeAssistantError(
-                translation_domain=CONST.DOMAIN,
-                translation_key="webif_write_limit_reached",
-                translation_placeholders={"limit": str(self.budget.limit)},
-            )
+
+    def _refuse_over_the_limit(self, page: str, setting: Setting, target: int) -> None:
+        """Refuse at the daily limit before any request, unless `target` is shown.
+
+        A value the last reading shows most likely needs no save, as over
+        Modbus; should the fresh read show another, the save is refused.
+        """
+        if self.budget.allows_write() or self._shown(page, setting) == target:
+            return
+        raise self._limit_reached()
+
+    def _limit_reached(self) -> HomeAssistantError:
+        return HomeAssistantError(
+            translation_domain=CONST.DOMAIN,
+            translation_key="webif_write_limit_reached",
+            translation_placeholders={"limit": str(self.budget.limit)},
+        )
+
+    def _shown(self, page: str, setting: Setting) -> int | None:
+        """The option the last reading of `page` shows for `setting`."""
+        values = self._readings[page].values or {}
+        shown = [
+            setting.option(values[title]) for title in setting.titles if title in values
+        ]
+        return shown[0] if len(shown) == 1 else None
 
     @callback
     def _start_write(self, burst: _Burst) -> None:
@@ -378,6 +398,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
 
         def count_write() -> None:
             nonlocal counted
+            # Run as the save goes out: refused here, nothing is sent.
+            if not self.budget.allows_write():
+                raise self._limit_reached()
             counted = True
             self.budget.record_write()
 
@@ -398,6 +421,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                     # off by the unload while it waited for its turn.
                     return
                 self._refuse_write()
+                self._refuse_over_the_limit(burst.page, burst.setting, burst.target)
                 # Looked up under the lock: a round before it may have found
                 # the page at a new address.
                 page = self._page(burst.page)

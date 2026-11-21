@@ -1452,6 +1452,37 @@ async def test_a_write_is_refused_before_any_request(
     assert client.asked == []
 
 
+async def test_at_the_daily_limit_the_value_already_shown_is_not_refused(
+    coordinator, client, clock, quick
+):
+    """Refused before anything was read: an automation setting the value
+    the controller holds failed until the next day, unlike over Modbus."""
+    await first_round_showing(coordinator, client, clock)
+    await _limit_used(coordinator, client, clock)
+
+    await coordinator.set_power_limit(60)
+
+    assert client.saved == []
+    assert coordinator.budget.writes_today == 1
+
+
+async def test_at_the_daily_limit_a_value_changed_since_the_last_reading_is_not_saved(
+    coordinator, client, clock, quick
+):
+    """The last reading showed the target, the fresh read another value:
+    the save would have gone past the limit."""
+    await first_round_showing(coordinator, client, clock)
+    await _limit_used(coordinator, client, clock)
+    client.shows_power_limit(70)
+
+    assert await refused(coordinator.set_power_limit(60)) == (
+        "webif_write_limit_reached",
+        {"limit": "1"},
+    )
+    assert client.saved == []
+    assert coordinator.budget.writes_today == 1
+
+
 @pytest.mark.parametrize("stall", [0, 0.3])
 async def test_a_write_is_refused_again_when_its_quiet_time_ends(
     hass, coordinator, client, clock, freezer, stall
