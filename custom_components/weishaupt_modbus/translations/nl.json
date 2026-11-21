@@ -2229,7 +2229,7 @@
       "message" : "De regelaar heeft {setting} niet opgeslagen: de sessie was beëindigd. Probeer het opnieuw."
     },
     "webif_write_maybe_saved" : {
-      "message" : "De regelaar gaf geen duidelijk antwoord, dus het is onbekend of {setting} is opgeslagen. De volgende uitlezing toont de waarde."
+      "message" : "Het is onduidelijk of {setting} is opgeslagen: het antwoord op het opslaan ontbrak of kon niet worden verwerkt. De volgende uitlezing toont de waarde."
     },
     "webif_write_other_value" : {
       "message" : "De regelaar toont voor {setting} {shown} in plaats van {target}."

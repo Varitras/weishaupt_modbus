@@ -335,9 +335,9 @@ class Client:
         lost answer, but counting it errs on the side of the EEPROM.
 
         Raises Closed when the client closed before the POST, NotSaved when
-        the session was gone, MaybeSaved when the answer leaves it open.
-        Neither of the last two is followed by a login or a second POST: the
-        save may have reached the EEPROM, and repeating it is the caller's.
+        the session was gone and the controller stored nothing, MaybeSaved
+        when the answer leaves it open. Neither of the last two is followed by
+        a login or a second POST: repeating the save is the caller's.
         """
         async with self._lock:
             if self._closed:
