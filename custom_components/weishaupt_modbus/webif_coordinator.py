@@ -270,6 +270,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         # Pages it could not tell apart were left out: until the reload
         # nothing is written.
         self._reloading = False
+        self._shut_down = False
         # Reloading the entry resumes polling at once after a stop.
         ir.async_delete_issue(hass, CONST.DOMAIN, self._issue)
 
@@ -302,6 +303,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
 
         A write still waiting for its requests to settle is called off.
         """
+        self._shut_down = True
         await super().async_shutdown()
         for quiet in self._quiets.values():
             quiet.cancel()
@@ -765,6 +767,10 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
 
     def _stop(self, page: Page, reason: str) -> None:
         """Stop polling, or wait longer for a page that failed its retry."""
+        if self._shut_down:
+            # A request in flight at the unload fails only after it: its
+            # notice would stay for an entry that no longer runs.
+            return
         if self._stopped is None:
             # The stopping round rests the shortest interval anyway.
             wait = max(FIRST_RETRY_SECONDS, self._shortest_interval.total_seconds())

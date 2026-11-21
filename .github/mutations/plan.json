@@ -6403,5 +6403,19 @@
     "old": "if (-not $HostName) {\n",
     "new": "if ($false) {\n",
     "tests": "no_address_at_the_prompt_says_so_before_anything_is_asked"
+  },
+  {
+    "label": "webif coordinator: a request failing after the shutdown puts the stop notice back",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if self._shut_down:\n",
+    "new": "        if False:\n",
+    "tests": "brings_no_stop_notice_back"
+  },
+  {
+    "label": "webif coordinator: the shutdown is not noted",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self._shut_down = True\n",
+    "new": "",
+    "tests": "brings_no_stop_notice_back"
   }
 ]

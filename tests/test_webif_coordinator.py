@@ -2028,3 +2028,36 @@ async def test_a_timeout_under_a_write_gives_the_controller_a_rest(
     await round_at(coordinator, clock, 15 * 60)
 
     assert client.asked == []
+
+
+async def test_a_request_failing_after_the_shutdown_brings_no_stop_notice_back(
+    hass, entry, clock
+):
+    """The request in flight at the unload failed after the notice was
+    taken down, and put it back for an entry that no longer ran."""
+    client = GatedClient()
+    coordinator = WebifCoordinator(
+        hass,
+        entry,
+        client,
+        [HEAT_PUMP, STATISTICS, HEATING],
+        budget=WriteBudget(warn_at=0, limit=10),
+        clock=clock,
+    )
+    client.shows_power_limit(60)
+    client.answer(HEAT_PUMP, Unreachable("timeout"))
+    for quarter in range(2):
+        await round_at(coordinator, clock, quarter * 15 * 60)
+    gate = asyncio.Event()
+    client.hold = {HEAT_PUMP.path: gate}
+    polling = asyncio.create_task(round_at(coordinator, clock, 30 * 60))
+    await until(lambda: HEAT_PUMP.path in client.waiting)
+
+    await coordinator.async_shutdown()
+    gate.set()
+    await polling
+
+    issue = ir.async_get(hass).async_get_issue(
+        CONST.DOMAIN, f"{STOPPED_ISSUE}_{entry.entry_id}"
+    )
+    assert issue is None
