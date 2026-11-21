@@ -907,7 +907,7 @@
         "name" : "{prefix}Buitentemperatuur"
       },
       "betriebsanzeige" : {
-        "name" : "{prefix}Bedrijfsindicatie",
+        "name" : "{prefix}Bedrijfsstatus",
         "state" : {
           "system_operationmode_undefined" : "Ongedefinieerd",
           "system_operationmode_relaistest" : "relais-test",
