@@ -6001,8 +6001,8 @@
   {
     "label": "capture: an optional page that never fits must be absent",
     "path": "tools/webif_capture.py",
-    "old": "    return walk.misfits[step.key] >= OPTIONAL_TRIES\n",
-    "new": "    return False\n",
+    "old": "    return last or walk.misfits[step.key] >= OPTIONAL_TRIES\n",
+    "new": "    return last\n",
     "tests": "optional_page_that_never_fits_is_absent_after_two_tries"
   },
   {
@@ -6029,14 +6029,7 @@
   {
     "label": "capture: an optional page showing another's values must go absent",
     "path": "tools/webif_capture.py",
-    "old": "        if twin is not None and _gives_up(step, walk):\n",
-    "new": "        if False:\n",
-    "tests": "optional_page_showing_another_pages_values_is_absent"
-  },
-  {
-    "label": "capture: a required page read whole must stay beside an optional twin",
-    "path": "tools/webif_capture.py",
-    "old": "        if twin is not None and step.optional:\n",
+    "old": "        if twin is not None and _gives_up(step, walk, last):\n",
     "new": "        if False:\n",
     "tests": "optional_page_showing_another_pages_values_is_absent"
   },
@@ -6130,5 +6123,47 @@
     "old": "    StatusItem(number=36, translation_key=\"io_konf_in_36\"),\n",
     "new": "",
     "tests": "codes_the_controller_offers"
+  },
+  {
+    "label": "capture: a required page must be read again beside an optional twin",
+    "path": "tools/webif_capture.py",
+    "old": "            del walk.read[twin]\n",
+    "new": "            pass\n",
+    "tests": "wrong_first_answer_of_a_required_page_is_not_kept"
+  },
+  {
+    "label": "capture: a name must stay out of the file however it looks",
+    "path": "tools/webif_capture.py",
+    "old": "    if title in FREE_TEXT_TITLES:\n        return TEXT_SHOWN\n",
+    "new": "",
+    "tests": "number_given_as_a_circuits_name"
+  },
+  {
+    "label": "capture: an optional misfit in the last attempt must be absent",
+    "path": "tools/webif_capture.py",
+    "old": "    return last or walk.misfits[step.key] >= OPTIONAL_TRIES\n",
+    "new": "    return walk.misfits[step.key] >= OPTIONAL_TRIES\n",
+    "tests": "misfitting_in_the_last_attempt_is_absent"
+  },
+  {
+    "label": "capture: the last attempt must be known",
+    "path": "tools/webif_capture.py",
+    "old": "            _read_missing(session, walk, ask, last=attempt == attempts)\n",
+    "new": "            _read_missing(session, walk, ask, last=False)\n",
+    "tests": "misfitting_in_the_last_attempt_is_absent"
+  },
+  {
+    "label": "capture: a pick must offer no entry sharing its link",
+    "path": "tools/webif_capture.py",
+    "old": "        walk.chosen[step.key] = _pick(step, clear, ask)\n",
+    "new": "        walk.chosen[step.key] = _pick(step, offered, ask)\n",
+    "tests": "pick_offers_no_entry_sharing_its_link"
+  },
+  {
+    "label": "capture: a menu of shared links must stop the attempt",
+    "path": "tools/webif_capture.py",
+    "old": "    elif not clear:\n",
+    "new": "    elif False:\n",
+    "tests": "whose_entries_all_share_links_stops_the_attempt"
   }
 ]

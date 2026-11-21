@@ -596,8 +596,27 @@ async def test_an_optional_page_showing_another_pages_values_is_absent_after_two
     assert report is not None
     assert "Info › Heizkreis n" in report["absent"]
     assert "heat_pump" in by_page(report)
-    # Read whole once, the heat pump page is not asked for again.
-    assert pump.asked.count(("GET", HEAT_PUMP_PAGE)) == 1
+    # Asked once more at the first match, which of the two came wrong being
+    # unknown, and kept at the second.
+    assert pump.asked.count(("GET", HEAT_PUMP_PAGE)) == 2
+
+
+async def test_a_wrong_first_answer_of_a_required_page_is_not_kept(socket_enabled):
+    """The heat pump page came once with the circuit page's rows; the circuit
+    page then came right and was left out, the wrong rows kept as the heat
+    pump's."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        right = pump.site.pop(HEAT_PUMP_PAGE)
+        pump.pages = [pump.site[OPTIONAL_WALK[0]], right]
+        report, _, _ = await run_capture(pump, attempts=3)
+
+    pages = by_page(report)
+    assert pages["heat_pump"]["entries"] == [
+        ["Flow temperature", "35.2 °C"],
+        ["Compressor", "Off"],
+    ]
+    assert "heating_circuit" in pages
 
 
 def test_the_units_kept_are_those_the_integration_reads():
@@ -616,7 +635,84 @@ def test_the_units_kept_are_those_the_integration_reads():
 
 @pytest.mark.parametrize("shown", ["3.0 KW", "1.1 m3/h", "2400 rpm", "-5.5 °C", "60 %"])
 def test_a_number_with_its_unit_is_kept(shown):
-    assert capture_tool._neutral(shown) == shown
+    assert capture_tool._neutral("Leistung", shown) == shown
+
+
+async def test_a_number_given_as_a_circuits_name_stays_out_of_the_file(socket_enabled):
+    """A name such as a flat's number passed for a value; a counter showing
+    the same number is one."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.site[settings_path(CIRCUIT_MENU[2])] += column(
+            setting_link(CIRCUIT_MENU[2], "Name", "007")
+            + setting_link(CIRCUIT_MENU[2], "Schaltspiele", "007")
+        )
+        report, _, _ = await run_capture(pump)
+
+    entries = by_page(report)["circuit_settings"]["entries"]
+    assert ["Name", capture_tool.TEXT_SHOWN] in entries
+    assert ["Schaltspiele", "007"] in entries
+
+
+async def test_an_optional_page_misfitting_in_the_last_attempt_is_absent(
+    socket_enabled,
+):
+    """The six pages read whole in the last attempt, an optional one half:
+    the run gave up and wrote nothing."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.site[OPTIONAL_WALK[1]] = column("")
+        report, _, _ = await run_capture(pump, attempts=1)
+
+    assert report is not None
+    assert "Info › 2. WEZ" in report["absent"]
+
+
+def test_a_pick_offers_no_entry_sharing_its_link():
+    """Which page a shared link leads to cannot be told; offered, it was
+    picked and its titles taught as the asked page's."""
+    shared = (
+        STACK
+        + "64000001000000000080000A0B010002000301,64009900000000000080000A0B020003000401"
+    )
+    own = (
+        STACK
+        + "64000001000000000080000A0B010002000301,64009800000000000080000A0B020003000401"
+    )
+    walk = capture_tool._Walk()
+    walk.read["heat_pump_menu"] = [
+        capture_tool.pages.Entry("Heating", "", shared),
+        capture_tool.pages.Entry("Cooling", "", shared),
+        capture_tool.pages.Entry("Reset", "", own),
+    ]
+    offered = []
+
+    def ask(question):
+        offered.append(question)
+        return "1" if "Number" in question else "y"
+
+    entry = capture_tool._entry(capture_tool.STEP_BY_KEY["heating"], walk, ask)
+
+    assert entry.href == own
+
+
+def test_a_menu_whose_entries_all_share_links_stops_the_attempt():
+    shared = (
+        STACK
+        + "64000001000000000080000A0B010002000301,64009900000000000080000A0B020003000401"
+    )
+    walk = capture_tool._Walk()
+    walk.read["heat_pump_menu"] = [
+        capture_tool.pages.Entry("Heating", "", shared),
+        capture_tool.pages.Entry("Cooling", "", shared),
+    ]
+
+    with pytest.raises(capture_tool.Half):
+        capture_tool._entry(
+            capture_tool.STEP_BY_KEY["heating"],
+            walk,
+            lambda _: pytest.fail("nothing clear to pick"),
+        )
 
 
 def test_an_optional_entry_sharing_its_link_is_not_taken():

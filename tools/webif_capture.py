@@ -123,7 +123,7 @@ ANY_CIRCUIT = "Heizkreis n"
 SETTING_LIST = "para_list"
 # A value of an optional page kept only as a number with a unit the
 # integration reads, a percentage too: any other text, a circuit's name among
-# it, is the user's. A test holds the units equal to the integration's.
+# it, is the user's. A test holds that they cover the integration's.
 SHOWN_UNITS = ("°C", "K", "BAR", "KW", "KWh", "m3/h", "rpm", "Hz", "h", "%")
 SHOWN_NUMBER = re.compile(
     r"-?\d+(?:\.\d+)?(?: ?(?:"
@@ -131,6 +131,8 @@ SHOWN_NUMBER = re.compile(
     + "))?"
 )
 TEXT_SHOWN = "(text)"
+# Rows whose value the user types, whatever it looks like.
+FREE_TEXT_TITLES = frozenset({"Name"})
 # An optional page that does not fit this often is taken as not shown:
 # another model may show it in a shape nobody here has seen.
 OPTIONAL_TRIES = 2
@@ -344,7 +346,7 @@ class _Walk:
     """What a run has learnt so far; it carries over from attempt to attempt.
 
     The pages read whole, the entry each step reads, which of those the user
-    picked, and the optional pages the controller does not show.
+    picked, and the optional pages left out: not shown, or not fitting.
     """
 
     read: dict[str, list[Any]] = field(default_factory=dict)
@@ -613,8 +615,10 @@ def _entry(step: Step, walk: _Walk, ask: Callable[[str], str]) -> Any:
         walk.chosen[step.key] = found[0]
     elif step.optional:
         return None
+    elif not clear:
+        raise Half(f"every entry of {STEP_BY_KEY[step.parent].what} shares its link")
     else:
-        walk.chosen[step.key] = _pick(step, offered, ask)
+        walk.chosen[step.key] = _pick(step, clear, ask)
         walk.picked.add(step.key)
     return walk.chosen[step.key]
 
@@ -677,8 +681,13 @@ def _drop_pick(walk: _Walk, key: str) -> None:
         del walk.chosen[key]
 
 
-def _read_missing(session: Session, walk: _Walk, ask: Callable[[str], str]) -> None:
-    """Read every page not yet read whole, in the order of the menus."""
+def _read_missing(
+    session: Session, walk: _Walk, ask: Callable[[str], str], *, last: bool
+) -> None:
+    """Read every page not yet read whole, in the order of the menus.
+
+    In the `last` attempt an optional page that does not fit is left out.
+    """
     for step in STEPS:
         if step.key in walk.read or step.key in walk.absent:
             continue
@@ -691,20 +700,17 @@ def _read_missing(session: Session, walk: _Walk, ask: Callable[[str], str]) -> N
                 continue
             path = entry.href
         entries = _entries(step, session.page(path, step.key), path)
-        if not _whole(step, entries) and _gives_up(step, walk):
+        if not _whole(step, entries) and _gives_up(step, walk, last):
             walk.absent.add(step.key)
             continue
         if not _whole(step, entries):
             _drop_pick(walk, step.key)
             raise Half(f"{step.what} came half")
         twin = _twin(step, entries, walk)
-        if twin is not None and _gives_up(step, walk):
+        if twin is not None and _gives_up(step, walk, last):
+            # Matching again after both were read anew: the optional one goes.
             walk.absent.add(step.key)
             continue
-        if twin is not None and step.optional:
-            # Which of the two came right cannot be told, but only the
-            # optional one may go: a page read whole stays.
-            raise Half(f"{step.what} showed the values of another page")
         if twin is not None:
             del walk.read[twin]
             _drop_pick(walk, step.key)
@@ -714,12 +720,12 @@ def _read_missing(session: Session, walk: _Walk, ask: Callable[[str], str]) -> N
         print(f"   {step.what}: {len(entries)} entries")
 
 
-def _gives_up(step: Step, walk: _Walk) -> bool:
-    """An optional page that did not fit once more than it may."""
+def _gives_up(step: Step, walk: _Walk, last: bool) -> bool:
+    """An optional page that did not fit once more than it may, or in the last attempt."""
     if not step.optional:
         return False
     walk.misfits[step.key] += 1
-    return walk.misfits[step.key] >= OPTIONAL_TRIES
+    return last or walk.misfits[step.key] >= OPTIONAL_TRIES
 
 
 def _kept(step: Step, entries: list[Any]) -> dict[str, Any]:
@@ -728,14 +734,20 @@ def _kept(step: Step, entries: list[Any]) -> dict[str, Any]:
         # The options alone: the one set is the user's, not a title.
         return {"offered": entries}
     if step.shows_values and step.optional:
-        return {"entries": [[entry.title, _neutral(entry.text)] for entry in entries]}
+        return {
+            "entries": [
+                [entry.title, _neutral(entry.title, entry.text)] for entry in entries
+            ]
+        }
     if step.shows_values:
         return {"entries": [[entry.title, entry.text] for entry in entries]}
     return {"titles": [entry.title for entry in entries]}
 
 
-def _neutral(text: str) -> str:
+def _neutral(title: str, text: str) -> str:
     """A number with its unit as shown, anything else as text alone."""
+    if title in FREE_TEXT_TITLES:
+        return TEXT_SHOWN
     if not text or SHOWN_NUMBER.fullmatch(text):
         return text
     return TEXT_SHOWN
@@ -776,7 +788,7 @@ def capture(
         session = Session(host, user, password, sleep)
         try:
             session.login()
-            _read_missing(session, walk, ask)
+            _read_missing(session, walk, ask, last=attempt == attempts)
         except Refused as error:
             print(f"Login refused: {error}.")
             return None
