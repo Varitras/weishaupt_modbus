@@ -123,6 +123,67 @@ async def test_the_dialog_looks_for_the_grid_folder_off_the_event_loop(
     assert called
 
 
+def _own_maps(config_dir) -> pathlib.Path:
+    folder = config_dir / "weishaupt_modbus" / "kennfeld"
+    folder.mkdir(parents=True)
+    return folder
+
+
+def _write_grid(folder, name: str, known_t: list[int]) -> None:
+    grid = {"known_t": known_t, "known_x": [0], "compiled_grid": {"0": [1.0, 2.0]}}
+    (folder / name).write_text(json.dumps(grid), encoding="utf-8")
+
+
+async def test_a_map_kept_outside_the_package_survives_an_update(
+    hass, tmp_path, monkeypatch
+):
+    """Maps were read only from the package folder, which every update
+    replaces: a user's own map was gone and the heat output unknown."""
+    shipped = tmp_path / "shipped"
+    shipped.mkdir()
+    _write_grid(_own_maps(tmp_path), "own_kennfeld.json", [35, 55])
+    monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: shipped)
+    monkeypatch.setattr(config_flow, "get_filepath", lambda _hass: shipped)
+    hass.config.config_dir = str(tmp_path)
+    entry = SimpleNamespace(
+        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+    )
+    power_map = PowerMap(entry, hass)
+
+    await power_map.initialize()
+
+    assert power_map._known_t == [35, 55]
+    assert await config_flow.build_kennfeld_list(hass) == ["own_kennfeld.json"]
+
+
+async def test_an_own_map_comes_before_a_shipped_one_of_the_same_name(
+    hass, tmp_path, monkeypatch
+):
+    shipped = tmp_path / "shipped"
+    shipped.mkdir()
+    _write_grid(shipped, "weishaupt_wbb_kennfeld.json", [35, 55])
+    _write_grid(shipped, "weishaupt_wsb6_kennfeld.json", [35, 55])
+    _write_grid(_own_maps(tmp_path), "weishaupt_wbb_kennfeld.json", [30, 60])
+    monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: shipped)
+    monkeypatch.setattr(config_flow, "get_filepath", lambda _hass: shipped)
+    hass.config.config_dir = str(tmp_path)
+    entry = SimpleNamespace(
+        data={
+            CONF.KENNFELD_FILE: "weishaupt_wbb_kennfeld.json",
+            CONF.DEVICE_POSTFIX: "",
+        }
+    )
+    power_map = PowerMap(entry, hass)
+
+    await power_map.initialize()
+
+    assert power_map._known_t == [30, 60]
+    assert await config_flow.build_kennfeld_list(hass) == [
+        "weishaupt_wbb_kennfeld.json",
+        "weishaupt_wsb6_kennfeld.json",
+    ]
+
+
 def test_the_default_grid_ships_compiled_with_its_plot():
     """The config flow offers this file by default; a missing grid would be
     compiled at first start, on the user's machine, into the package."""

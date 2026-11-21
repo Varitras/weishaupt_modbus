@@ -4125,15 +4125,29 @@
   {
     "label": "power map: setup looks for the grid folder in the event loop",
     "path": "custom_components/weishaupt_modbus/kennfeld.py",
-    "old": "        folder = await self.hass.async_add_executor_job(get_filepath, self.hass)\n",
-    "new": "        folder = get_filepath(self.hass)\n",
+    "old": "        filepath = await self.hass.async_add_executor_job(\n            map_path, self.hass, self._config_entry.data[CONF.KENNFELD_FILE]\n        )\n",
+    "new": "        filepath = map_path(self.hass, self._config_entry.data[CONF.KENNFELD_FILE])\n",
     "tests": "off_the_event_loop"
+  },
+  {
+    "label": "power map: the user's own map is never read",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "    if own.is_file():\n        return own\n",
+    "new": "",
+    "tests": "outside_the_package or same_name"
+  },
+  {
+    "label": "config flow: the user's own maps are not offered",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        _kennfeld_files, own_maps_folder(hass), shipped\n",
+    "new": "        _kennfeld_files, shipped\n",
+    "tests": "outside_the_package"
   },
   {
     "label": "config flow: the dialog looks for the grid folder in the event loop",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "    folder = await hass.async_add_executor_job(get_filepath, hass)\n",
-    "new": "    folder = get_filepath(hass)\n",
+    "old": "    shipped = await hass.async_add_executor_job(get_filepath, hass)\n",
+    "new": "    shipped = get_filepath(hass)\n",
     "tests": "off_the_event_loop"
   },
   {

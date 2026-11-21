@@ -25,7 +25,7 @@ from homeassistant.helpers.selector import (
 
 from .configentry import host_lock, is_web_interface, web_interface_title
 from .const import CONF, CONST
-from .kennfeld import get_filepath
+from .kennfeld import get_filepath, own_maps_folder
 from .migrate_helpers import entry_unique_id
 from .webif.client import LoginRefused, Unreachable, WebifError
 from .webif.discovery import (
@@ -55,16 +55,21 @@ from .weishaupt_modbus_api.const import (
 _LOGGER = logging.getLogger(__name__)
 
 
-def _kennfeld_files(folder: Path) -> list[str]:
+def _map_files(folder: Path) -> list[str]:
     try:
-        found = sorted(
+        return sorted(
             p.name
             for p in folder.iterdir()
             if p.name.endswith("kennfeld.json") and p.is_file()
         )
     except OSError as error:
         _LOGGER.debug("Power map folder not read: %s", type(error).__name__)
-        found = []
+        return []
+
+
+def _kennfeld_files(*folders: Path) -> list[str]:
+    """The map names in the folders, each once; the default when there is none."""
+    found = sorted({name for folder in folders for name in _map_files(folder)})
     return found or [CONST.DEF_KENNFELDFILE]
 
 
@@ -77,8 +82,10 @@ def _title_after_reconfigure(entry: config_entries.ConfigEntry, host: str) -> st
 
 async def build_kennfeld_list(hass: HomeAssistant) -> list[str]:
     """The power-map files a user can pick from."""
-    folder = await hass.async_add_executor_job(get_filepath, hass)
-    return await hass.async_add_executor_job(_kennfeld_files, folder)
+    shipped = await hass.async_add_executor_job(get_filepath, hass)
+    return await hass.async_add_executor_job(
+        _kennfeld_files, own_maps_folder(hass), shipped
+    )
 
 
 # The outside temperature: every model serves it, so one read of it says
