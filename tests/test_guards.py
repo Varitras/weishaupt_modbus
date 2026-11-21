@@ -40,9 +40,9 @@ GUARD_FILES = {
     "test_mutation_harness.py": "the mutation run fails loudly instead of reporting success",
     "test_mypy_scope.py": "every module is type-checked or says why it is not yet",
     "test_platform_entities.py": "every platform builds its entities through the shared helper",
-    "test_requirements.py": "the manifest and requirements.txt name the same dependencies",
+    "test_requirements.py": "every requirement of the manifest is in requirements.txt, and the manifest pins nothing core's modbus integration owns",
     "test_scan_tool.py": "the register scan for support requests never writes to the pump",
-    "test_capture_tool.py": "the title capture opens six pages only and writes nothing that points to the pump",
+    "test_capture_tool.py": "the title capture opens its six pages and the optional ones only where shown, and writes nothing that points to the pump",
     "test_secret_scan.py": "the gitleaks allowlist does not hide a token on the same line",
     "test_guards.py": "the guards stay package-wide and stay present",
 }

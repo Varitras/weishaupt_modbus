@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -12,6 +13,7 @@ from homeassistant.components.sensor import (
 from homeassistant.const import EntityCategory
 from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -35,13 +37,23 @@ class WriteCounterDescription(SensorEntityDescription):
     daily: bool = False
 
 
-def _counter(key: str, *, daily: bool) -> WriteCounterDescription:
+def _state_class(*, daily: bool, may_fall: bool) -> SensorStateClass:
+    if daily:
+        return SensorStateClass.MEASUREMENT
+    if may_fall:
+        # A total-increasing sensor that falls reads as a meter reset, and
+        # the long-term sum counts what was taken back once more.
+        return SensorStateClass.TOTAL
+    return SensorStateClass.TOTAL_INCREASING
+
+
+def _counter(
+    key: str, *, daily: bool, may_fall: bool = False
+) -> WriteCounterDescription:
     return WriteCounterDescription(
         key=key,
         translation_key=key,
-        state_class=(
-            SensorStateClass.MEASUREMENT if daily else SensorStateClass.TOTAL_INCREASING
-        ),
+        state_class=_state_class(daily=daily, may_fall=may_fall),
         entity_category=EntityCategory.DIAGNOSTIC,
         daily=daily,
     )
@@ -51,9 +63,10 @@ TOTAL_WRITES = _counter("eeprom_writes_total", daily=False)
 WRITES_TODAY = _counter("eeprom_writes_today", daily=True)
 WRITE_COUNTER_DESCRIPTIONS = (TOTAL_WRITES, WRITES_TODAY)
 # The settings the web interface wrote, counted apart from the Modbus writes
-# and limited by an option of its own.
+# and limited by an option of its own. A save the controller turned away is
+# taken back, so its total may fall.
 WEBIF_WRITE_COUNTER_DESCRIPTIONS = (
-    _counter("webif_settings_written_total", daily=False),
+    _counter("webif_settings_written_total", daily=False, may_fall=True),
     _counter("webif_settings_written_today", daily=True),
 )
 
@@ -102,9 +115,22 @@ class WriteCounterSensor(CoordinatorEntity[DataUpdateCoordinator[Any]], SensorEn
         return {DAY_ATTRIBUTE: self._budget.day.isoformat()}
 
     async def async_added_to_hass(self) -> None:
-        """Show each counted write as it is counted."""
+        """Show each counted write as it is counted, and today's from midnight."""
         await super().async_added_to_hass()
         self.async_on_remove(self._budget.add_listener(self.async_write_ha_state))
+        if not self.entity_description.daily:
+            return
+        # A failed poll writes no state: through an outage across midnight
+        # the count and day of yesterday stayed on show.
+        self.async_on_remove(
+            async_track_time_change(
+                self.hass, self._new_day, hour=0, minute=0, second=0
+            )
+        )
+
+    @callback
+    def _new_day(self, _now: datetime) -> None:
+        self.async_write_ha_state()
 
     @callback
     def async_entity_id_changed(self, old_entity_id: str) -> None:

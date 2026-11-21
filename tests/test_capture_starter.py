@@ -5,7 +5,10 @@ runs tools/webif_capture.py with it. What it downloads runs on a stranger's
 computer, so the check of the download is held by tests: they run the
 PowerShell half of the file against a stand-in download on the loopback
 address. They need PowerShell 7 (`pwsh`); a missing one fails rather than
-skips, as for the scan tool.
+skips, as for the scan tool. The batch file itself starts Windows
+PowerShell 5.1, which is not there where the suite runs: where the two
+differ, as for wildcard paths or how a native program gets its arguments,
+the test says so.
 """
 
 import functools
@@ -124,6 +127,91 @@ def test_a_python_that_is_not_the_published_one_is_never_run(tools, download):
     assert {path.name for path in tools.iterdir()} == {CAPTURE}
 
 
+def test_a_python_folder_the_starter_did_not_make_is_kept(tools, download):
+    """A folder named python without the expected executable may hold
+    anything of the user's: it was removed whole before unpacking."""
+    theirs = tools / "python" / "notes.txt"
+    theirs.parent.mkdir()
+    theirs.write_text("mine", encoding="utf-8")
+
+    process = _start(tools, download)
+
+    assert process.returncode == 1
+    assert "python" in process.stdout
+    assert theirs.read_text(encoding="utf-8") == "mine"
+    assert download["requests"] == []
+
+
+def test_a_folder_named_like_the_old_staging_folder_is_kept(tools, download):
+    """The staging folder had a fixed name and was removed whole before
+    unpacking, whoever it belonged to."""
+    theirs = tools / "python-unpacking" / "notes.txt"
+    theirs.parent.mkdir()
+    theirs.write_text("mine", encoding="utf-8")
+
+    process = _start(tools, download)
+
+    assert process.returncode == 0, process.stdout + process.stderr
+    assert theirs.read_text(encoding="utf-8") == "mine"
+    assert {path.name for path in tools.iterdir()} == {
+        CAPTURE,
+        "python",
+        "python-unpacking",
+    }
+
+
+def test_a_folder_with_brackets_in_its_path_gets_its_python(tmp_path, download):
+    """Windows PowerShell 5.1 reads -OutFile as a wildcard: in a folder like
+    "weishaupt [1]" the download failed before a byte was saved. pwsh, which
+    runs these tests, reads it literally, so the download must not go
+    through a parameter that reads wildcards at all."""
+    tools = tmp_path / "weishaupt [1]" / "tools"
+    tools.mkdir(parents=True)
+    (tools / CAPTURE).write_text("", encoding="utf-8")
+
+    process = _start(tools, download)
+
+    assert process.returncode == 0, process.stdout + process.stderr
+    assert _called(tools) == [str(tools / CAPTURE), "192.0.2.10"]
+    assert not re.search(r"-OutFile\s+\$", STARTER.read_text(encoding="ascii"))
+
+
+def test_a_start_broken_off_during_the_download_leaves_nothing_behind(tools, download):
+    """A closed window skips the cleanup: each start made a folder of its
+    own, and the one left behind stayed for good."""
+    left = tools / ("python-setup-" + "0" * 32)
+    left.mkdir()
+    (left / "python.zip").write_bytes(b"half")
+    _age(left, hours=2)
+    mine = tools / "python-setup-mine"
+    mine.mkdir()
+    _age(mine, hours=2)
+
+    process = _start(tools, download)
+
+    assert process.returncode == 0, process.stdout + process.stderr
+    assert not left.exists()
+    assert mine.exists()
+
+
+def test_a_start_still_running_beside_keeps_its_folder(tools, download):
+    """A second start removed the first one's folder while it unpacked,
+    and the first moved a Python without python.exe into place."""
+    running = tools / ("python-setup-" + "1" * 32)
+    running.mkdir()
+    (running / "python.zip").write_bytes(b"half")
+
+    process = _start(tools, download)
+
+    assert process.returncode == 0, process.stdout + process.stderr
+    assert (running / "python.zip").exists()
+
+
+def _age(folder: pathlib.Path, hours: int) -> None:
+    then = folder.stat().st_mtime - hours * 3600
+    os.utime(folder, (then, then))
+
+
 def test_a_second_start_downloads_nothing(tools, download):
     _start(tools, download)
 
@@ -134,13 +222,29 @@ def test_a_second_start_downloads_nothing(tools, download):
 
 
 def test_the_address_reaches_the_capture_as_typed(tools, download):
-    """Handed over as environment, never as source: an & or a quote in what
-    the user typed stays text."""
-    typed = 'pump & "x" $env:PATH'
+    """Handed over as environment, never as source: an & or a $ in what the
+    user typed stays text. Not held here: Windows PowerShell 5.1 drops a
+    typed double quote when it starts python.exe, and the stand-in Python
+    is a script PowerShell runs itself."""
+    typed = "pump & $env:PATH"
 
     _start(tools, download, host=typed)
 
     assert _called(tools)[1] == typed
+
+
+@pytest.mark.parametrize("typed", ["", "  "], ids=["nothing", "spaces"])
+def test_no_address_at_the_prompt_says_so_before_anything_is_downloaded(
+    tools, download, typed
+):
+    """Enter alone at the prompt ended in PowerShell's own red error about
+    binding a parameter."""
+    process = _start(tools, download, host=typed)
+
+    assert process.returncode == 1
+    assert "address" in process.stdout
+    assert "Parameter" not in process.stdout + process.stderr
+    assert download["requests"] == []
 
 
 def test_without_the_capture_beside_it_nothing_is_downloaded(tools, download):
@@ -153,6 +257,23 @@ def test_without_the_capture_beside_it_nothing_is_downloaded(tools, download):
     assert process.returncode == 1
     assert "whole repository" in process.stdout
     assert download["requests"] == []
+
+
+@pytest.mark.parametrize("name", ["webif_capture.bat", "weishaupt_scan.bat"])
+def test_a_starter_returns_the_workers_exit_code_after_its_pause(name):
+    """The pause before returning set the exit code to 0: a caller saw
+    success after the capture or the scan had failed. Read from the batch
+    half, as cmd is not there where the suite runs."""
+    source = (REPO / "tools" / name).read_bytes().decode("ascii")
+    batch = source.split("\r\nexit /b", 1)[0].split("\r\n")
+    worker = next(
+        index for index, line in enumerate(batch) if line.startswith("powershell ")
+    )
+
+    saved = re.fullmatch(r'set "(\w+)=%errorlevel%"', batch[worker + 1])
+    assert saved, batch[worker + 1]
+    assert batch[worker + 2 :] == ["pause"]
+    assert f"\r\nexit /b %{saved.group(1)}%\r\n" in source
 
 
 def test_the_starter_keeps_windows_line_ends():

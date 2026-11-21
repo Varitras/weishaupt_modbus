@@ -231,7 +231,7 @@ class MyEntity(CoordinatorEntity[WeishauptModbusCoordinator]):
         return max(low, min(word, high))
 
     async def set_translate_val(self, value: str | float) -> int | None:
-        """Translate and write a value directly to the Modbus client."""
+        """Translate a value and write it to the heat pump over Modbus."""
         check: Callable[[], None] | None = None
         val: int | Callable[[], int] | None
         if self._api_item.format == FORMATS.STATUS:
@@ -389,6 +389,19 @@ class _KeptSetting(ExtraStoredData):
         return {LAST_SETTING: self.last_setting}
 
 
+def _switched_on(item: ModbusItem) -> bool | None:
+    """On with a setting, off with the off word, unknown with neither.
+
+    A word that is neither read as on: an automation took the setpoint for
+    active.
+    """
+    if item.is_off:
+        return False
+    if item.state is None:
+        return None
+    return True
+
+
 class MySetpointSwitchEntity(MyEntity, SwitchEntity, RestoreEntity):
     """On/off for a setpoint whose off state is a register word.
 
@@ -409,12 +422,12 @@ class MySetpointSwitchEntity(MyEntity, SwitchEntity, RestoreEntity):
         self._attr_unique_id = f"{self._attr_unique_id}{SWITCH_SUFFIX}"
         self._attr_translation_key = f"{modbus_item.translation_key}{SWITCH_SUFFIX}"
         self._attr_device_class = SwitchDeviceClass.SWITCH
-        self._attr_is_on = not modbus_item.is_off
+        self._attr_is_on = _switched_on(modbus_item)
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        self._attr_is_on = not self._api_item.is_off
+        self._attr_is_on = _switched_on(self._api_item)
         self.async_write_ha_state()
 
     @property

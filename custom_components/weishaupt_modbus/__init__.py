@@ -365,22 +365,23 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: MyConfigEntry) 
         "Starting config migration process. Current version: %s", config_entry.version
     )
 
-    if config_entry.version < 2:
-        _LOGGER.debug("Version <2 detected")
-        new_data[CONF.PORT] = DEFAULT_PORT
-        new_data[CONF.PREFIX] = CONST.DEF_PREFIX
-        new_data[CONF.DEVICE_POSTFIX] = ""
-        new_data[CONF.KENNFELD_FILE] = CONST.DEF_KENNFELDFILE
-    if config_entry.version < 3:
-        _LOGGER.debug("Version <3 detected")
-        new_data[CONF.HK2] = False
-        new_data[CONF.HK3] = False
-        new_data[CONF.HK4] = False
-        new_data[CONF.HK5] = False
-    if config_entry.version < 4:
-        _LOGGER.debug("Version <4 detected")
-        new_data[CONF.NAME_DEVICE_PREFIX] = False
-        new_data[CONF.NAME_TOPIC_PREFIX] = False
+    # Versions 1 to 3 came without later keys; the upstream 2.0 prereleases
+    # wrote version 9 without the naming keys, and one of them the port as
+    # 502.0. Every key a missing default: the steps below build ids from them.
+    for key, default in (
+        (CONF.PORT, DEFAULT_PORT),
+        (CONF.PREFIX, CONST.DEF_PREFIX),
+        (CONF.DEVICE_POSTFIX, ""),
+        (CONF.KENNFELD_FILE, CONST.DEF_KENNFELDFILE),
+        (CONF.HK2, False),
+        (CONF.HK3, False),
+        (CONF.HK4, False),
+        (CONF.HK5, False),
+        (CONF.NAME_DEVICE_PREFIX, False),
+        (CONF.NAME_TOPIC_PREFIX, False),
+    ):
+        new_data.setdefault(key, default)
+    new_data[CONF.PORT] = int(new_data[CONF.PORT])
 
     # Whatever version wrote them: the upstream 2.0 line's version 9 holds
     # the login too.

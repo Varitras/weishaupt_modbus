@@ -123,6 +123,67 @@ async def test_the_dialog_looks_for_the_grid_folder_off_the_event_loop(
     assert called
 
 
+def _own_maps(config_dir) -> pathlib.Path:
+    folder = config_dir / "weishaupt_modbus" / "kennfeld"
+    folder.mkdir(parents=True)
+    return folder
+
+
+def _write_grid(folder, name: str, known_t: list[int]) -> None:
+    grid = {"known_t": known_t, "known_x": [0], "compiled_grid": {"0": [1.0, 2.0]}}
+    (folder / name).write_text(json.dumps(grid), encoding="utf-8")
+
+
+async def test_a_map_kept_outside_the_package_survives_an_update(
+    hass, tmp_path, monkeypatch
+):
+    """Maps were read only from the package folder, which every update
+    replaces: a user's own map was gone and the heat output unknown."""
+    shipped = tmp_path / "shipped"
+    shipped.mkdir()
+    _write_grid(_own_maps(tmp_path), "own_kennfeld.json", [35, 55])
+    monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: shipped)
+    monkeypatch.setattr(config_flow, "get_filepath", lambda _hass: shipped)
+    hass.config.config_dir = str(tmp_path)
+    entry = SimpleNamespace(
+        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+    )
+    power_map = PowerMap(entry, hass)
+
+    await power_map.initialize()
+
+    assert power_map._known_t == [35, 55]
+    assert await config_flow.build_kennfeld_list(hass) == ["own_kennfeld.json"]
+
+
+async def test_an_own_map_comes_before_a_shipped_one_of_the_same_name(
+    hass, tmp_path, monkeypatch
+):
+    shipped = tmp_path / "shipped"
+    shipped.mkdir()
+    _write_grid(shipped, "weishaupt_wbb_kennfeld.json", [35, 55])
+    _write_grid(shipped, "weishaupt_wsb6_kennfeld.json", [35, 55])
+    _write_grid(_own_maps(tmp_path), "weishaupt_wbb_kennfeld.json", [30, 60])
+    monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: shipped)
+    monkeypatch.setattr(config_flow, "get_filepath", lambda _hass: shipped)
+    hass.config.config_dir = str(tmp_path)
+    entry = SimpleNamespace(
+        data={
+            CONF.KENNFELD_FILE: "weishaupt_wbb_kennfeld.json",
+            CONF.DEVICE_POSTFIX: "",
+        }
+    )
+    power_map = PowerMap(entry, hass)
+
+    await power_map.initialize()
+
+    assert power_map._known_t == [30, 60]
+    assert await config_flow.build_kennfeld_list(hass) == [
+        "weishaupt_wbb_kennfeld.json",
+        "weishaupt_wsb6_kennfeld.json",
+    ]
+
+
 def test_the_default_grid_ships_compiled_with_its_plot():
     """The config flow offers this file by default; a missing grid would be
     compiled at first start, on the user's machine, into the package."""
@@ -549,6 +610,81 @@ def test_the_compile_script_refuses_air_temperatures_out_of_order(monkeypatch):
 
     with pytest.raises(ValueError, match="known_x"):
         _compile_script().compile_grid(data)
+
+
+@pytest.mark.parametrize("known_t", [[35], [35, 35]], ids=["one", "twice the same"])
+def test_the_compile_script_refuses_a_grid_the_integration_would_not_load(
+    tmp_path, monkeypatch, capsys, known_t
+):
+    """One flow temperature, or the same one twice, compiled and replaced
+    the file; the integration then refused it and the heat power stayed
+    unknown."""
+    monkeypatch.setitem(sys.modules, "scipy.interpolate", None)
+    raw = {"known_x": [-10, 10], "known_t": known_t, "known_y": [[1, 2]] * len(known_t)}
+    path = tmp_path / "own_kennfeld.json"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    before = path.read_bytes()
+
+    assert _compile_script().main(["compile_kennfeld.py", str(path)]) == 1
+
+    assert path.read_bytes() == before
+    assert "known_t" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        {"known_x": [-10, 10], "known_t": ["35", "55"], "known_y": [[1, 2], [3, 4]]},
+        {"known_x": ["-10", "10"], "known_t": [35, 55], "known_y": [[1, 2], [3, 4]]},
+        {"known_x": [-10, 10], "known_t": [35, 55], "known_y": [[1, "2"], [3, 4]]},
+        {"known_x": [-10, 10], "known_t": [True, 55], "known_y": [[1, 2], [3, 4]]},
+    ],
+    ids=["quoted flow", "quoted air", "quoted power", "true as a flow"],
+)
+def test_the_compile_script_refuses_values_that_are_not_numbers(
+    tmp_path, monkeypatch, capsys, raw
+):
+    """Quoted flow temperatures compiled and replaced the file; the
+    integration then refused it and the heat power stayed unknown."""
+    monkeypatch.setitem(sys.modules, "scipy.interpolate", None)
+    path = tmp_path / "own_kennfeld.json"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    before = path.read_bytes()
+
+    assert _compile_script().main(["compile_kennfeld.py", str(path)]) == 1
+
+    assert path.read_bytes() == before
+    assert "number" in capsys.readouterr().err
+
+
+def test_the_compile_script_writes_a_grid_of_two_flow_temperatures(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setitem(sys.modules, "scipy.interpolate", None)
+    monkeypatch.setitem(sys.modules, "pygal", None)
+    raw = {"known_x": [-10, 10], "known_t": [55, 35], "known_y": [[1, 2], [3, 4]]}
+    path = tmp_path / "own_kennfeld.json"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+
+    assert _compile_script().main(["compile_kennfeld.py", str(path)]) == 0
+
+    assert kennfeld._looks_like_a_grid(json.loads(path.read_text(encoding="utf-8")))
+
+
+def test_compiling_without_pygal_leaves_no_old_preview_behind(tmp_path, monkeypatch):
+    """The preview of the map before stayed beside the new grid, and the
+    integration published it, an old title naming the file included."""
+    monkeypatch.setitem(sys.modules, "scipy.interpolate", None)
+    monkeypatch.setitem(sys.modules, "pygal", None)
+    raw = {"known_x": [-10, 10], "known_t": [35, 55], "known_y": [[1, 2], [3, 4]]}
+    path = tmp_path / "own_kennfeld.json"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    old = path.with_suffix(".svg")
+    old.write_text("<svg><title>own_kennfeld</title></svg>", encoding="utf-8")
+
+    assert _compile_script().main(["compile_kennfeld.py", str(path)]) == 0
+
+    assert not old.exists()
 
 
 class _RecordingChart:

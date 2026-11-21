@@ -1452,6 +1452,37 @@ async def test_a_write_is_refused_before_any_request(
     assert client.asked == []
 
 
+async def test_at_the_daily_limit_the_value_already_shown_is_not_refused(
+    coordinator, client, clock, quick
+):
+    """Refused before anything was read: an automation setting the value
+    the controller holds failed until the next day, unlike over Modbus."""
+    await first_round_showing(coordinator, client, clock)
+    await _limit_used(coordinator, client, clock)
+
+    await coordinator.set_power_limit(60)
+
+    assert client.saved == []
+    assert coordinator.budget.writes_today == 1
+
+
+async def test_at_the_daily_limit_a_value_changed_since_the_last_reading_is_not_saved(
+    coordinator, client, clock, quick
+):
+    """The last reading showed the target, the fresh read another value:
+    the save would have gone past the limit."""
+    await first_round_showing(coordinator, client, clock)
+    await _limit_used(coordinator, client, clock)
+    client.shows_power_limit(70)
+
+    assert await refused(coordinator.set_power_limit(60)) == (
+        "webif_write_limit_reached",
+        {"limit": "1"},
+    )
+    assert client.saved == []
+    assert coordinator.budget.writes_today == 1
+
+
 @pytest.mark.parametrize("stall", [0, 0.3])
 async def test_a_write_is_refused_again_when_its_quiet_time_ends(
     hass, coordinator, client, clock, freezer, stall
@@ -1470,6 +1501,25 @@ async def test_a_write_is_refused_again_when_its_quiet_time_ends(
     async_fire_time_changed(hass)
 
     assert await call == ("webif_write_limit_reached", {"limit": "1"})
+    assert client.asked == []
+
+
+async def test_a_write_is_refused_when_the_login_is_refused_in_its_quiet_time(
+    hass, coordinator, client, clock, freezer
+):
+    """Asked while the login worked; by the time the requests had settled a
+    round had met a refused login, and the write must not try it again."""
+    await first_round_showing(coordinator, client, clock)
+    call = asyncio.create_task(refused(coordinator.set_power_limit(61)))
+    await settle()
+
+    clock.now = 2 * 60 * 60
+    await _login_refused(coordinator, client, clock)
+    client.asked.clear()
+    freezer.tick(timedelta(seconds=webif_coordinator.DEBOUNCE_SECONDS))
+    async_fire_time_changed(hass)
+
+    assert await call == ("webif_write_login_refused", None)
     assert client.asked == []
 
 
@@ -1651,10 +1701,8 @@ def _session_gone(client):
     client.save_error = NotSaved("POST /pro_save.html: HTTP 303 to /index.html")
 
 
-def _other_form(client):
-    client.script[leaf(60)] = [
-        limit_leaf(60).replace('value="para_list"', 'value="para_text"')
-    ]
+def _target_not_offered(client):
+    client.script[leaf(60)] = [limit_leaf(60, offered=range(50, 61))]
 
 
 def _login_refused_while_writing(client):
@@ -1665,11 +1713,25 @@ def _closed(client):
     client.answer(HEATING, Closed("the client is closed"))
 
 
+async def test_a_save_the_controller_turned_away_uses_up_no_write_of_the_day(
+    coordinator, client, clock, quick
+):
+    """Counted as it went out, the save stayed counted when the controller
+    answered that its session had ended: the retry the message asks for
+    could meet the daily limit."""
+    await first_round_showing(coordinator, client, clock)
+    _session_gone(client)
+
+    await refused(coordinator.set_power_limit(61))
+
+    assert (coordinator.budget.total, coordinator.budget.writes_today) == (0, 0)
+
+
 @pytest.mark.parametrize(
     ("failure", "key"),
     [
         (_session_gone, "webif_write_not_saved"),
-        (_other_form, "webif_write_form_mismatch"),
+        (_target_not_offered, "webif_write_form_mismatch"),
         (_login_refused_while_writing, "webif_write_login_refused"),
         (_closed, "webif_write_aborted"),
     ],
@@ -1698,11 +1760,20 @@ async def test_a_login_refused_while_writing_stops_the_polling_too(
     assert client.asked == []
 
 
+def _faulty_before_sending(client, error):
+    """A save that fails before anything is sent, and so counts nothing."""
+
+    async def faulty(form, value, count_write):
+        raise error
+
+    client.save = faulty
+
+
 async def test_an_unexpected_error_of_a_write_logs_once(
     coordinator, client, clock, quick, caplog
 ):
     await first_round_showing(coordinator, client, clock)
-    client.save_error = RuntimeError("a fault of the form")
+    _faulty_before_sending(client, RuntimeError("a fault of the form"))
 
     for _ in range(2):
         assert await refused(coordinator.set_power_limit(61)) == (
@@ -1726,7 +1797,7 @@ async def test_a_write_logs_its_unexpected_error_after_a_round_did(
     client.shows_power_limit(60)
     client.answer(HEAT_PUMP, RuntimeError("a fault of the parser"))
     await round_at(coordinator, clock, 0)
-    client.save_error = RuntimeError("a fault of the form")
+    _faulty_before_sending(client, RuntimeError("a fault of the form"))
 
     assert await refused(coordinator.set_power_limit(61)) == (
         "webif_write_failed",
@@ -1836,13 +1907,7 @@ async def test_a_write_keeps_the_rest_a_timeout_gave_the_controller(
     assert listened.update_interval == QUARTER_HOUR - timedelta(seconds=60)
 
 
-async def test_after_an_unexpected_error_on_the_read_back_the_heating_page_is_due(
-    coordinator, client, clock, quick
-):
-    """The save may have gone out: the next round reads what the controller
-    holds instead of showing the old value for up to an hour."""
-    await first_round_showing(coordinator, client, clock)
-
+def _saved_then_faulty(client):
     async def saved_then_faulty(form, value, count_write):
         count_write()
         client.asked.append(SAVE)
@@ -1850,7 +1915,31 @@ async def test_after_an_unexpected_error_on_the_read_back_the_heating_page_is_du
 
     client.save = saved_then_faulty
 
-    assert (await refused(coordinator.set_power_limit(61)))[0] == "webif_write_failed"
+
+async def test_an_unexpected_error_after_the_save_went_out_says_it_may_be_saved(
+    coordinator, client, clock, quick
+):
+    """Told the write failed, as for an error before anything was sent, the
+    user would save again a value the controller may already hold."""
+    await first_round_showing(coordinator, client, clock)
+    _saved_then_faulty(client)
+
+    assert await refused(coordinator.set_power_limit(61)) == (
+        "webif_write_maybe_saved",
+        NAMED,
+    )
+    assert coordinator.budget.writes_today == 1
+
+
+async def test_after_an_unexpected_error_on_the_read_back_the_heating_page_is_due(
+    coordinator, client, clock, quick
+):
+    """The save may have gone out: the next round reads what the controller
+    holds instead of showing the old value for up to an hour."""
+    await first_round_showing(coordinator, client, clock)
+    _saved_then_faulty(client)
+
+    await refused(coordinator.set_power_limit(61))
     client.shows_power_limit(61)
     client.asked.clear()
     await round_at(coordinator, clock, 60)
@@ -1958,3 +2047,36 @@ async def test_a_timeout_under_a_write_gives_the_controller_a_rest(
     await round_at(coordinator, clock, 15 * 60)
 
     assert client.asked == []
+
+
+async def test_a_request_failing_after_the_shutdown_brings_no_stop_notice_back(
+    hass, entry, clock
+):
+    """The request in flight at the unload failed after the notice was
+    taken down, and put it back for an entry that no longer ran."""
+    client = GatedClient()
+    coordinator = WebifCoordinator(
+        hass,
+        entry,
+        client,
+        [HEAT_PUMP, STATISTICS, HEATING],
+        budget=WriteBudget(warn_at=0, limit=10),
+        clock=clock,
+    )
+    client.shows_power_limit(60)
+    client.answer(HEAT_PUMP, Unreachable("timeout"))
+    for quarter in range(2):
+        await round_at(coordinator, clock, quarter * 15 * 60)
+    gate = asyncio.Event()
+    client.hold = {HEAT_PUMP.path: gate}
+    polling = asyncio.create_task(round_at(coordinator, clock, 30 * 60))
+    await until(lambda: HEAT_PUMP.path in client.waiting)
+
+    await coordinator.async_shutdown()
+    gate.set()
+    await polling
+
+    issue = ir.async_get(hass).async_get_issue(
+        CONST.DOMAIN, f"{STOPPED_ISSUE}_{entry.entry_id}"
+    )
+    assert issue is None

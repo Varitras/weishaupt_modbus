@@ -262,8 +262,9 @@ class PowerMap:
         successful load left the previous map's curve on the dashboard while
         the heat power had already gone unknown.
         """
-        folder = await self.hass.async_add_executor_job(get_filepath, self.hass)
-        filepath = folder / self._config_entry.data[CONF.KENNFELD_FILE]
+        filepath = await self.hass.async_add_executor_job(
+            map_path, self.hass, self._config_entry.data[CONF.KENNFELD_FILE]
+        )
         loaded = await self._load_grid(filepath)
         www_dir = Path(f"{self.hass.config.config_dir}/www/local")
         await self.hass.async_add_executor_job(
@@ -364,6 +365,19 @@ class PowerMap:
             self._known_t[y1_idx] - self._known_t[y0_idx]
         )
         return p0 + dy * (p1 - p0)
+
+
+def own_maps_folder(hass: HomeAssistant) -> Path:
+    """The user's own power maps: outside custom_components, which an update replaces."""
+    return Path(hass.config.config_dir) / CONST.DOMAIN / "kennfeld"
+
+
+def map_path(hass: HomeAssistant, name: str) -> Path:
+    """The map of that name: the user's own if there is one, else the shipped one."""
+    own = own_maps_folder(hass) / name
+    if own.is_file():
+        return own
+    return get_filepath(hass) / name
 
 
 def get_filepath(hass: HomeAssistant) -> Path:

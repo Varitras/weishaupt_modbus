@@ -43,6 +43,30 @@ def test_the_warning_fires_exactly_once_when_the_threshold_is_reached():
     assert [budget.record_write() for _ in range(4)] == [False, True, False, False]
 
 
+def test_a_write_taken_back_leaves_the_counts_as_before_it():
+    budget = WriteBudget(warn_at=0, limit=1, today=Clock(MONDAY))
+    heard = []
+    budget.add_listener(lambda: heard.append(budget.counts()))
+    budget.record_write()
+
+    budget.withdraw_write()
+
+    assert (budget.total, budget.writes_today) == (0, 0)
+    assert budget.allows_write()
+    assert heard[-1]["total"] == 0
+
+
+def test_a_write_of_yesterday_taken_back_leaves_today_alone():
+    clock = Clock(MONDAY)
+    budget = WriteBudget(warn_at=0, limit=0, today=clock)
+    budget.record_write()
+    clock.day = TUESDAY
+
+    budget.withdraw_write()
+
+    assert (budget.total, budget.writes_today, budget.day) == (0, 0, TUESDAY)
+
+
 def test_a_threshold_of_zero_never_warns():
     budget = WriteBudget(warn_at=0, limit=0, today=Clock(MONDAY))
 

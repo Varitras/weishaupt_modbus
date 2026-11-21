@@ -256,7 +256,9 @@ class WeishauptHeatPump:
             return True
 
     async def _write_word(self, item: ModbusItem, word: int) -> None:
-        if not self.write_budget.allows_write():
+        # The allowance guards the EEPROM; a register held in RAM uses none.
+        counted = not item.params.get("in_ram", False)
+        if counted and not self.write_budget.allows_write():
             raise WriteError(self.write_budget.limit, item.address)
         component = self._components[band_of(item.address)]
         # A caller cancelled while waiting for the lock sent nothing.
@@ -270,9 +272,11 @@ class WeishauptHeatPump:
                 # caller stopped waiting for it: it may have reached the
                 # EEPROM. A connect that failed before sending raises the same
                 # types, so that one counts too.
-                self._count_write()
+                if counted:
+                    self._count_write()
                 raise
-        self._count_write()
+        if counted:
+            self._count_write()
 
     def _count_write(self) -> None:
         if self.write_budget.record_write():

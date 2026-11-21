@@ -468,6 +468,7 @@ IO_KONFIG_IN: list[StatusItem] = [
 # "off_is_a_setting": the menu offers "Aus" beside the value, reported as 0x8000; a switch sets it
 # "only_if_served": no entity when the first poll finds the register refused (firmware without it)
 # "enabled_by_default": False creates the entity disabled; an existing one stays enabled or disabled as it was
+# "in_ram": held in RAM, never written to the EEPROM; its writes use none of the daily allowance
 #
 # For SENSOR_CALC only:
 # "calculation": a function from calculations.py. It receives the entity's own register (divided),
@@ -672,6 +673,13 @@ PARAMS_BIVALENZTEMP: dict = {
     "stateclass": SensorStateClass.MEASUREMENT,
 }
 
+# The controller's menu (WBB, 2026-11) offers "Aus" and -25 to 40 degC.
+PARAMS_GRENZTEMP: dict = {
+    **PARAMS_BIVALENZTEMP,
+    "min": -25,
+    "off_is_a_setting": True,
+}
+
 PARAMS_STDTEMP: dict = {
     "min": -60,
     "max": 100,
@@ -793,6 +801,8 @@ PARAMS_CALCJAZ: dict = {
 }
 
 PARAMS_PV: dict = {
+    # The data-point list 83807301: not written to the EEPROM, so no limit.
+    "in_ram": True,
     "min": 0,
     "max": 65535,
     "precision": 0,
@@ -991,7 +1001,7 @@ MODBUS_W2_ITEMS: list[ModbusItem] = [
     ModbusItem(address=44101, name="W2_Konfiguration", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.W2, resultlist=W2_KONFIG, translation_key="w2_konf"),
     ModbusItem(address=44102, name="Konfiguration EP1", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.W2, resultlist=EP1_KONFIG, translation_key="adr44102"),
     ModbusItem(address=44103, name="Konfiguration EP2", format=FORMATS.STATUS, type=TYPES.NUMBER_RO, device=DEVICES.W2, resultlist=EP2_KONFIG, translation_key="adr44103"),
-    ModbusItem(address=44104, name="Grenztemperatur", format=FORMATS.TEMPERATURE, type=TYPES.NUMBER, device=DEVICES.W2, params=PARAMS_BIVALENZTEMP, translation_key="grenztemp"),
+    ModbusItem(address=44104, name="Grenztemperatur", format=FORMATS.TEMPERATURE, type=TYPES.NUMBER, device=DEVICES.W2, params=PARAMS_GRENZTEMP, translation_key="grenztemp"),
     ModbusItem(address=44105, name="Bivalenztemperatur", format=FORMATS.TEMPERATURE, type=TYPES.NUMBER, device=DEVICES.W2, params=PARAMS_BIVALENZTEMP, translation_key="bivalenztemp"),
     ModbusItem(address=44106, name="Bivalenztemperatur WW", format=FORMATS.TEMPERATURE, type=TYPES.NUMBER, device=DEVICES.W2, params=PARAMS_BIVALENZTEMP, translation_key="bivalenztemp_ww"),
 ]

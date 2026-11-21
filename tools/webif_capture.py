@@ -136,6 +136,9 @@ FREE_TEXT_TITLES = frozenset({"Name"})
 # An optional page that does not fit this often is taken as not shown:
 # another model may show it in a shape nobody here has seen.
 OPTIONAL_TRIES = 2
+# A page the run needs that answers 404 this often is not served: asking on
+# would only rest a minute each time and end the same way.
+NOT_SERVED_TRIES = 2
 # A stack segment starts with the code of its menu entry: the main menu in the
 # first two hex digits, the entry in the next six. The rest carries the
 # device, the menu depth and at times a shown value.
@@ -171,6 +174,10 @@ class Refused(Exception):
     """The controller did not accept the user and the password."""
 
 
+class NotOffered(Exception):
+    """A page the run needs answered 404 every time it was asked."""
+
+
 class Stopped(Exception):
     """An attempt ended where a later one may get further."""
 
@@ -181,6 +188,14 @@ class NoAnswer(Stopped):
     Nothing more is asked in that attempt: anything asked of a struggling
     controller only adds load.
     """
+
+
+class ErrorStatus(NoAnswer):
+    """A page answered with an error status."""
+
+
+class NotServed(ErrorStatus):
+    """A page answered 404: the controller does not serve it, and is not struggling."""
 
 
 class Half(Stopped):
@@ -454,11 +469,14 @@ class Session:
         self._logged_in = True
 
     def page(self, path: str, name: str) -> str:
-        """The text of the page at path; NoAnswer unless it came with 200."""
+        """The text of the page at path; ErrorStatus unless it came with 200."""
         answer = self._request("GET", path)
+        if answer.status == HTTPStatus.NOT_FOUND:
+            raise NotServed(f"{name}: HTTP {answer.status}")
         if answer.status != HTTPStatus.OK:
             raise self._no_answer(
-                f"{name}: HTTP {answer.status} to {answer.location or '-'}"
+                f"{name}: HTTP {answer.status} to {answer.location or '-'}",
+                ErrorStatus,
             )
         return answer.text
 
@@ -471,9 +489,9 @@ class Session:
         except NoAnswer:
             print("   no answer to the logout; the controller drops the session itself")
 
-    def _no_answer(self, reason: str) -> NoAnswer:
+    def _no_answer(self, reason: str, kind: type[NoAnswer] = NoAnswer) -> NoAnswer:
         self._struggled = True
-        return NoAnswer(reason)
+        return kind(reason)
 
     def _request(self, method: str, path: str, form: str | None = None) -> Answer:
         if not _allowed(method, path):
@@ -690,7 +708,9 @@ def _read_missing(
 ) -> None:
     """Read every page not yet read whole, in the order of the menus.
 
-    In the `last` attempt an optional page that does not fit is left out.
+    Skip an optional page if a mismatch or HTTP 404 persists across attempts
+    or occurs on the last attempt. Other HTTP errors stop the attempt; a
+    required page answering HTTP 404 in two attempts ends the run.
     """
     for step in STEPS:
         if step.key in walk.read or step.key in walk.absent:
@@ -703,7 +723,18 @@ def _read_missing(
                 walk.absent.add(step.key)
                 continue
             path = entry.href
-        entries = _entries(step, session.page(path, step.key), path)
+        try:
+            text = session.page(path, step.key)
+        except NotServed:
+            # The menu may list a page the controller does not serve; any
+            # other error status or no answer is the controller struggling
+            # and still stops.
+            if _gives_up(step, walk, last):
+                walk.absent.add(step.key)
+                continue
+            _count_not_served(step, walk)
+            raise
+        entries = _entries(step, text, path)
         if not _whole(step, entries) and _gives_up(step, walk, last):
             walk.absent.add(step.key)
             continue
@@ -722,6 +753,15 @@ def _read_missing(
             raise Half(f"{step.what} showed the values of another page")
         walk.read[step.key] = entries
         print(f"   {step.what}: {len(entries)} entries")
+
+
+def _count_not_served(step: Step, walk: _Walk) -> None:
+    """NotOffered once a page the run needs answered 404 too often."""
+    if step.optional:
+        return
+    walk.misfits[step.key] += 1
+    if walk.misfits[step.key] >= NOT_SERVED_TRIES:
+        raise NotOffered(f"the controller does not serve {step.what}")
 
 
 def _gives_up(step: Step, walk: _Walk, last: bool) -> bool:
@@ -795,6 +835,9 @@ def capture(
             _read_missing(session, walk, ask, last=attempt == attempts)
         except Refused as error:
             print(f"Login refused: {error}.")
+            return None
+        except NotOffered as error:
+            print(f"Stopped: {error}; asking again would not help. Please report it.")
             return None
         except Stopped as error:
             print(f"Attempt {attempt} of {attempts} stopped: {error}.")

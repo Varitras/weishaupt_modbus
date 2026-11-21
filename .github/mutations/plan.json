@@ -3390,29 +3390,29 @@
   {
     "label": "power limit write: a form of another stack is saved",
     "path": "custom_components/weishaupt_modbus/webif/setting.py",
-    "old": "        form.stack != link_stack\n        or form.selected != shown\n",
-    "new": "        form.selected != shown\n",
+    "old": "                and form.stack == link_stack\n",
+    "new": "",
     "tests": "form_that_does_not_match_sends_nothing"
   },
   {
     "label": "power limit write: a form selecting another value is saved",
     "path": "custom_components/weishaupt_modbus/webif/setting.py",
-    "old": "        or form.selected != shown\n",
+    "old": "                and form.selected == shown\n",
     "new": "",
     "tests": "form_that_does_not_match_sends_nothing"
   },
   {
     "label": "power limit write: a form of another type is saved",
     "path": "custom_components/weishaupt_modbus/webif/setting.py",
-    "old": "        or form.type != SETTING_LIST\n",
+    "old": "                and form.type == SETTING_LIST\n",
     "new": "",
     "tests": "form_that_does_not_match_sends_nothing"
   },
   {
     "label": "power limit write: a target the form does not offer is saved",
     "path": "custom_components/weishaupt_modbus/webif/setting.py",
-    "old": "        or target not in form.offered\n",
-    "new": "",
+    "old": "        raise FormNotRead(str(error)) from error\n    if target not in form.offered:\n",
+    "new": "        raise FormNotRead(str(error)) from error\n    if False:\n",
     "tests": "form_that_does_not_match_sends_nothing"
   },
   {
@@ -3460,8 +3460,8 @@
   {
     "label": "power limit write: the daily limit is not checked",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        if not self.budget.allows_write():\n",
-    "new": "        if False:\n",
+    "old": "        if self.budget.allows_write() or self._shown(page, setting) == target:\n",
+    "new": "        if True:\n",
     "tests": "refused_before_any_request"
   },
   {
@@ -3497,7 +3497,7 @@
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
     "old": "                    return\n                self._refuse_write()\n",
     "new": "                    return\n",
-    "tests": "refused_again_when_its_quiet_time_ends"
+    "tests": "refused_when_the_login_is_refused_in_its_quiet_time"
   },
   {
     "label": "power limit number: a value between two percentages is written",
@@ -3621,8 +3621,8 @@
   {
     "label": "power limit write: after an unexpected error once counted the heating page waits",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "            if counted:\n                # The save may have gone out: the next round asks.\n                self._readings[burst.page].asked_at = None\n",
-    "new": "",
+    "old": "        self._readings[burst.page].asked_at = None\n        return MaybeSaved(",
+    "new": "        return MaybeSaved(",
     "tests": "unexpected_error_on_the_read_back_the_heating_page_is_due"
   },
   {
@@ -3859,8 +3859,8 @@
   {
     "label": "capture starter: a refused download stays on disk",
     "path": "tools/webif_capture.bat",
-    "old": "        Remove-Item -LiteralPath $download\n        Write-Host \"The download",
-    "new": "        Write-Host \"The download",
+    "old": "    finally {\n        Remove-Item -LiteralPath $staging -Recurse\n    }\n",
+    "new": "    finally {\n    }\n",
     "tests": "not_the_published_one_is_never_run"
   },
   {
@@ -4125,15 +4125,29 @@
   {
     "label": "power map: setup looks for the grid folder in the event loop",
     "path": "custom_components/weishaupt_modbus/kennfeld.py",
-    "old": "        folder = await self.hass.async_add_executor_job(get_filepath, self.hass)\n",
-    "new": "        folder = get_filepath(self.hass)\n",
+    "old": "        filepath = await self.hass.async_add_executor_job(\n            map_path, self.hass, self._config_entry.data[CONF.KENNFELD_FILE]\n        )\n",
+    "new": "        filepath = map_path(self.hass, self._config_entry.data[CONF.KENNFELD_FILE])\n",
     "tests": "off_the_event_loop"
+  },
+  {
+    "label": "power map: the user's own map is never read",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "    if own.is_file():\n        return own\n",
+    "new": "",
+    "tests": "outside_the_package or same_name"
+  },
+  {
+    "label": "config flow: the user's own maps are not offered",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        _kennfeld_files, own_maps_folder(hass), shipped\n",
+    "new": "        _kennfeld_files, shipped\n",
+    "tests": "outside_the_package"
   },
   {
     "label": "config flow: the dialog looks for the grid folder in the event loop",
     "path": "custom_components/weishaupt_modbus/config_flow.py",
-    "old": "    folder = await hass.async_add_executor_job(get_filepath, hass)\n",
-    "new": "    folder = get_filepath(hass)\n",
+    "old": "    shipped = await hass.async_add_executor_job(get_filepath, hass)\n",
+    "new": "    shipped = get_filepath(hass)\n",
     "tests": "off_the_event_loop"
   },
   {
@@ -5441,15 +5455,15 @@
   {
     "label": "webif coordinator: a write looks its page up before the lock",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        key = (burst.page, burst.setting.title)\n        counted = False\n        handed_on = False\n\n        def count_write() -> None:\n            nonlocal counted\n            counted = True\n            self.budget.record_write()\n\n        try:\n            async with self._asking:\n                # Live a write takes 20 to 60 s: the requests made while\n                # another ran joined this one, and from here on they wait\n                # for a write of their own.\n                if self._bursts.get(key) is burst and key in self._quiets:\n                    # A change since this write was started restarted the\n                    # quiet time; the write that quiet time starts takes it.\n                    handed_on = True\n                    return\n                if self._bursts.get(key) is burst:\n                    del self._bursts[key]\n                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n                self._refuse_write()\n                # Looked up under the lock: a round before it may have found\n                # the page at a new address.\n                page = self._page(burst.page)\n",
-    "new": "        key = (burst.page, burst.setting.title)\n        counted = False\n        page = self._page(burst.page)\n        handed_on = False\n\n        def count_write() -> None:\n            nonlocal counted\n            counted = True\n            self.budget.record_write()\n\n        try:\n            async with self._asking:\n                # Live a write takes 20 to 60 s: the requests made while\n                # another ran joined this one, and from here on they wait\n                # for a write of their own.\n                if self._bursts.get(key) is burst and key in self._quiets:\n                    # A change since this write was started restarted the\n                    # quiet time; the write that quiet time starts takes it.\n                    handed_on = True\n                    return\n                if self._bursts.get(key) is burst:\n                    del self._bursts[key]\n                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n                self._refuse_write()\n",
+    "old": "        key = (burst.page, burst.setting.title)\n        counted = False\n        handed_on = False\n\n        def count_write() -> None:\n            nonlocal counted\n            # Run as the save goes out: refused here, nothing is sent.\n            if not self.budget.allows_write():\n                self._raise_limit_reached()\n            counted = True\n            self.budget.record_write()\n\n        try:\n            async with self._asking:\n                # Live a write takes 20 to 60 s: the requests made while\n                # another ran joined this one, and from here on they wait\n                # for a write of their own.\n                if self._bursts.get(key) is burst and key in self._quiets:\n                    # A change since this write was started restarted the\n                    # quiet time; the write that quiet time starts takes it.\n                    handed_on = True\n                    return\n                if self._bursts.get(key) is burst:\n                    del self._bursts[key]\n                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n                self._refuse_write()\n                self._refuse_over_the_limit(burst.page, burst.setting, burst.target)\n                # Looked up under the lock: a round before it may have found\n                # the page at a new address.\n                page = self._page(burst.page)\n",
+    "new": "        key = (burst.page, burst.setting.title)\n        counted = False\n        page = self._page(burst.page)\n        handed_on = False\n\n        def count_write() -> None:\n            nonlocal counted\n            # Run as the save goes out: refused here, nothing is sent.\n            if not self.budget.allows_write():\n                self._raise_limit_reached()\n            counted = True\n            self.budget.record_write()\n\n        try:\n            async with self._asking:\n                # Live a write takes 20 to 60 s: the requests made while\n                # another ran joined this one, and from here on they wait\n                # for a write of their own.\n                if self._bursts.get(key) is burst and key in self._quiets:\n                    # A change since this write was started restarted the\n                    # quiet time; the write that quiet time starts takes it.\n                    handed_on = True\n                    return\n                if self._bursts.get(key) is burst:\n                    del self._bursts[key]\n                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n                self._refuse_write()\n                self._refuse_over_the_limit(burst.page, burst.setting, burst.target)\n",
     "tests": "looks_its_page_up_once_it_has_the_lock"
   },
   {
     "label": "webif coordinator: a write asked for during a search looks its page up before it",
     "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
-    "old": "        key = (burst.page, burst.setting.title)\n        counted = False\n        handed_on = False\n\n        def count_write() -> None:\n            nonlocal counted\n            counted = True\n            self.budget.record_write()\n\n        try:\n            async with self._asking:\n                # Live a write takes 20 to 60 s: the requests made while\n                # another ran joined this one, and from here on they wait\n                # for a write of their own.\n                if self._bursts.get(key) is burst and key in self._quiets:\n                    # A change since this write was started restarted the\n                    # quiet time; the write that quiet time starts takes it.\n                    handed_on = True\n                    return\n                if self._bursts.get(key) is burst:\n                    del self._bursts[key]\n                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n                self._refuse_write()\n                # Looked up under the lock: a round before it may have found\n                # the page at a new address.\n                page = self._page(burst.page)\n",
-    "new": "        key = (burst.page, burst.setting.title)\n        counted = False\n        page = self._page(burst.page)\n        handed_on = False\n\n        def count_write() -> None:\n            nonlocal counted\n            counted = True\n            self.budget.record_write()\n\n        try:\n            async with self._asking:\n                # Live a write takes 20 to 60 s: the requests made while\n                # another ran joined this one, and from here on they wait\n                # for a write of their own.\n                if self._bursts.get(key) is burst and key in self._quiets:\n                    # A change since this write was started restarted the\n                    # quiet time; the write that quiet time starts takes it.\n                    handed_on = True\n                    return\n                if self._bursts.get(key) is burst:\n                    del self._bursts[key]\n                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n                self._refuse_write()\n",
+    "old": "        key = (burst.page, burst.setting.title)\n        counted = False\n        handed_on = False\n\n        def count_write() -> None:\n            nonlocal counted\n            # Run as the save goes out: refused here, nothing is sent.\n            if not self.budget.allows_write():\n                self._raise_limit_reached()\n            counted = True\n            self.budget.record_write()\n\n        try:\n            async with self._asking:\n                # Live a write takes 20 to 60 s: the requests made while\n                # another ran joined this one, and from here on they wait\n                # for a write of their own.\n                if self._bursts.get(key) is burst and key in self._quiets:\n                    # A change since this write was started restarted the\n                    # quiet time; the write that quiet time starts takes it.\n                    handed_on = True\n                    return\n                if self._bursts.get(key) is burst:\n                    del self._bursts[key]\n                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n                self._refuse_write()\n                self._refuse_over_the_limit(burst.page, burst.setting, burst.target)\n                # Looked up under the lock: a round before it may have found\n                # the page at a new address.\n                page = self._page(burst.page)\n",
+    "new": "        key = (burst.page, burst.setting.title)\n        counted = False\n        page = self._page(burst.page)\n        handed_on = False\n\n        def count_write() -> None:\n            nonlocal counted\n            # Run as the save goes out: refused here, nothing is sent.\n            if not self.budget.allows_write():\n                self._raise_limit_reached()\n            counted = True\n            self.budget.record_write()\n\n        try:\n            async with self._asking:\n                # Live a write takes 20 to 60 s: the requests made while\n                # another ran joined this one, and from here on they wait\n                # for a write of their own.\n                if self._bursts.get(key) is burst and key in self._quiets:\n                    # A change since this write was started restarted the\n                    # quiet time; the write that quiet time starts takes it.\n                    handed_on = True\n                    return\n                if self._bursts.get(key) is burst:\n                    del self._bursts[key]\n                if outcome.done():\n                    # Written by a write started for it earlier, or called\n                    # off by the unload while it waited for its turn.\n                    return\n                self._refuse_write()\n                self._refuse_over_the_limit(burst.page, burst.setting, burst.target)\n",
     "tests": "write_asked_for_during_a_search"
   },
   {
@@ -5672,8 +5686,8 @@
   {
     "label": "modulation: an option the form does not offer is sent",
     "path": "custom_components/weishaupt_modbus/webif/setting.py",
-    "old": "    if target not in form.offered:\n",
-    "new": "    if False:\n",
+    "old": "    if form.selected == target:\n        return page\n    if target not in form.offered:\n",
+    "new": "    if form.selected == target:\n        return page\n    if False:\n",
     "tests": "form_does_not_offer_is_not_sent"
   },
   {
@@ -6064,8 +6078,8 @@
   {
     "label": "webif circuit owner: a form under another circuit must not be sent",
     "path": "custom_components/weishaupt_modbus/webif/setting.py",
-    "old": "        return pages.setting_form(text) if owned(text) else None\n",
-    "new": "        return pages.setting_form(text)\n",
+    "old": "            if not owned(text):\n                return None\n",
+    "new": "",
     "tests": "form_now_under_another_circuit_is_not_saved"
   },
   {
@@ -6172,5 +6186,334 @@
     "old": "    elif not clear or wanted_shared:\n",
     "new": "    elif not clear:\n",
     "tests": "wanted_entry_on_a_shared_link_stops_the_attempt"
+  },
+  {
+    "label": "migration: a fresh upstream 2.0 entry must get its naming keys",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        (CONF.PREFIX, CONST.DEF_PREFIX),\n",
+    "new": "",
+    "tests": "fresh_entry_of_the_upstream_2_0_line_migrates or early_version_gets_every_later_key"
+  },
+  {
+    "label": "migration: a port of 502.0 must become 502",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "    new_data[CONF.PORT] = int(new_data[CONF.PORT])\n",
+    "new": "",
+    "tests": "fresh_entry_of_the_upstream_2_0_line_migrates"
+  },
+  {
+    "label": "migration: an early entry must get its circuits",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        (CONF.HK2, False),\n",
+    "new": "",
+    "tests": "early_version_gets_every_later_key"
+  },
+  {
+    "label": "migration: an early entry must get the name options",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        (CONF.NAME_TOPIC_PREFIX, False),\n",
+    "new": "",
+    "tests": "early_version_gets_every_later_key"
+  },
+  {
+    "label": "writes: a register held in RAM must use none of the allowance",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        counted = not item.params.get(\"in_ram\", False)\n",
+    "new": "        counted = True\n",
+    "tests": "pv_setpoint_uses_none_of_the_eeprom_allowance"
+  },
+  {
+    "label": "writes: the PV setpoint must be marked as held in RAM",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "    \"in_ram\": True,\n",
+    "new": "",
+    "tests": "pv_setpoint_uses_none_of_the_eeprom_allowance"
+  },
+  {
+    "label": "writes: a RAM register must not be refused by the limit",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "        if counted and not self.write_budget.allows_write():\n",
+    "new": "        if not self.write_budget.allows_write():\n",
+    "tests": "pv_setpoint_uses_none_of_the_eeprom_allowance"
+  },
+  {
+    "label": "switch: a setpoint neither set nor off must not read as on",
+    "path": "custom_components/weishaupt_modbus/entities.py",
+    "old": "    if item.state is None:\n        return None\n",
+    "new": "",
+    "tests": "neither_set_nor_off_shows_its_switch_unknown"
+  },
+  {
+    "label": "capture starter: a python folder it did not make is replaced",
+    "path": "tools/webif_capture.bat",
+    "old": "    if (Test-Path -LiteralPath $pythonDir) {\n",
+    "new": "    if ($false) {\n",
+    "tests": "python_folder_the_starter_did_not_make_is_kept"
+  },
+  {
+    "label": "capture starter: the staging folder has a fixed name",
+    "path": "tools/webif_capture.bat",
+    "old": "$staging = Join-Path $ToolsDir ('python-setup-' + [guid]::NewGuid().ToString('N'))\n",
+    "new": "$staging = Join-Path $ToolsDir 'python-unpacking'\n",
+    "tests": "named_like_the_old_staging_folder_is_kept"
+  },
+  {
+    "label": "write counts: counts the budget refused are kept for the next start",
+    "path": "custom_components/weishaupt_modbus/write_counts.py",
+    "old": "    budget.load(counts)\n    kept.counts = counts\n",
+    "new": "    kept.counts = counts\n    budget.load(counts)\n",
+    "tests": "corrected_after_a_failed_start_is_read_on_reload"
+  },
+  {
+    "label": "capture: an optional page answering an error status ends the run",
+    "path": "tools/webif_capture.py",
+    "old": "        except NotServed:\n",
+    "new": "        except ():\n",
+    "tests": "optional_page_answering_an_error_status"
+  },
+  {
+    "label": "capture: an optional page answering a server error is left out",
+    "path": "tools/webif_capture.py",
+    "old": "        except NotServed:\n",
+    "new": "        except ErrorStatus:\n",
+    "tests": "optional_page_answering_a_server_error"
+  },
+  {
+    "label": "capture: a required page not served is asked for on and on",
+    "path": "tools/webif_capture.py",
+    "old": "    if walk.misfits[step.key] >= NOT_SERVED_TRIES:\n",
+    "new": "    if False:\n",
+    "tests": "required_page_not_served"
+  },
+  {
+    "label": "capture: a required page not served once ends the run",
+    "path": "tools/webif_capture.py",
+    "old": "    if walk.misfits[step.key] >= NOT_SERVED_TRIES:\n",
+    "new": "    if walk.misfits[step.key] >= 1:\n",
+    "tests": "required_page_not_served"
+  },
+  {
+    "label": "capture: a page not there counts as the controller struggling",
+    "path": "tools/webif_capture.py",
+    "old": "        if answer.status == HTTPStatus.NOT_FOUND:\n",
+    "new": "        if False:\n",
+    "tests": "page_not_there_still_logs_out"
+  },
+  {
+    "label": "capture: an optional page without an answer is left out",
+    "path": "tools/webif_capture.py",
+    "old": "        except NotServed:\n            # The menu",
+    "new": "        except NoAnswer:\n            # The menu",
+    "tests": "optional_page_without_an_answer_still_ends_the_run"
+  },
+  {
+    "label": "compile kennfeld: a grid of one flow temperature is written",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "    if len(data[\"known_t\"]) < MIN_FLOW_TEMPERATURES or not distinct:\n",
+    "new": "    if not distinct:\n",
+    "tests": "would_not_load"
+  },
+  {
+    "label": "compile kennfeld: a flow temperature given twice is written",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "    if len(data[\"known_t\"]) < MIN_FLOW_TEMPERATURES or not distinct:\n",
+    "new": "    if len(data[\"known_t\"]) < MIN_FLOW_TEMPERATURES:\n",
+    "tests": "would_not_load"
+  },
+  {
+    "label": "compile kennfeld: two flow temperatures are refused",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "MIN_FLOW_TEMPERATURES = 2\n",
+    "new": "MIN_FLOW_TEMPERATURES = 3\n",
+    "tests": "writes_a_grid_of_two_flow_temperatures"
+  },
+  {
+    "label": "compile kennfeld: without pygal the old preview stays",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "    if preview.exists():\n",
+    "new": "    if False:\n",
+    "tests": "no_old_preview_behind"
+  },
+  {
+    "label": "write counter: today's count waits for a poll after midnight",
+    "path": "custom_components/weishaupt_modbus/write_counter_sensor.py",
+    "old": "        if not self.entity_description.daily:\n            return\n        # A failed poll",
+    "new": "        if True:\n            return\n        # A failed poll",
+    "tests": "rolls_to_the_new_day_while_polling_fails"
+  },
+  {
+    "label": "write counter: today's count rolls an hour after midnight",
+    "path": "custom_components/weishaupt_modbus/write_counter_sensor.py",
+    "old": "self._new_day, hour=0,",
+    "new": "self._new_day, hour=1,",
+    "tests": "rolls_to_the_new_day_while_polling_fails"
+  },
+  {
+    "label": "capture starter: the pause hides the worker's exit code",
+    "path": "tools/webif_capture.bat",
+    "old": "exit /b %CAPTURE_STATUS%\n",
+    "new": "exit /b\n",
+    "tests": "exit_code_after_its_pause"
+  },
+  {
+    "label": "scan starter: the pause hides the worker's exit code",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "exit /b %SCAN_STATUS%\n",
+    "new": "exit /b\n",
+    "tests": "exit_code_after_its_pause"
+  },
+  {
+    "label": "scan: a scan with nothing answered writes no file",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "    else { Set-Content -LiteralPath $OutFile -Value $CsvHeader -Encoding UTF8 }\n",
+    "new": "",
+    "tests": "nothing_answered_writes_the_file_it_names"
+  },
+  {
+    "label": "scan: the empty file's path is read as a wildcard",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "Set-Content -LiteralPath $OutFile",
+    "new": "Set-Content -Path $OutFile",
+    "tests": "folder_with_brackets_writes_its_file"
+  },
+  {
+    "label": "scan: the CSV's path is read as a wildcard",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "Export-Csv -LiteralPath $OutFile",
+    "new": "Export-Csv -Path $OutFile",
+    "tests": "folder_with_brackets_writes_its_file"
+  },
+  {
+    "label": "capture starter: a broken-off start's folder stays",
+    "path": "tools/webif_capture.bat",
+    "old": "        Remove-Item -Recurse -ErrorAction SilentlyContinue\n",
+    "new": "        Out-Null\n",
+    "tests": "broken_off_during_the_download_leaves_nothing_behind"
+  },
+  {
+    "label": "capture starter: any python-setup folder is removed",
+    "path": "tools/webif_capture.bat",
+    "old": "'^python-setup-[0-9a-f]{32}$'",
+    "new": "'^python-setup-'",
+    "tests": "broken_off_during_the_download_leaves_nothing_behind"
+  },
+  {
+    "label": "capture starter: a running start's folder is removed",
+    "path": "tools/webif_capture.bat",
+    "old": " -and $_.LastWriteTime -lt $abandoned }",
+    "new": " }",
+    "tests": "still_running_beside_keeps_its_folder"
+  },
+  {
+    "label": "power limit write: an unexpected error after the save reads as failed",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if not counted:\n            return WriteFailed(type(error).__name__)\n",
+    "new": "        if True:\n            return WriteFailed(type(error).__name__)\n",
+    "tests": "unexpected_error_after_the_save_went_out_says_it_may_be_saved"
+  },
+  {
+    "label": "power limit write: at the limit the value shown is refused",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if self.budget.allows_write() or self._shown(page, setting) == target:\n",
+    "new": "        if self.budget.allows_write():\n",
+    "tests": "value_already_shown_is_not_refused"
+  },
+  {
+    "label": "power limit write: the save is not held to the daily limit",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "            if not self.budget.allows_write():\n                self._raise_limit_reached()\n",
+    "new": "            if False:\n                self._raise_limit_reached()\n",
+    "tests": "value_changed_since_the_last_reading_is_not_saved"
+  },
+  {
+    "label": "power limit write: the limit is not checked again once the requests settled",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                self._refuse_over_the_limit(burst.page, burst.setting, burst.target)\n",
+    "new": "",
+    "tests": "refused_again_when_its_quiet_time_ends"
+  },
+  {
+    "label": "web write: a save turned away stays counted",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                self.budget.withdraw_write()\n",
+    "new": "                pass\n",
+    "tests": "turned_away_uses_up_no_write_of_the_day"
+  },
+  {
+    "label": "write budget: a write of yesterday taken back lowers today's count",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/write_budget.py",
+    "old": "        if self._recorded_on == self.day:\n",
+    "new": "        if True:\n",
+    "tests": "yesterday_taken_back_leaves_today_alone"
+  },
+  {
+    "label": "write budget: a write taken back is not kept",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/write_budget.py",
+    "old": "        self._recorded_on = None\n        self._notify()\n",
+    "new": "        self._recorded_on = None\n",
+    "tests": "taken_back_leaves_the_counts_as_before_it"
+  },
+  {
+    "label": "power limit write: a whole but wrong form page is not asked for again",
+    "path": "custom_components/weishaupt_modbus/webif/setting.py",
+    "old": "            return form if matches else None\n",
+    "new": "            return form\n",
+    "tests": "whole_but_wrong_form_page_is_asked_for_once_more"
+  },
+  {
+    "label": "capture starter: the download takes a wildcard path",
+    "path": "tools/webif_capture.bat",
+    "old": "        (New-Object System.Net.WebClient).DownloadFile($PythonUrl, $download)\n",
+    "new": "        Invoke-WebRequest -Uri $PythonUrl -OutFile $download -UseBasicParsing\n",
+    "tests": "brackets_in_its_path_gets_its_python"
+  },
+  {
+    "label": "capture starter: an empty address goes on to the download",
+    "path": "tools/webif_capture.bat",
+    "old": "if ([string]::IsNullOrWhiteSpace($HostName)) {\n",
+    "new": "if ($false) {\n",
+    "tests": "no_address_at_the_prompt_says_so_before_anything_is_downloaded"
+  },
+  {
+    "label": "scan starter: an empty address goes on to the scan",
+    "path": "tools/weishaupt_scan.bat",
+    "old": "if (-not $HostName) {\n",
+    "new": "if ($false) {\n",
+    "tests": "no_address_at_the_prompt_says_so_before_anything_is_asked"
+  },
+  {
+    "label": "webif coordinator: a request failing after the shutdown puts the stop notice back",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        if self._shut_down:\n",
+    "new": "        if False:\n",
+    "tests": "brings_no_stop_notice_back"
+  },
+  {
+    "label": "webif coordinator: the shutdown is not noted",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        self._shut_down = True\n",
+    "new": "",
+    "tests": "brings_no_stop_notice_back"
+  },
+  {
+    "label": "compile script: a quoted temperature is compiled",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "    if not only_numbers(data):\n",
+    "new": "    if False:\n",
+    "tests": "refuses_values_that_are_not_numbers"
+  },
+  {
+    "label": "compile script: true counts as a number",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "    if isinstance(value, bool) or not isinstance(value, (int, float)):\n",
+    "new": "    if not isinstance(value, (int, float)):\n",
+    "tests": "refuses_values_that_are_not_numbers"
+  },
+  {
+    "label": "write counters: the web settings total reads a fall as a meter reset",
+    "path": "custom_components/weishaupt_modbus/write_counter_sensor.py",
+    "old": "    if may_fall:\n",
+    "new": "    if False:\n",
+    "tests": "meter_reset"
   }
 ]

@@ -9,6 +9,8 @@ The behaviour tests run the PowerShell half of the file against a stand-in
 Modbus server on the loopback address and look at what actually arrives.
 They need PowerShell 7 (`pwsh`); GitHub's Ubuntu runners ship it, and a
 missing one fails rather than skips - a skipped safety test reads as a pass.
+The batch file itself starts Windows PowerShell 5.1, which these tests do
+not run.
 """
 
 import csv
@@ -228,6 +230,23 @@ def test_an_address_typed_with_a_space_is_scanned_without_it(tmp_path, serve):
     assert _values(rows, "input") == {30002: 195}
 
 
+@pytest.mark.parametrize("typed", ["", "  "], ids=["nothing", "spaces"])
+def test_no_address_at_the_prompt_says_so_before_anything_is_asked(
+    tmp_path, serve, typed
+):
+    """Enter alone at the prompt ended in PowerShell's own red error about
+    binding a parameter."""
+    pump = _StandInPump()
+    port = serve(pump)
+
+    process, _ = _scan(tmp_path, port, host=typed, InputRegisters=[30001])
+
+    assert process.returncode == 1
+    assert "address" in process.stdout
+    assert "Parameter" not in process.stdout + process.stderr
+    assert pump.functions == []
+
+
 def test_a_register_reading_zero_counts_as_answered(tmp_path, serve):
     """PowerShell's `0 -ne ''` is false: the closing line counted 23 of 41
     answered registers on a real pump, every one reading 0 left out."""
@@ -241,6 +260,37 @@ def test_a_register_reading_zero_counts_as_answered(tmp_path, serve):
     assert process.returncode == 0, process.stderr
     assert _values(rows, "input") == {30001: 0, 30002: 195}
     assert "2 registers answered" in process.stdout, process.stdout
+
+
+def test_a_scan_with_nothing_answered_writes_the_file_it_names(tmp_path, serve):
+    """No identification and no register answered: the scan said it wrote
+    the CSV and ended well, and there was no file."""
+    pump = _StandInPump(identification={0: ([], None)})
+    port = serve(pump)
+
+    process, rows = _scan(tmp_path, port, InputRegisters=[30001], HoldingRegisters=[])
+
+    assert process.returncode == 0, process.stderr
+    assert "0 registers answered, written to" in process.stdout, process.stdout
+    with (tmp_path / "scan.csv").open(encoding="utf-8-sig", newline="") as handle:
+        assert next(csv.reader(handle)) == ["table", "address", "value", "note"]
+    assert rows == []
+
+
+@pytest.mark.parametrize(
+    "registers", [{}, {(READ_INPUT, 30001): 195}], ids=["nothing", "a register"]
+)
+def test_a_scan_in_a_folder_with_brackets_writes_its_file(tmp_path, serve, registers):
+    """Unpacked to "weishaupt [1]": a path read as a wildcard matched
+    nothing, and the scan stopped before it wrote a byte."""
+    folder = tmp_path / "weishaupt [1]"
+    folder.mkdir()
+    port = serve(_StandInPump(registers=registers, identification={0: ([], None)}))
+
+    process, _ = _scan(folder, port, InputRegisters=[30001], HoldingRegisters=[])
+
+    assert process.returncode == 0, process.stderr
+    assert (folder / "scan.csv").exists()
 
 
 def test_an_aborted_scan_keeps_the_registers_it_read(tmp_path, serve):

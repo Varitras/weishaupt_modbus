@@ -24,8 +24,9 @@ class ModbusItem:
     translation_key: str
     resultlist: list[StatusItem] | None = None
     params: dict[str, Any] = field(default_factory=dict)
-    # Runtime state, written by the client on every poll and write; the
-    # setpoint switch restores last_setting after a restart.
+    # Runtime state, written by the device (weishaupt_modbus_api/device.py)
+    # on every poll and write; the setpoint switch restores last_setting
+    # after a restart.
     state: Any = field(default=None, init=False)
     is_invalid: bool = field(default=False, init=False)
     # The register answered fields.OFF - a setpoint switched off, or a

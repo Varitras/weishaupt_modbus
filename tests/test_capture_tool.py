@@ -583,6 +583,93 @@ async def test_an_optional_page_that_never_fits_is_absent_after_two_tries(
     assert len(report["pages"]) == 12
 
 
+async def test_an_optional_page_answering_an_error_status_is_absent_after_two_tries(
+    socket_enabled,
+):
+    """A page the menu lists but the controller answers with 404: the run
+    gave up after its last attempt, the six pages read whole lost with it."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.failing[OPTIONAL_WALK[1]] = 404
+        report, _, rests = await run_capture(pump, attempts=3)
+
+    assert report is not None
+    assert "Info › 2. WEZ" in report["absent"]
+    assert rests.count(A_MINUTE) == 1
+    assert len(report["pages"]) == 12
+
+
+async def test_an_optional_page_answering_an_error_status_in_the_last_attempt_is_absent(
+    socket_enabled,
+):
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.failing[OPTIONAL_WALK[1]] = 404
+        report, _, _ = await run_capture(pump, attempts=1)
+
+    assert report is not None
+    assert "Info › 2. WEZ" in report["absent"]
+
+
+async def test_a_run_left_without_a_page_not_there_still_logs_out(socket_enabled):
+    """A 404 is a page the controller does not serve, not a controller
+    struggling: the run that left it out sent no logout, its session open."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.failing[OPTIONAL_WALK[1]] = 404
+        report, _, _ = await run_capture(pump, attempts=1)
+
+    assert report is not None
+    assert pump.asked[-1:] == LOGOUT
+
+
+async def test_an_optional_page_answering_a_server_error_still_ends_the_run(
+    socket_enabled,
+):
+    """A 503 is the controller struggling: the page was left out as absent."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.failing[OPTIONAL_WALK[1]] = 503
+        report, _, _ = await run_capture(pump, attempts=1)
+
+    assert report is None
+
+
+async def test_a_required_page_not_served_twice_ends_the_run(socket_enabled):
+    """A page the menu lists but the controller answers with 404 every time:
+    ten attempts and nine minutes of rest, then \"try again later\"."""
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN)
+        pump.failing[STATISTICS_PAGE] = 404
+        report, _, rests = await run_capture(pump, attempts=10)
+
+    assert report is None
+    assert rests.count(A_MINUTE) == 1
+    assert pump.asked.count(("GET", STATISTICS_PAGE)) == 2
+
+
+async def test_a_required_page_not_served_once_is_read_again(socket_enabled):
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN)
+        pump.failing_once[STATISTICS_PAGE] = 404
+        report, _, _ = await run_capture(pump, attempts=3)
+
+    assert report is not None
+
+
+async def test_an_optional_page_without_an_answer_still_ends_the_run(
+    socket_enabled, monkeypatch
+):
+    """No answer at all is the controller struggling, not a page missing."""
+    short_limit_for(monkeypatch, OPTIONAL_WALK[1])
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.stalls[OPTIONAL_WALK[1]] = MACHINE_PAUSE * 3
+        report, _, _ = await run_capture(pump, attempts=1)
+
+    assert report is None
+
+
 async def test_an_optional_page_showing_another_pages_values_is_absent_after_two_tries(
     socket_enabled,
 ):

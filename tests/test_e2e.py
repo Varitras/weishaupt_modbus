@@ -452,6 +452,19 @@ async def _switch(hass, service, entity_id):
     await hass.async_block_till_done()
 
 
+@pytest.mark.parametrize("word", [0x8001, 0x80FF], ids=["0x8001", "0x80FF"])
+async def test_a_setpoint_neither_set_nor_off_shows_its_switch_unknown(
+    hass, pump, word
+):
+    """A word that is no setting and not the off word read as on: an
+    automation took the setpoint for active."""
+    pump.load_raw({"holding": {SG_READY_BOOST: word}})
+
+    await _setup(hass, _entry(hass))
+
+    assert hass.states.get(_boost_switch(hass)).state == "unknown"
+
+
 async def test_a_setpoint_switched_off_before_a_reload_comes_back_with_its_value(
     hass, pump
 ):
@@ -1230,6 +1243,80 @@ async def test_an_entry_of_the_upstream_2_0_line_is_stripped_of_its_login_and_ma
         assert key not in entry.data, f"{key!r} survived the migration"
 
 
+@pytest.mark.parametrize(
+    ("version", "data"),
+    [
+        (1, {CONF.HOST: "192.0.2.10"}),
+        (
+            2,
+            {
+                k: BASE_DATA[k]
+                for k in (
+                    CONF.HOST,
+                    CONF.PORT,
+                    CONF.PREFIX,
+                    CONF.DEVICE_POSTFIX,
+                    CONF.KENNFELD_FILE,
+                )
+            },
+        ),
+        (
+            3,
+            {
+                k: v
+                for k, v in BASE_DATA.items()
+                if k not in (CONF.NAME_DEVICE_PREFIX, CONF.NAME_TOPIC_PREFIX)
+            },
+        ),
+    ],
+    ids=["version 1", "version 2", "version 3"],
+)
+async def test_an_entry_of_an_early_version_gets_every_later_key(hass, version, data):
+    """No test held what versions 2 and 3 lacked: moving a version boundary
+    by one went unnoticed."""
+    entry = _entry(hass, data=data, version=version)
+
+    await _setup(hass, entry)
+
+    assert entry.version == 11
+    assert {key: entry.data[key] for key in BASE_DATA} == BASE_DATA
+
+
+# A fresh entry of the upstream 2.0 prereleases (2.0.0_RC01, 2.0.0_JUST_a_
+# QUICK_TEST): their flow wrote no naming keys, and the quick test a port
+# of 502.0.
+FRESH_UPSTREAM_2_0 = {
+    CONF.HOST: "192.0.2.10",
+    "mac": "00:00:5e:00:53:01",
+    CONF.PORT: 502,
+    CONF.KENNFELD_FILE: CONST.DEF_KENNFELDFILE,
+    CONF.HK2: False,
+    CONF.HK3: False,
+    CONF.HK4: False,
+    CONF.HK5: False,
+    "enable-webif": False,
+    "entity_uid_migration": True,
+}
+
+
+@pytest.mark.parametrize("port", [502, 502.0], ids=["RC01", "quick test"])
+async def test_a_fresh_entry_of_the_upstream_2_0_line_migrates(hass, port):
+    """Without the naming keys the migration stopped at "prefix" and the
+    entry never loaded."""
+    entry = _entry(hass, data={**FRESH_UPSTREAM_2_0, CONF.PORT: port}, version=9)
+
+    await _setup(hass, entry)
+
+    assert entry.version == 11
+    assert entry.data[CONF.PREFIX] == CONST.DEF_PREFIX
+    assert entry.data[CONF.DEVICE_POSTFIX] == ""
+    assert entry.data[CONF.NAME_DEVICE_PREFIX] is False
+    assert entry.data[CONF.NAME_TOPIC_PREFIX] is False
+    assert entry.data[CONF.PORT] == 502
+    assert isinstance(entry.data[CONF.PORT], int)
+    assert entry.unique_id == "192.0.2.10:502"
+
+
 @pytest.mark.parametrize("postfix", ["", "2"])
 # 11: an entry an earlier release had migrated already, devices left behind.
 @pytest.mark.parametrize("version", [8, 11])
@@ -1576,7 +1663,9 @@ async def test_an_out_of_range_poll_interval_is_refused(hass):
         )
 
 
-PV_SETPOINT = 40002
+# A room setpoint, stored in the EEPROM: its writes count. The PV setpoint,
+# held in RAM, uses none of the allowance.
+COUNTED_SETTING = 41105
 WRITES_TOTAL_UNIQUE_ID = "weishaupt_wbbeeprom_writes_total"
 WRITES_TODAY_UNIQUE_ID = "weishaupt_wbbeeprom_writes_today"
 
@@ -1596,7 +1685,7 @@ async def test_the_write_counters_survive_a_reload(hass):
     assert hass.states.get(total_id).state == "0"
 
     pump = entry.runtime_data.coordinator.device
-    setpoint = next(row for row in pump.items if row.address == PV_SETPOINT)
+    setpoint = next(row for row in pump.items if row.address == COUNTED_SETTING)
     await pump.write(setpoint, 5)
     await hass.async_block_till_done()
     # At once, not after the next poll: a reload in between restored 0.
@@ -1614,13 +1703,39 @@ async def test_the_write_counters_survive_a_reload(hass):
     )
 
 
+async def test_todays_write_count_rolls_to_the_new_day_while_polling_fails(
+    hass, pump, freezer
+):
+    """The sensor was written only when a poll told it to: through an outage
+    across midnight it showed yesterday's count and date."""
+    entry = await _setup(hass, _entry(hass))
+    coordinator = entry.runtime_data.coordinator
+    await _write_once(hass, entry)
+    today_id = er.async_get(hass).async_get_entity_id(
+        "sensor", CONST.DOMAIN, WRITES_TODAY_UNIQUE_ID
+    )
+    assert hass.states.get(today_id).state == "1"
+    pump.fail_requests(ModbusConnectionError("link down"))
+    while coordinator.last_update_success:
+        await coordinator.async_refresh()
+
+    midnight = dt_util.start_of_local_day() + timedelta(days=1)
+    freezer.move_to(midnight + timedelta(seconds=1))
+    async_fire_time_changed(hass, midnight + timedelta(seconds=1))
+    await hass.async_block_till_done()
+
+    state = hass.states.get(today_id)
+    assert state.state == "0"
+    assert state.attributes["day"] == midnight.date().isoformat()
+
+
 async def test_todays_write_count_survives_a_reload_while_polling_fails(hass):
     """The daily count is the entry's, not its sensor's: while the counter
     sensor followed the failing polling, a reload restored today's count as
     0, and the daily limit was free again."""
     entry = await _setup(hass, _entry(hass))
     device = entry.runtime_data.coordinator.device
-    setpoint = next(row for row in device.items if row.address == PV_SETPOINT)
+    setpoint = next(row for row in device.items if row.address == COUNTED_SETTING)
     await device.write(setpoint, 5)
     await hass.async_block_till_done()
     entry.runtime_data.coordinator.async_set_update_error(UpdateFailed("link down"))
@@ -1634,7 +1749,7 @@ async def test_todays_write_count_survives_a_reload_while_polling_fails(hass):
 
 async def _write_once(hass, entry):
     device = entry.runtime_data.coordinator.device
-    setpoint = next(row for row in device.items if row.address == PV_SETPOINT)
+    setpoint = next(row for row in device.items if row.address == COUNTED_SETTING)
     await device.write(setpoint, setpoint.state + 1 if setpoint.state else 5)
     await hass.async_block_till_done()
 
@@ -1694,6 +1809,29 @@ async def test_a_start_reads_the_counts_from_the_file_and_a_write_saves_them(
     await _write_once(hass, entry)
 
     assert await _saved_counts(hass, hass_storage, entry) == (8, 3, today)
+
+
+async def test_a_counts_file_corrected_after_a_failed_start_is_read_on_reload(
+    hass, hass_storage
+):
+    """The counts were kept in memory before they were checked: once the
+    file was corrected, every reload took the broken counts again and the
+    entry stayed failed until Home Assistant restarted."""
+    entry = _entry(hass)
+    key = f"{CONST.DOMAIN}.{entry.entry_id}.write_counts"
+    counts = {"total": 13, "today": 1, "day": "1st"}
+    hass_storage[key] = {"version": 1, "minor_version": 1, "key": key, "data": counts}
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert entry.state is ConfigEntryState.SETUP_ERROR
+
+    # In place: the stand-in storage hands every load the dict it first read.
+    counts["day"] = dt_util.now().date().isoformat()
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert _counts(entry) == (13, 1)
 
 
 async def test_a_reload_while_the_counts_are_being_saved_keeps_them(hass, monkeypatch):

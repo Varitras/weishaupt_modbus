@@ -197,6 +197,7 @@ def _switchable_setpoint():
 
 def test_the_switch_reads_the_setpoints_off_state():
     item = _switchable_setpoint()
+    item.state = 185
     switch = entities.MySetpointSwitchEntity(_entry(), item, FakeCoordinator())
     assert switch.is_on is True
     assert switch.unique_id == "weishaupt_wbbHeizen Konstanttemp Absenk_active"

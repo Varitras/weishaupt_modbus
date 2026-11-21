@@ -6,8 +6,9 @@ if not defined SCAN_HOST set /p "SCAN_HOST=IP address of the heat pump: "
 set "SCAN_SELF=%~f0"
 rem Path and host reach PowerShell as environment, never as source text.
 powershell -NoProfile -ExecutionPolicy Bypass -Command "& ([scriptblock]::Create((Get-Content -LiteralPath $env:SCAN_SELF -Raw))) -HostName $env:SCAN_HOST"
+set "SCAN_STATUS=%errorlevel%"
 pause
-exit /b
+exit /b %SCAN_STATUS%
 
 Reads the Modbus registers of a Weishaupt heat pump and saves them as CSV.
 
@@ -29,7 +30,9 @@ The pump serves one request at a time; while the scan runs, Home
 Assistant may miss a poll. The scan takes about a minute.
 #>
 param(
-    [Parameter(Mandatory = $true)][string]$HostName,
+    # Not mandatory: Enter alone at the prompt gets a plain message below,
+    # not PowerShell's own error about binding a parameter.
+    [string]$HostName = '',
     [int]$Port = 502,
     [byte]$UnitId = 1,
     [int[]]$InputRegisters = (30001..39999),
@@ -42,6 +45,10 @@ Set-StrictMode -Version 3
 $ErrorActionPreference = 'Stop'
 # The prompt keeps a pasted space; the integration strips it too.
 $HostName = $HostName.Trim()
+if (-not $HostName) {
+    Write-Host 'No address given: start again and enter the IP address of the heat pump.'
+    exit 1
+}
 
 $FunctionReadHolding = 0x03
 $FunctionReadInput = 0x04
@@ -57,6 +64,8 @@ $IllegalDataAddress = 2
 $MaxTimeoutsInRow = 5
 # A short answer is as unusable as none, and handled the same way.
 $MalformedAnswer = 'The pump sent a malformed answer.'
+# Export-Csv writes no file for no rows, the closing line names it anyway.
+$CsvHeader = '"table","address","value","note"'
 
 $script:client = $null
 $script:stream = $null
@@ -204,7 +213,8 @@ try {
     Read-Table 'holding' $FunctionReadHolding $HoldingRegisters | ForEach-Object { $rows.Add($_) }
 }
 finally {
-    if ($rows.Count -gt 0) { $rows | Export-Csv -Path $OutFile -NoTypeInformation -Encoding UTF8 }
+    if ($rows.Count -gt 0) { $rows | Export-Csv -LiteralPath $OutFile -NoTypeInformation -Encoding UTF8 }
+    else { Set-Content -LiteralPath $OutFile -Value $CsvHeader -Encoding UTF8 }
     $script:client.Close()
 }
 

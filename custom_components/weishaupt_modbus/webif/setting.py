@@ -1,11 +1,8 @@
 """Writing a setting: read its form fresh, save it once, read back.
 
-When to write, how often and against which daily limit is the caller's. The
-entry is found by its title on its menu page, never by a stored address:
-the controller writes the value into the entry's address, so every save
-moves it. Three settings are written: the heating power limit, an
-Evoblock's minimum flow temperature of each circuit, and the hot water
-modulation.
+The caller enforces the timing and daily limit. The heating power limit
+and each Evoblock circuit's minimum flow temperature are found by title
+on their menu pages. Their form addresses can change with the value.
 
 The modulation's entry leads straight to its form, with no page of values
 before it: that form is the page polled, found by its title in the heat
@@ -33,11 +30,11 @@ AUTOMATIC_SHOWN = "Automatik"
 
 
 class FormNotRead(WebifError):
-    """The menu page or the setting's own page did not come whole; nothing was sent."""
+    """The menu page or the setting's own page did not come whole or right; nothing was sent."""
 
 
 class FormMismatch(WebifError):
-    """The form is not the one of the value shown, or lacks the target; nothing was sent."""
+    """The setting's form lacks the target; nothing was sent."""
 
 
 class OtherValueShown(WebifError):
@@ -184,7 +181,8 @@ async def write_setting(
     `count_write` runs as the save goes out, see Client.save. A target the
     controller already shows ends the write after the first read.
 
-    Raises FormNotRead or FormMismatch with nothing sent, LoginRefused or
+    Raises FormNotRead (also for a form not of the value shown, asked for
+    twice) or FormMismatch with nothing sent, LoginRefused or
     Closed from the reads before the save, NotSaved, MaybeSaved or Closed
     from the save, OtherValueShown or NotReadBack after it.
     """
@@ -194,32 +192,37 @@ async def write_setting(
     def setting_shown(text: str) -> tuple[int, str] | None:
         return _entry(text, menu_path, setting) if whole(text) else None
 
-    def form_of_the_owner(text: str) -> pages.SettingForm | None:
-        # Between the two reads the controller may give the address to
-        # another circuit, whose form would pass every other check.
-        return pages.setting_form(text) if owned(text) else None
-
     try:
         menu, (shown, link) = await _read(client, menu_path, setting_shown)
         if shown == target:
             return menu
-        _, form = await _read(client, link, form_of_the_owner)
+        link_stack = link.split(pages.STACK_QUERY, 1)[-1]
+
+        def form_of_the_value_shown(text: str) -> pages.SettingForm | None:
+            # Between the two reads the controller may give the address to
+            # another circuit, whose form would pass every other check.
+            if not owned(text):
+                return None
+            form = pages.setting_form(text)
+            # A page whole by every other check may carry another section's
+            # form or an older selection: the client asks for it once more.
+            # Accepted: the form's id goes unchecked. Recorded on one
+            # controller only, it is the leaf segment with digits changed, not
+            # the same ones on every page; a rule drawn from that could
+            # refuse every save on other firmware.
+            matches = (
+                form is not None
+                and form.stack == link_stack
+                and form.selected == shown
+                and form.type == SETTING_LIST
+            )
+            return form if matches else None
+
+        _, form = await _read(client, link, form_of_the_value_shown)
     except (Broken, Unreachable) as error:
         raise FormNotRead(str(error)) from error
-    link_stack = link.split(pages.STACK_QUERY, 1)[-1]
-    # Accepted: the form's id goes unchecked. Recorded on one controller only,
-    # it is the leaf segment with digits changed, not the same ones on every
-    # page; a rule drawn from that could refuse every save on other firmware.
-    mismatched = (
-        form.stack != link_stack
-        or form.selected != shown
-        or form.type != SETTING_LIST
-        or target not in form.offered
-    )
-    if mismatched:
-        raise FormMismatch(
-            f"{setting.title}: the form is not the one of {shown} or lacks {target}"
-        )
+    if target not in form.offered:
+        raise FormMismatch(f"{setting.title}: the form lacks {target}")
 
     async def shown_now() -> tuple[str, int]:
         read_back, (now_shown, _) = await _read(client, menu_path, setting_shown)

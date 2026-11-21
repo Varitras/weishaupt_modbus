@@ -54,6 +54,8 @@ OUTSIDE_TEMPERATURE = 30001
 CONSTANT_LOWERING = 41111  # TEMPERATURE setpoint whose 0x8000 means off
 POWER_REQUEST = 33103  # PERCENTAGE
 PV_SETPOINT = 40002  # NUMBER, holding
+# NUMBER, holding, stored in the EEPROM: its writes count.
+ROOM_SETPOINT = 41105
 FLOW_SETPOINT = 31104  # read-only setpoint: 1 and 0x8000 mean no demand
 BIVALENCE_TEMPERATURE = 44105  # TEMPERATURE, holding, writable
 SECOND_HEAT_SOURCE_STATUS = 34101
@@ -633,11 +635,13 @@ async def test_the_entries_of_one_pump_share_its_lock(hass):
 async def test_a_changed_value_is_written_and_remembered(pump, unit):
     writes = []
     unit.on_write(writes.append)
-    row = _row(pump, PV_SETPOINT)
+    row = _row(pump, ROOM_SETPOINT)
 
     assert await pump.write(row, 42) is True
 
-    assert [(event.address, event.values) for event in writes] == [(PV_SETPOINT, [42])]
+    assert [(event.address, event.values) for event in writes] == [
+        (ROOM_SETPOINT, [42])
+    ]
     assert row.state == 42
     assert pump.write_budget.total == 1
 
@@ -645,8 +649,8 @@ async def test_a_changed_value_is_written_and_remembered(pump, unit):
 async def test_an_unchanged_value_is_not_written_again(pump, unit):
     writes = []
     unit.on_write(writes.append)
-    unit.load_raw({"holding": {PV_SETPOINT: 42}})
-    row = _row(pump, PV_SETPOINT)
+    unit.load_raw({"holding": {ROOM_SETPOINT: 42}})
+    row = _row(pump, ROOM_SETPOINT)
     row.state = 42
 
     assert await pump.write(row, 42) is False
@@ -704,7 +708,7 @@ async def test_concurrent_writes_share_one_daily_allowance(pump, unit, monkeypat
     saw the allowance before either had used it, and both reached the wire.
     The backend serialises the wire, not the budget decision."""
     pump.write_budget.limit = 1
-    rows = [_row(pump, PV_SETPOINT), _row(pump, 41105)]
+    rows = [_row(pump, 41104), _row(pump, 41105)]
     writes = []
     unit.on_write(writes.append)
     wire = asyncio.Lock()
@@ -726,13 +730,30 @@ async def test_concurrent_writes_share_one_daily_allowance(pump, unit, monkeypat
 
 async def test_the_daily_limit_refuses_the_write(pump, unit):
     pump.write_budget.limit = 1
-    row = _row(pump, PV_SETPOINT)
-    await pump.write(row, 1)
+    row = _row(pump, 41105)
+    await pump.write(row, 210)
 
     with pytest.raises(WriteError, match="limit"):
-        await pump.write(row, 2)
+        await pump.write(row, 220)
 
-    assert row.state == 1
+    assert row.state == 210
+
+
+async def test_the_pv_setpoint_uses_none_of_the_eeprom_allowance(pump, unit):
+    """Held in RAM (data-point list 83807301): with a daily limit, a PV
+    automation used it up, and then neither a room setpoint nor the PV
+    switch-off to 0 W went out."""
+    pump.write_budget.limit = 1
+    pv = _row(pump, PV_SETPOINT)
+    for watts in (1200, 1800):
+        await pump.write(pv, watts)
+    await pump.write(_row(pump, ROOM_SETPOINT), 210)
+
+    for watts in (2500, 0):
+        await pump.write(pv, watts)
+
+    assert pv.state == 0
+    assert pump.write_budget.writes_today == 1
 
 
 def _answering(error):
@@ -757,7 +778,7 @@ async def test_a_write_whose_answer_is_lost_is_counted(pump, unit, lost):
     unit.on_write(_answering(lost))
 
     with pytest.raises(type(lost)):
-        await pump.write(_row(pump, PV_SETPOINT), 5)
+        await pump.write(_row(pump, ROOM_SETPOINT), 5)
 
     assert (pump.write_budget.total, pump.write_budget.writes_today) == (1, 1)
 
@@ -780,14 +801,14 @@ async def test_a_write_cancelled_on_its_way_is_counted_but_not_one_still_waiting
     monkeypatch.setattr(unit, "write_register", no_answer)
 
     async with host_lock:
-        waiting = asyncio.create_task(pump.write(_row(pump, PV_SETPOINT), 5))
+        waiting = asyncio.create_task(pump.write(_row(pump, ROOM_SETPOINT), 5))
         await until(lambda: host_lock.waited)
         waiting.cancel()
         with pytest.raises(asyncio.CancelledError):
             await waiting
     assert pump.write_budget.total == 0
 
-    on_its_way = asyncio.create_task(pump.write(_row(pump, PV_SETPOINT), 5))
+    on_its_way = asyncio.create_task(pump.write(_row(pump, ROOM_SETPOINT), 5))
     await sent.wait()
     on_its_way.cancel()
     with pytest.raises(asyncio.CancelledError):
@@ -806,7 +827,7 @@ async def test_a_write_that_reached_no_eeprom_is_not_counted(pump, unit, refusal
     unit.on_write(_answering(refusal))
 
     with pytest.raises(type(refusal)):
-        await pump.write(_row(pump, PV_SETPOINT), 5)
+        await pump.write(_row(pump, ROOM_SETPOINT), 5)
 
     assert pump.write_budget.total == 0
 
@@ -818,7 +839,7 @@ async def test_a_read_only_register_cannot_be_written(pump, unit):
 
 async def test_reaching_the_warning_threshold_is_logged_once(pump, unit, caplog):
     pump.write_budget.warn_at = 2
-    row = _row(pump, PV_SETPOINT)
+    row = _row(pump, ROOM_SETPOINT)
 
     for value in (1, 2, 3):
         await pump.write(row, value)
