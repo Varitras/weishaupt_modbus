@@ -207,6 +207,8 @@ async def test_a_circuit_page_served_half_pauses_as_it_ever_did(hass, pump, quic
     assert issue is not None
     assert issue.translation_key == STOPPED_ISSUE
     assert "not under" not in issue.translation_placeholders["error"]
+    # Asking again mends a page served half: it starts no search.
+    assert issue.translation_placeholders["error"].startswith("Broken (missing")
 
 
 async def _healthy_entry(hass, pump):
