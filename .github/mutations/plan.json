@@ -6263,5 +6263,26 @@
     "old": "        except ErrorStatus:\n            # The menu",
     "new": "        except NoAnswer:\n            # The menu",
     "tests": "optional_page_without_an_answer_still_ends_the_run"
+  },
+  {
+    "label": "compile kennfeld: a grid of one flow temperature is written",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "    if len(data[\"known_t\"]) < MIN_FLOW_TEMPERATURES or not distinct:\n",
+    "new": "    if not distinct:\n",
+    "tests": "would_not_load"
+  },
+  {
+    "label": "compile kennfeld: a flow temperature given twice is written",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "    if len(data[\"known_t\"]) < MIN_FLOW_TEMPERATURES or not distinct:\n",
+    "new": "    if len(data[\"known_t\"]) < MIN_FLOW_TEMPERATURES:\n",
+    "tests": "would_not_load"
+  },
+  {
+    "label": "compile kennfeld: two flow temperatures are refused",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "MIN_FLOW_TEMPERATURES = 2\n",
+    "new": "MIN_FLOW_TEMPERATURES = 3\n",
+    "tests": "writes_a_grid_of_two_flow_temperatures"
   }
 ]

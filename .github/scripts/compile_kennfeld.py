@@ -21,6 +21,8 @@ import xml.etree.ElementTree as ET
 
 SVG_NAMESPACE = "http://www.w3.org/2000/svg"
 XLINK_NAMESPACE = "http://www.w3.org/1999/xlink"
+# The integration interpolates between two flow curves at least.
+MIN_FLOW_TEMPERATURES = 2
 
 
 def sorted_curves(known_t: list, known_y: list) -> tuple[list, list]:
@@ -140,6 +142,15 @@ def main(argv: list[str]) -> int:
     path = Path(argv[1])
     data = json.loads(path.read_text(encoding="utf-8"))
     data["known_t"], data["known_y"] = sorted_curves(data["known_t"], data["known_y"])
+    # The integration refuses such a grid, and the file it replaced is gone.
+    distinct = len(set(data["known_t"])) == len(data["known_t"])
+    if len(data["known_t"]) < MIN_FLOW_TEMPERATURES or not distinct:
+        print(
+            f"known_t needs at least {MIN_FLOW_TEMPERATURES} flow temperatures,"
+            f" each once; {path.name} is left as it was",
+            file=sys.stderr,
+        )
+        return 1
     data["compiled_grid"] = compile_grid(data)
     path.write_text(json.dumps(data, separators=(",", ":")) + "\n", encoding="utf-8")
     print(f"compiled {path.name}: {len(data['compiled_grid'])} air intake temperatures")

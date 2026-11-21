@@ -551,6 +551,39 @@ def test_the_compile_script_refuses_air_temperatures_out_of_order(monkeypatch):
         _compile_script().compile_grid(data)
 
 
+@pytest.mark.parametrize("known_t", [[35], [35, 35]], ids=["one", "twice the same"])
+def test_the_compile_script_refuses_a_grid_the_integration_would_not_load(
+    tmp_path, monkeypatch, capsys, known_t
+):
+    """One flow temperature, or the same one twice, compiled and replaced
+    the file; the integration then refused it and the heat power stayed
+    unknown."""
+    monkeypatch.setitem(sys.modules, "scipy.interpolate", None)
+    raw = {"known_x": [-10, 10], "known_t": known_t, "known_y": [[1, 2]] * len(known_t)}
+    path = tmp_path / "own_kennfeld.json"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    before = path.read_bytes()
+
+    assert _compile_script().main(["compile_kennfeld.py", str(path)]) == 1
+
+    assert path.read_bytes() == before
+    assert "known_t" in capsys.readouterr().err
+
+
+def test_the_compile_script_writes_a_grid_of_two_flow_temperatures(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setitem(sys.modules, "scipy.interpolate", None)
+    monkeypatch.setitem(sys.modules, "pygal", None)
+    raw = {"known_x": [-10, 10], "known_t": [55, 35], "known_y": [[1, 2], [3, 4]]}
+    path = tmp_path / "own_kennfeld.json"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+
+    assert _compile_script().main(["compile_kennfeld.py", str(path)]) == 0
+
+    assert kennfeld._looks_like_a_grid(json.loads(path.read_text(encoding="utf-8")))
+
+
 class _RecordingChart:
     """Stands in for pygal.XY: keeps the title, renders a bare SVG.
 
