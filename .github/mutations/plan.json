@@ -6253,14 +6253,28 @@
   {
     "label": "capture: an optional page answering an error status ends the run",
     "path": "tools/webif_capture.py",
-    "old": "        except ErrorStatus:\n",
+    "old": "        except NotServed:\n",
     "new": "        except ():\n",
     "tests": "optional_page_answering_an_error_status"
   },
   {
+    "label": "capture: an optional page answering a server error is left out",
+    "path": "tools/webif_capture.py",
+    "old": "        except NotServed:\n",
+    "new": "        except ErrorStatus:\n",
+    "tests": "optional_page_answering_a_server_error"
+  },
+  {
+    "label": "capture: a page not there counts as the controller struggling",
+    "path": "tools/webif_capture.py",
+    "old": "        if answer.status == HTTPStatus.NOT_FOUND:\n",
+    "new": "        if False:\n",
+    "tests": "page_not_there_still_logs_out"
+  },
+  {
     "label": "capture: an optional page without an answer is left out",
     "path": "tools/webif_capture.py",
-    "old": "        except ErrorStatus:\n            # The menu",
+    "old": "        except NotServed:\n            # The menu",
     "new": "        except NoAnswer:\n            # The menu",
     "tests": "optional_page_without_an_answer_still_ends_the_run"
   },

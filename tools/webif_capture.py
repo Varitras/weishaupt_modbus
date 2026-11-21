@@ -184,7 +184,11 @@ class NoAnswer(Stopped):
 
 
 class ErrorStatus(NoAnswer):
-    """A page answered with an error status, such as 404 for one not there."""
+    """A page answered with an error status."""
+
+
+class NotServed(ErrorStatus):
+    """A page answered 404: the controller does not serve it, and is not struggling."""
 
 
 class Half(Stopped):
@@ -460,6 +464,8 @@ class Session:
     def page(self, path: str, name: str) -> str:
         """The text of the page at path; ErrorStatus unless it came with 200."""
         answer = self._request("GET", path)
+        if answer.status == HTTPStatus.NOT_FOUND:
+            raise NotServed(f"{name}: HTTP {answer.status}")
         if answer.status != HTTPStatus.OK:
             raise self._no_answer(
                 f"{name}: HTTP {answer.status} to {answer.location or '-'}",
@@ -711,9 +717,10 @@ def _read_missing(
             path = entry.href
         try:
             text = session.page(path, step.key)
-        except ErrorStatus:
-            # The menu may list a page the controller does not serve; no
-            # answer at all is the controller struggling and still stops.
+        except NotServed:
+            # The menu may list a page the controller does not serve; any
+            # other error status or no answer is the controller struggling
+            # and still stops.
             if not _gives_up(step, walk, last):
                 raise
             walk.absent.add(step.key)

@@ -611,6 +611,30 @@ async def test_an_optional_page_answering_an_error_status_in_the_last_attempt_is
     assert "Info › 2. WEZ" in report["absent"]
 
 
+async def test_a_run_left_without_a_page_not_there_still_logs_out(socket_enabled):
+    """A 404 is a page the controller does not serve, not a controller
+    struggling: the run that left it out sent no logout, its session open."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.failing[OPTIONAL_WALK[1]] = 404
+        report, _, _ = await run_capture(pump, attempts=1)
+
+    assert report is not None
+    assert pump.asked[-1:] == LOGOUT
+
+
+async def test_an_optional_page_answering_a_server_error_still_ends_the_run(
+    socket_enabled,
+):
+    """A 503 is the controller struggling: the page was left out as absent."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.failing[OPTIONAL_WALK[1]] = 503
+        report, _, _ = await run_capture(pump, attempts=1)
+
+    assert report is None
+
+
 async def test_an_optional_page_without_an_answer_still_ends_the_run(
     socket_enabled, monkeypatch
 ):
