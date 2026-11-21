@@ -136,6 +136,9 @@ FREE_TEXT_TITLES = frozenset({"Name"})
 # An optional page that does not fit this often is taken as not shown:
 # another model may show it in a shape nobody here has seen.
 OPTIONAL_TRIES = 2
+# A page the run needs that answers 404 this often is not served: asking on
+# would only rest a minute each time and end the same way.
+NOT_SERVED_TRIES = 2
 # A stack segment starts with the code of its menu entry: the main menu in the
 # first two hex digits, the entry in the next six. The rest carries the
 # device, the menu depth and at times a shown value.
@@ -169,6 +172,10 @@ TRANSPORT_ERRORS = (OSError, http.client.HTTPException)
 
 class Refused(Exception):
     """The controller did not accept the user and the password."""
+
+
+class NotOffered(Exception):
+    """A page the run needs answered 404 every time it was asked."""
 
 
 class Stopped(Exception):
@@ -701,8 +708,9 @@ def _read_missing(
 ) -> None:
     """Read every page not yet read whole, in the order of the menus.
 
-    In the `last` attempt an optional page that does not fit, or answers
-    with an error status, is left out.
+    Skip an optional page if a mismatch or HTTP 404 persists across attempts
+    or occurs on the last attempt. Other HTTP errors stop the attempt; a
+    required page answering HTTP 404 in two attempts ends the run.
     """
     for step in STEPS:
         if step.key in walk.read or step.key in walk.absent:
@@ -721,10 +729,11 @@ def _read_missing(
             # The menu may list a page the controller does not serve; any
             # other error status or no answer is the controller struggling
             # and still stops.
-            if not _gives_up(step, walk, last):
-                raise
-            walk.absent.add(step.key)
-            continue
+            if _gives_up(step, walk, last):
+                walk.absent.add(step.key)
+                continue
+            _count_not_served(step, walk)
+            raise
         entries = _entries(step, text, path)
         if not _whole(step, entries) and _gives_up(step, walk, last):
             walk.absent.add(step.key)
@@ -744,6 +753,15 @@ def _read_missing(
             raise Half(f"{step.what} showed the values of another page")
         walk.read[step.key] = entries
         print(f"   {step.what}: {len(entries)} entries")
+
+
+def _count_not_served(step: Step, walk: _Walk) -> None:
+    """NotOffered once a page the run needs answered 404 too often."""
+    if step.optional:
+        return
+    walk.misfits[step.key] += 1
+    if walk.misfits[step.key] >= NOT_SERVED_TRIES:
+        raise NotOffered(f"the controller does not serve {step.what}")
 
 
 def _gives_up(step: Step, walk: _Walk, last: bool) -> bool:
@@ -817,6 +835,9 @@ def capture(
             _read_missing(session, walk, ask, last=attempt == attempts)
         except Refused as error:
             print(f"Login refused: {error}.")
+            return None
+        except NotOffered as error:
+            print(f"Stopped: {error}; asking again would not help. Please report it.")
             return None
         except Stopped as error:
             print(f"Attempt {attempt} of {attempts} stopped: {error}.")

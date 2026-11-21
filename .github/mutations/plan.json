@@ -6279,6 +6279,20 @@
     "tests": "optional_page_answering_a_server_error"
   },
   {
+    "label": "capture: a required page not served is asked for on and on",
+    "path": "tools/webif_capture.py",
+    "old": "    if walk.misfits[step.key] >= NOT_SERVED_TRIES:\n",
+    "new": "    if False:\n",
+    "tests": "required_page_not_served"
+  },
+  {
+    "label": "capture: a required page not served once ends the run",
+    "path": "tools/webif_capture.py",
+    "old": "    if walk.misfits[step.key] >= NOT_SERVED_TRIES:\n",
+    "new": "    if walk.misfits[step.key] >= 1:\n",
+    "tests": "required_page_not_served"
+  },
+  {
     "label": "capture: a page not there counts as the controller struggling",
     "path": "tools/webif_capture.py",
     "old": "        if answer.status == HTTPStatus.NOT_FOUND:\n",

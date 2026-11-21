@@ -635,6 +635,28 @@ async def test_an_optional_page_answering_a_server_error_still_ends_the_run(
     assert report is None
 
 
+async def test_a_required_page_not_served_twice_ends_the_run(socket_enabled):
+    """A page the menu lists but the controller answers with 404 every time:
+    ten attempts and nine minutes of rest, then \"try again later\"."""
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN)
+        pump.failing[STATISTICS_PAGE] = 404
+        report, _, rests = await run_capture(pump, attempts=10)
+
+    assert report is None
+    assert rests.count(A_MINUTE) == 1
+    assert pump.asked.count(("GET", STATISTICS_PAGE)) == 2
+
+
+async def test_a_required_page_not_served_once_is_read_again(socket_enabled):
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN)
+        pump.failing_once[STATISTICS_PAGE] = 404
+        report, _, _ = await run_capture(pump, attempts=3)
+
+    assert report is not None
+
+
 async def test_an_optional_page_without_an_answer_still_ends_the_run(
     socket_enabled, monkeypatch
 ):
