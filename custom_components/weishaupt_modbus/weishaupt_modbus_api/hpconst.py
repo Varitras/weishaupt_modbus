@@ -443,6 +443,11 @@ IO_KONFIG_IN: list[StatusItem] = [
     StatusItem(number=19, translation_key="io_konf_in_19"),
     StatusItem(number=20, translation_key="io_konf_in_20"),
     StatusItem(number=21, translation_key="io_konf_in_21"),
+    # A WBB's function lists jump from 19 to these (2026-10-02).
+    StatusItem(number=33, translation_key="io_konf_in_33"),
+    StatusItem(number=34, translation_key="io_konf_in_34"),
+    StatusItem(number=35, translation_key="io_konf_in_35"),
+    StatusItem(number=36, translation_key="io_konf_in_36"),
     StatusItem(number=65535, translation_key="io_konf_in_65535"),
 ]
 

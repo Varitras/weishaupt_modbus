@@ -641,6 +641,30 @@ def test_the_input_functions_read_as_the_web_interface_names_them():
     assert states["io_konf_in_4"] == "Umschaltung Hz/Kü"
 
 
+@pytest.mark.parametrize(
+    ("code", "shown"),
+    [
+        (33, "2. WEZ"),
+        (34, "Sperre Verdichter"),
+        (35, "Leistungsbegr. + Sperre"),
+        (36, "Leistungsbegrenzung"),
+    ],
+)
+def test_the_functions_after_the_circuits_read_by_the_codes_the_controller_offers(
+    code, shown
+):
+    """A WBB's function lists jump from 19 to 33 (2026-10-02): an input set
+    to the power limitation read a bare 36."""
+    rows = {item.address: item for item in _items(hpconst)}
+    key = rows[45103].get_translation_key_from_number(code)
+    states = _entity_translations(PACKAGE / "translations" / "de.json")["sensor"][
+        "konf_ausg_h12"
+    ]["state"]
+
+    assert key == f"io_konf_in_{code}"
+    assert states[key] == shown
+
+
 @pytest.mark.parametrize("path", TRANSLATION_FILES, ids=lambda p: p.name)
 def test_an_input_configuration_is_named_like_the_other_inputs(path):
     """45103-45106 were named configurations of outputs H1.2-H1.5 while

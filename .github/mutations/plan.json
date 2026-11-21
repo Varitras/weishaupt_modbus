@@ -6123,5 +6123,12 @@
     "old": "        unread = {key for key in FORM_PAGES if key not in found.keys() | polled}\n",
     "new": "        unread = {key for key in FORM_PAGES if key not in polled}\n",
     "tests": "never_read_but_found_again_keeps_its_new_address"
+  },
+  {
+    "label": "inputs: the power limitation must read by its code 36",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "    StatusItem(number=36, translation_key=\"io_konf_in_36\"),\n",
+    "new": "",
+    "tests": "codes_the_controller_offers"
   }
 ]
