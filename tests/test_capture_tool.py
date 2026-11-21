@@ -583,6 +583,47 @@ async def test_an_optional_page_that_never_fits_is_absent_after_two_tries(
     assert len(report["pages"]) == 12
 
 
+async def test_an_optional_page_answering_an_error_status_is_absent_after_two_tries(
+    socket_enabled,
+):
+    """A page the menu lists but the controller answers with 404: the run
+    gave up after its last attempt, the six pages read whole lost with it."""
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.failing[OPTIONAL_WALK[1]] = 404
+        report, _, rests = await run_capture(pump, attempts=3)
+
+    assert report is not None
+    assert "Info › 2. WEZ" in report["absent"]
+    assert rests.count(A_MINUTE) == 1
+    assert len(report["pages"]) == 12
+
+
+async def test_an_optional_page_answering_an_error_status_in_the_last_attempt_is_absent(
+    socket_enabled,
+):
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.failing[OPTIONAL_WALK[1]] = 404
+        report, _, _ = await run_capture(pump, attempts=1)
+
+    assert report is not None
+    assert "Info › 2. WEZ" in report["absent"]
+
+
+async def test_an_optional_page_without_an_answer_still_ends_the_run(
+    socket_enabled, monkeypatch
+):
+    """No answer at all is the controller struggling, not a page missing."""
+    short_limit_for(monkeypatch, OPTIONAL_WALK[1])
+    async with serving(StandInPump()) as pump:
+        pump.site = with_optional_pages(site(GERMAN))
+        pump.stalls[OPTIONAL_WALK[1]] = MACHINE_PAUSE * 3
+        report, _, _ = await run_capture(pump, attempts=1)
+
+    assert report is None
+
+
 async def test_an_optional_page_showing_another_pages_values_is_absent_after_two_tries(
     socket_enabled,
 ):

@@ -183,6 +183,10 @@ class NoAnswer(Stopped):
     """
 
 
+class ErrorStatus(NoAnswer):
+    """A page answered with an error status, such as 404 for one not there."""
+
+
 class Half(Stopped):
     """A page came whole by its status, but without what it has to show."""
 
@@ -454,11 +458,12 @@ class Session:
         self._logged_in = True
 
     def page(self, path: str, name: str) -> str:
-        """The text of the page at path; NoAnswer unless it came with 200."""
+        """The text of the page at path; ErrorStatus unless it came with 200."""
         answer = self._request("GET", path)
         if answer.status != HTTPStatus.OK:
             raise self._no_answer(
-                f"{name}: HTTP {answer.status} to {answer.location or '-'}"
+                f"{name}: HTTP {answer.status} to {answer.location or '-'}",
+                ErrorStatus,
             )
         return answer.text
 
@@ -471,9 +476,9 @@ class Session:
         except NoAnswer:
             print("   no answer to the logout; the controller drops the session itself")
 
-    def _no_answer(self, reason: str) -> NoAnswer:
+    def _no_answer(self, reason: str, kind: type[NoAnswer] = NoAnswer) -> NoAnswer:
         self._struggled = True
-        return NoAnswer(reason)
+        return kind(reason)
 
     def _request(self, method: str, path: str, form: str | None = None) -> Answer:
         if not _allowed(method, path):
@@ -690,7 +695,8 @@ def _read_missing(
 ) -> None:
     """Read every page not yet read whole, in the order of the menus.
 
-    In the `last` attempt an optional page that does not fit is left out.
+    In the `last` attempt an optional page that does not fit, or answers
+    with an error status, is left out.
     """
     for step in STEPS:
         if step.key in walk.read or step.key in walk.absent:
@@ -703,7 +709,16 @@ def _read_missing(
                 walk.absent.add(step.key)
                 continue
             path = entry.href
-        entries = _entries(step, session.page(path, step.key), path)
+        try:
+            text = session.page(path, step.key)
+        except ErrorStatus:
+            # The menu may list a page the controller does not serve; no
+            # answer at all is the controller struggling and still stops.
+            if not _gives_up(step, walk, last):
+                raise
+            walk.absent.add(step.key)
+            continue
+        entries = _entries(step, text, path)
         if not _whole(step, entries) and _gives_up(step, walk, last):
             walk.absent.add(step.key)
             continue
