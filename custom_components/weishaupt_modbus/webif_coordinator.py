@@ -266,7 +266,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         self._search_failed = False
         # The pages the last search did not find, kept at their old address.
         self._lost: set[str] = set()
-        # Two pages had one address: until the reload nothing is written.
+        # Pages it could not tell apart were left out: until the reload
+        # nothing is written.
         self._reloading = False
         # Reloading the entry resumes polling at once after a stop.
         ir.async_delete_issue(hass, CONST.DOMAIN, self._issue)
@@ -683,7 +684,7 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
             self._reloading = True
             leave_out(self.hass, self.config_entry, gone, pages)
             self.hass.config_entries.async_schedule_reload(self.config_entry.entry_id)
-            raise Closed("pages at one address; the entry reloads")
+            raise Closed("pages left out; the entry reloads")
         self._lost = {page.key for page in self._pages if page.key not in found}
         self._pages = [
             replace(page, path=found.get(page.key, page.path)) for page in self._pages

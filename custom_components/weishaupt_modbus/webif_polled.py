@@ -183,7 +183,8 @@ def polled_pages(
     `required` are the titles each page must show; `english` maps each page's
     English titles to them; `optional` are the titles its sensors read that a
     page may leave out. An optional page is polled only when it was found and
-    its family has sensors on it.
+    its family has sensors on it; the modulation only once switched on, and
+    then hourly.
     """
 
     def asked_for(key: str) -> bool:

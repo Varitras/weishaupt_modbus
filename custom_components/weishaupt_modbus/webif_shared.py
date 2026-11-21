@@ -1,6 +1,7 @@
-"""Pages stored at one address: left out until a Reconfigure searches again.
+"""Pages the entry cannot tell apart: left out until a Reconfigure searches again.
 
-A value read or written at such an address could belong to either page.
+Pages stored at one address, or a setting's form not found again: a value
+read or written there could belong to another page.
 """
 
 from collections.abc import Collection, Mapping
@@ -40,7 +41,8 @@ def leave_out(
     left_out = sorted(keys)
     # By key, without the addresses, which carry the controller's codes.
     _LOGGER.info(
-        "Pages at one address left out until a reconfigure: %s", ", ".join(left_out)
+        "Pages it could not tell apart left out until a reconfigure: %s",
+        ", ".join(left_out),
     )
     ir.async_create_issue(
         hass,
