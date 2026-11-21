@@ -23,6 +23,22 @@ SVG_NAMESPACE = "http://www.w3.org/2000/svg"
 XLINK_NAMESPACE = "http://www.w3.org/1999/xlink"
 # The integration interpolates between two flow curves at least.
 MIN_FLOW_TEMPERATURES = 2
+# The integration's bound for a number it computes with; not-a-number and
+# infinity fail the comparison.
+LARGEST_USABLE = sys.float_info.max / 2
+
+
+def _is_number(value: object) -> bool:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    return abs(value) <= LARGEST_USABLE
+
+
+def only_numbers(data: dict) -> bool:
+    """Whether every temperature and power is a number, as the integration needs."""
+    powers = [value for row in data["known_y"] for value in row]
+    values = [*data["known_x"], *data["known_t"], *powers]
+    return all(_is_number(value) for value in values)
 
 
 def sorted_curves(known_t: list, known_y: list) -> tuple[list, list]:
@@ -141,6 +157,14 @@ def main(argv: list[str]) -> int:
         return 2
     path = Path(argv[1])
     data = json.loads(path.read_text(encoding="utf-8"))
+    # A quoted temperature compiled, and the integration refused the file.
+    if not only_numbers(data):
+        print(
+            f"every temperature and power must be a number, not text;"
+            f" {path.name} is left as it was",
+            file=sys.stderr,
+        )
+        return 1
     data["known_t"], data["known_y"] = sorted_curves(data["known_t"], data["known_y"])
     # The integration refuses such a grid, and the file it replaced is gone.
     distinct = len(set(data["known_t"])) == len(data["known_t"])

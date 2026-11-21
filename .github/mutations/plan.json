@@ -6482,6 +6482,20 @@
     "tests": "brings_no_stop_notice_back"
   },
   {
+    "label": "compile script: a quoted temperature is compiled",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "    if not only_numbers(data):\n",
+    "new": "    if False:\n",
+    "tests": "refuses_values_that_are_not_numbers"
+  },
+  {
+    "label": "compile script: true counts as a number",
+    "path": ".github/scripts/compile_kennfeld.py",
+    "old": "    if isinstance(value, bool) or not isinstance(value, (int, float)):\n",
+    "new": "    if not isinstance(value, (int, float)):\n",
+    "tests": "refuses_values_that_are_not_numbers"
+  },
+  {
     "label": "write counters: the web settings total reads a fall as a meter reset",
     "path": "custom_components/weishaupt_modbus/write_counter_sensor.py",
     "old": "    if may_fall:\n",

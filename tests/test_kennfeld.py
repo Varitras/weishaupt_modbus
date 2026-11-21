@@ -631,6 +631,32 @@ def test_the_compile_script_refuses_a_grid_the_integration_would_not_load(
     assert "known_t" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize(
+    "raw",
+    [
+        {"known_x": [-10, 10], "known_t": ["35", "55"], "known_y": [[1, 2], [3, 4]]},
+        {"known_x": ["-10", "10"], "known_t": [35, 55], "known_y": [[1, 2], [3, 4]]},
+        {"known_x": [-10, 10], "known_t": [35, 55], "known_y": [[1, "2"], [3, 4]]},
+        {"known_x": [-10, 10], "known_t": [True, 55], "known_y": [[1, 2], [3, 4]]},
+    ],
+    ids=["quoted flow", "quoted air", "quoted power", "true as a flow"],
+)
+def test_the_compile_script_refuses_values_that_are_not_numbers(
+    tmp_path, monkeypatch, capsys, raw
+):
+    """Quoted flow temperatures compiled and replaced the file; the
+    integration then refused it and the heat power stayed unknown."""
+    monkeypatch.setitem(sys.modules, "scipy.interpolate", None)
+    path = tmp_path / "own_kennfeld.json"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    before = path.read_bytes()
+
+    assert _compile_script().main(["compile_kennfeld.py", str(path)]) == 1
+
+    assert path.read_bytes() == before
+    assert "number" in capsys.readouterr().err
+
+
 def test_the_compile_script_writes_a_grid_of_two_flow_temperatures(
     tmp_path, monkeypatch
 ):
