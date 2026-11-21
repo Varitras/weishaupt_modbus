@@ -1696,6 +1696,20 @@ def _closed(client):
     client.answer(HEATING, Closed("the client is closed"))
 
 
+async def test_a_save_the_controller_turned_away_uses_up_no_write_of_the_day(
+    coordinator, client, clock, quick
+):
+    """Counted as it went out, the save stayed counted when the controller
+    answered that its session had ended: the retry the message asks for
+    could meet the daily limit."""
+    await first_round_showing(coordinator, client, clock)
+    _session_gone(client)
+
+    await refused(coordinator.set_power_limit(61))
+
+    assert (coordinator.budget.total, coordinator.budget.writes_today) == (0, 0)
+
+
 @pytest.mark.parametrize(
     ("failure", "key"),
     [

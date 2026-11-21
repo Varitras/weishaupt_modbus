@@ -6354,5 +6354,26 @@
     "old": "                self._refuse_over_the_limit(burst.page, burst.setting, burst.target)\n",
     "new": "",
     "tests": "refused_again_when_its_quiet_time_ends"
+  },
+  {
+    "label": "web write: a save turned away stays counted",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "                self.budget.withdraw_write()\n",
+    "new": "                pass\n",
+    "tests": "turned_away_uses_up_no_write_of_the_day"
+  },
+  {
+    "label": "write budget: a write of yesterday taken back lowers today's count",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/write_budget.py",
+    "old": "        if self._recorded_on == self.day:\n",
+    "new": "        if True:\n",
+    "tests": "yesterday_taken_back_leaves_today_alone"
+  },
+  {
+    "label": "write budget: a write taken back is not kept",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/write_budget.py",
+    "old": "        self._recorded_on = None\n        self._notify()\n",
+    "new": "        self._recorded_on = None\n",
+    "tests": "taken_back_leaves_the_counts_as_before_it"
   }
 ]

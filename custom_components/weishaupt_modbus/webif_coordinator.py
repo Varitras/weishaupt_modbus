@@ -45,6 +45,7 @@ from .webif.client import (
     Closed,
     LoginRefused,
     MaybeSaved,
+    NotSaved,
     Traffic,
     Unreachable,
     WebifError,
@@ -436,6 +437,9 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
                 )
                 self._publish(page, text)
         except (WebifError, HomeAssistantError) as error:
+            if counted and isinstance(error, NotSaved):
+                # Sent, and turned away: the controller saved nothing.
+                self.budget.withdraw_write()
             self._after_failed_write(error, self._page(burst.page))
             outcome.set_exception(error)
         except Exception as error:

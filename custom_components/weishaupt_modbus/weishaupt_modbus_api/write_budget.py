@@ -33,6 +33,7 @@ class WriteBudget:
         self.total = 0
         self._today_count = 0
         self.day = today()
+        self._recorded_on: date | None = None
         self._listeners: list[Callable[[], None]] = []
 
     def _roll_day(self) -> None:
@@ -66,9 +67,22 @@ class WriteBudget:
         self._roll_day()
         self.total += 1
         self._today_count += 1
+        self._recorded_on = self.day
+        self._notify()
+        return self.warn_at > 0 and self._today_count == self.warn_at
+
+    def withdraw_write(self) -> None:
+        """Take back the last write counted: it turned out refused after all."""
+        self._roll_day()
+        self.total -= 1
+        if self._recorded_on == self.day:
+            self._today_count -= 1
+        self._recorded_on = None
+        self._notify()
+
+    def _notify(self) -> None:
         for listener in list(self._listeners):
             listener()
-        return self.warn_at > 0 and self._today_count == self.warn_at
 
     def counts(self) -> dict[str, Any]:
         """The counts as they are kept between starts."""
