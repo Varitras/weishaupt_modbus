@@ -248,8 +248,9 @@ async def find_pages(
 ) -> dict[str, str]:
     """The address of each page to poll, by page key; the setup's and a round's.
 
-    `overview` is an answer `moved` took for the overview: the main menus are
-    read from it rather than asked for again. `reads` gets the other pages
+    `overview` is an answer listing the main menus under their current codes:
+    the overview `moved` took, or another circuit's page at the address. The
+    main menus are read from it rather than asked for again. `reads` gets the other pages
     found and gives the keys of those its model has values on, reading them
     first if it must; only the settings pages among those are searched, as
     `find_settings_pages` does with `last`. Without it, none are.

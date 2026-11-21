@@ -616,6 +616,9 @@ def _entry(step: Step, walk: _Walk, ask: Callable[[str], str]) -> Any:
     elif step.optional:
         return None
     elif not clear:
+        # Kept, the parent would stop every later attempt the same way.
+        del walk.read[step.parent]
+        _drop_pick(walk, step.parent)
         raise Half(f"every entry of {STEP_BY_KEY[step.parent].what} shares its link")
     else:
         walk.chosen[step.key] = _pick(step, clear, ask)

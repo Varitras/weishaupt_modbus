@@ -162,6 +162,9 @@ class Page:
         flaws = [f"{kind}: {_titles(titles)}" for kind, titles in named if titles]
         if self.under_another(text):
             flaws.append(f"not under {self.owner}")
+        elif not self.owned(text) and menu_owners(text, self.path):
+            # Its menu shown twice, or beside another title at its link.
+            flaws.append(f"{self.owner} unclear")
         return "; ".join(flaws)
 
 

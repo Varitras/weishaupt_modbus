@@ -4846,8 +4846,8 @@
   {
     "label": "capture: a menu with nothing to open is kept",
     "path": "tools/webif_capture.py",
-    "old": "        del walk.read[step.parent]\n",
-    "new": "        pass\n",
+    "old": "        # picked by the user, it was likely the wrong pick.\n        del walk.read[step.parent]\n",
+    "new": "        # picked by the user, it was likely the wrong pick.\n        pass\n",
     "tests": "nothing_to_open"
   },
   {
@@ -4916,8 +4916,8 @@
   {
     "label": "capture: a picked menu with nothing to open stays picked",
     "path": "tools/webif_capture.py",
-    "old": "        _drop_pick(walk, step.parent)\n",
-    "new": "",
+    "old": "        _drop_pick(walk, step.parent)\n        raise Half(f\"{STEP_BY_KEY[step.parent].what} came with nothing to open\")\n",
+    "new": "        raise Half(f\"{STEP_BY_KEY[step.parent].what} came with nothing to open\")\n",
     "tests": "picked_menu_with_nothing"
   },
   {
@@ -6165,5 +6165,19 @@
     "old": "    elif not clear:\n",
     "new": "    elif False:\n",
     "tests": "whose_entries_all_share_links_stops_the_attempt"
+  },
+  {
+    "label": "webif circuit owner: a page under an unclear menu must name why",
+    "path": "custom_components/weishaupt_modbus/webif_polled.py",
+    "old": "        elif not self.owned(text) and menu_owners(text, self.path):\n",
+    "new": "        elif False:\n",
+    "tests": "whole_page_under_an_unclear_menu_names_why"
+  },
+  {
+    "label": "capture: a menu of shared links must be asked for again",
+    "path": "tools/webif_capture.py",
+    "old": "        # Kept, the parent would stop every later attempt the same way.\n        del walk.read[step.parent]\n",
+    "new": "",
+    "tests": "once_served_with_shared_links_is_asked_for_again"
   }
 ]

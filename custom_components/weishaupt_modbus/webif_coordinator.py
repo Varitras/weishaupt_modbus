@@ -622,8 +622,8 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
     async def _read(self, page: Page) -> tuple[Page, str]:
         """The page whole, and as it is polled now: moved, at its new address.
 
-        The overview in its place is not asked for twice, and leads to one
-        search a round. One at a new address too is a failure of the page, as
+        The overview or another circuit's page in its place is not asked for
+        twice, and leads to one search a round. One at a new address too is a failure of the page, as
         is a page the search did not find again, under its own name.
         """
         text = await self._client.page(page.path, partial(_whole_or_moved, page))
@@ -653,7 +653,10 @@ class WebifCoordinator(DataUpdateCoordinator[dict[str, Values | None]]):
         raise Broken(f"{page.key}: moved again", "moved again", text=text)
 
     async def _search_again(self, overview: str) -> None:
-        """Each page's new address, from the overview, kept in the entry.
+        """Each page's new address, from the main menus `overview` shows, kept.
+
+        `overview` is the overview in a page's place or another circuit's page
+        at its address; both list the main menus under their current codes.
 
         Only the pages the entry has get one: a page found only now joins
         after a reconfigure, whose visit checks it. A page not found keeps

@@ -7,6 +7,7 @@ only the main menu its address leads from still names the circuit it belongs
 to. Synthetic loopback stand-in only.
 """
 
+from datetime import timedelta
 import re
 
 import pytest
@@ -18,6 +19,7 @@ from custom_components.weishaupt_modbus.webif_coordinator import (
     NOT_FOUND_AGAIN_ISSUE,
     STOPPED_ISSUE,
 )
+from custom_components.weishaupt_modbus.webif_polled import Page
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 
@@ -384,3 +386,29 @@ async def test_a_form_now_under_another_circuit_is_not_saved(
     assert moved
     assert pump.saved == []
     assert pump.circuits[2].values["Minimaltemperatur"] == "33.0 °C"
+
+
+def test_a_whole_page_under_an_unclear_menu_names_why():
+    """Its own menu shown twice: the page was refused with no reason at all,
+    "Broken ()", in the log and the notice."""
+    page = Page(
+        THIRD,
+        OWN_PATH,
+        frozenset({"Minimaltemperatur"}),
+        timedelta(minutes=15),
+        menu=True,
+        owner="Heizkreis 3",
+    )
+    row = link(
+        [
+            THIRD_MENU,
+            OWN_PATH.rsplit(",", 1)[1],
+            entry_segment(THIRD_MENU, 0, "20.0 °C"),
+        ],
+        "Minimaltemperatur",
+        "20.0 °C",
+    )
+    text = main_menus() + column(link([THIRD_MENU], "Heizkreis 3") * 2) + column(row)
+
+    assert not page.is_whole(text)
+    assert page.flaws(text) == "Heizkreis 3 unclear"

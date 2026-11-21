@@ -715,6 +715,24 @@ def test_a_menu_whose_entries_all_share_links_stops_the_attempt():
         )
 
 
+async def test_a_menu_once_served_with_shared_links_is_asked_for_again(socket_enabled):
+    """Kept, the menu stopped every later attempt the same way, and the run
+    gave up without asking the controller again."""
+    async with serving(StandInPump()) as pump:
+        pump.site = site(GERMAN)
+        whole = pump.site.pop(WALK[2])
+        shared = column(
+            link([KNOWN["pump"], KNOWN["heating"]], "Heizen")
+            + link([KNOWN["pump"], KNOWN["heating"]], "Kühlen")
+        )
+        pump.pages = [shared, whole]
+        report, _, rests = await run_capture(pump, attempts=3)
+
+    assert report is not None
+    assert rests.count(A_MINUTE) == 1
+    assert "heating" in by_page(report)
+
+
 def test_an_optional_entry_sharing_its_link_is_not_taken():
     menu = CIRCUIT_MENU[2]
     page = column(
