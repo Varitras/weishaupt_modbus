@@ -5,13 +5,14 @@ from __future__ import annotations
 from typing import cast
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .configentry import MyConfigEntry, WebifConfigEntry, is_web_interface
-from .const import TYPES
+from .const import CONST, TYPES
 from .entity_helpers import build_entity_list
 from .webif.discovery import MODULATION_PAGE
-from .webif_select import ModulationSelect
+from .webif_select import ModulationSelect, modulation_unique_id
 from .webif_sensor import MODULATION, entry_model
 
 # No limit: with one, Home Assistant queued each call behind the last, and
@@ -32,6 +33,14 @@ async def async_setup_entry(
             entry_model(config_entry.data) in MODULATION.models
         ):
             async_add_entities([ModulationSelect(web.coordinator, web.pump_data)])
+            return
+        # Switched off, or no longer found: left in the registry, the choice
+        # would show unavailable for good.
+        registry = er.async_get(hass)
+        if old := registry.async_get_entity_id(
+            "select", CONST.DOMAIN, modulation_unique_id(web.pump_data)
+        ):
+            registry.async_remove(old)
         return
     coordinator = config_entry.runtime_data.coordinator
 

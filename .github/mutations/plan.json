@@ -6102,5 +6102,26 @@
     "old": "                    page.owned,\n",
     "new": "                    lambda _text: True,\n",
     "tests": "form_now_under_another_circuit_is_not_saved"
+  },
+  {
+    "label": "modulation: saving the options must keep those not shown",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                data={**self.config_entry.options, **user_input}\n",
+    "new": "                data=user_input\n",
+    "tests": "keeps_those_the_form_does_not_show"
+  },
+  {
+    "label": "modulation: a choice switched off must leave the registry",
+    "path": "custom_components/weishaupt_modbus/select.py",
+    "old": "            registry.async_remove(old)\n",
+    "new": "            pass\n",
+    "tests": "choice_switched_off_leaves_the_device"
+  },
+  {
+    "label": "webif coordinator: an unread form found again must keep its new address",
+    "path": "custom_components/weishaupt_modbus/webif_coordinator.py",
+    "old": "        unread = {key for key in FORM_PAGES if key not in found.keys() | polled}\n",
+    "new": "        unread = {key for key in FORM_PAGES if key not in polled}\n",
+    "tests": "never_read_but_found_again_keeps_its_new_address"
   }
 ]

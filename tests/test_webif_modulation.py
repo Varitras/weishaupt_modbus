@@ -37,6 +37,7 @@ from homeassistant.helpers import entity_registry as er
 from .test_webif_number import PUMP_DATA
 from .test_webif_settings_pages import ALL_PAGES, evoblock_site
 from .test_webif_setup import (
+    PAGES,
     SITE,
     _enable_custom_integrations,  # noqa: F401
     _entries,
@@ -530,3 +531,40 @@ class _ServedCutOnce(dict):
             cut, self._cut = self._cut, None
             return cut
         return super().get(key, default)
+
+
+async def test_saving_the_options_keeps_those_the_form_does_not_show(hass):
+    """The modulation's page left out until a Reconfigure: saving the options
+    for an interval switched it off and dropped the settings interval."""
+    saved = {
+        CONST.OPTION_WEBIF_MODULATION: True,
+        CONST.OPTION_WEBIF_SETTINGS_INTERVAL: 30,
+    }
+    entry = MockConfigEntry(
+        domain=CONST.DOMAIN,
+        data={CONF.KIND: CONST.WEB_INTERFACE, CONF.PAGES: PAGES},
+        options=saved,
+    )
+    entry.add_to_hass(hass)
+    form = await hass.config_entries.options.async_init(entry.entry_id)
+    shown = {str(field): field.default() for field in form["data_schema"].schema}
+
+    await hass.config_entries.options.async_configure(form["flow_id"], shown)
+
+    assert entry.options[CONST.OPTION_WEBIF_MODULATION] is True
+    assert entry.options[CONST.OPTION_WEBIF_SETTINGS_INTERVAL] == 30
+
+
+@pytest.mark.e2e
+@pytest.mark.timeout(120)
+async def test_a_choice_switched_off_leaves_the_device(hass, pump):
+    """Left in the registry, it showed unavailable for good."""
+    web = _web_entry(hass, pump)
+    await _start(hass, web)
+    assert _select(hass) is not None
+
+    hass.config_entries.async_update_entry(web, options={})
+    await hass.config_entries.async_reload(web.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert _select(hass) is None

@@ -45,9 +45,7 @@ class ModulationSelect(CoordinatorEntity[WebifCoordinator], SelectEntity):
     ) -> None:
         """Place the choice on the web interface's device, named like its sensors."""
         super().__init__(coordinator)
-        self._attr_unique_id = unique_id_from_parts(
-            pump_data, f"webif_{MODULATION.key}"
-        )
+        self._attr_unique_id = modulation_unique_id(pump_data)
         self._attr_device_info = device_info(pump_data, DEVICES.WEBIF)
         self._attr_translation_placeholders = {
             "prefix": name_prefix(pump_data, MODULATION.topic)
@@ -78,3 +76,8 @@ class ModulationSelect(CoordinatorEntity[WebifCoordinator], SelectEntity):
         await self.coordinator.set_setting(
             MODULATION_PAGE, setting.MODULATION, MODULATION_OPTIONS[option]
         )
+
+
+def modulation_unique_id(pump_data: Mapping[str, Any]) -> str:
+    """The choice's unique id, under the heat pump's prefix."""
+    return unique_id_from_parts(pump_data, f"webif_{MODULATION.key}")

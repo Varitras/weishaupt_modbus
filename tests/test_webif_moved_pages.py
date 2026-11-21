@@ -802,6 +802,23 @@ async def test_a_lost_modulation_never_read_is_dropped_without_a_reload(
     assert coordinator.last_update_success
 
 
+async def test_a_modulation_never_read_but_found_again_keeps_its_new_address(
+    hass, unread_modulation_lost, pump, clock, reloads
+):
+    """Switched off but still listed, it must move with the others: dropped,
+    its switch would leave the options until a Reconfigure."""
+    coordinator = unread_modulation_lost
+    with_modulation(pump)
+    pump.renumber(NEW)
+
+    await next_round(coordinator, pump, clock)
+
+    assert reloads == []
+    assert coordinator.config_entry.data[CONF.PAGES][MODULATION_PAGE] == (
+        pump.current(MODULATION_PATH)
+    )
+
+
 async def test_a_lost_modulation_is_left_out_rather_than_read_at_its_old_address(
     modulation_lost, pump, clock, reloads
 ):

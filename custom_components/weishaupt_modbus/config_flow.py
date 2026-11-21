@@ -795,7 +795,11 @@ class WebifOptionsFlow(config_entries.OptionsFlowWithReload):
     ) -> config_entries.ConfigFlowResult:
         """The intervals, in minutes, and the daily limit of settings written."""
         if user_input is not None:
-            return self.async_create_entry(data=user_input)
+            # The form shows only the options of pages stored now: one left
+            # out until a Reconfigure keeps its own.
+            return self.async_create_entry(
+                data={**self.config_entry.options, **user_input}
+            )
         options = self.config_entry.options
         # A plain range this short draws a slider that hides its value.
         minutes = vol.All(
