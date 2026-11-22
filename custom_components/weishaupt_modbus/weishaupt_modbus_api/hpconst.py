@@ -1022,9 +1022,9 @@ MODBUS_ST_ITEMS: list[ModbusItem] = [
     ModbusItem(address=36103, name="Gesamt Energie Monat", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="ges_energie_monat"),
     # Calculated Sensor (Calculated downstream, no Modbus block read)
     ModbusItem(address=36103, name="Monatsarbeitszahl", format=FORMATS.NUMBER, type=TYPES.SENSOR_CALC, device=DEVICES.ST, params=PARAMS_CALCMAZ, translation_key="monatsarbeitszahl"),
-    # The "Jahr" rows answer but read 0 on every controller seen (live 2026-09,
-    # a pump in service for years; the Evoblock scan in upstream #193): the
-    # yearly total is on the display and in the portal only: created disabled.
+    # The "Jahr" rows answer but read 0 on every controller seen (a WBB in
+    # service for years; Evoblocks in upstream #193 and in issue #42): the yearly
+    # total is only on the display, in the portal and the web interface.
     ModbusItem(address=36104, name="Gesamt Energie Jahr", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params={**PARAMS_ENERGY, "enabled_by_default": False}, translation_key="ges_energie_jahr"),
     # Calculated Sensor (Calculated downstream, no Modbus block read)
     ModbusItem(address=36104, name="Jahresarbeitszahl", format=FORMATS.NUMBER, type=TYPES.SENSOR_CALC, device=DEVICES.ST, params={**PARAMS_CALCJAZ, "enabled_by_default": False}, translation_key="jahresarbeitszahl"),
