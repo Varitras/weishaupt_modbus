@@ -105,6 +105,12 @@ class RegisterWord(NumberField[int]):
         return value
 
 
+def _zero_if_no_reading(item: ModbusItem) -> tuple[int, ...]:
+    if item.params.get("zero_is_no_reading"):
+        return (0,)
+    return ()
+
+
 def field_for(item: ModbusItem) -> RegisterWord:
     """The field that reads (and, for a setting, writes) this table row."""
     writable = item.type in (TYPES.NUMBER, TYPES.SELECT)
@@ -128,6 +134,7 @@ def field_for(item: ModbusItem) -> RegisterWord:
             writable=writable,
             absent=None if off_is_a_setting else TEMPERATURE_NO_SENSOR,
             off=TEMPERATURE_NO_SENSOR if off_is_a_setting else None,
+            no_value=_zero_if_no_reading(item),
             no_reading=(TEMPERATURE_SENSOR_OPEN, TEMPERATURE_RESERVED_BAND_END),
             plausible=(TEMPERATURE_RAW_MIN, TEMPERATURE_RAW_MAX),
         )

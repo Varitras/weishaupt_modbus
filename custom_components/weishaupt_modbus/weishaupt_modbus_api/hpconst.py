@@ -469,6 +469,7 @@ IO_KONFIG_IN: list[StatusItem] = [
 # "only_if_served": no entity when the first poll finds the register refused (firmware without it)
 # "enabled_by_default": False creates the entity disabled; an existing one stays enabled or disabled as it was
 # "in_ram": held in RAM, never written to the EEPROM; its writes use none of the daily allowance
+# "zero_is_no_reading": a temperature that reads exactly 0 without its sensor, not the no-sensor word
 #
 # For SENSOR_CALC only:
 # "calculation": a function from calculations.py. It receives the entity's own register (divided),
@@ -691,6 +692,10 @@ PARAMS_STDTEMP: dict = {
     "stateclass": SensorStateClass.MEASUREMENT,
 }
 
+# Without a buffer sensor 33110 reads 0 (a WBB and an Evoblock, 2026), and a
+# buffer of a running heating is never at 0.0 degC.
+PARAMS_BUFFERTEMP: dict = {**PARAMS_STDTEMP, "zero_is_no_reading": True}
+
 
 PARAMS_HZKENNLINIE: dict = {
     "min": 0.05,
@@ -873,7 +878,7 @@ MODBUS_WP_ITEMS: list[ModbusItem] = [
     ModbusItem(address=33107, name="Verdichtersauggastemp", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.WP, params=PARAMS_STDTEMP, translation_key="verdichter_ansaug_gas_temp"),
     ModbusItem(address=33108, name="Weichentemperatur", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.WP, params=PARAMS_STDTEMP, translation_key="weichen_temp"),
     ModbusItem(address=33109, name="Anforderung(Vorlauf regenerativ)", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.WP, params=PARAMS_STDTEMP, translation_key="anforderung_vl_regenerativ"),
-    ModbusItem(address=33110, name="Puffertemperatur?", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.WP, params=PARAMS_STDTEMP, translation_key="puffer_temp"),
+    ModbusItem(address=33110, name="Puffertemperatur?", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.WP, params=PARAMS_BUFFERTEMP, translation_key="puffer_temp"),
     ModbusItem(address=33111, name="Vorlauftemperatur präzise(Summenvorlauf(B7))", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR, device=DEVICES.WP, params=PARAMS_STDTEMP, translation_key="vl_praeziese_summenvorlauf_b7"),
     # Spread over the condenser: flow B4 (33104) minus return B9; B7 above lags by up to 3 min
     ModbusItem(address=33104, name="Spreizung", format=FORMATS.TEMPERATURE, type=TYPES.SENSOR_CALC, device=DEVICES.WP, params=PARAMS_CALCSPREIZUNG, translation_key="spreizung"),

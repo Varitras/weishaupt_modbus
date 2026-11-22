@@ -6592,5 +6592,26 @@
     "old": "        _, data[\"min_known_y\"] = sorted_curves(data[\"known_t\"], data[\"min_known_y\"])\n",
     "new": "        pass\n",
     "tests": "keeps_each_minimum_curve_with_its_flow_temperature"
+  },
+  {
+    "label": "fields: a temperature read as 0 without its sensor shows 0 degC",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/fields.py",
+    "old": "        return (0,)\n",
+    "new": "        return ()\n",
+    "tests": "buffer_without_its_sensor"
+  },
+  {
+    "label": "register table: the buffer reads 0 as a temperature",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "params=PARAMS_BUFFERTEMP, translation_key=\"puffer_temp\")",
+    "new": "params=PARAMS_STDTEMP, translation_key=\"puffer_temp\")",
+    "tests": "buffer_without_its_sensor"
+  },
+  {
+    "label": "fields: every temperature reads 0 as no value",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/fields.py",
+    "old": "    if item.params.get(\"zero_is_no_reading\"):\n",
+    "new": "    if True:\n",
+    "tests": "buffer_without_its_sensor"
   }
 ]

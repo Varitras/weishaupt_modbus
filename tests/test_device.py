@@ -243,6 +243,28 @@ async def test_a_percentage_of_100_is_a_reading(pump, unit):
     assert _row(pump, POWER_REQUEST).state == 100
 
 
+BUFFER_TEMPERATURE = 33110
+
+
+async def test_a_buffer_without_its_sensor_is_no_reading_not_0_degrees(pump, unit):
+    """Live on a WBB and an Evoblock: without a buffer sensor 33110 reads 0,
+    not the no-sensor word, and the buffer showed a constant 0.0 degC."""
+    unit.load_raw({"input": {BUFFER_TEMPERATURE: 0, OUTSIDE_TEMPERATURE: 0}})
+
+    await pump.async_update()
+
+    assert _row(pump, BUFFER_TEMPERATURE).state is None
+    assert _row(pump, OUTSIDE_TEMPERATURE).state == 0
+
+
+async def test_a_buffer_with_its_sensor_reads_its_temperature(pump, unit):
+    unit.load_raw({"input": {BUFFER_TEMPERATURE: 452}})
+
+    await pump.async_update()
+
+    assert _row(pump, BUFFER_TEMPERATURE).state == 452
+
+
 async def test_a_setpoint_at_its_off_word_is_off_not_absent(pump, unit):
     """Live: 41111 and 42105 read 0x8000, and the controller's menu shows
     "Aus" for them. Treated as a missing sensor, the entity went unavailable

@@ -31,7 +31,7 @@ LINE_LIMIT = 900
 
 LINE_BUDGETS = {
     # The register table: its rows, the status value lists and the parameter sets.
-    "weishaupt_modbus_api/hpconst.py": 1100,
+    "weishaupt_modbus_api/hpconst.py": 1105,
 }
 
 # SonarSource's own default. Above it, a function is one somebody has to
