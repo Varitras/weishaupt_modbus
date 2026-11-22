@@ -470,6 +470,7 @@ IO_KONFIG_IN: list[StatusItem] = [
 # "enabled_by_default": False creates the entity disabled; an existing one stays enabled or disabled as it was
 # "in_ram": held in RAM, never written to the EEPROM; its writes use none of the daily allowance
 # "zero_is_no_reading": a temperature that reads exactly 0 without its sensor, not the no-sensor word
+# "digital": a switch input; only the digital words 0x800A/0x800B read, as off/on
 #
 # For SENSOR_CALC only:
 # "calculation": a function from calculations.py. It receives the entity's own register (divided),
@@ -1062,10 +1063,9 @@ MODBUS_ST_ITEMS: list[ModbusItem] = [
 ]
 
 # --- INPUT / OUTPUT ITEMS (IO) ---
-# H1.2-H1.5 are "FormatSensor" in the 2025 data-point list: a temperature
-# input, or the digital status words 0x800A/0x800B when used as a switch
-# input. Read as off/on (issue #43); a temperature sensor on H1 is no longer
-# shown.
+# H1.2-H1.5 are "FormatSensor" in the 2025 data-point list, but every function
+# the controller offers for them is a contact: read only the digital words
+# 0x800A/0x800B, as off/on (issue #43). A WBB's web interface calls 35103 H1.3.
 MODBUS_IO_ITEMS: list[ModbusItem] = [
     ModbusItem(address=35101, name="SG-Ready 1", format=FORMATS.STATUS, type=TYPES.SENSOR, device=DEVICES.IO, resultlist=W2_STATUS, translation_key="sgr1"),
     ModbusItem(address=35102, name="SG-Ready 2", format=FORMATS.STATUS, type=TYPES.SENSOR, device=DEVICES.IO, resultlist=W2_STATUS, translation_key="sgr2"),
