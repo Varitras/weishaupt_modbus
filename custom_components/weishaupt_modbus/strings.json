@@ -889,16 +889,32 @@
         "name": "{prefix}Request(feed regenerative)"
       },
       "ausg_h12": {
-        "name": "{prefix}Input H1.2"
+        "name": "{prefix}Input H1.2",
+        "state": {
+          "w2_status_aus": "off",
+          "w2_status_ein": "on"
+        }
       },
       "ausg_h13": {
-        "name": "{prefix}Input H1.3"
+        "name": "{prefix}Input H1.3",
+        "state": {
+          "w2_status_aus": "off",
+          "w2_status_ein": "on"
+        }
       },
       "ausg_h14": {
-        "name": "{prefix}Input H1.4"
+        "name": "{prefix}Input H1.4",
+        "state": {
+          "w2_status_aus": "off",
+          "w2_status_ein": "on"
+        }
       },
       "ausg_h15": {
-        "name": "{prefix}Input H1.5"
+        "name": "{prefix}Input H1.5",
+        "state": {
+          "w2_status_aus": "off",
+          "w2_status_ein": "on"
+        }
       },
       "aussentemp": {
         "name": "{prefix}Outside temperature"

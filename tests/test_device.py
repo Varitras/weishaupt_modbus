@@ -837,26 +837,28 @@ def test_a_calculated_sensor_is_not_a_register(unit):
     assert pump.items == []
 
 
-H1_2_INPUT = 35103  # temperature input, or a digital status word
+H1_2_INPUT = 35103  # a switch input: digital off/on words
 
 
-async def test_a_switch_input_reads_as_no_temperature(pump, unit):
+@pytest.mark.parametrize(("word", "state"), [(0x800A, 0), (0x800B, 1)])
+async def test_a_switch_input_reads_as_off_or_on(pump, unit, word, state):
     """Live: 35103 answers 0x800A (digital OFF) on a pump that uses H1.2 as a
-    switch input; read as a temperature that was -3275.8 °C."""
-    unit.load_raw({"input": {H1_2_INPUT: 0x800A}})
+    switch input; read as a temperature that was -3275.8 degC (issue #43)."""
+    unit.load_raw({"input": {H1_2_INPUT: word}})
+
+    await pump.async_update()
+
+    assert _row(pump, H1_2_INPUT).state == state
+    assert _row(pump, H1_2_INPUT).is_invalid is False
+
+
+@pytest.mark.parametrize("word", [0x8000, 0x8001, 0x80FF, 215])
+async def test_a_switch_input_reads_no_other_word_as_a_state(pump, unit, word):
+    unit.load_raw({"input": {H1_2_INPUT: word}})
 
     await pump.async_update()
 
     assert _row(pump, H1_2_INPUT).state is None
-    assert _row(pump, H1_2_INPUT).is_invalid is False
-
-
-async def test_a_temperature_input_reads_in_tenths(pump, unit):
-    unit.load_raw({"input": {H1_2_INPUT: 215}})
-
-    await pump.async_update()
-
-    assert _row(pump, H1_2_INPUT).state == 215
 
 
 async def _hold_a_poll_after_the_setpoint(pump):
