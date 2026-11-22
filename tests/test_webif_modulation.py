@@ -8,11 +8,13 @@ no page of values before it. Seen on a WEB 13/20 set to German alone.
 
 import asyncio
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import aiohttp
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+import custom_components.weishaupt_modbus as integration
 from custom_components.weishaupt_modbus import webif_coordinator
 from custom_components.weishaupt_modbus.const import CONF, CONST
 from custom_components.weishaupt_modbus.webif import client as webif
@@ -533,9 +535,15 @@ class _ServedCutOnce(dict):
         return super().get(key, default)
 
 
-async def test_saving_the_options_keeps_those_the_form_does_not_show(hass):
+async def test_saving_the_options_keeps_those_the_form_does_not_show(
+    hass, caplog, monkeypatch
+):
     """The modulation's page left out until a Reconfigure: saving the options
-    for an interval switched it off and dropped the settings interval."""
+    for an interval switched it off and dropped the settings interval.
+
+    Saving reloads the entry; set up for real, this one without a pump failed
+    in a task that, unawaited, now and then failed the test at its teardown."""
+    monkeypatch.setattr(integration, "async_setup_entry", AsyncMock(return_value=True))
     saved = {
         CONST.OPTION_WEBIF_MODULATION: True,
         CONST.OPTION_WEBIF_SETTINGS_INTERVAL: 30,
@@ -550,9 +558,12 @@ async def test_saving_the_options_keeps_those_the_form_does_not_show(hass):
     shown = {str(field): field.default() for field in form["data_schema"].schema}
 
     await hass.config_entries.options.async_configure(form["flow_id"], shown)
+    await hass.async_block_till_done()
 
     assert entry.options[CONST.OPTION_WEBIF_MODULATION] is True
     assert entry.options[CONST.OPTION_WEBIF_SETTINGS_INTERVAL] == 30
+    assert integration.async_setup_entry.await_count == 1
+    assert "Error setting up entry" not in caplog.text
 
 
 @pytest.mark.e2e
