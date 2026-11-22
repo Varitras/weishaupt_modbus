@@ -6627,5 +6627,33 @@
     "old": "    if item.params.get(\"zero_is_no_reading\"):\n",
     "new": "    if True:\n",
     "tests": "buffer_without_its_sensor"
+  },
+  {
+    "label": "fields: a switch input reads its words like any number",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/fields.py",
+    "old": "        if self.words:\n",
+    "new": "        if False:\n",
+    "tests": "switch_input"
+  },
+  {
+    "label": "fields: a switch input reads an unmapped word as itself",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/fields.py",
+    "old": "            return self.words.get(raw)\n",
+    "new": "            return self.words.get(raw, raw)\n",
+    "tests": "switch_input"
+  },
+  {
+    "label": "const: digital off and on swapped",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/const.py",
+    "old": "DIGITAL_WORDS = {0x800A: 0, 0x800B: 1}\n",
+    "new": "DIGITAL_WORDS = {0x800A: 1, 0x800B: 0}\n",
+    "tests": "switch_input"
+  },
+  {
+    "label": "table: 35103 is no switch input",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "resultlist=W2_STATUS, params={\"digital\": True}, translation_key=\"ausg_h12\"),",
+    "new": "resultlist=W2_STATUS, translation_key=\"ausg_h12\"),",
+    "tests": "switch_input"
   }
 ]

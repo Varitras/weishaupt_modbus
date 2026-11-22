@@ -895,8 +895,10 @@ async def test_a_switch_input_reads_as_off_or_on(pump, unit, word, state):
     assert _row(pump, H1_2_INPUT).is_invalid is False
 
 
-@pytest.mark.parametrize("word", [0x8000, 0x8001, 0x80FF, 215])
+@pytest.mark.parametrize("word", [0, 1, 0x8000, 0x8001, 0x80FF, 215])
 async def test_a_switch_input_reads_no_other_word_as_a_state(pump, unit, word):
+    """A WBB reads 0 in 35105, a mirror with no input behind it: within the
+    0..1 range, it read as off for good."""
     unit.load_raw({"input": {H1_2_INPUT: word}})
 
     await pump.async_update()

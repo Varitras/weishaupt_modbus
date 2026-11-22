@@ -61,8 +61,8 @@ class RegisterWord(NumberField[int]):
     not a reading; ``off`` are the words a setpoint reports when it is
     switched off (the switch beside it reads off) or, for a setpoint the
     controller only reports, when nothing is demanded (the entity reads 0);
-    the entity stays either way; ``words`` maps a status word to the value it
-    stands for (a switch input's digital off/on).
+    the entity stays either way; ``words`` maps the only status words that read
+    to the value each stands for (a switch input's digital off/on).
     """
 
     def __init__(
@@ -90,8 +90,8 @@ class RegisterWord(NumberField[int]):
     def decode(self, words: list[int], scale_exponent: int | None = None) -> Any:
         """OFF, NO_SENSOR, None or the signed/unsigned word."""
         raw = words[0]
-        if raw in self.words:
-            return self.words[raw]
+        if self.words:
+            return self.words.get(raw)
         if self.off is not None and raw in self.off:
             return OFF
         if raw == self.absent:
@@ -128,7 +128,6 @@ def field_for(item: ModbusItem) -> RegisterWord:
             signed=False,
             writable=writable,
             words=DIGITAL_WORDS,
-            plausible=(0, 1),
         )
     if item.format == FORMATS.TEMPERATURE and item.params.get("setpoint"):
         # A reported setpoint: "no demand" is a state of its own, not a
