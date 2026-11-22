@@ -696,8 +696,10 @@ async def test_only_the_rows_without_a_meaning_of_their_own_start_disabled(hass)
     """31106 repeats the circuit's operating mode (41103) on every controller
     seen; enabled, it put the select's raw number on the device page as a
     sensor named by its address. 36801 is in no data-point list and read 0 on
-    every controller seen. Held by the outside temperature alone, every
-    diagnostic row could start disabled unnoticed."""
+    every controller seen, and so did the year registers 36x04: their
+    energies and the performance factor of the year never had a value.
+    Held by the outside temperature alone, every diagnostic row could start
+    disabled unnoticed."""
     rows = [
         row
         for device in DEVICELISTS
@@ -705,8 +707,9 @@ async def test_only_the_rows_without_a_meaning_of_their_own_start_disabled(hass)
         if row.params.get("enabled_by_default") is False
     ]
     assert {row.address for row in rows} == {31106 + 100 * n for n in range(5)} | {
-        36801
-    }
+        36104 + 100 * n for n in range(7)
+    } | {36801}
+    assert "jahresarbeitszahl" in {row.translation_key for row in rows}
     await _setup(hass, _entry(hass, data=ALL_CIRCUITS))
 
     disabled = {
