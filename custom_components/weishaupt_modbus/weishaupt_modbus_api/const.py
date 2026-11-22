@@ -11,6 +11,8 @@ TEMPERATURE_NO_SENSOR = 0x8000
 # status words (digital off/on at 0x800A/0x800B) - none of them a temperature.
 TEMPERATURE_SENSOR_OPEN = 0x8001
 TEMPERATURE_RESERVED_BAND_END = 0x80FF
+# A register used as a switch input answers digital off/on in that band.
+DIGITAL_WORDS = {0x800A: 0, 0x800B: 1}
 # The documented temperature domain, raw tenths: -50.0 to 500.0 degC. A word
 # outside it is not a temperature, whatever its sign bit says.
 TEMPERATURE_RAW_MIN = -500

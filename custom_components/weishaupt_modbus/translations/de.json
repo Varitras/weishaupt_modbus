@@ -892,16 +892,32 @@
                 "name": "{prefix}Anforderung(Vorlauf regenerativ)"
             },
             "ausg_h12": {
-                "name": "{prefix}Eingang H1.2"
+                "name": "{prefix}Eingang H1.2",
+                "state": {
+                  "w2_status_aus": "aus",
+                  "w2_status_ein": "ein"
+                }
             },
             "ausg_h13": {
-                "name": "{prefix}Eingang H1.3"
+                "name": "{prefix}Eingang H1.3",
+                "state": {
+                  "w2_status_aus": "aus",
+                  "w2_status_ein": "ein"
+                }
             },
             "ausg_h14": {
-                "name": "{prefix}Eingang H1.4"
+                "name": "{prefix}Eingang H1.4",
+                "state": {
+                  "w2_status_aus": "aus",
+                  "w2_status_ein": "ein"
+                }
             },
             "ausg_h15": {
-                "name": "{prefix}Eingang H1.5"
+                "name": "{prefix}Eingang H1.5",
+                "state": {
+                  "w2_status_aus": "aus",
+                  "w2_status_ein": "ein"
+                }
             },
             "aussentemp": {
                 "name": "{prefix}Aussentemperatur"
