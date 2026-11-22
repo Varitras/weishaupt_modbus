@@ -172,6 +172,10 @@ and what the file holds:
   so far; the yearly total exists only on the display, in the WEM portal and in
   the web interface. They and the performance factor of the year are created
   disabled.
+- The H1 inputs show off/on: every function the controller offers for them is
+  a contact. The web interface counts them one higher (its H1.3 is *Input
+  H1.2*). They used to be temperatures, so Home Assistant lists their old
+  statistics under Developer tools › Statistics, where they can be deleted.
 - The performance factors over Modbus are shown only from 5 kWh of
   electricity on, since both energies count whole kWh.
 - The heat output is calculated from the power map, not measured. At part
