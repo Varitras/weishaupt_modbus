@@ -3843,6 +3843,20 @@
     "tests": "few_whole_kwh"
   },
   {
+    "label": "table: the electrical energy of the year starts enabled",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "params={**PARAMS_ENERGY, \"enabled_by_default\": False}, translation_key=\"el_energie_jahr\"),",
+    "new": "params=PARAMS_ENERGY, translation_key=\"el_energie_jahr\"),",
+    "tests": "rows_without_a_meaning_of_their_own_start_disabled"
+  },
+  {
+    "label": "table: the performance factor of the year starts enabled",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+    "old": "params={**PARAMS_CALCJAZ, \"enabled_by_default\": False}, translation_key=\"jahresarbeitszahl\"),",
+    "new": "params=PARAMS_CALCJAZ, translation_key=\"jahresarbeitszahl\"),",
+    "tests": "rows_without_a_meaning_of_their_own_start_disabled"
+  },
+  {
     "label": "table: 36801 starts enabled",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
     "old": "device=DEVICES.ST, params={\"enabled_by_default\": False}, translation_key=\"adr36801\"),",

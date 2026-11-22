@@ -170,7 +170,8 @@ and what the file holds:
 
 - The yearly energy registers answer but stay at 0 on every controller seen
   so far; the yearly total exists only on the display, in the WEM portal and in
-  the web interface.
+  the web interface. They and the performance factor of the year are created
+  disabled.
 - The performance factors over Modbus are shown only from 5 kWh of
   electricity on, since both energies count whole kWh.
 - The heat output is calculated from the power map, not measured. At part

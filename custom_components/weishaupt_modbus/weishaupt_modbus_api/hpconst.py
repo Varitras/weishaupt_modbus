@@ -1019,40 +1019,40 @@ MODBUS_ST_ITEMS: list[ModbusItem] = [
     ModbusItem(address=36103, name="Monatsarbeitszahl", format=FORMATS.NUMBER, type=TYPES.SENSOR_CALC, device=DEVICES.ST, params=PARAMS_CALCMAZ, translation_key="monatsarbeitszahl"),
     # The "Jahr" rows answer but read 0 on every controller seen (live 2026-09,
     # a pump in service for years; the Evoblock scan in upstream #193): the
-    # yearly total is on the display and in the portal only.
-    ModbusItem(address=36104, name="Gesamt Energie Jahr", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="ges_energie_jahr"),
+    # yearly total is on the display and in the portal only: created disabled.
+    ModbusItem(address=36104, name="Gesamt Energie Jahr", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params={**PARAMS_ENERGY, "enabled_by_default": False}, translation_key="ges_energie_jahr"),
     # Calculated Sensor (Calculated downstream, no Modbus block read)
-    ModbusItem(address=36104, name="Jahresarbeitszahl", format=FORMATS.NUMBER, type=TYPES.SENSOR_CALC, device=DEVICES.ST, params=PARAMS_CALCJAZ, translation_key="jahresarbeitszahl"),
+    ModbusItem(address=36104, name="Jahresarbeitszahl", format=FORMATS.NUMBER, type=TYPES.SENSOR_CALC, device=DEVICES.ST, params={**PARAMS_CALCJAZ, "enabled_by_default": False}, translation_key="jahresarbeitszahl"),
 
     ModbusItem(address=36201, name="Heizen Energie heute", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="heiz_energie_heute"),
     ModbusItem(address=36202, name="Heizen Energie gestern", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY_YESTERDAY, translation_key="heiz_energie_getern"),
     ModbusItem(address=36203, name="Heizen Energie Monat", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="heiz_energie_monat"),
-    ModbusItem(address=36204, name="Heizen Energie Jahr", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="heiz_energie_jahr"),
+    ModbusItem(address=36204, name="Heizen Energie Jahr", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params={**PARAMS_ENERGY, "enabled_by_default": False}, translation_key="heiz_energie_jahr"),
 
     ModbusItem(address=36301, name="Warmwasser Energie heute", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="ww_energie_heute"),
     ModbusItem(address=36302, name="Warmwasser Energie gestern", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY_YESTERDAY, translation_key="ww_energie_gestern"),
     ModbusItem(address=36303, name="Warmwasser Energie Monat", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="ww_energie_monat"),
-    ModbusItem(address=36304, name="Warmwasser Energie Jahr", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="ww_energie_jahr"),
+    ModbusItem(address=36304, name="Warmwasser Energie Jahr", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params={**PARAMS_ENERGY, "enabled_by_default": False}, translation_key="ww_energie_jahr"),
 
     ModbusItem(address=36401, name="Kühlen Energie heute", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="kuehl_energie_heute"),
     ModbusItem(address=36402, name="Kühlen Energie gestern", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY_YESTERDAY, translation_key="kuehl_energie_gestern"),
     ModbusItem(address=36403, name="Kühlen Energie Monat", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="kuehl_energie_monat"),
-    ModbusItem(address=36404, name="Kühlen Energie Jahr", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="kuehl_energie_jahr"),
+    ModbusItem(address=36404, name="Kühlen Energie Jahr", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params={**PARAMS_ENERGY, "enabled_by_default": False}, translation_key="kuehl_energie_jahr"),
 
     ModbusItem(address=36501, name="Abtauen Energie heute", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="abtau_energie_heute"),
     ModbusItem(address=36502, name="Abtauen Energie gestern", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY_YESTERDAY, translation_key="abtau_energie_gester"),
     ModbusItem(address=36503, name="Abtauen Energie Monat", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="abtau_energie_monat"),
-    ModbusItem(address=36504, name="Abtauen Energie Jahr", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="abtau_energie_jahr"),
+    ModbusItem(address=36504, name="Abtauen Energie Jahr", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params={**PARAMS_ENERGY, "enabled_by_default": False}, translation_key="abtau_energie_jahr"),
 
     ModbusItem(address=36601, name="Gesamt Energie II heute", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="ges_energie_today"),
     ModbusItem(address=36602, name="Gesamt Energie II gestern", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY_YESTERDAY, translation_key="ges_energie_2_yesterday"),
     ModbusItem(address=36603, name="Gesamt Energie II Monat", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="ges_energie_2_monat"),
-    ModbusItem(address=36604, name="Gesamt Energie II Jahr", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="ges_energie_year"),
+    ModbusItem(address=36604, name="Gesamt Energie II Jahr", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params={**PARAMS_ENERGY, "enabled_by_default": False}, translation_key="ges_energie_year"),
 
     ModbusItem(address=36701, name="Elektr. Energie heute", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="el_energie_heute"),
     ModbusItem(address=36702, name="Elektr. Energie gestern", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY_YESTERDAY, translation_key="el_energie_gestern"),
     ModbusItem(address=36703, name="Elektr. Energie Monat", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="el_energie_monat"),
-    ModbusItem(address=36704, name="Elektr. Energie Jahr", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params=PARAMS_ENERGY, translation_key="el_energie_jahr"),
+    ModbusItem(address=36704, name="Elektr. Energie Jahr", format=FORMATS.NUMBER, type=TYPES.SENSOR, device=DEVICES.ST, params={**PARAMS_ENERGY, "enabled_by_default": False}, translation_key="el_energie_jahr"),
     ModbusItem(address=36801, name="Adr. 36801", format=FORMATS.UNKNOWN, type=TYPES.SENSOR, device=DEVICES.ST, params={"enabled_by_default": False}, translation_key="adr36801"),
 ]
 
