@@ -154,7 +154,8 @@ jobs:
             check-declared-minimum: true
             # Pinned to the plugin release that ships the Home Assistant
             # feature release hacs.json declares as the minimum. Raise both
-            # together, never one alone.
+            # together, never one alone. Still the old plugin: Home
+            # Assistant's own exists only from 2026.11.
             phcc: "pytest-homeassistant-custom-component==0.13.363"
           - name: "current HA"
             python-version: "3.14"
@@ -163,6 +164,8 @@ jobs:
             run-mutations: true
             # Resolved by the step below, not a literal requirement.
             phcc: "latest-stable-ha"
+            # Home Assistant's own plugin, which brings less along.
+            official-plugin: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -183,13 +186,19 @@ jobs:
           python .github/scripts/resolve_phcc.py "${{ matrix.phcc }}" | tee -a "$GITHUB_ENV"
       - name: Install test dependencies
         run: |
-          # pytest-timeout by name: these jobs deliberately do not install
-          # requirements_test.txt, so nothing else here would bring it - and
-          # the timeout that stops a hung run is exactly what must not depend
-          # on some other package still happening to pull it in.
-          pip install "$PHCC_SPEC" pytest-timeout -r requirements.txt
+          pip install "$PHCC_SPEC" -r requirements.txt
           # The capture tool's formatter test runs ruff, the gates' pin.
           pip install -c requirements_gates.txt ruff
+      # By name: these jobs deliberately do not install requirements_test.txt,
+      # and the timeout that stops a hung run, the coverage gate and the power
+      # map compiler's numpy must not depend on a plugin happening to pull them
+      # in. The old plugin pins all three itself, so a second pin would fight it.
+      - name: Install what the old plugin pins
+        if: ${{ !matrix.official-plugin }}
+        run: pip install pytest-timeout
+      - name: Install what Home Assistant's own plugin leaves out
+        if: matrix.official-plugin
+        run: pip install -c requirements_gates.txt pytest-timeout pytest-cov numpy
       # requirements.txt gives modbus-connection a lower bound on purpose, so
       # this resolved a newer release than the tested Home Assistant pins and
       # the lane vouched for a combination no installation has.

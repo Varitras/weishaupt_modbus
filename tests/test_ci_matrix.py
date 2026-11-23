@@ -1,10 +1,11 @@
 """The CI workflow must test the Home Assistant release it claims to test.
 
-A job that installs pytest-homeassistant-custom-component unpinned reads like
-"newest Home Assistant" but is not: the plugin ships a normal, non-prerelease
-version for every Home Assistant BETA too, so pip resolves to one pinning a
-beta. Nothing then covers the release people actually run, and the job stays
-green while saying "current HA".
+A job that installed pytest-homeassistant-custom-component unpinned read like
+"newest Home Assistant" but was not: that plugin shipped a normal,
+non-prerelease version for every Home Assistant BETA too, so pip resolved to
+one pinning a beta. Nothing then covered the release people actually run, and
+the job stayed green while saying "current HA". Home Assistant's own plugin,
+which the current job runs now, still goes through the same check.
 
 The "minimum" job is the other end: it pins the plugin release that ships
 exactly the Home Assistant version hacs.json declares, so an API that does
@@ -29,7 +30,16 @@ TEST_REQUIREMENTS = REPO / "requirements_test.txt"
 GATE_PINS = REPO / "requirements_gates.txt"
 # The gates that must judge a change the same way on a laptop and in CI,
 # and the version parser the CI resolver needs.
-GATE_TOOLS = ("ruff", "mypy", "pip-audit", "packaging")
+GATE_TOOLS = (
+    "ruff",
+    "mypy",
+    "pip-audit",
+    "packaging",
+    # What the old test plugin pinned and Home Assistant's own leaves out.
+    "pytest-cov",
+    "pytest-timeout",
+    "numpy",
+)
 # Installed by name: the test plugin pins it, a pin here would fight that one.
 PINNED_BY_THE_PLUGIN = {"pytest-timeout"}
 
@@ -491,3 +501,36 @@ def test_every_workflow_runs_on_pull_requests_and_pushes_to_main_only():
         assert "branches-ignore" not in push, (
             f"{path.name}: branches and branches-ignore together invalidate the file"
         )
+
+
+def _runs_for(lane: dict, steps: list[dict]) -> str:
+    """The run scripts of the steps a matrix lane executes, as far as the
+    workflow's `if:` on `matrix.official-plugin` decides."""
+    official = bool(lane.get("official-plugin"))
+    taken = []
+    for step in steps:
+        condition = str(step.get("if", "")).replace(" ", "")
+        if condition == "matrix.official-plugin" and not official:
+            continue
+        if condition == "${{!matrix.official-plugin}}" and official:
+            continue
+        taken.append(step.get("run", ""))
+    return "\n".join(taken)
+
+
+def test_each_test_lane_installs_what_its_plugin_does_not_bring():
+    """The old plugin pinned pytest-timeout, pytest-cov and numpy and brought
+    them along; Home Assistant's own brings none. Without pytest-timeout the
+    300 s cut-off is an unknown option and a hung run waits for the job's
+    limit; without the other two the coverage gate and the power map
+    compiler's tests fail."""
+    job = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]["pytest"]
+    missing = []
+    for lane in job["strategy"]["matrix"]["include"]:
+        runs = _runs_for(lane, job["steps"])
+        needed = ["pytest-timeout"]
+        if lane.get("official-plugin"):
+            needed += ["pytest-cov", "numpy"]
+        missing += [f"{lane['name']}: {tool}" for tool in needed if tool not in runs]
+
+    assert not missing, f"not installed: {missing}"
