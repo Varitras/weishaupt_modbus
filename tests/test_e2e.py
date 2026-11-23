@@ -24,15 +24,6 @@ from modbus_connection import (
     ServerDeviceFailureError,
 )
 import pytest
-from pytest_homeassistant_custom_component.common import (
-    MockConfigEntry,
-    async_capture_events,
-    async_fire_time_changed,
-    mock_restore_cache_with_extra_data,
-)
-from pytest_homeassistant_custom_component.components.diagnostics import (
-    get_diagnostics_for_config_entry,
-)
 
 from custom_components.weishaupt_modbus.configentry import host_lock
 from custom_components.weishaupt_modbus.const import CONF, CONST, DeviceConstants
@@ -58,6 +49,14 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
+
+from .ha_common import (
+    MockConfigEntry,
+    async_capture_events,
+    async_fire_time_changed,
+    get_diagnostics_for_config_entry,
+    mock_restore_cache_with_extra_data,
+)
 
 pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
 

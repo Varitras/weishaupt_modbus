@@ -10,10 +10,6 @@ import time
 
 import aiohttp
 import pytest
-from pytest_homeassistant_custom_component.common import (
-    MockConfigEntry,
-    mock_restore_cache_with_extra_data,
-)
 
 from custom_components.weishaupt_modbus import webif_coordinator, webif_polled
 from custom_components.weishaupt_modbus.config_flow import ConfigFlow
@@ -51,6 +47,7 @@ from homeassistant.helpers import (
 )
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
+from .ha_common import MockConfigEntry, mock_restore_cache_with_extra_data
 from .locking import WatchedLock, until
 from .webif_stand_in import (
     ENGLISH_HEATING,

@@ -422,3 +422,14 @@ def test_the_development_section_names_every_program_the_suite_needs():
     missing = sorted(name for name in needed if f"`{name}`" not in section)
     assert not missing, f"program(s) the Development section does not name: {missing}"
     assert floor in section, f"the Development section does not give gitleaks {floor}"
+
+
+async def test_home_assistant_keeps_its_config_folder_out_of_the_repository(hass):
+    """Home Assistant's own test plugin defaults the config folder to
+    tests/testing_config, and setting up wrote the power map preview there,
+    into the repository."""
+    config = await hass.async_add_executor_job(
+        pathlib.Path(hass.config.config_dir).resolve
+    )
+
+    assert not config.is_relative_to(REPO)

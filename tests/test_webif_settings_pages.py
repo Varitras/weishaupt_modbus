@@ -11,7 +11,6 @@ import inspect
 
 import aiohttp
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.weishaupt_modbus import webif_coordinator
 from custom_components.weishaupt_modbus.const import CONF, CONST
@@ -43,6 +42,7 @@ from custom_components.weishaupt_modbus.webif_visit import read_web_interface
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 
+from .ha_common import MockConfigEntry
 from .test_webif_evoblock import ROWS, _state, heat_pump_page, shown
 from .test_webif_optional_pages import OPTIONAL, info_menu, values_page
 from .test_webif_setup import (
