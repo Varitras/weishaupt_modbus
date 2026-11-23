@@ -40,7 +40,8 @@ GATE_TOOLS = (
     "pytest-timeout",
     "numpy",
 )
-# Installed by name: the test plugin pins it, a pin here would fight that one.
+# Installed by name on the minimum lane: the old test plugin pins it there, and
+# a pin here would fight that one. The current lane takes the gate pin.
 PINNED_BY_THE_PLUGIN = {"pytest-timeout"}
 
 

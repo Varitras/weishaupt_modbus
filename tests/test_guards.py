@@ -427,9 +427,10 @@ def test_the_development_section_names_every_program_the_suite_needs():
 async def test_home_assistant_keeps_its_config_folder_out_of_the_repository(hass):
     """Home Assistant's own test plugin defaults the config folder to
     tests/testing_config, and setting up wrote the power map preview there,
-    into the repository."""
+    into the repository. Only tests/ counts: the old plugin keeps the folder
+    in its package, which a virtual environment inside the repository holds."""
     config = await hass.async_add_executor_job(
         pathlib.Path(hass.config.config_dir).resolve
     )
 
-    assert not config.is_relative_to(REPO)
+    assert not config.is_relative_to(TESTS)

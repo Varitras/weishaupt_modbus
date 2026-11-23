@@ -70,8 +70,8 @@ def newest_stable(pins: dict[str, str | None]) -> str:
         if not is_prerelease(pins[version]):
             return version
     raise SystemExit(
-        "No pytest-homeassistant-custom-component release pins a final Home "
-        "Assistant version. Refusing to guess - fix the matrix by hand."
+        f"No {PACKAGE} release pins a final Home Assistant version. "
+        "Refusing to guess - fix the matrix by hand."
     )
 
 

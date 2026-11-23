@@ -137,8 +137,8 @@ jobs:
     # hacs.json declares. "current" catches the opposite: an API that has since
     # been REMOVED. Its plugin version is resolved at run time to the newest
     # release that pins a FINAL Home Assistant - see
-    # .github/scripts/resolve_phcc.py for why an unpinned install silently
-    # tests a beta instead.
+    # .github/scripts/resolve_phcc.py for why the old plugin's unpinned
+    # install silently tested a beta.
     name: pytest (${{ matrix.name }})
     runs-on: "ubuntu-latest"
     timeout-minutes: 45
