@@ -21,7 +21,6 @@ from modbus_connection import (
 )
 from modbus_connection.mock import MockModbusConnection
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.weishaupt_modbus.configentry import host_lock
 from custom_components.weishaupt_modbus.const import (
@@ -48,6 +47,7 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.write_budget import
     WriteBudget,
 )
 
+from .ha_common import MockConfigEntry
 from .locking import WatchedLock, until
 
 OUTSIDE_TEMPERATURE = 30001

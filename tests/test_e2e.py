@@ -24,15 +24,6 @@ from modbus_connection import (
     ServerDeviceFailureError,
 )
 import pytest
-from pytest_homeassistant_custom_component.common import (
-    MockConfigEntry,
-    async_capture_events,
-    async_fire_time_changed,
-    mock_restore_cache_with_extra_data,
-)
-from pytest_homeassistant_custom_component.components.diagnostics import (
-    get_diagnostics_for_config_entry,
-)
 
 from custom_components.weishaupt_modbus.configentry import host_lock
 from custom_components.weishaupt_modbus.const import CONF, CONST, DeviceConstants
@@ -51,6 +42,7 @@ from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import (
     device_registry as dr,
+    entity as entity_helper,
     entity_registry as er,
     issue_registry as ir,
 )
@@ -58,6 +50,14 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
+
+from .ha_common import (
+    MockConfigEntry,
+    async_capture_events,
+    async_fire_time_changed,
+    get_diagnostics_for_config_entry,
+    mock_restore_cache_with_extra_data,
+)
 
 pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]
 
@@ -1859,9 +1859,17 @@ async def test_a_reload_while_the_counts_are_being_saved_keeps_them(hass, monkey
     assert _counts(entry) == (1, 1)
 
 
-async def test_a_counter_renamed_and_renamed_back_counts_its_writes_once(hass):
+async def test_a_counter_renamed_and_renamed_back_counts_its_writes_once(
+    hass, monkeypatch
+):
     """Added again under its old id, the sensor added its recorded count to
-    the budget a second time, and the daily limit stopped writes too early."""
+    the budget a second time, and the daily limit stopped writes too early.
+
+    From 2026.11 Home Assistant renames in place; the minimum's line still adds
+    the entity again, so the test asks for that way on every release."""
+    monkeypatch.setattr(
+        entity_helper, "_entity_class_requires_readd", lambda _cls: True, raising=False
+    )
     entry = await _setup(hass, _entry(hass))
     await _write_once(hass, entry)
     registry = er.async_get(hass)

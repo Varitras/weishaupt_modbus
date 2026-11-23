@@ -18,7 +18,6 @@ from modbus_connection import (
     ModbusTimeoutError,
 )
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.weishaupt_modbus.const import CONF, CONST, DEVICES, TYPES
 from custom_components.weishaupt_modbus.coordinator import (
@@ -35,6 +34,8 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.hpconst import (
     MODBUS_SYS_ITEMS,
 )
 from homeassistant.helpers.update_coordinator import UpdateFailed
+
+from .ha_common import MockConfigEntry
 
 OUTSIDE_TEMPERATURE = 30001
 

@@ -16,7 +16,6 @@ from modbus_connection import ModbusConnectionError, ModbusExceptionError
 from modbus_connection.mock import MockModbusUnit
 from probatio import UNDEFINED, to_field_list
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 import custom_components.weishaupt_modbus as integration
 from custom_components.weishaupt_modbus import config_flow
@@ -42,6 +41,7 @@ from custom_components.weishaupt_modbus.webif_visit import (
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from homeassistant.helpers import config_validation as cv, issue_registry as ir
 
+from .ha_common import MockConfigEntry
 from .locking import WatchedLock, until
 
 pytestmark = [pytest.mark.e2e, pytest.mark.timeout(120)]

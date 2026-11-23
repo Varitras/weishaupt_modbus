@@ -11,7 +11,6 @@ import logging
 
 import aiohttp
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.weishaupt_modbus import webif_coordinator
 from custom_components.weishaupt_modbus.const import CONF, CONST
@@ -49,6 +48,7 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.write_budget import
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 
+from .ha_common import MockConfigEntry
 from .locking import until
 from .test_webif_modulation import with_modulation
 from .test_webif_optional_pages import info_menu

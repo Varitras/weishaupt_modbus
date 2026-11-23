@@ -6,3 +6,9 @@ mypy==2.4.1
 pip-audit==2.10.1
 # resolve_phcc.py parses versions with it.
 packaging==26.3
+# The old test plugin pinned these three and brought them along; Home
+# Assistant's own plugin brings none of them. The coverage gate needs
+# pytest-cov, the e2e tests pytest-timeout, the power map compiler's tests numpy.
+pytest-cov==7.1.0
+pytest-timeout==2.4.0
+numpy==2.5.5

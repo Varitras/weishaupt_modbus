@@ -12,7 +12,6 @@ from unittest.mock import AsyncMock
 
 import aiohttp
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 import custom_components.weishaupt_modbus as integration
 from custom_components.weishaupt_modbus import webif_coordinator
@@ -36,6 +35,7 @@ from custom_components.weishaupt_modbus.webif_visit import read_web_interface
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 
+from .ha_common import MockConfigEntry
 from .test_webif_number import PUMP_DATA
 from .test_webif_settings_pages import ALL_PAGES, evoblock_site
 from .test_webif_setup import (

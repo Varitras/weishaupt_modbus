@@ -14,10 +14,6 @@ import re
 import time
 
 import pytest
-from pytest_homeassistant_custom_component.common import (
-    MockConfigEntry,
-    async_fire_time_changed,
-)
 
 from custom_components.weishaupt_modbus import webif_coordinator
 from custom_components.weishaupt_modbus.const import CONST
@@ -48,6 +44,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.util import dt as dt_util
 
+from .ha_common import MockConfigEntry, async_fire_time_changed
 from .locking import until
 from .webif_stand_in import heating_page, limit_leaf, limit_segment
 

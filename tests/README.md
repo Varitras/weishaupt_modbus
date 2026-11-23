@@ -31,6 +31,13 @@ That run first checks which Home Assistant the interpreter actually holds
 against `hacs.json` - a hand-pinned local venv ages quietly. Without the
 variable the minimum run is skipped **and says so**.
 
+The two runs use different test plugins. Home Assistant ships its own,
+`pytest-homeassistant`, from 2026.11 on; the minimum release needs the
+`pytest-homeassistant-custom-component` it replaced. The two must not be
+installed together. The tests import Home Assistant's helpers through
+`tests/ha_common.py`, which takes them from whichever is installed; drop its
+fallback once the minimum reaches 2026.11.
+
 A fresh clone runs none of this on its own: no hook comes with the
 repository, so nothing checks a push before it leaves. CI is what runs the
 same set for every pull request and every push to `main`.
@@ -78,12 +85,12 @@ because the thing it prevents happened, here or in a sibling project.
 |---|---|
 | `test_budgets.py` | No module or function grows past its frozen budget |
 | `test_flow_messages.py` | Every abort reason and error key the config flow can show has a text in `strings.json` and all three translations, and none outlives its use; every dialog field has a help beside its label, the same in every form that asks for it (the plain-HTTP note on the password was once in one form only) |
-| `test_ci_matrix.py` | The CI matrix tests the Home Assistant releases it claims to: the declared minimum, and the newest final release (never a beta); every `pip install` takes its version from a pin, the gate tools from the one file `requirements_gates.txt`, CI and `check.sh` hold coverage to the same floor, and the test jobs install the ruff a test runs and run only the gitleaks archive the release's checksum lists |
+| `test_ci_matrix.py` | The CI matrix tests the Home Assistant releases it claims to: the declared minimum, and the newest final release (never a beta); every `pip install` takes its version from a pin, the gate tools from the one file `requirements_gates.txt`, CI and `check.sh` hold coverage to the same floor, and the test jobs install the ruff a test runs and run only the gitleaks archive the release's checksum lists; each test job installs what its test plugin does not bring (pytest-timeout, and on Home Assistant's own plugin pytest-cov and numpy) |
 | `test_comment_narration.py` | No comment merely restates the code it sits on (heuristic; a genuine why-comment passes) |
 | `test_controller_access.py` | Every request to the controller - each Modbus read and write, each web request, also one wrapped in `wait_for` or `gather` - takes the host lock in the function that sends it (the pump dialog's probe once did not), and the function that sends a web request refuses anything off the positive list first, in its own body and about the method and address it sends, so only approved GET requests, the login POST and the setting POST to `/pro_save.html` go out. A request not awaited where it is made - bound to a name, gathered from a list, handed to a task (also inside an await: `shield`, `create_task`, `ensure_future`, `wait`), taken as an alias - is refused, since no lexical check can tell when it goes out; `diagnostics` counts as the coordinators' own only on a coordinator, and every web request has to be in sight of that scan. The lock tests check the other half at run time: every request arrives while the lock is held |
 | `test_durations.py` | No single test quietly starts taking minutes (budget in `durations.py`, enforced from `conftest.py`), and a run that stops making progress is cut off rather than only measured |
 | `test_entity_id_change.py` | Every entity class of ours that defines an add or remove method also defines `async_entity_id_changed`, so Home Assistant 2026.11 and later rename it in place instead of removing and adding it again (that fallback goes in 2027.11) |
-| `test_guards.py` | No guard binds itself to one source file; every guard is listed; `check.sh` matches CI; every `.gitattributes` rule names files the repository has; the README's development section names the programs the tests need |
+| `test_guards.py` | No guard binds itself to one source file; every guard is listed; `check.sh` matches CI; every `.gitattributes` rule names files the repository has; the README's development section names the programs the tests need; Home Assistant keeps its test config folder out of the repository |
 | `test_imports.py` | Every module imports outside the author's own tree - the `from config.custom_components...` line that shipped on main cannot ship again; nothing in `webif/` imports Home Assistant, by name or through the integration around it |
 | `test_item_register.py` | Every register definition is complete (a name in every translation file, result list, address range, unique key), no translation outlives its item, and every item keeps the name its unique id is built from (`legacy_unique_ids.json`); every `params` key a row sets or the code reads is listed in the table's doc block, and the block lists no other; names are the same in every place they show, without double spaces and without a word left in another language, and the heating circuit copies sit on their own circuit's device; `strings.json` says what `en.json` says, and an error code reads the same as error and as warning |
 | `test_kennfeld.py` | The power map: interpolation, the per-entry preview, static SVGs, a broken custom grid disables only the heat power; and no module in the package imports numpy, scipy or pygal at import time |

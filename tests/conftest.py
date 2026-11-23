@@ -1,11 +1,12 @@
 """Shared pytest configuration.
 
-Declares the Home Assistant custom-component test plugin (the `hass` fixture
-and a matching Home Assistant install), keeps every test off real hardware,
+Names the Home Assistant test plugin where it has to be named (the `hass`
+fixture and a matching Home Assistant install), keeps every test off real hardware,
 checks the texts of every repair notice a test creates, and holds the runtime
 budget per test - see durations.py for why one exists.
 """
 
+import importlib.util
 import json
 import pathlib
 import re
@@ -19,7 +20,12 @@ from homeassistant.helpers import issue_registry as ir
 
 from .durations import SLOW_TEST_SECONDS, over_budget
 
-pytest_plugins = ("pytest_homeassistant_custom_component",)
+# Home Assistant's own plugin registers itself; the custom-component plugin it
+# replaced (still the minimum lane's) has to be named, and the two must not load
+# together.
+OFFICIAL_PLUGIN = importlib.util.find_spec("pytest_homeassistant") is not None
+if not OFFICIAL_PLUGIN:
+    pytest_plugins = ("pytest_homeassistant_custom_component",)
 
 # Summed per test across setup, call and teardown, and read at the end of the
 # session. A dict at module level because that is what a pytest hook has: the
@@ -211,6 +217,18 @@ class SharedMockModbus:
         self._request_failure = error
         for connection in self.connections:
             connection.for_unit(1).fail_requests(error)
+
+
+if OFFICIAL_PLUGIN:
+
+    @pytest.fixture
+    def hass_config_dir(hass_tmp_config_dir):
+        """A config folder of the test's own: Home Assistant's own plugin
+        defaults to tests/testing_config, and the power map preview landed
+        there, in the repository. The old plugin keeps its default: its
+        temporary folder is a copy of its shared one, previews of earlier
+        runs included."""
+        return hass_tmp_config_dir
 
 
 @pytest.fixture
