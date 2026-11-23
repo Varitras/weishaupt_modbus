@@ -42,6 +42,7 @@ from homeassistant.core import State
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import (
     device_registry as dr,
+    entity as entity_helper,
     entity_registry as er,
     issue_registry as ir,
 )
@@ -986,9 +987,18 @@ async def test_the_web_write_counts_survive_a_reload_with_their_sensors_disabled
     assert (budget.total, budget.writes_today) == (1, 1)
 
 
-async def test_a_traffic_count_renamed_and_renamed_back_is_not_added_twice(hass, pump):
+async def test_a_traffic_count_renamed_and_renamed_back_is_not_added_twice(
+    hass, pump, monkeypatch
+):
     """Added again under its old id, the sensor added its recorded count to
-    the client's a second time."""
+    the client's a second time.
+
+    Up to 2026.10, the minimum's line, Home Assistant adds a renamed entity
+    again; from 2026.11 it renames in place unless the class asks for the old
+    way, so the test asks for it there."""
+    monkeypatch.setattr(
+        entity_helper, "_entity_class_requires_readd", lambda _cls: True, raising=False
+    )
     web = _entries(hass, pump)
     registry = er.async_get(hass)
     registry.async_get_or_create(
