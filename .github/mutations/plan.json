@@ -679,6 +679,20 @@
     "tests": "cannot_be_loaded_removes"
   },
   {
+    "label": "power map: the preview stays off www unless the user switches it on",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "        if json_filepath is not None and publishes_powermap(self._config_entry):\n",
+    "new": "        if json_filepath is not None:\n",
+    "tests": "not_published_unless_switched_on"
+  },
+  {
+    "label": "power map: publishing the preview is off by default",
+    "path": "custom_components/weishaupt_modbus/kennfeld.py",
+    "old": "    return bool(config_entry.options.get(CONST.OPTION_PUBLISH_POWERMAP, False))\n",
+    "new": "    return bool(config_entry.options.get(CONST.OPTION_PUBLISH_POWERMAP, True))\n",
+    "tests": "not_published_unless_switched_on"
+  },
+  {
     "label": "switch: the restored value is held to the bounds in force",
     "path": "custom_components/weishaupt_modbus/entities.py",
     "old": "        return max(low, min(remembered, high))\n",

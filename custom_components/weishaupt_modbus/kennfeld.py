@@ -262,6 +262,16 @@ def powermap_file_name(entry_data: Mapping[str, Any]) -> str:
     return f"{CONST.DOMAIN}_powermap{device_postfix(entry_data)}.svg"
 
 
+def publishes_powermap(config_entry: MyConfigEntry) -> bool:
+    """Whether the entry puts its preview under www/local.
+
+    Off unless the user switches it on: Home Assistant serves www/ to anyone
+    who reaches it, without a login, and most installations never show the
+    picture on a dashboard.
+    """
+    return bool(config_entry.options.get(CONST.OPTION_PUBLISH_POWERMAP, False))
+
+
 class PowerMap:
     """The compiled power-map grid of one entry, and its preview under www/local.
 
@@ -361,11 +371,12 @@ class PowerMap:
         could be replaced between the two. And a map without an acceptable
         preview - or no map at all, json_filepath None - leaves none behind,
         so the dashboard cannot keep showing the curve of a map the
-        integration no longer computes from.
+        integration no longer computes from. Nor does an entry that does not
+        publish its preview: switching the option off takes the file down.
         """
         destination = www_dir / powermap_file_name(self._config_entry.data)
         picture = None
-        if json_filepath is not None:
+        if json_filepath is not None and publishes_powermap(self._config_entry):
             picture = _accepted_preview(json_filepath.with_suffix(".svg"))
         try:
             if picture is None:
