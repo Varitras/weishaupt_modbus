@@ -2166,12 +2166,14 @@
         "data": {
           "scan_interval": "Poll interval (seconds)",
           "write_warning_per_day": "Warn at this many writes per day (0 = never)",
-          "write_limit_per_day": "Refuse writes above this many per day (0 = no limit)"
+          "write_limit_per_day": "Refuse writes above this many per day (0 = no limit)",
+          "publish_powermap": "Show the power map on a dashboard"
         },
         "data_description": {
           "scan_interval": "How often all registers are read, 5 to 600 seconds. A change reloads the integration.",
           "write_warning_per_day": "Logs a warning once a day when this many writes went out. The EEPROM is rated for 100 000 writes.",
-          "write_limit_per_day": "Further writes are refused until the next day. Must not be below the warning threshold."
+          "write_limit_per_day": "Further writes are refused until the next day. Must not be below the warning threshold.",
+          "publish_powermap": "Copies the picture of the power map curves to /local/local/weishaupt_modbus_powermap.svg for a picture card. Home Assistant serves that folder without a login. Switching it off removes the file."
         }
       },
       "webif": {

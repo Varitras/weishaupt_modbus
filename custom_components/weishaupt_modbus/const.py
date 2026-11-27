@@ -55,6 +55,9 @@ class MainConstants:
     SCAN_INTERVAL_MAX_SECONDS: int = 600
     OPTION_WRITE_WARNING_PER_DAY: str = "write_warning_per_day"
     OPTION_WRITE_LIMIT_PER_DAY: str = "write_limit_per_day"
+    # Whether the power map's preview goes under www/local. Off unless the
+    # user switches it on: Home Assistant serves www/ without a login.
+    OPTION_PUBLISH_POWERMAP: str = "publish_powermap"
     DEF_KENNFELDFILE: str = "weishaupt_wbb_kennfeld.json"
     DEF_PREFIX: str = "weishaupt_wbb"
     WEB_INTERFACE: str = "web_interface"

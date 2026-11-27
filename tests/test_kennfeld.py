@@ -26,6 +26,9 @@ PACKAGE = (
     / "weishaupt_modbus"
 )
 
+# Entries that publish their preview, as the copy tests need; the default is off.
+PUBLISHED = {CONST.OPTION_PUBLISH_POWERMAP: True}
+
 KENNFELD = (
     pathlib.Path(__file__).resolve().parents[1]
     / "custom_components"
@@ -105,7 +108,8 @@ async def test_setup_looks_for_the_grid_folder_off_the_event_loop(
         data={
             CONF.KENNFELD_FILE: _grid_file(tmp_path, "own_kennfeld"),
             CONF.DEVICE_POSTFIX: "",
-        }
+        },
+        options=PUBLISHED,
     )
     hass.config.config_dir = str(tmp_path)
 
@@ -149,7 +153,8 @@ async def test_a_map_kept_outside_the_package_survives_an_update(
     monkeypatch.setattr(config_flow, "get_filepath", lambda _hass: shipped)
     hass.config.config_dir = str(tmp_path)
     entry = SimpleNamespace(
-        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""},
+        options=PUBLISHED,
     )
     power_map = PowerMap(entry, hass)
 
@@ -174,7 +179,8 @@ async def test_an_own_map_comes_before_a_shipped_one_of_the_same_name(
         data={
             CONF.KENNFELD_FILE: "weishaupt_wbb_kennfeld.json",
             CONF.DEVICE_POSTFIX: "",
-        }
+        },
+        options=PUBLISHED,
     )
     power_map = PowerMap(entry, hass)
 
@@ -222,7 +228,8 @@ async def test_an_empty_compiled_grid_counts_as_not_compiled(
         "<svg><path d='M0 0'/></svg>", encoding="utf-8"
     )
     entry = SimpleNamespace(
-        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""},
+        options=PUBLISHED,
     )
     monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
     hass.config.config_dir = str(tmp_path)
@@ -248,7 +255,8 @@ async def test_a_grid_that_is_not_compiled_is_refused_not_compiled(
     }
     (tmp_path / "raw_kennfeld.json").write_text(json.dumps(raw), encoding="utf-8")
     entry = SimpleNamespace(
-        data={CONF.KENNFELD_FILE: "raw_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+        data={CONF.KENNFELD_FILE: "raw_kennfeld.json", CONF.DEVICE_POSTFIX: ""},
+        options=PUBLISHED,
     )
     monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
     power_map = PowerMap(entry, hass)
@@ -332,7 +340,8 @@ async def test_a_preview_that_carries_script_is_not_copied_under_www(
         "<svg><script>alert(1)</script></svg>", encoding="utf-8"
     )
     entry = SimpleNamespace(
-        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""},
+        options=PUBLISHED,
     )
     monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
     www = tmp_path / "www" / "local"
@@ -356,7 +365,8 @@ async def test_a_static_preview_is_copied_under_www(hass, tmp_path, monkeypatch)
         "<svg><path d='M0 0'/></svg>", encoding="utf-8"
     )
     entry = SimpleNamespace(
-        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""},
+        options=PUBLISHED,
     )
     monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
     hass.config.config_dir = str(tmp_path)
@@ -364,6 +374,37 @@ async def test_a_static_preview_is_copied_under_www(hass, tmp_path, monkeypatch)
     await PowerMap(entry, hass).initialize()
 
     assert (tmp_path / "www" / "local" / "weishaupt_modbus_powermap.svg").exists()
+
+
+@pytest.mark.parametrize("options", [{}, {CONST.OPTION_PUBLISH_POWERMAP: False}])
+async def test_the_preview_is_not_published_unless_switched_on(
+    hass, tmp_path, monkeypatch, options
+):
+    """Home Assistant serves www/ without a login, and Spook reported the
+    copy as a public file no dashboard used. Off by default, and switching
+    the option off takes a copy published before down."""
+    grid = {
+        "known_t": [35, 55],
+        "known_x": [0],
+        "compiled_grid": {"0": [1.0, 2.0]},
+    }
+    (tmp_path / "own_kennfeld.json").write_text(json.dumps(grid), encoding="utf-8")
+    (tmp_path / "own_kennfeld.svg").write_text(
+        "<svg><path d='M0 0'/></svg>", encoding="utf-8"
+    )
+    data = {CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+    monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
+    hass.config.config_dir = str(tmp_path)
+    destination = tmp_path / "www" / "local" / "weishaupt_modbus_powermap.svg"
+
+    await PowerMap(SimpleNamespace(data=data, options=PUBLISHED), hass).initialize()
+    assert destination.exists()
+
+    power_map = PowerMap(SimpleNamespace(data=data, options=options), hass)
+    await power_map.initialize()
+
+    assert not destination.exists(), "the preview stayed public"
+    assert power_map.map(0, 350) == 1.0, "the grid must load without its preview"
 
 
 async def test_the_readme_picture_url_serves_the_published_preview(
@@ -381,7 +422,8 @@ async def test_the_readme_picture_url_serves_the_published_preview(
         "<svg><path d='M0 0'/></svg>", encoding="utf-8"
     )
     entry = SimpleNamespace(
-        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""},
+        options=PUBLISHED,
     )
     monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
     hass.config.config_dir = str(tmp_path)
@@ -499,7 +541,8 @@ async def test_a_broken_grid_file_disables_the_heat_power_only(
     calculated sensor."""
     (tmp_path / "bad_kennfeld.json").write_text(content, encoding="utf-8")
     entry = SimpleNamespace(
-        data={CONF.KENNFELD_FILE: "bad_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+        data={CONF.KENNFELD_FILE: "bad_kennfeld.json", CONF.DEVICE_POSTFIX: ""},
+        options=PUBLISHED,
     )
     monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
     power_map = PowerMap(entry, hass)
@@ -821,7 +864,8 @@ async def test_a_preview_that_is_not_text_leaves_the_entry_alone(
     (tmp_path / "own_kennfeld.json").write_text(json.dumps(grid), encoding="utf-8")
     (tmp_path / "own_kennfeld.svg").write_bytes(b"<svg>\xff\xfe</svg>")
     entry = SimpleNamespace(
-        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""},
+        options=PUBLISHED,
     )
     monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
     hass.config.config_dir = str(tmp_path)
@@ -864,7 +908,8 @@ async def test_bounds_written_as_integral_floats_still_reach_the_curve(
     }
     (tmp_path / "own_kennfeld.json").write_text(json.dumps(grid), encoding="utf-8")
     entry = SimpleNamespace(
-        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""}
+        data={CONF.KENNFELD_FILE: "own_kennfeld.json", CONF.DEVICE_POSTFIX: ""},
+        options=PUBLISHED,
     )
     monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: tmp_path)
     hass.config.config_dir = str(tmp_path)
@@ -1098,7 +1143,7 @@ def _grid_file(folder, name):
 
 async def _initialize(hass, folder, grid_name, monkeypatch):
     entry = SimpleNamespace(
-        data={CONF.KENNFELD_FILE: grid_name, CONF.DEVICE_POSTFIX: ""}
+        data={CONF.KENNFELD_FILE: grid_name, CONF.DEVICE_POSTFIX: ""}, options=PUBLISHED
     )
     monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: folder)
     hass.config.config_dir = str(folder)
@@ -1198,7 +1243,9 @@ def test_only_the_web13_map_has_minimum_curves():
 
 
 async def _loaded_map(hass, folder, name, monkeypatch):
-    entry = SimpleNamespace(data={CONF.KENNFELD_FILE: name, CONF.DEVICE_POSTFIX: ""})
+    entry = SimpleNamespace(
+        data={CONF.KENNFELD_FILE: name, CONF.DEVICE_POSTFIX: ""}, options=PUBLISHED
+    )
     monkeypatch.setattr(kennfeld, "get_filepath", lambda _hass: folder)
     power_map = PowerMap(entry, hass)
     await power_map.initialize()

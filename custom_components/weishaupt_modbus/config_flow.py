@@ -758,6 +758,7 @@ class OptionsFlow(config_entries.OptionsFlowWithReload):
         current_limit = options.get(
             CONST.OPTION_WRITE_LIMIT_PER_DAY, DEFAULT_WRITE_LIMIT_PER_DAY
         )
+        current_publish = options.get(CONST.OPTION_PUBLISH_POWERMAP, False)
         # 0 switches the warning or the limit off; anything up to the EEPROM's
         # lifetime rating is a choice the user may make.
         writes_per_day = vol.All(
@@ -780,6 +781,9 @@ class OptionsFlow(config_entries.OptionsFlowWithReload):
                 vol.Required(
                     CONST.OPTION_WRITE_LIMIT_PER_DAY, default=current_limit
                 ): writes_per_day,
+                vol.Required(
+                    CONST.OPTION_PUBLISH_POWERMAP, default=current_publish
+                ): bool,
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema, errors=errors)

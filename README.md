@@ -100,7 +100,11 @@ the counts of the other writes. The options set the warning threshold and
 daily limit (see
 [How Data Updates](https://github.com/Varitras/weishaupt_modbus/wiki/How-Data-Updates)).
 
-Show the power map of your model on a dashboard:
+Show the power map of your model on a dashboard: switch on *Show the power
+map on a dashboard* in the integration's options, which copies the picture
+under `www/local`. Home Assistant serves that folder to anyone who reaches it,
+without a login, so the copy is off by default; switching it off again
+removes the file. Then add:
 
 ```yaml
 type: picture
