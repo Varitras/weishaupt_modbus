@@ -25,7 +25,12 @@ from homeassistant.helpers.selector import (
 
 from .configentry import host_lock, is_web_interface, web_interface_title
 from .const import CONF, CONST
-from .kennfeld import get_filepath, own_maps_folder
+from .kennfeld import (
+    get_filepath,
+    own_maps_folder,
+    powermap_file_name,
+    publishes_powermap,
+)
 from .migrate_helpers import entry_unique_id
 from .webif.client import LoginRefused, Unreachable, WebifError
 from .webif.discovery import (
@@ -758,7 +763,7 @@ class OptionsFlow(config_entries.OptionsFlowWithReload):
         current_limit = options.get(
             CONST.OPTION_WRITE_LIMIT_PER_DAY, DEFAULT_WRITE_LIMIT_PER_DAY
         )
-        current_publish = options.get(CONST.OPTION_PUBLISH_POWERMAP, False)
+        current_publish = publishes_powermap(self.config_entry)
         # 0 switches the warning or the limit off; anything up to the EEPROM's
         # lifetime rating is a choice the user may make.
         writes_per_day = vol.All(
@@ -786,7 +791,14 @@ class OptionsFlow(config_entries.OptionsFlowWithReload):
                 ): bool,
             }
         )
-        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={
+                "powermap_file": powermap_file_name(self.config_entry.data)
+            },
+        )
 
 
 class WebifOptionsFlow(config_entries.OptionsFlowWithReload):

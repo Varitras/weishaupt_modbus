@@ -2167,13 +2167,13 @@
           "scan_interval" : "Pollinterval (seconden)",
           "write_warning_per_day" : "Waarschuwen vanaf dit aantal schrijfacties per dag (0 = nooit)",
           "write_limit_per_day" : "Schrijfacties weigeren boven dit aantal per dag (0 = geen limiet)",
-          "publish_powermap" : "Vermogenskarakteristiek op een dashboard tonen"
+          "publish_powermap" : "Afbeelding van het werkingsschema kopiëren voor een dashboardkaart"
         },
         "data_description" : {
           "scan_interval" : "Hoe vaak alle registers worden gelezen, 5 tot 600 seconden. Een wijziging laadt de integratie opnieuw.",
           "write_warning_per_day" : "Logt eenmaal per dag een waarschuwing zodra zoveel schrijfacties zijn uitgevoerd. De EEPROM is ontworpen voor 100 000 schrijfacties.",
           "write_limit_per_day" : "Verdere schrijfacties worden tot de volgende dag geweigerd. Mag niet onder de waarschuwingsdrempel liggen.",
-          "publish_powermap" : "Kopieert de afbeelding van de karakteristiekcurven naar /local/local/weishaupt_modbus_powermap.svg voor een afbeeldingskaart. Home Assistant serveert die map zonder inloggen. Uitschakelen verwijdert het bestand."
+          "publish_powermap" : "Kopieert de afbeelding van de curven van het werkingsschema als {powermap_file} naar de map www/local; een afbeeldingskaart toont die als /local/local/{powermap_file}. Home Assistant serveert die map zonder inloggen. Bestond www nog niet, start Home Assistant dan één keer opnieuw. Uitschakelen verwijdert het bestand."
         }
       },
       "webif" : {

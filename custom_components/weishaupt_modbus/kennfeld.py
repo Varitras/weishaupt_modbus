@@ -266,8 +266,7 @@ def publishes_powermap(config_entry: MyConfigEntry) -> bool:
     """Whether the entry puts its preview under www/local.
 
     Off unless the user switches it on: Home Assistant serves www/ to anyone
-    who reaches it, without a login, and most installations never show the
-    picture on a dashboard.
+    who reaches it, without a login, and only a picture card needs the copy.
     """
     return bool(config_entry.options.get(CONST.OPTION_PUBLISH_POWERMAP, False))
 

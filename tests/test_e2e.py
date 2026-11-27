@@ -1666,6 +1666,54 @@ async def test_an_out_of_range_poll_interval_is_refused(hass):
         )
 
 
+async def _publish_powermap(hass, entry, publish):
+    form = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        form["flow_id"], {CONST.OPTION_PUBLISH_POWERMAP: publish}
+    )
+    await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+
+@pytest.mark.parametrize(
+    ("postfix", "file_name"),
+    [("", "weishaupt_modbus_powermap.svg"), ("2", "weishaupt_modbus_powermap_2.svg")],
+)
+async def test_the_power_map_picture_follows_the_option(
+    hass, tmp_path, postfix, file_name
+):
+    """The option only reached the picture through a reload no test drove,
+    and a second pump's picture carries its postfix."""
+    # The older test plugin shares one config folder between the parallel
+    # workers, whose setups remove this picture while the test looks for it.
+    hass.config.config_dir = str(tmp_path)
+    entry = await _setup(
+        hass, _entry(hass, {**BASE_DATA, CONF.DEVICE_POSTFIX: postfix})
+    )
+    picture = tmp_path / "www" / "local" / file_name
+
+    assert not await hass.async_add_executor_job(picture.exists)
+
+    await _publish_powermap(hass, entry, True)
+    assert await hass.async_add_executor_job(picture.exists)
+
+    await _publish_powermap(hass, entry, False)
+    assert not await hass.async_add_executor_job(picture.exists)
+
+
+async def test_the_options_offer_the_power_map_picture_switched_off(hass):
+    """An entry from before the option must not show it on."""
+    entry = await _setup(hass, _entry(hass))
+
+    form = await hass.config_entries.options.async_init(entry.entry_id)
+
+    defaults = {str(key): key.default() for key in form["data_schema"].schema}
+    assert defaults[CONST.OPTION_PUBLISH_POWERMAP] is False
+    assert form["description_placeholders"]["powermap_file"] == (
+        "weishaupt_modbus_powermap.svg"
+    )
+
+
 # A room setpoint, stored in the EEPROM: its writes count. The PV setpoint,
 # held in RAM, uses none of the allowance.
 COUNTED_SETTING = 41105

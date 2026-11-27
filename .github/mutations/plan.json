@@ -693,6 +693,20 @@
     "tests": "not_published_unless_switched_on"
   },
   {
+    "label": "power map: the options show the picture copy off for an entry without the key",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "        current_publish = publishes_powermap(self.config_entry)\n",
+    "new": "        current_publish = True\n",
+    "tests": "offer_the_power_map_picture_switched_off"
+  },
+  {
+    "label": "power map: the option names this entry's picture file",
+    "path": "custom_components/weishaupt_modbus/config_flow.py",
+    "old": "                \"powermap_file\": powermap_file_name(self.config_entry.data)\n",
+    "new": "                \"powermap_file\": \"weishaupt_modbus_powermap_2.svg\"\n",
+    "tests": "offer_the_power_map_picture_switched_off"
+  },
+  {
     "label": "switch: the restored value is held to the bounds in force",
     "path": "custom_components/weishaupt_modbus/entities.py",
     "old": "        return max(low, min(remembered, high))\n",

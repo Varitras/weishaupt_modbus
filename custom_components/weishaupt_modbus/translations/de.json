@@ -2167,13 +2167,13 @@
                     "scan_interval": "Abfrageintervall (Sekunden)",
                     "write_warning_per_day": "Warnung ab so vielen Schreibzugriffen pro Tag (0 = nie)",
                     "write_limit_per_day": "Schreibzugriffe pro Tag ablehnen ab (0 = kein Deckel)",
-                    "publish_powermap": "Leistungskennfeld im Dashboard anzeigen"
+                    "publish_powermap": "Kennfeld-Bild für eine Dashboard-Karte kopieren"
                 },
                 "data_description": {
                     "scan_interval": "Wie oft alle Register gelesen werden, 5 bis 600 Sekunden. Eine Änderung lädt die Integration neu.",
                     "write_warning_per_day": "Protokolliert einmal am Tag eine Warnung, sobald so viele Schreibzugriffe erfolgt sind. Das EEPROM ist für 100 000 Schreibzugriffe ausgelegt.",
                     "write_limit_per_day": "Weitere Schreibzugriffe werden bis zum nächsten Tag abgelehnt. Darf nicht unter der Warnschwelle liegen.",
-                    "publish_powermap": "Kopiert das Bild der Kennfeldkurven nach /local/local/weishaupt_modbus_powermap.svg für eine Bildkarte. Home Assistant liefert diesen Ordner ohne Anmeldung aus. Ausschalten entfernt die Datei."
+                    "publish_powermap": "Kopiert das Bild der Kennfeldkurven als {powermap_file} in den Ordner www/local; eine Bildkarte zeigt es als /local/local/{powermap_file}. Home Assistant liefert diesen Ordner ohne Anmeldung aus. Gab es www noch nicht, Home Assistant einmal neu starten. Ausschalten entfernt die Datei."
                 }
             },
             "webif": {
