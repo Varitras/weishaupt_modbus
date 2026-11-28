@@ -17,7 +17,7 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import Event, HomeAssistant, callback
-from homeassistant.exceptions import ConfigEntryError
+from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -41,6 +41,7 @@ from .coordinator import (
     check_configured,
     clear_circuit_notices,
     remove_circuits_left_off,
+    remove_rows_of_other_layout,
     report_circuits,
     write_budget,
 )
@@ -60,7 +61,8 @@ from .webif_sensor import (
 from .webif_shared import clear_shared_notice, leave_out_stored
 from .weishaupt_modbus_api.const import DEFAULT_PORT, MODBUS_UNIT_ID
 from .weishaupt_modbus_api.device import WeishauptHeatPump
-from .weishaupt_modbus_api.hpconst import DEVICELISTS
+from .weishaupt_modbus_api.hpconst import DEVICELISTS, MODBUS_W2_ITEMS
+from .weishaupt_modbus_api.layout import detect_w2_layout, w2_items
 from .weishaupt_modbus_api.write_budget import WriteBudget
 from .write_counts import async_keep_write_counts, async_remove_write_counts
 
@@ -152,14 +154,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
     """Set up entry."""
     if is_web_interface(entry):
         return await _async_setup_web_interface(hass, cast(WebifConfigEntry, entry))
-    # Independent copies per config entry: the rows carry runtime state. A
-    # circuit the entry does not enable is neither polled nor an entity.
-    itemlist: list[ModbusItem] = [
-        copy.deepcopy(item)
-        for device in DEVICELISTS
-        for item in device
-        if check_configured(item, entry)
-    ]
     # The socket belongs to Home Assistant's modbus integration: one
     # connection per endpoint, shared with anything else that talks to the
     # controller, released when this entry unloads.
@@ -167,6 +161,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
         host=entry.data[CONF.HOST], port=int(entry.data.get(CONF.PORT, DEFAULT_PORT))
     )
     unit = async_get_unit(hass, entry, params, MODBUS_UNIT_ID)
+    try:
+        layout = await detect_w2_layout(unit, host_lock(hass, entry.data[CONF.HOST]))
+    except ModbusError as err:
+        raise ConfigEntryNotReady(
+            translation_domain=CONST.DOMAIN,
+            translation_key="communication_failed",
+            translation_placeholders={"error": str(err)},
+        ) from err
+    _LOGGER.debug("2nd heat source register layout: %s", layout.value)
+    # Independent copies per config entry: the rows carry runtime state. A
+    # circuit the entry does not enable is neither polled nor an entity.
+    itemlist: list[ModbusItem] = [
+        copy.deepcopy(item)
+        for device in DEVICELISTS
+        for item in (w2_items(layout) if device is MODBUS_W2_ITEMS else device)
+        if check_configured(item, entry)
+    ]
     budget = write_budget(entry)
     await async_keep_write_counts(hass, entry, budget)
     pump = WeishauptHeatPump(
@@ -191,6 +202,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
         configurations = {}
     report_circuits(hass, entry, configurations)
     remove_circuits_left_off(hass, entry)
+    remove_rows_of_other_layout(hass, entry, layout)
     # On every setup, not in the migration: releases before 2.1.2 migrated
     # the entry and left them behind.
     _remove_legacy_web_interface_devices(hass, entry)

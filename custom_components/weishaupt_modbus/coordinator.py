@@ -13,17 +13,22 @@ from custom_components.weishaupt_modbus.weishaupt_modbus_api.const import (
     DEFAULT_WRITE_WARNING_PER_DAY,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import device_registry as dr, issue_registry as ir
+from homeassistant.helpers import (
+    device_registry as dr,
+    entity_registry as er,
+    issue_registry as ir,
+)
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
 from .configentry import MyConfigEntry
 from .const import CONF, CONST, DeviceConstants
 from .items import ModbusItem
-from .migrate_helpers import device_postfix
+from .migrate_helpers import device_postfix, unique_id_from_parts
 from .outage import ExpectedOutage, log_expected_outages_at_info
 from .weishaupt_modbus_api.device import WeishauptHeatPump
 from .weishaupt_modbus_api.hpconst import HZ_KONFIGURATION
+from .weishaupt_modbus_api.layout import EP_ROW_NAMES, LIMIT_ROW_NAME, W2Layout
 from .weishaupt_modbus_api.write_budget import WriteBudget
 
 _LOGGER = logging.getLogger(__name__)
@@ -73,6 +78,34 @@ def remove_circuits_left_off(hass: HomeAssistant, entry: MyConfigEntry) -> None:
         found = registry.async_get_device_by_identifier(identifier, entry.entry_id)
         if found is not None:
             registry.async_remove_device(found.id)
+
+
+@callback
+def remove_rows_of_other_layout(
+    hass: HomeAssistant, entry: MyConfigEntry, layout: W2Layout
+) -> None:
+    """Take the EP1/EP2 entities away on a pump of the short layout.
+
+    It has no such registers; left in the registry they stayed unavailable.
+    A later long layout gets them back with their settings. A change of
+    layout between two loads is logged, so a flip shows.
+    """
+    registry = er.async_get(hass)
+    found = {
+        registered.unique_id: registered.entity_id
+        for registered in er.async_entries_for_config_entry(registry, entry.entry_id)
+    }
+    ep_ids = [unique_id_from_parts(entry.data, name) for name in EP_ROW_NAMES]
+    if layout is W2Layout.LONG:
+        limit = unique_id_from_parts(entry.data, LIMIT_ROW_NAME)
+        if limit in found and ep_ids[0] not in found:
+            _LOGGER.info("2nd heat source register layout changed to long")
+        return
+    removed = [found[unique_id] for unique_id in ep_ids if unique_id in found]
+    for entity_id in removed:
+        registry.async_remove(entity_id)
+    if removed:
+        _LOGGER.info("2nd heat source register layout changed to short")
 
 
 def report_circuits(

@@ -23,8 +23,9 @@ from .hpconst import MODBUS_W2_ITEMS
 
 # The short layout's addresses of the rows that move; the names are the rows'
 # unique-id keys, so each keeps its entity and history.
+LIMIT_ROW_NAME = "Grenztemperatur"
 SHORT_ADDRESSES: dict[str, int] = {
-    "Grenztemperatur": 44102,
+    LIMIT_ROW_NAME: 44102,
     "Bivalenztemperatur": 44103,
     "Bivalenztemperatur WW": 44104,
 }

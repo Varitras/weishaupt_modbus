@@ -2115,3 +2115,128 @@ async def test_an_enabled_heating_circuit_is_polled(hass, pump):
         <= read.address + read.count - 1
         for read in pump.unit.read_events
     )
+
+
+# The 2nd heat source of a WWP LS (upstream #167): -25, -5 and -5 degC at
+# 44102-44104, and 44105/44106 refused.
+LIMIT_UNIQUE_ID = "weishaupt_wbbGrenztemperatur"
+TEMPERATURE_UNIQUE_IDS = {
+    LIMIT_UNIQUE_ID: 44102,
+    "weishaupt_wbbBivalenztemperatur": 44103,
+    "weishaupt_wbbBivalenztemperatur WW": 44104,
+}
+EP_UNIQUE_IDS = {"weishaupt_wbbKonfiguration EP1", "weishaupt_wbbKonfiguration EP2"}
+
+
+def _short_pump(pump):
+    pump.load_raw({"holding": {44101: 4, 44102: 65286, 44103: 65486, 44104: 65486}})
+    pump.fail_read_band(44105, "holding")
+    pump.fail_read_band(44106, "holding")
+
+
+def _unique_ids(hass, entry):
+    return {
+        registered.unique_id: registered.entity_id
+        for registered in er.async_entries_for_config_entry(
+            er.async_get(hass), entry.entry_id
+        )
+    }
+
+
+async def test_a_short_layout_pump_shows_its_temperatures(hass, pump):
+    """A WWP LS refused 44105/44106; the poll timed out on the busy answer
+    of the 3-register block, and the pump was never set up."""
+    _short_pump(pump)
+    entry = await _setup(hass, _entry(hass))
+    entities = _unique_ids(hass, entry)
+
+    assert entry.state is ConfigEntryState.LOADED
+    shown = {
+        unique_id: hass.states.get(entities[unique_id]).state
+        for unique_id in TEMPERATURE_UNIQUE_IDS
+    }
+    assert shown == {
+        LIMIT_UNIQUE_ID: "-25.0",
+        "weishaupt_wbbBivalenztemperatur": "-5.0",
+        "weishaupt_wbbBivalenztemperatur WW": "-5.0",
+    }
+    assert not EP_UNIQUE_IDS & set(entities)
+
+
+async def test_the_limit_temperature_writes_44102_on_the_short_layout(hass, pump):
+    _short_pump(pump)
+    entry = await _setup(hass, _entry(hass))
+    writes = []
+    pump.unit.on_write(writes.append)
+
+    await hass.services.async_call(
+        "number",
+        "set_value",
+        {"entity_id": _unique_ids(hass, entry)[LIMIT_UNIQUE_ID], "value": 10},
+        blocking=True,
+    )
+
+    assert [(event.address, event.values) for event in writes] == [(44102, [100])]
+
+
+async def test_the_limit_switch_writes_44102_on_the_short_layout(hass, pump):
+    _short_pump(pump)
+    entry = await _setup(hass, _entry(hass))
+    writes = []
+    pump.unit.on_write(writes.append)
+
+    await _switch(
+        hass, "turn_off", _unique_ids(hass, entry)[LIMIT_UNIQUE_ID + "_active"]
+    )
+
+    assert [(event.address, event.values) for event in writes] == [(44102, [0x8000])]
+
+
+async def test_the_temperatures_keep_their_unique_ids_on_the_short_layout(hass, pump):
+    """Keyed on the row name: the entity, its history and its switch stay."""
+    long_entry = await _setup(hass, _entry(hass))
+    long_ids = set(_unique_ids(hass, long_entry))
+
+    _short_pump(pump)
+    assert await hass.config_entries.async_reload(long_entry.entry_id)
+    await hass.async_block_till_done()
+
+    short_ids = set(_unique_ids(hass, long_entry))
+    assert set(TEMPERATURE_UNIQUE_IDS) | {LIMIT_UNIQUE_ID + "_active"} <= short_ids
+    assert short_ids == long_ids - EP_UNIQUE_IDS
+
+
+async def test_a_long_layout_pump_keeps_its_entities(hass, pump):
+    pump.load_raw({"holding": {44104: 70}})
+    entry = await _setup(hass, _entry(hass))
+    entities = _unique_ids(hass, entry)
+
+    assert set(entities) >= EP_UNIQUE_IDS
+    assert hass.states.get(entities[LIMIT_UNIQUE_ID]).state == "7.0"
+
+
+async def test_ep_entries_are_removed_on_a_short_layout(hass, pump, caplog):
+    entry = await _setup(hass, _entry(hass))
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert set(_unique_ids(hass, entry)) >= EP_UNIQUE_IDS, "a long reload kept them"
+
+    _short_pump(pump)
+    caplog.set_level(logging.INFO)
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert not EP_UNIQUE_IDS & set(_unique_ids(hass, entry))
+    assert "2nd heat source register layout changed to short" in caplog.text
+
+
+async def test_an_undetermined_layout_retries_the_setup(hass, pump):
+    """44105 refused but 44106 answering fits neither layout: a guess could
+    write a temperature into a configuration register."""
+    pump.fail_read_band(44105, "holding")
+    entry = _entry(hass)
+
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.SETUP_RETRY
