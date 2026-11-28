@@ -4321,8 +4321,8 @@
   {
     "label": "device: a circuit configuration read is not cut off",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "            async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):\n                words = await self._unit.read_holding_registers(address, 1)\n",
-    "new": "            async with self._host_lock:\n                words = await self._unit.read_holding_registers(address, 1)\n",
+    "old": "        async with host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):\n            words = await unit.read_holding_registers(address, 1)\n",
+    "new": "        async with host_lock:\n            words = await unit.read_holding_registers(address, 1)\n",
     "tests": "circuit_configuration_read_that_never_answers"
   },
   {
@@ -4636,8 +4636,8 @@
   {
     "label": "device: a fresh read that hangs fails the write untranslated",
     "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
-    "old": "            raise ModbusTimeoutError(f\"register {address}: no answer\") from err\n",
-    "new": "            raise\n",
+    "old": "        raise ModbusTimeoutError(f\"register {address}: no answer\") from err\n",
+    "new": "        raise\n",
     "tests": "fails_as_a_modbus_timeout or circuit_configuration_read_that_never_answers"
   },
   {
@@ -6683,5 +6683,96 @@
     "old": "resultlist=W2_STATUS, params={\"digital\": True}, translation_key=\"ausg_h12\"),",
     "new": "resultlist=W2_STATUS, translation_key=\"ausg_h12\"),",
     "tests": "switch_input"
+  },
+  {
+    "label": "layout: a pump answering 44105 is long",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/layout.py",
+    "old": "    if not await refused(LONG_ONLY[0]):\n        return W2Layout.LONG\n",
+    "new": "    if not await refused(LONG_ONLY[0]):\n        return W2Layout.SHORT\n",
+    "tests": "a_pump_answering_44105_is_long"
+  },
+  {
+    "label": "layout: 44106 must be refused too",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/layout.py",
+    "old": "    if not await refused(LONG_ONLY[1]):\n        raise LayoutUndetermined(\"44105 refused, 44106 answered\")\n",
+    "new": "    await refused(LONG_ONLY[1])\n",
+    "tests": "44106_answering_after_44105_refused"
+  },
+  {
+    "label": "layout: a partial answer is never short",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/layout.py",
+    "old": "    raise LayoutUndetermined(\"44102-44104 answered only in part\")\n",
+    "new": "    return W2Layout.SHORT\n",
+    "tests": "partial_answer_is_undetermined"
+  },
+  {
+    "label": "layout: only code 2 counts as refused",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/layout.py",
+    "old": "        except ModbusExceptionError as err:\n            raise LayoutUndetermined(f\"register {address}: {err!r}\") from err\n",
+    "new": "        except ModbusExceptionError:\n            return True\n",
+    "tests": "another_exception_code_is_undetermined"
+  },
+  {
+    "label": "layout: the short limit temperature sits at 44102",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/layout.py",
+    "old": "    LIMIT_ROW_NAME: 44102,\n",
+    "new": "    LIMIT_ROW_NAME: 44104,\n",
+    "tests": "short_rows_move_only"
+  },
+  {
+    "label": "setup: the rows follow the detected layout",
+    "path": "custom_components/weishaupt_modbus/__init__.py",
+    "old": "        for item in (w2_items(layout) if device is MODBUS_W2_ITEMS else device)\n",
+    "new": "        for item in device\n",
+    "tests": "short_layout_pump_shows_its_temperatures"
+  },
+  {
+    "label": "cleanup: EP1/EP2 leave the registry on the short layout",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "        registry.async_remove(entity_id)\n",
+    "new": "        pass\n",
+    "tests": "ep_entries_are_removed"
+  },
+  {
+    "label": "device: no 2nd heat source band is 3 registers wide",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/device.py",
+    "old": "    *((address, address) for address in range(44101, 44107)),\n",
+    "new": "    (44101, 44103),\n    *((address, address) for address in range(44104, 44107)),\n",
+    "tests": "three_registers_wide"
+  },
+  {
+    "label": "cleanup: a change back to the long layout is logged",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "            _LOGGER.info(\"2nd heat source register layout changed to long\")\n",
+    "new": "            pass\n",
+    "tests": "change_back_to_the_long_layout_is_logged"
+  },
+  {
+    "label": "layout: link and protocol errors are not read as a layout",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/layout.py",
+    "old": "        except ModbusExceptionError as err:\n",
+    "new": "        except Exception as err:\n",
+    "tests": "link_error_while_detecting_propagates"
+  },
+  {
+    "label": "layout: all five refused confirms no layout",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/layout.py",
+    "old": "    if answers == {False}:\n        return W2Layout.ABSENT\n",
+    "new": "    if answers == {False}:\n        return W2Layout.LONG\n",
+    "tests": "all_five_refused_is_absent"
+  },
+  {
+    "label": "layout: an unconfirmed layout leaves the temperatures out",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/layout.py",
+    "old": "        left_out |= set(SHORT_ADDRESSES)\n",
+    "new": "        pass\n",
+    "tests": "absent_layout_has_no_rows_to_write"
+  },
+  {
+    "label": "cleanup: an unconfirmed layout keeps the EP entries",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "    if layout is W2Layout.ABSENT:\n        # Kept: whichever layout the next load confirms gets its own back.\n        return\n",
+    "new": "",
+    "tests": "layout_left_open_keeps_the_ep_entries"
   }
 ]
