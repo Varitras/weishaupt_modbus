@@ -142,14 +142,14 @@ out rather than failing the dialog; so are two circuits the overview links to
 one address.
 Each of the two pages Info lists has an interval of its own, and the settings
 pages share one; all three are 15 minutes
-unless set otherwise. An entry added before this version reads them after
+unless set otherwise. An entry added before 2.1.2b3 reads them after
 **Reconfigure**.
 
 On a WBB and an Evoblock, *Wärmepumpe › Modulation* sets the heat pump's
 output while the hot water loads: Automatik, or a fixed 50 to 100 %. It is
 off unless switched on in the web interface entry's options, as it costs a
 page more; then it is read once an hour and offered as a choice to set. An
-entry added before this version shows the switch after **Reconfigure** once,
+entry added before 2.1.2b3 shows the switch after **Reconfigure** once,
 where the controller offers the page.
 
 The controller's web server is slow and now and then answers with an
@@ -179,7 +179,7 @@ and what the file holds:
 - The yearly energy registers answer but stay at 0 on every controller seen
   so far; the yearly total exists only on the display, in the WEM portal and in
   the web interface. They and the performance factor of the year are created
-  disabled.
+  disabled in a new installation; an existing entry keeps them as they are.
 - The H1 inputs show off/on: every function the controller offers for them is
   a contact. The web interface counts them one higher (its H1.3 is *Input
   H1.2*). They used to be temperatures, so Home Assistant lists their old
