@@ -91,6 +91,19 @@ def band_of(address: int) -> Band:
     raise ValueError(f"register {address} lies in no known band")
 
 
+async def read_word(unit: ModbusUnit, host_lock: asyncio.Lock, address: int) -> int:
+    """One holding register, under the controller's lock like a band read."""
+    try:
+        async with host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):
+            words = await unit.read_holding_registers(address, 1)
+    except ModbusError:
+        raise
+    except TimeoutError as err:
+        # The writes that read first translate Modbus errors for the user.
+        raise ModbusTimeoutError(f"register {address}: no answer") from err
+    return words[0]
+
+
 def _apply(row: ModbusItem, value: Any) -> None:
     """What one decoded word means for the row: absent, off, or a value."""
     row.is_invalid = value is NO_SENSOR
@@ -315,16 +328,7 @@ class WeishauptHeatPump:
         return await self._read_word(address) == value & WORD_MASK
 
     async def _read_word(self, address: int) -> int:
-        """One holding register, under the controller's lock like a band read."""
-        try:
-            async with self._host_lock, asyncio.timeout(BAND_TIMEOUT_SECONDS):
-                words = await self._unit.read_holding_registers(address, 1)
-        except ModbusError:
-            raise
-        except TimeoutError as err:
-            # The writes that read first translate Modbus errors for the user.
-            raise ModbusTimeoutError(f"register {address}: no answer") from err
-        return words[0]
+        return await read_word(self._unit, self._host_lock, address)
 
     def serves(self, item: ModbusItem) -> bool:
         """Whether the pump answered this row's band on the last poll."""

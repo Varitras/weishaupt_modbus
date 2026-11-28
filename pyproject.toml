@@ -322,6 +322,7 @@ files = [
   "custom_components/weishaupt_modbus/weishaupt_modbus_api/const.py",
   "custom_components/weishaupt_modbus/weishaupt_modbus_api/exceptions.py",
   "custom_components/weishaupt_modbus/weishaupt_modbus_api/hpconst.py",
+  "custom_components/weishaupt_modbus/weishaupt_modbus_api/layout.py",
 ]
 
 # Path tracking rules

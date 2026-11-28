@@ -12,6 +12,14 @@ class SystemBandRefused(ModbusError):
     """
 
 
+class LayoutUndetermined(ModbusError):
+    """The 2nd heat source registers answered like neither known layout.
+
+    A ModbusError, so the setup treats it as a communication failure and
+    retries: guessing could write a temperature into a configuration register.
+    """
+
+
 class WriteError(Exception):
     """A register write was refused before it reached the wire: the day's limit."""
 
