@@ -213,6 +213,16 @@ class SharedMockModbus:
                 address, IllegalDataAddressError(), register_type=register_type
             )
 
+    def serve_band_again(self, address: int, register_type: str = "input") -> None:
+        """The controller answers the band starting at ``address`` again."""
+        self._read_failures = [
+            failure
+            for failure in self._read_failures
+            if (failure[0], failure[2]) != (address, register_type)
+        ]
+        for connection in self.connections:
+            connection.for_unit(1).fail_read(address, None, register_type=register_type)
+
     def fail_requests(self, error: Exception | None) -> None:
         self._request_failure = error
         for connection in self.connections:

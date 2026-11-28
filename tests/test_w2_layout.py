@@ -5,6 +5,8 @@ import asyncio
 from modbus_connection import (
     IllegalDataAddressError,
     ModbusConnectionError,
+    ModbusDesyncError,
+    ModbusError,
     ModbusProtocolError,
     ModbusTimeoutError,
     ServerDeviceBusyError,
@@ -88,7 +90,13 @@ async def test_another_exception_code_is_undetermined():
 
 @pytest.mark.parametrize(
     "error",
-    [ModbusConnectionError("x"), ModbusTimeoutError("x"), ModbusProtocolError("x")],
+    [
+        ModbusConnectionError("x"),
+        ModbusTimeoutError("x"),
+        ModbusProtocolError("x"),
+        ModbusDesyncError("x"),
+        ModbusError("x"),
+    ],
 )
 async def test_a_link_error_while_detecting_propagates(error):
     unit = _unit(SHORT_PUMP, errors={44105: error})

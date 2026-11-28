@@ -6739,5 +6739,19 @@
     "old": "    *((address, address) for address in range(44101, 44107)),\n",
     "new": "    (44101, 44103),\n    *((address, address) for address in range(44104, 44107)),\n",
     "tests": "three_registers_wide"
+  },
+  {
+    "label": "cleanup: a change back to the long layout is logged",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "            _LOGGER.info(\"2nd heat source register layout changed to long\")\n",
+    "new": "            pass\n",
+    "tests": "change_back_to_the_long_layout_is_logged"
+  },
+  {
+    "label": "layout: link and protocol errors are not read as a layout",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/layout.py",
+    "old": "        except ModbusExceptionError as err:\n",
+    "new": "        except Exception as err:\n",
+    "tests": "link_error_while_detecting_propagates"
   }
 ]

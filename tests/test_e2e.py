@@ -2240,3 +2240,18 @@ async def test_an_undetermined_layout_retries_the_setup(hass, pump):
     await hass.async_block_till_done()
 
     assert entry.state is ConfigEntryState.SETUP_RETRY
+
+
+async def test_a_change_back_to_the_long_layout_is_logged(hass, pump, caplog):
+    """The layout is detected anew at every load; a flip must show."""
+    _short_pump(pump)
+    entry = await _setup(hass, _entry(hass))
+
+    pump.serve_band_again(44105, "holding")
+    pump.serve_band_again(44106, "holding")
+    caplog.set_level(logging.INFO)
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert set(_unique_ids(hass, entry)) >= EP_UNIQUE_IDS
+    assert "2nd heat source register layout changed to long" in caplog.text
