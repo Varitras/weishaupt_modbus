@@ -41,6 +41,10 @@ CIRCUIT_CONFIGURATION = 41101
 # The contiguous address ranges the controller serves, from the Weishaupt
 # register lists and a scan of a WBB (2026-07). Heating circuits 2-5 sit
 # 100, 200, 300, 400 above circuit 1. A read must never cross a band end.
+# No band is 3 registers wide: a refused block answers code 2 x its count,
+# and code 6 is "busy", which the library retries until the read times out.
+# The 2nd heat source registers are read one by one: models place them
+# differently, and some refuse 44105/44106.
 BANDS: tuple[Band, ...] = (
     (30001, 30006),
     (40001, 40002),
@@ -58,8 +62,7 @@ BANDS: tuple[Band, ...] = (
     (33126, 33126),
     (43101, 43110),
     (34101, 34107),
-    (44101, 44103),
-    (44104, 44106),
+    *((address, address) for address in range(44101, 44107)),
     (35101, 35108),
     (45101, 45108),
     *((36001 + 100 * group, 36004 + 100 * group) for group in range(1, 8)),

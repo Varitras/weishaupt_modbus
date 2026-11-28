@@ -128,6 +128,14 @@ def test_no_band_mixes_input_and_holding_registers():
         )
 
 
+def test_no_band_is_three_registers_wide():
+    """The controller refuses a block with code 2 x its register count, and
+    code 6 is "server busy", which the Modbus library retries for 60 s: a
+    refused 3-register band failed the whole poll instead of reading absent,
+    and a pump without the 2nd heat source registers never finished setup."""
+    assert [band for band in BANDS if band[1] - band[0] + 1 == 3] == []
+
+
 def test_an_address_outside_every_band_is_refused():
     with pytest.raises(ValueError, match="no known band"):
         band_of(39901)
