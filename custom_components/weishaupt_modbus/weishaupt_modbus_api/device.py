@@ -99,7 +99,8 @@ async def read_word(unit: ModbusUnit, host_lock: asyncio.Lock, address: int) -> 
     except ModbusError:
         raise
     except TimeoutError as err:
-        # The writes that read first translate Modbus errors for the user.
+        # A Modbus error, not a bare timeout: the writes that read first
+        # translate it for the user, and the setup retries on it.
         raise ModbusTimeoutError(f"register {address}: no answer") from err
     return words[0]
 
