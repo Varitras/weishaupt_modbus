@@ -57,11 +57,13 @@ async def test_44105_and_44106_refused_with_44102_to_44104_answering_is_short():
     assert await _detect(unit) is W2Layout.SHORT
 
 
-async def test_all_five_refused_is_long():
-    """A pump without these registers: the poll marks them absent."""
+async def test_all_five_refused_is_absent():
+    """Neither layout confirmed: a short pump refusing everything for a while
+    was taken as long, and once 44104 answered again its limit temperature
+    wrote the DHW bivalence temperature."""
     unit = _unit(refused=(44102, 44103, 44104, 44105, 44106))
 
-    assert await _detect(unit) is W2Layout.LONG
+    assert await _detect(unit) is W2Layout.ABSENT
 
 
 async def test_a_partial_answer_is_undetermined():
@@ -145,6 +147,17 @@ def test_the_short_rows_move_only_the_three_temperatures():
         "Bivalenztemperatur WW": 44104,
     }
     assert [(row.name, row.address) for row in MODBUS_W2_ITEMS] == before
+
+
+def test_an_absent_layout_has_no_rows_to_write():
+    """Without a confirmed layout no row may sit on a register whose meaning
+    depends on it."""
+    names = {row.name for row in w2_items(W2Layout.ABSENT)}
+
+    assert not names & (set(EP_ROW_NAMES) | set(SHORT_ADDRESSES))
+    assert names == {row.name for row in MODBUS_W2_ITEMS} - set(EP_ROW_NAMES) - set(
+        SHORT_ADDRESSES
+    )
 
 
 def test_the_long_rows_are_the_table_rows():

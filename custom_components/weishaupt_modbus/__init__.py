@@ -62,7 +62,7 @@ from .webif_shared import clear_shared_notice, leave_out_stored
 from .weishaupt_modbus_api.const import DEFAULT_PORT, MODBUS_UNIT_ID
 from .weishaupt_modbus_api.device import WeishauptHeatPump
 from .weishaupt_modbus_api.hpconst import DEVICELISTS, MODBUS_W2_ITEMS
-from .weishaupt_modbus_api.layout import detect_w2_layout, w2_items
+from .weishaupt_modbus_api.layout import W2Layout, detect_w2_layout, w2_items
 from .weishaupt_modbus_api.write_budget import WriteBudget
 from .write_counts import async_keep_write_counts, async_remove_write_counts
 
@@ -170,6 +170,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: MyConfigEntry) -> bool:
             translation_placeholders={"error": str(err)},
         ) from err
     _LOGGER.debug("2nd heat source register layout: %s", layout.value)
+    if layout is W2Layout.ABSENT:
+        _LOGGER.info(
+            "2nd heat source temperatures not read: 44102-44106 refused; "
+            "the next load checks again"
+        )
     # Independent copies per config entry: the rows carry runtime state. A
     # circuit the entry does not enable is neither polled nor an entity.
     itemlist: list[ModbusItem] = [

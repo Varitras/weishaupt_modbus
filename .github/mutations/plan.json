@@ -6753,5 +6753,26 @@
     "old": "        except ModbusExceptionError as err:\n",
     "new": "        except Exception as err:\n",
     "tests": "link_error_while_detecting_propagates"
+  },
+  {
+    "label": "layout: all five refused confirms no layout",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/layout.py",
+    "old": "    if answers == {False}:\n        return W2Layout.ABSENT\n",
+    "new": "    if answers == {False}:\n        return W2Layout.LONG\n",
+    "tests": "all_five_refused_is_absent"
+  },
+  {
+    "label": "layout: an unconfirmed layout leaves the temperatures out",
+    "path": "custom_components/weishaupt_modbus/weishaupt_modbus_api/layout.py",
+    "old": "        left_out |= set(SHORT_ADDRESSES)\n",
+    "new": "        pass\n",
+    "tests": "absent_layout_has_no_rows_to_write"
+  },
+  {
+    "label": "cleanup: an unconfirmed layout keeps the EP entries",
+    "path": "custom_components/weishaupt_modbus/coordinator.py",
+    "old": "    if layout is W2Layout.ABSENT:\n        # Kept: whichever layout the next load confirms gets its own back.\n        return\n",
+    "new": "",
+    "tests": "layout_left_open_keeps_the_ep_entries"
   }
 ]

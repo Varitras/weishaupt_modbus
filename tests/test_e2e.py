@@ -2255,3 +2255,41 @@ async def test_a_change_back_to_the_long_layout_is_logged(hass, pump, caplog):
 
     assert set(_unique_ids(hass, entry)) >= EP_UNIQUE_IDS
     assert "2nd heat source register layout changed to long" in caplog.text
+
+
+async def test_a_layout_left_open_at_setup_offers_no_temperature_to_write(hass, pump):
+    """A short pump refused all five registers at setup and was taken as
+    long; when 44104 answered again, its limit temperature wrote the DHW
+    bivalence temperature. Without a confirmed layout the temperatures are
+    left out until the next load decides."""
+    _short_pump(pump)
+    pump.fail_read_band(44102, "holding")
+    pump.fail_read_band(44103, "holding")
+    pump.fail_read_band(44104, "holding")
+    entry = await _setup(hass, _entry(hass))
+    assert entry.state is ConfigEntryState.LOADED
+
+    for address in (44102, 44103, 44104):
+        pump.serve_band_again(address, "holding")
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    entities = _unique_ids(hass, entry)
+    assert not (set(TEMPERATURE_UNIQUE_IDS) | EP_UNIQUE_IDS) & set(entities)
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    entities = _unique_ids(hass, entry)
+    assert hass.states.get(entities[LIMIT_UNIQUE_ID]).state == "-25.0"
+
+
+async def test_a_layout_left_open_keeps_the_ep_entries(hass, pump):
+    """The next load may confirm the long layout; its EP rows come back."""
+    entry = await _setup(hass, _entry(hass))
+    for address in (44102, 44103, 44104, 44105, 44106):
+        pump.fail_read_band(address, "holding")
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert set(_unique_ids(hass, entry)) >= EP_UNIQUE_IDS

@@ -36,10 +36,14 @@ LONG_ONLY = (44105, 44106)
 
 
 class W2Layout(Enum):
-    """The two register layouts of the 2nd heat source."""
+    """The register layouts of the 2nd heat source, and none confirmed."""
 
     LONG = "long"
     SHORT = "short"
+    # All five refused: a pump without them, or one refusing for a while.
+    # Its temperatures are left out until a load confirms a layout, so none
+    # can come back later at the other layout's register.
+    ABSENT = "absent"
 
 
 async def detect_w2_layout(unit: ModbusUnit, host_lock: asyncio.Lock) -> W2Layout:
@@ -47,8 +51,8 @@ async def detect_w2_layout(unit: ModbusUnit, host_lock: asyncio.Lock) -> W2Layou
 
     Short only when 44105 and 44106 are refused and 44102-44104 all answer:
     a long pump read as short would write its temperatures into the EP1/EP2
-    configuration. Anything between the two raises LayoutUndetermined; link
-    errors propagate.
+    configuration. All five refused is ABSENT; anything else in between raises
+    LayoutUndetermined; link errors propagate.
     """
 
     async def refused(address: int) -> bool:
@@ -68,8 +72,7 @@ async def detect_w2_layout(unit: ModbusUnit, host_lock: asyncio.Lock) -> W2Layou
     if answers == {True}:
         return W2Layout.SHORT
     if answers == {False}:
-        # Neither layout's temperatures: the poll marks the registers absent.
-        return W2Layout.LONG
+        return W2Layout.ABSENT
     raise LayoutUndetermined("44102-44104 answered only in part")
 
 
@@ -77,9 +80,12 @@ def w2_items(layout: W2Layout) -> list[ModbusItem]:
     """The 2nd heat source rows of the layout; the long ones are the table's."""
     if layout is W2Layout.LONG:
         return MODBUS_W2_ITEMS
+    left_out = set(EP_ROW_NAMES)
+    if layout is W2Layout.ABSENT:
+        left_out |= set(SHORT_ADDRESSES)
     rows = []
     for item in MODBUS_W2_ITEMS:
-        if item.name in EP_ROW_NAMES:
+        if item.name in left_out:
             continue
         row = copy.deepcopy(item)
         row.address = SHORT_ADDRESSES.get(item.name, item.address)

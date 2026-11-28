@@ -96,6 +96,9 @@ def remove_rows_of_other_layout(
         for registered in er.async_entries_for_config_entry(registry, entry.entry_id)
     }
     ep_ids = [unique_id_from_parts(entry.data, name) for name in EP_ROW_NAMES]
+    if layout is W2Layout.ABSENT:
+        # Kept: whichever layout the next load confirms gets its own back.
+        return
     if layout is W2Layout.LONG:
         limit = unique_id_from_parts(entry.data, LIMIT_ROW_NAME)
         if limit in found and ep_ids[0] not in found:
