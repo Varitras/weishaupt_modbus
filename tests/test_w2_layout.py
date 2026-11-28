@@ -80,7 +80,7 @@ async def test_another_exception_code_is_undetermined():
     """Only code 2 says "not here"; a busy or failing controller says
     nothing about the layout, and a long pump read as short would write its
     temperatures into the EP configuration registers."""
-    unit = _unit(SHORT_PUMP, errors={44105: ServerDeviceBusyError()})
+    unit = _unit(SHORT_PUMP, refused=(44106,), errors={44105: ServerDeviceBusyError()})
 
     with pytest.raises(LayoutUndetermined):
         await _detect(unit)

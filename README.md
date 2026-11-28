@@ -89,6 +89,9 @@ prefix and the device postfix. The entity types are sensors, numbers
 (writable setpoints), selects (writable modes) and switches (setpoints the
 controller can switch off). Every entity, with its register, unit and range, is
 listed under [Entities](https://github.com/Varitras/weishaupt_modbus/wiki/Entities).
+Some models (the WWP LS) keep the limit and bivalence temperatures of the 2nd
+heat source at other registers and have no EP1/EP2 configuration; the
+integration finds this out at every start.
 
 The integration registers no actions of its own. Values are written with Home
 Assistant's standard actions: `number.set_value`, `select.select_option`,
